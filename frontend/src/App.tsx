@@ -57,19 +57,23 @@ function AppRoutes() {
         }
       >
         <Route
-          path="/"
+          path="/dashboard"
           element={
-            <Suspense fallback={<PageLoader />}>
-              <DashboardPage />
-            </Suspense>
+            <ErrorBoundary title="Erro ao abrir o dashboard">
+              <Suspense fallback={<PageLoader />}>
+                <DashboardPage />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route
-          path="/dashboard"
+          path="/"
           element={
-            <Suspense fallback={<PageLoader />}>
-              <DashboardPage />
-            </Suspense>
+            <ErrorBoundary title="Erro ao abrir o dashboard">
+              <Suspense fallback={<PageLoader />}>
+                <DashboardPage />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route

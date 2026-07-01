@@ -67,7 +67,11 @@ async function bootstrap() {
       '/uploads',
     ];
     const isApiPath = (path: string) =>
-      apiPrefixes.some((p) => path === p || path.startsWith(`${p}/`));
+      apiPrefixes.some((p) => {
+        // /dashboard é rota do React; a API usa /dashboard/:municipalityId
+        if (p === '/dashboard') return path.startsWith('/dashboard/');
+        return path === p || path.startsWith(`${p}/`);
+      });
 
     app.useStaticAssets(publicDir, { index: false, fallthrough: true });
     app.use((req: Request, res: Response, next: NextFunction) => {
