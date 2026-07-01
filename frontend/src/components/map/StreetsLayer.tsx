@@ -77,6 +77,7 @@ export function StreetsLayer({
           id: street.id,
           name: street.name,
           streetType: street.streetType ?? 'Rua',
+          isDirtRoad: (street.streetType ?? '').toLowerCase().includes('terra'),
           color: street.microarea?.color ?? '#888',
           microareaName: street.microarea?.name,
           hasMicroarea: !!street.microareaId,
@@ -141,14 +142,17 @@ export function StreetsLayer({
     };
   };
 
-  const unassignedStyle = (): PathOptions => ({
-    color: activeColor,
-    weight: 7,
-    opacity: 0.65,
-    dashArray: '8 6',
-    lineCap: 'round',
-    lineJoin: 'round',
-  });
+  const unassignedStyle = (feature?: GeoJSON.Feature): PathOptions => {
+    const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
+    return {
+      color: isDirt ? '#c4a35a' : activeColor,
+      weight: isDirt ? 6 : 7,
+      opacity: isDirt ? 0.85 : 0.65,
+      dashArray: isDirt ? '4 8' : '8 6',
+      lineCap: 'round',
+      lineJoin: 'round',
+    };
+  };
 
   const bindInteraction = (feature: GeoJSON.Feature, layer: L.Layer) => {
     const props = feature.properties as {

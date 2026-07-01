@@ -1,0 +1,37 @@
+# Blueprint Render — backend SIGAPS (plano gratuito)
+# Conecte o repo no Render: New → Blueprint → selecione este repositório
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: sigaps-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    branch: master
+    autoDeploy: true
+    healthCheckPath: /docs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        sync: false
+      - key: OSM_RELATION_ID_PASSAGEM_FRANCA
+        value: "332931"
+      - key: NOMINATIM_URL
+        value: https://nominatim.openstreetmap.org
+      - key: OVERPASS_URL
+        value: https://overpass-api.de/api/interpreter

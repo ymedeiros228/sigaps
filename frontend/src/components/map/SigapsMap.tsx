@@ -217,7 +217,7 @@ export function SigapsMap() {
         setSnackbar({
           message:
             source === 'bundled'
-              ? `${imported} ruas de Passagem Franca prontas (dados locais). Pode pintar!`
+              ? `${imported} vias de Passagem Franca (inclui estradas de terra). Pode pintar!`
               : `${imported || res.data?.total} ruas prontas! Escolha a microárea e clique nas ruas.`,
           severity: 'success',
         });

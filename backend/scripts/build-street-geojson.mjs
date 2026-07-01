@@ -1,5 +1,5 @@
 /**
- * Converte export OSM XML (api/0.6/map) em GeoJSON de ruas nomeadas.
+ * Converte export OSM XML (api/0.6/map) em GeoJSON de ruas (pavimentadas + estradas de terra).
  * Uso: node scripts/build-street-geojson.mjs [entrada.osm] [saida.geojson]
  */
 import { readFileSync, writeFileSync } from 'fs';
@@ -12,7 +12,20 @@ const root = join(__dirname, '..');
 const input = process.argv[2] ?? join(root, 'assets/geo/passagem-franca-map.osm');
 const output = process.argv[3] ?? join(root, 'assets/geo/passagem-franca-streets.geojson');
 
-const HIGHWAY = /^(primary|secondary|tertiary|residential|unclassified|living_street)$/;
+const HIGHWAY = /^(primary|secondary|tertiary|residential|unclassified|living_street|track|path|service)$/;
+
+function resolveName(tags, osmId) {
+  const name = tags.name?.trim();
+  if (name) return name;
+
+  const highway = tags.highway ?? '';
+  if (highway !== 'track' && highway !== 'path' && highway !== 'service') return null;
+
+  const ref = tags.ref?.trim();
+  if (ref) return `Estrada ${ref}`;
+  if (highway === 'service') return `Via de acesso #${osmId}`;
+  return `Estrada de terra #${osmId}`;
+}
 
 const xml = readFileSync(input, 'utf8');
 
@@ -30,7 +43,10 @@ for (const wayBlock of xml.matchAll(/<way id="(\d+)"[^>]*>([\s\S]*?)<\/way>/g)) 
   for (const t of inner.matchAll(/<tag k="([^"]+)" v="([^"]*)"/g)) {
     tags[t[1]] = t[2];
   }
-  if (!tags.highway || !HIGHWAY.test(tags.highway) || !tags.name?.trim()) continue;
+  if (!tags.highway || !HIGHWAY.test(tags.highway)) continue;
+
+  const name = resolveName(tags, osmId);
+  if (!name) continue;
 
   const refs = [...inner.matchAll(/<nd ref="(\d+)"/g)].map((r) => r[1]);
   const coordinates = refs
@@ -47,7 +63,7 @@ for (const wayBlock of xml.matchAll(/<way id="(\d+)"[^>]*>([\s\S]*?)<\/way>/g)) 
     type: 'Feature',
     properties: {
       osmId,
-      name: tags.name.trim(),
+      name,
       highway: tags.highway,
     },
     geometry: { type: 'LineString', coordinates },
@@ -56,4 +72,5 @@ for (const wayBlock of xml.matchAll(/<way id="(\d+)"[^>]*>([\s\S]*?)<\/way>/g)) 
 
 const fc = { type: 'FeatureCollection', features };
 writeFileSync(output, JSON.stringify(fc));
-console.log(`GeoJSON: ${features.length} ruas → ${output}`);
+const dirt = features.filter((f) => ['track', 'path'].includes(f.properties.highway)).length;
+console.log(`GeoJSON: ${features.length} vias (${dirt} estradas de terra) → ${output}`);

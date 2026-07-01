@@ -5,6 +5,7 @@ import {
   fixLineStringCoordinates,
   isValidBrazilCoord,
 } from './geojson.util';
+import { inferStreetType, resolveOsmStreetName } from './osm-street.util';
 
 type StreetFeature = GeoJSON.Feature<
   GeoJSON.LineString,
@@ -13,13 +14,8 @@ type StreetFeature = GeoJSON.Feature<
 
 const BATCH = 40;
 
-function inferStreetType(name: string, highway?: string) {
-  const lower = name.toLowerCase();
-  if (lower.includes('avenida') || lower.startsWith('av ')) return 'Avenida';
-  if (lower.includes('travessa') || lower.startsWith('tv ')) return 'Travessa';
-  if (lower.includes('rodovia')) return 'Rodovia';
-  if (highway === 'primary') return 'Via Principal';
-  return 'Rua';
+function inferStreetTypeFromFeature(name: string, highway?: string) {
+  return inferStreetType(name, highway ? { highway } : undefined);
 }
 
 function bundledPath(municipalityName: string, state: string): string | null {
@@ -89,7 +85,7 @@ export async function importStreetsFromBundledGeoJson(
     toUpsert.push({
       osmId: BigInt(osmIdRaw),
       name,
-      streetType: inferStreetType(name, feature.properties.highway),
+      streetType: inferStreetTypeFromFeature(name, feature.properties.highway),
       municipalityId,
       geojson: { type: 'LineString', coordinates },
     });

@@ -8,6 +8,7 @@ import { useAuthStore, useAppStore } from './store';
 import { LoginPage } from './pages/LoginPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { AjudaHostingPage } from './components/common/HostingNotice';
 
 const DashboardPage = lazy(() =>
   import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
@@ -78,6 +79,14 @@ function AppRoutes() {
           element={
             <Suspense fallback={<PageLoader />}>
               <CadastrosPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/ajuda"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <AjudaHostingPage />
             </Suspense>
           }
         />

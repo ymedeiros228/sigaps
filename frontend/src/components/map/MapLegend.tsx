@@ -48,6 +48,21 @@ export function MapLegend({ microareas }: { microareas: Microarea[] }) {
             sx={{
               width: 20,
               height: 5,
+              bgcolor: '#c4a35a',
+              borderRadius: 1,
+              border: '1px dashed',
+              borderColor: '#8a7340',
+            }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Estrada de terra
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box
+            sx={{
+              width: 20,
+              height: 5,
               bgcolor: '#888',
               borderRadius: 1,
               border: '1px dashed',

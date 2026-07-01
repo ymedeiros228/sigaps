@@ -12,6 +12,11 @@ import {
   fixLineStringCoordinates,
   isValidBrazilCoord,
 } from '../../common/utils/geojson.util';
+import {
+  HIGHWAY_FILTER,
+  inferStreetType,
+  resolveOsmStreetName,
+} from '../../common/utils/osm-street.util';
 
 interface OverpassElement {
   type: string;
@@ -27,9 +32,6 @@ type StreetUpsert = {
   municipalityId: string;
   geojson: { type: 'LineString'; coordinates: number[][] };
 };
-
-const HIGHWAY_FILTER =
-  '^(primary|secondary|tertiary|residential|unclassified|living_street)$';
 
 const BATCH_SIZE = 40;
 
@@ -159,7 +161,7 @@ export class OsmImportService {
         continue;
       }
 
-      const name = element.tags?.['name']?.trim();
+      const name = resolveOsmStreetName(element.tags, element.id);
       if (!name) {
         skipped++;
         continue;
@@ -177,7 +179,7 @@ export class OsmImportService {
       toUpsert.push({
         osmId: BigInt(element.id),
         name,
-        streetType: this.inferStreetType(name, element.tags),
+        streetType: inferStreetType(name, element.tags),
         municipalityId: municipality.id,
         geojson: { type: 'LineString', coordinates },
       });
@@ -269,7 +271,7 @@ export class OsmImportService {
     return `
       [out:json][timeout:45];
       area(${areaId})->.municipio;
-      ( way["highway"~"${HIGHWAY_FILTER}"]["name"](area.municipio); );
+      ( way["highway"~"${HIGHWAY_FILTER}"](area.municipio); );
       out geom;
     `;
   }
@@ -282,17 +284,8 @@ export class OsmImportService {
   }): string {
     return `
       [out:json][timeout:45];
-      ( way["highway"~"${HIGHWAY_FILTER}"]["name"](${bbox.south},${bbox.west},${bbox.north},${bbox.east}); );
+      ( way["highway"~"${HIGHWAY_FILTER}"](${bbox.south},${bbox.west},${bbox.north},${bbox.east}); );
       out geom;
     `;
-  }
-
-  private inferStreetType(name: string, tags?: Record<string, string>) {
-    const lower = name.toLowerCase();
-    if (lower.includes('avenida') || lower.startsWith('av ')) return 'Avenida';
-    if (lower.includes('travessa') || lower.startsWith('tv ')) return 'Travessa';
-    if (lower.includes('rodovia')) return 'Rodovia';
-    if (tags?.highway === 'primary') return 'Via Principal';
-    return 'Rua';
   }
 }

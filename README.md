@@ -9,8 +9,15 @@ Sistema web GIS profissional para gestão territorial das microáreas dos Agente
 
 ---
 
-## Documentação
+## Deploy na web (gratuito)
 
+Guia passo a passo: [docs/DEPLOY_GRATUITO.md](docs/DEPLOY_GRATUITO.md)  
+Limitações para usuários: [docs/LIMITACOES_PLANO_GRATUITO.md](docs/LIMITACOES_PLANO_GRATUITO.md)
+
+Stack sugerida: **Supabase** (banco) + **Render** (API) + **Cloudflare Pages** (site).  
+Variáveis de exemplo: `.env.production.example` | Blueprint: `render.yaml`
+
+---
 | Documento | Descrição |
 |-----------|-----------|
 | [Documentação Completa (PDF)](docs/SIGAPS_Documentacao_Completa.pdf) | Manual detalhado do projeto |

@@ -21,7 +21,9 @@ import {
   LightMode,
   Menu as MenuIcon,
   ListAlt,
+  HelpOutlined,
 } from '@mui/icons-material';
+import { HostingNotice } from '../common/HostingNotice';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore, useAppStore } from '../../store';
@@ -33,6 +35,7 @@ const navItems = [
   { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
   { label: 'Pintar Mapa', path: '/mapa', icon: <MapIcon /> },
   { label: 'Cadastros', path: '/cadastros', icon: <ListAlt /> },
+  { label: 'Ajuda', path: '/ajuda', icon: <HelpOutlined /> },
 ];
 
 export function AppLayout() {
@@ -208,6 +211,7 @@ export function AppLayout() {
         }}
       >
         <Toolbar />
+        <HostingNotice />
         <Box className="page-enter" sx={{ minHeight: 'calc(100vh - 64px)' }}>
           <Outlet />
         </Box>
