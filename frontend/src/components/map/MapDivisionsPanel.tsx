@@ -30,6 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { paintZonesApi, type Microarea, type Street } from '../../services/api';
 import { useMapStore } from '../../store';
 import { streetsInsideCircle } from '../../utils/paintZone';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface MapDivisionsPanelProps {
   municipalityId: string;
@@ -49,6 +50,7 @@ export function MapDivisionsPanel({
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [panelOpen, setPanelOpen] = useState(true);
+  const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const divisionMode = useMapStore((s) => s.divisionMode);
   const setDivisionMode = useMapStore((s) => s.setDivisionMode);
   const draft = useMapStore((s) => s.divisionDraft);
@@ -111,6 +113,7 @@ export function MapDivisionsPanel({
       : 0;
 
   return (
+    <>
     <Paper
       className="map-float-panel"
       elevation={0}
@@ -279,11 +282,7 @@ export function MapDivisionsPanel({
                     <IconButton
                       size="small"
                       color="error"
-                      onClick={() => {
-                        if (window.confirm('Remover esta divisão do mapa?')) {
-                          deleteMutation.mutate(zone.id);
-                        }
-                      }}
+                      onClick={() => setDeleteZoneId(zone.id)}
                     >
                       <Delete fontSize="small" />
                     </IconButton>
@@ -295,5 +294,20 @@ export function MapDivisionsPanel({
         </Box>
       </Collapse>
     </Paper>
+
+    <ConfirmDialog
+      open={!!deleteZoneId}
+      title="Remover divisão?"
+      message="Esta área circular será removida do mapa. As ruas já pintadas não serão alteradas."
+      confirmLabel="Remover"
+      confirmColor="error"
+      loading={deleteMutation.isPending}
+      onClose={() => setDeleteZoneId(null)}
+      onConfirm={() => {
+        if (deleteZoneId) deleteMutation.mutate(deleteZoneId);
+        setDeleteZoneId(null);
+      }}
+    />
+  </>
   );
 }

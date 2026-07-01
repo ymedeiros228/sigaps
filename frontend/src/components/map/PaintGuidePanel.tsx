@@ -37,6 +37,7 @@ import { canCreateMicroarea } from '../../utils/permissions';
 import { useAuthStore } from '../../store';
 import { AddMicroareaDialog } from './AddMicroareaDialog';
 import { ClearPaintDialog } from './ClearPaintDialog';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface PaintGuidePanelProps {
   microareas: Microarea[];
@@ -70,6 +71,7 @@ export function PaintGuidePanel({
   const canAddMicroarea = canCreateMicroarea(user?.role);
   const [addOpen, setAddOpen] = useState(false);
   const [clearDialog, setClearDialog] = useState<'all' | 'microarea' | null>(null);
+  const [neighborhoodConfirm, setNeighborhoodConfirm] = useState<{ id: string; name: string; count: number } | null>(null);
   const paintMode = useMapStore((s) => s.paintMode);
   const eraserMode = useMapStore((s) => s.eraserMode);
   const setPaintMode = useMapStore((s) => s.setPaintMode);
@@ -110,14 +112,7 @@ export function PaintGuidePanel({
       .filter((s) => s.neighborhood?.id === neighborhoodId)
       .map((s) => s.id);
     if (ids.length === 0) return;
-    if (
-      window.confirm(
-        `Isso pinta ${ids.length} ruas do bairro "${neighborhoodName}" de uma vez. ` +
-          'Recomendamos pintar rua por rua para maior precisão. Continuar mesmo assim?',
-      )
-    ) {
-      onPaintStreets(ids);
-    }
+    setNeighborhoodConfirm({ id: neighborhoodId, name: neighborhoodName, count: ids.length });
   };
 
   const handleStartPaint = () => {
@@ -502,9 +497,40 @@ export function PaintGuidePanel({
                 {lastAction}
               </Typography>
             )}
+
+            {streetCount > 0 && (
+              <Typography
+                variant="caption"
+                color="text.disabled"
+                sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}
+              >
+                Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>Esc</strong> parar
+              </Typography>
+            )}
           </Box>
         </Collapse>
       </Paper>
+
+      <ConfirmDialog
+        open={!!neighborhoodConfirm}
+        title={`Pintar bairro ${neighborhoodConfirm?.name ?? ''}?`}
+        message={
+          neighborhoodConfirm
+            ? `Isso pinta ${neighborhoodConfirm.count} ruas de uma vez. Recomendamos pintar rua por rua para maior precisão. Deseja continuar?`
+            : ''
+        }
+        confirmLabel="Pintar bairro"
+        confirmColor="primary"
+        onClose={() => setNeighborhoodConfirm(null)}
+        onConfirm={() => {
+          if (!neighborhoodConfirm) return;
+          const ids = streets
+            .filter((s) => s.neighborhood?.id === neighborhoodConfirm.id)
+            .map((s) => s.id);
+          onPaintStreets(ids);
+          setNeighborhoodConfirm(null);
+        }}
+      />
 
       <ClearPaintDialog
         open={clearDialog === 'all'}

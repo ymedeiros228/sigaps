@@ -101,17 +101,6 @@ export function SigapsMap() {
   const autoImportAttempted = useRef(false);
   const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && paintMode) {
-        setPaintMode(false);
-        setSnackbar({ message: 'Modo pintar desativado', severity: 'info' });
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [paintMode, setPaintMode]);
-
   const { data: microareasData = [] } = useQuery({
     queryKey: queryKeys.microareas(municipalityId!),
     queryFn: () =>
@@ -149,6 +138,36 @@ export function SigapsMap() {
     [streetsData?.items],
   );
   const deferredStreets = useDeferredValue(streets);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'Escape' && paintMode) {
+        setPaintMode(false);
+        setSnackbar({ message: 'Modo pintar desativado', severity: 'info' });
+        return;
+      }
+      if (e.key === 'p' || e.key === 'P') {
+        if (microareas.length === 0 || streetCount === 0) return;
+        useMapStore.getState().setEraserMode(false);
+        if (!selectedMicroareaId && microareas.length > 0) {
+          setSelectedMicroarea(microareas[0].id);
+        }
+        setPaintMode(true);
+        setSnackbar({ message: 'Modo pintar (P)', severity: 'info' });
+      }
+      if (e.key === 'e' || e.key === 'E') {
+        const painted = streets.some((s) => s.microareaId);
+        if (!painted) return;
+        useMapStore.getState().setEraserMode(true);
+        setSnackbar({ message: 'Modo apagar (E)', severity: 'info' });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paintMode, setPaintMode, microareas, streetCount, selectedMicroareaId, setSelectedMicroarea, streets]);
 
   const getMicroarea = useCallback(
     (id: string) => microareas.find((m) => m.id === id),
@@ -484,7 +503,7 @@ export function SigapsMap() {
         selectedCount={selectedStreetIds.size}
       />
 
-      <MapLegend microareas={microareas} />
+      <MapLegend microareas={microareas} streets={streets} />
 
       <SelectionBar
         microareas={microareas}

@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { BuildVersion } from '../common/BuildVersion';
 import { HostingNotice } from '../common/HostingNotice';
+import { useAppDataPrefetch } from '../../hooks/useAppDataPrefetch';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore, useAppStore } from '../../store';
@@ -48,6 +49,8 @@ export function AppLayout() {
   const darkMode = useAppStore((s) => s.darkMode);
   const toggleDarkMode = useAppStore((s) => s.toggleDarkMode);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useAppDataPrefetch();
 
   const handleLogout = () => {
     logout();

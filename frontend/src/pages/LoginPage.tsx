@@ -32,6 +32,7 @@ export function LoginPage() {
   const token = useAuthStore((s) => s.token);
   const devDefaults = getDevLoginDefaults();
   const [error, setError] = useState('');
+  const [connecting, setConnecting] = useState(false);
   const [autoLogging, setAutoLogging] = useState(false);
   const autoLoginTried = useRef(false);
   const { register, handleSubmit, formState, reset } = useForm<LoginForm>({
@@ -46,6 +47,7 @@ export function LoginPage() {
 
   const doLogin = async (data: LoginForm) => {
     setError('');
+    setConnecting(true);
     try {
       await waitForApiReady(10, 4000);
       const res = await authApi.login(data.email, data.password);
@@ -57,6 +59,8 @@ export function LoginPage() {
     } catch {
       setError('Email ou senha inválidos. Verifique suas credenciais.');
       setAutoLogging(false);
+    } finally {
+      setConnecting(false);
     }
   };
 
@@ -226,6 +230,12 @@ export function LoginPage() {
             </Alert>
           )}
 
+          {connecting && !autoLogging && (
+            <Alert severity="info" icon={<CircularProgress size={16} />} sx={{ mb: 2, borderRadius: 2 }}>
+              Conectando ao servidor…
+            </Alert>
+          )}
+
           {error && (
             <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {error}
@@ -275,9 +285,9 @@ export function LoginPage() {
               variant="contained"
               size="large"
               sx={{ mt: 3, py: 1.4 }}
-              disabled={formState.isSubmitting || autoLogging}
+              disabled={formState.isSubmitting || autoLogging || connecting}
             >
-              {formState.isSubmitting || autoLogging ? (
+              {formState.isSubmitting || autoLogging || connecting ? (
                 <CircularProgress size={22} color="inherit" />
               ) : (
                 'Entrar no sistema'

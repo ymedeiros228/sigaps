@@ -19,7 +19,10 @@ import {
   Terrain,
   Map as MapIcon,
   Download,
+  AutoFixOff,
+  FormatPaint,
 } from '@mui/icons-material';
+import { useMemo } from 'react';
 import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { MapExportMenu } from './MapExportMenu';
 import { StreetSearchBar, type StreetSearchOption } from './StreetSearchBar';
@@ -34,7 +37,7 @@ interface MapToolbarProps {
   selectedCount?: number;
   mapContainerRef: RefObject<HTMLElement | null>;
   microareas: Microarea[];
-  streets: Array<{ id: string; name: string; streetType?: string; geojson: GeoJSON.LineString }>;
+  streets: Array<{ id: string; name: string; streetType?: string; geojson: GeoJSON.LineString; microareaId?: string | null }>;
   onLocateStreet: (streetId: string, geojson?: GeoJSON.LineString) => void;
 }
 
@@ -61,6 +64,7 @@ export function MapToolbar({
   const theme = useTheme();
   const municipalityId = useAppStore((s) => s.municipalityId);
   const paintMode = useMapStore((s) => s.paintMode);
+  const eraserMode = useMapStore((s) => s.eraserMode);
   const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
   const setPaintMode = useMapStore((s) => s.setPaintMode);
   const baseLayer = useMapStore((s) => s.baseLayer);
@@ -70,6 +74,12 @@ export function MapToolbar({
   const flyTo = useMapStore((s) => s.flyTo);
   const user = useAuthStore((s) => s.user);
   const canImport = canImportStreets(user?.role);
+
+  const coverage = useMemo(() => {
+    if (streetCount === 0) return 0;
+    const painted = streets.filter((s) => s.microareaId).length;
+    return Math.round((painted / streetCount) * 100);
+  }, [streets, streetCount]);
 
   const handleSearchSelect = (option: StreetSearchOption) => {
     if (option.kind === 'street') {
@@ -132,8 +142,34 @@ export function MapToolbar({
         />
       )}
 
-      {paintMode && (
-        <Chip label="Pintando" color="primary" size="small" sx={{ fontWeight: 700 }} />
+      {paintMode && eraserMode && (
+        <Chip
+          icon={<AutoFixOff fontSize="small" />}
+          label="Apagando"
+          color="error"
+          size="small"
+          sx={{ fontWeight: 700 }}
+        />
+      )}
+
+      {paintMode && !eraserMode && (
+        <Chip
+          icon={<FormatPaint fontSize="small" />}
+          label="Pintando"
+          color="primary"
+          size="small"
+          sx={{ fontWeight: 700 }}
+        />
+      )}
+
+      {streetCount > 0 && (
+        <Chip
+          label={`${coverage}% cobertura`}
+          size="small"
+          color={coverage >= 80 ? 'success' : coverage >= 40 ? 'warning' : 'default'}
+          variant="outlined"
+          sx={{ fontWeight: 700, display: { xs: 'none', sm: 'flex' } }}
+        />
       )}
 
       {canImport && (streetCount > 0 || importing) && (

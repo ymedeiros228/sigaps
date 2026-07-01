@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Card, CardContent, Typography, CircularProgress, Chip, Button, Alert } from '@mui/material';
+import { Box, Card, CardContent, Typography, CircularProgress, Chip, Button, Alert, IconButton, Tooltip as MuiTooltip } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { Link as RouterLink } from 'react-router-dom';
@@ -12,6 +12,7 @@ import {
   Groups,
   TrendingUp,
   Map,
+  Refresh,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -71,7 +72,7 @@ export function DashboardPage() {
     staleTime: CACHE.default,
   });
 
-  const { data, isLoading, isError, error, refetch, isFetching, failureCount } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching, failureCount, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.dashboard(municipalityId!),
     queryFn: () => dashboardApi.indicators(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId && apiReady,
@@ -150,13 +151,27 @@ export function DashboardPage() {
         title="Dashboard"
         subtitle={`Indicadores em tempo real — ${muniLabel}`}
         action={
-          <Chip
-            icon={<TrendingUp />}
-            label={`${data.coverage}% cobertura`}
-            color="primary"
-            variant="outlined"
-            sx={{ fontWeight: 600 }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<TrendingUp />}
+              label={`${data.coverage}% cobertura`}
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+            <MuiTooltip title={dataUpdatedAt ? `Atualizado ${new Date(dataUpdatedAt).toLocaleTimeString('pt-BR')}` : 'Atualizar'}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  aria-label="Atualizar indicadores"
+                >
+                  <Refresh fontSize="small" sx={isFetching ? { animation: 'spin 1s linear infinite', '@keyframes spin': { to: { transform: 'rotate(360deg)' } } } : undefined} />
+                </IconButton>
+              </span>
+            </MuiTooltip>
+          </Box>
         }
       />
 
