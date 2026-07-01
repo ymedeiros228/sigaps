@@ -1,61 +1,55 @@
-# Publicar SIGAPS no GitHub
+# Publicar no GitHub — ymedeiros228
 
-## Pré-requisitos
+Repositório configurado: **https://github.com/ymedeiros228/sigaps**
 
-1. Conta no [GitHub](https://github.com)
-2. [Git](https://git-scm.com/) instalado
-3. (Opcional) [GitHub CLI](https://cli.github.com/) — `winget install GitHub.cli`
+## Status local
 
-## Passo a passo
+- Git inicializado em `C:\Users\Edina\Projects\sigaps`
+- Commit: `873b804` — SIGAPS MVP com documentação, PDF e mapa GIS
+- Remote `origin` → `https://github.com/ymedeiros228/sigaps.git`
 
-### 1. Criar repositório no GitHub
+## Passo 1 — Criar o repositório no GitHub
 
-Acesse https://github.com/new e crie um repositório:
+1. Acesse: https://github.com/new?name=sigaps
+2. Confirme o nome **sigaps**
+3. Escolha **Public** ou **Private**
+4. **Não** marque "Add a README" (já existe no projeto)
+5. Clique em **Create repository**
 
-- **Nome:** `sigaps`
-- **Visibilidade:** Public ou Private
-- **Não** marque "Add README" (já existe localmente)
+## Passo 2 — Autenticar (uma vez)
 
-### 2. Configurar git (primeira vez)
-
-```powershell
-git config --global user.name "Seu Nome"
-git config --global user.email "seu@email.com"
-```
-
-### 3. Inicializar e enviar (já feito localmente se você rodou os comandos do agente)
-
-```powershell
-cd C:\Users\Edina\Projects\sigaps
-git init
-git add .
-git commit -m "feat: SIGAPS MVP — sistema GIS de microáreas da APS"
-git branch -M main
-git remote add origin https://github.com/SEU_USUARIO/sigaps.git
-git push -u origin main
-```
-
-Substitua `SEU_USUARIO` pelo seu username do GitHub.
-
-### 4. Com GitHub CLI (alternativa)
+No PowerShell:
 
 ```powershell
 gh auth login
-gh repo create sigaps --public --source=. --remote=origin --push
 ```
 
-## Autenticação
+Escolha: GitHub.com → HTTPS → Login with a web browser → autorize.
 
-Se `git push` pedir senha, use um **Personal Access Token** (PAT):
+*(GitHub CLI já instalado no seu PC.)*
 
-1. GitHub → Settings → Developer settings → Personal access tokens
-2. Gere token com escopo `repo`
-3. Use o token como senha no push
+## Passo 3 — Enviar o código
 
-## Conteúdo do repositório
+```powershell
+cd C:\Users\Edina\Projects\sigaps
+git push -u origin master
+```
 
-- Código backend + frontend
-- Documentação em `docs/`
-- PDF em `docs/SIGAPS_Documentacao_Completa.pdf`
-- Docker Compose para deploy
-- Licença MIT
+Se preferir branch `main`:
+
+```powershell
+git branch -M main
+git push -u origin main
+```
+
+## Alternativa sem `gh`
+
+Se `git push` pedir credenciais, use um **Personal Access Token**:
+
+1. GitHub → Settings → Developer settings → Personal access tokens → Generate
+2. Escopo: `repo`
+3. No push, username = `ymedeiros228`, password = **o token**
+
+---
+
+Após o push, o projeto estará em: **https://github.com/ymedeiros228/sigaps**
