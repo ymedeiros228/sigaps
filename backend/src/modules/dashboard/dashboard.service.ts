@@ -14,55 +14,45 @@ export class DashboardService {
       ubsCount,
       acsCount,
       microareasCount,
-      streetsCount,
-      familiesSum,
-      inhabitantsSum,
+      streetStats,
+      assignedStreets,
+      microareasByStreet,
       recentChanges,
     ] = await Promise.all([
       this.prisma.ubs.count({ where: { municipalityId } }),
-      this.prisma.acs.count({
-        where: { municipalityId, status: 'ATIVO' },
-      }),
+      this.prisma.acs.count({ where: { municipalityId, status: 'ATIVO' } }),
       this.prisma.microarea.count({ where: { municipalityId } }),
-      this.prisma.street.count({ where: { municipalityId } }),
       this.prisma.street.aggregate({
         where: { municipalityId },
-        _sum: { familyCount: true },
+        _sum: { familyCount: true, inhabitantCount: true },
+        _count: { _all: true },
       }),
-      this.prisma.street.aggregate({
+      this.prisma.street.count({
+        where: { municipalityId, microareaId: { not: null } },
+      }),
+      this.prisma.microarea.findMany({
         where: { municipalityId },
-        _sum: { inhabitantCount: true },
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          _count: { select: { streets: true } },
+        },
       }),
       this.audit.findRecent(municipalityId, 10),
     ]);
 
-    const assignedStreets = await this.prisma.street.count({
-      where: { municipalityId, microareaId: { not: null } },
-    });
-
-    const coverage =
-      streetsCount > 0
-        ? Math.round((assignedStreets / streetsCount) * 100)
-        : 0;
-
-    const microareasByStreet = await this.prisma.microarea.findMany({
-      where: { municipalityId },
-      select: {
-        id: true,
-        name: true,
-        color: true,
-        _count: { select: { streets: true } },
-      },
-    });
+    const streetsCount = streetStats._count._all;
 
     return {
       ubs: ubsCount,
       acs: acsCount,
       microareas: microareasCount,
       streets: streetsCount,
-      families: familiesSum._sum.familyCount ?? 0,
-      inhabitants: inhabitantsSum._sum.inhabitantCount ?? 0,
-      coverage,
+      families: streetStats._sum.familyCount ?? 0,
+      inhabitants: streetStats._sum.inhabitantCount ?? 0,
+      coverage:
+        streetsCount > 0 ? Math.round((assignedStreets / streetsCount) * 100) : 0,
       assignedStreets,
       microareasChart: microareasByStreet.map((m) => ({
         name: m.name,

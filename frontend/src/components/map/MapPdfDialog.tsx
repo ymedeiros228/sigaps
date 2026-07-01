@@ -27,6 +27,7 @@ import {
 } from '../../services/api';
 import { useAppStore } from '../../store';
 import { assetUrl } from '../../utils/assetUrl';
+import { CACHE, queryKeys } from '../../utils/queryKeys';
 import {
   generateOfficialMapPdf,
   downloadPdfBlob,
@@ -72,9 +73,10 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
   });
 
   const { data: streetsData } = useQuery({
-    queryKey: ['streets', municipalityId],
+    queryKey: queryKeys.streetsFull(municipalityId!),
     queryFn: () => streetsApi.list(municipalityId!, { limit: 2000 }).then((r) => r.data),
     enabled: open && !!municipalityId,
+    staleTime: CACHE.streets,
   });
 
   const { data: ubsList = [] } = useQuery({

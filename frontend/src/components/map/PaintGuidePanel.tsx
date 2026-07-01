@@ -27,6 +27,7 @@ import type { Microarea, Street } from '../../services/api';
 import { useMapStore } from '../../store';
 import { useQuery } from '@tanstack/react-query';
 import { neighborhoodsApi } from '../../services/api';
+import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { canCreateMicroarea } from '../../utils/permissions';
 import { useAuthStore } from '../../store';
 import { AddMicroareaDialog } from './AddMicroareaDialog';
@@ -77,10 +78,10 @@ export function PaintGuidePanel({
   const canPaint = streetCount > 0 && !!selectedMicroareaId;
 
   const { data: neighborhoods = [] } = useQuery({
-    queryKey: ['neighborhoods', municipalityId],
+    queryKey: queryKeys.neighborhoods(municipalityId),
     queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
-    enabled: !!municipalityId && streetCount > 0,
-    staleTime: 5 * 60_000,
+    enabled: !!municipalityId,
+    staleTime: CACHE.neighborhoods,
   });
 
   const handlePaintNeighborhood = (neighborhoodId: string, neighborhoodName: string) => {

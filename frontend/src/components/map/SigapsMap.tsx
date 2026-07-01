@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, useDeferredValue } from 'react';
 import { TileLayer, ScaleControl, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -39,6 +39,8 @@ import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../u
 import { canImportStreets } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { prepareStreetsForMap } from '../../utils/streetSearch';
+import { CACHE, queryKeys } from '../../utils/queryKeys';
+import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { LeafletMap } from './LeafletMap';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
@@ -108,18 +110,18 @@ export function SigapsMap() {
   }, [paintMode, setPaintMode]);
 
   const { data: microareasData = [] } = useQuery({
-    queryKey: ['microareas', municipalityId],
+    queryKey: queryKeys.microareas(municipalityId!),
     queryFn: () =>
       microareasApi.list(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
-    staleTime: 5 * 60_000,
+    staleTime: CACHE.microareas,
   });
 
   const { data: paintZones = [] } = useQuery({
-    queryKey: ['paint-zones', municipalityId],
+    queryKey: queryKeys.paintZones(municipalityId!),
     queryFn: () => paintZonesApi.list(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
-    staleTime: 60_000,
+    staleTime: CACHE.paintZones,
   });
 
   useEffect(() => {
@@ -129,11 +131,12 @@ export function SigapsMap() {
   }, [microareasData, setMicroareas]);
 
   const { data: streetsData, isLoading } = useQuery({
-    queryKey: ['streets', municipalityId],
+    queryKey: queryKeys.streetsMap(municipalityId!),
     queryFn: () =>
       streetsApi.list(municipalityId!, { limit: 2000, mapOnly: true }).then((r) => r.data),
     enabled: !!municipalityId,
-    staleTime: 60_000,
+    staleTime: CACHE.streets,
+    gcTime: 15 * 60_000,
   });
 
   const streetCount = streetsData?.items?.length ?? 0;
@@ -142,6 +145,7 @@ export function SigapsMap() {
     () => prepareStreetsForMap(streetsData?.items ?? []),
     [streetsData?.items],
   );
+  const deferredStreets = useDeferredValue(streets);
 
   const getMicroarea = useCallback(
     (id: string) => microareas.find((m) => m.id === id),
@@ -159,11 +163,13 @@ export function SigapsMap() {
       forceTransfer?: boolean;
     }) => streetsApi.assign(streetIds, microareaId, forceTransfer),
     onMutate: async (variables) => {
-      await queryClient.cancelQueries({ queryKey: ['streets', municipalityId] });
-      const previous = queryClient.getQueryData(['streets', municipalityId]);
+      if (!municipalityId) return;
+      const streetsKey = queryKeys.streetsMap(municipalityId);
+      await queryClient.cancelQueries({ queryKey: streetsKey });
+      const previous = queryClient.getQueryData(streetsKey);
       const ma = getMicroarea(variables.microareaId);
 
-      queryClient.setQueryData(['streets', municipalityId], (old: typeof streetsData) => {
+      queryClient.setQueryData(streetsKey, (old: typeof streetsData) => {
         if (!old?.items || !ma) return old;
         return {
           ...old,
@@ -182,8 +188,9 @@ export function SigapsMap() {
       return { previous };
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['streets', municipalityId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      if (municipalityId) {
+        scheduleDashboardInvalidate(queryClient, municipalityId);
+      }
       setConflictMsg(null);
       setConflictOpen(false);
 
@@ -196,8 +203,8 @@ export function SigapsMap() {
       setSnackbar({ message: msg, severity: 'success' });
     },
     onError: (err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['streets', municipalityId], context.previous);
+      if (context?.previous && municipalityId) {
+        queryClient.setQueryData(queryKeys.streetsMap(municipalityId), context.previous);
       }
       if (isConflictError(err)) {
         setConflictMsg(getConflictMessage(err));
@@ -217,7 +224,7 @@ export function SigapsMap() {
       const status = res.data?.status;
       if (status === 'in_progress') return;
 
-      queryClient.invalidateQueries({ queryKey: ['streets', municipalityId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId!) });
       const imported = res.data?.imported ?? 0;
       const source = res.data?.source;
 
@@ -250,8 +257,10 @@ export function SigapsMap() {
   useEffect(() => {
     if (!importMutation.isPending || streetCount > 0) return;
     const timer = window.setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['streets', municipalityId] });
-    }, 6000);
+      if (municipalityId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+      }
+    }, 20000);
     return () => window.clearInterval(timer);
   }, [importMutation.isPending, streetCount, municipalityId, queryClient]);
 
@@ -340,8 +349,10 @@ export function SigapsMap() {
   const clearPaintMutation = useMutation({
     mutationFn: () => streetsApi.clearAssignments(municipalityId!),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ['streets', municipalityId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      if (municipalityId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(municipalityId) });
+      }
       setSelectedStreet(null);
       setHighlightedStreet(null);
       clearSelection();
@@ -483,6 +494,7 @@ export function SigapsMap() {
           zoomControl={false}
           doubleClickZoom={false}
           boxZoom={false}
+          preferCanvas
         >
           <MapInteractionController />
           <DivisionMapClickHandler />
@@ -497,7 +509,7 @@ export function SigapsMap() {
           {(paintZones.length > 0 || divisionDraft) && <PaintZonesLayer zones={paintZones} />}
           <MicroareaPolygonsLayer
             microareas={microareas}
-            streets={streets}
+            streets={deferredStreets}
           />
           {streets.length > 0 && (
             <StreetsLayer

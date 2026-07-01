@@ -28,6 +28,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { geoApi, type Microarea } from '../../services/api';
 import { useAppStore } from '../../store';
+import { queryKeys } from '../../utils/queryKeys';
 import { MapPdfDialog } from './MapPdfDialog';
 
 type ImportFormat = 'geojson' | 'kml' | 'csv';
@@ -52,8 +53,10 @@ export function MapExportMenu({ mapContainerRef, microareas }: MapExportMenuProp
   const [pdfOpen, setPdfOpen] = useState(false);
 
   const onImportSuccess = (res: { imported: number; updated: number; skipped: number }) => {
-    queryClient.invalidateQueries({ queryKey: ['streets', municipalityId] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    if (municipalityId) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(municipalityId) });
+    }
     setImportResult(
       `Pronto! ${res.imported} ruas novas, ${res.updated} atualizadas, ${res.skipped} ignoradas.`,
     );

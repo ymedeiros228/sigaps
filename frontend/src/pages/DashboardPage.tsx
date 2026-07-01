@@ -25,6 +25,7 @@ import {
 } from 'recharts';
 import { dashboardApi, municipalitiesApi } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
+import { CACHE, queryKeys } from '../utils/queryKeys';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
@@ -33,15 +34,17 @@ export function DashboardPage() {
   const municipalityId = useMunicipalityId();
 
   const { data: municipality } = useQuery({
-    queryKey: ['municipality', municipalityId],
+    queryKey: queryKeys.municipality(municipalityId!),
     queryFn: () => municipalitiesApi.get(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
+    staleTime: CACHE.default,
   });
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboard', municipalityId],
+    queryKey: queryKeys.dashboard(municipalityId!),
     queryFn: () => dashboardApi.indicators(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
+    staleTime: CACHE.dashboard,
   });
 
   if (!municipalityId) {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Microarea, User } from '../services/api';
+import { syncApiToken } from '../services/api';
 import { DEV_LOGIN } from '../constants/devAuth';
 
 function readPersistedAuth(): { user: User | null; token: string | null } {
@@ -71,6 +72,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('sigaps_token', token);
     localStorage.setItem('sigaps_refresh', refreshToken);
     localStorage.setItem('sigaps_user', JSON.stringify(user));
+    syncApiToken(token);
     if (import.meta.env.DEV) {
       localStorage.setItem('sigaps_dev_email', user.email);
       localStorage.setItem('sigaps_dev_password', DEV_LOGIN.password);
@@ -82,12 +84,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   logout: () => {
     localStorage.clear();
+    syncApiToken(null);
     set({ user: null, token: null });
   },
   hydrate: () => {
     const token = localStorage.getItem('sigaps_token');
     const userStr = localStorage.getItem('sigaps_user');
     if (token && userStr) {
+      syncApiToken(token);
       const user = JSON.parse(userStr) as User;
       if (user.municipalityId) {
         useAppStore.getState().setMunicipalityId(user.municipalityId);

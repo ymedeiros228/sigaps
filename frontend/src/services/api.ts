@@ -17,9 +17,26 @@ function processQueue(token: string) {
   refreshQueue = [];
 }
 
+let cachedAccessToken: string | null = null;
+
+function readTokenFromStorage(): string | null {
+  try {
+    return localStorage.getItem('sigaps_token');
+  } catch {
+    return null;
+  }
+}
+
+export function syncApiToken(token: string | null) {
+  cachedAccessToken = token;
+}
+
+cachedAccessToken = readTokenFromStorage();
+
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('sigaps_token');
+  const token = cachedAccessToken ?? readTokenFromStorage();
   if (token) {
+    cachedAccessToken = token;
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -60,6 +77,7 @@ api.interceptors.response.use(
       const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
       localStorage.setItem('sigaps_token', data.accessToken);
       localStorage.setItem('sigaps_refresh', data.refreshToken);
+      syncApiToken(data.accessToken);
       processQueue(data.accessToken);
       originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
       return api(originalRequest);

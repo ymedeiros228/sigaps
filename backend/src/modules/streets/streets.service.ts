@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 
 @Injectable()
@@ -67,6 +68,7 @@ export class StreetsService {
     return {
       items: items.map((s) => ({
         ...s,
+        geojson: compactLineStringGeojson(s.geojson),
         ...(mapOnly
           ? {
               osmId: (s as { osmId?: bigint | null }).osmId?.toString() ?? null,
@@ -134,7 +136,6 @@ export class StreetsService {
       });
     }
 
-    const results = [];
     const beforeById = new Map(streets.map((s) => [s.id, s.microareaId]));
 
     await this.prisma.street.updateMany({
@@ -153,15 +154,12 @@ export class StreetsService {
       })),
     });
 
-    const updated = await this.prisma.street.findMany({
-      where: { id: { in: dto.streetIds } },
-      include: { microarea: true },
-    });
-    results.push(...updated);
+    this.scheduleEnvelopeUpdate(dto.microareaId);
 
-    await this.updateMicroareaEnvelope(dto.microareaId);
-
-    return results.map((s) => ({ ...s, osmId: s.osmId?.toString() ?? null }));
+    return {
+      updated: dto.streetIds.length,
+      microareaId: dto.microareaId,
+    };
   }
 
   async clearAllAssignments(municipalityId: string, userId: string) {
@@ -214,6 +212,12 @@ export class StreetsService {
     } catch {
       return [];
     }
+  }
+
+  private scheduleEnvelopeUpdate(microareaId: string) {
+    setImmediate(() => {
+      void this.updateMicroareaEnvelope(microareaId);
+    });
   }
 
   private async updateMicroareaEnvelope(microareaId: string) {
