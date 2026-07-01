@@ -38,11 +38,12 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
   const [open, setOpen] = useState(false);
   const debounced = useDebouncedValue(text, 300);
 
-  const { data: searchData, isFetching } = useQuery({
+  const { data: searchData, isFetching, isError: searchError, refetch: refetchSearch } = useQuery({
     queryKey: ['unified-search', municipalityId, debounced],
     queryFn: () => searchApi.query(municipalityId!, debounced).then((r) => r.data),
     enabled: !!municipalityId && debounced.trim().length >= 2,
     staleTime: 30_000,
+    retry: 2,
   });
 
   const options = useMemo<StreetSearchOption[]>(() => {
@@ -156,7 +157,21 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
             borderRadius: 2,
           }}
         >
-          {options.length === 0 ? (
+          {searchError ? (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Busca indisponível no momento.
+              </Typography>
+              <Typography
+                variant="body2"
+                color="primary"
+                sx={{ cursor: 'pointer', fontWeight: 600 }}
+                onMouseDown={() => void refetchSearch()}
+              >
+                Tentar novamente
+              </Typography>
+            </Box>
+          ) : options.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
               Nenhuma rua encontrada. Tente só o nome (ex: &quot;Siqueira&quot;).
             </Typography>

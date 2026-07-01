@@ -6,15 +6,39 @@ type ApiErrorBody = {
   statusCode?: number;
 };
 
+const GENERIC_EN = new Set([
+  'internal server error',
+  'internal server error.',
+  'bad request',
+  'not found',
+  'forbidden',
+  'unauthorized',
+]);
+
+function isGenericEnglishMessage(text: string) {
+  return GENERIC_EN.has(text.trim().toLowerCase());
+}
+
 export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. Tente novamente.'): string {
   const err = error as AxiosError<ApiErrorBody>;
   const data = err.response?.data;
-  if (!data) return fallback;
+  if (!data) {
+    if (err.code === 'ECONNABORTED') {
+      return 'A requisição demorou demais. O servidor pode estar acordando — tente novamente.';
+    }
+    if (err.code === 'ERR_NETWORK') {
+      return 'Sem conexão com o servidor. Verifique sua internet e tente novamente.';
+    }
+    return fallback;
+  }
 
-  if (typeof data.message === 'string') return data.message;
+  if (typeof data.message === 'string' && !isGenericEnglishMessage(data.message)) {
+    return data.message;
+  }
 
   if (data.message && typeof data.message === 'object') {
-    if (data.message.message) return data.message.message;
+    const nested = data.message.message;
+    if (nested && !isGenericEnglishMessage(nested)) return nested;
   }
 
   if (err.response?.status === 403) {

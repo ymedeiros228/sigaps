@@ -136,6 +136,8 @@ export function DashboardPage() {
     { name: 'Vinculadas', value: data.assignedStreets, color: '#4CAF50' },
     { name: 'Pendentes', value: Math.max(0, data.streets - data.assignedStreets), color: '#9E9E9E' },
   ];
+  const microareasChart = data.microareasChart ?? [];
+  const hasPaintedMicroareas = microareasChart.some((m: { streets: number }) => m.streets > 0);
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1400, mx: 'auto' }}>
@@ -218,6 +220,11 @@ export function DashboardPage() {
               {data.assignedStreets} de {data.streets} ruas vinculadas a microáreas
             </Typography>
             <Box sx={{ height: 200 }}>
+              {data.streets === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ py: 6, textAlign: 'center' }}>
+                  Nenhuma rua cadastrada ainda. Importe ruas no mapa para ver a cobertura.
+                </Typography>
+              ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -238,6 +245,7 @@ export function DashboardPage() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
+              )}
             </Box>
           </CardContent>
         </Card>
@@ -249,25 +257,32 @@ export function DashboardPage() {
             </Typography>
             {(data.microareasChart ?? []).length === 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-                Pinte ruas no mapa para ver a distribuição por microárea.
+                Cadastre microáreas para ver a distribuição territorial.
               </Typography>
             ) : (
+              <>
+                {!hasPaintedMicroareas && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Nenhuma rua pintada ainda — use o mapa para vincular ruas às microáreas.
+                  </Typography>
+                )}
               <Box sx={{ height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.microareasChart ?? []} barCategoryGap="20%">
+                  <BarChart data={microareasChart} barCategoryGap="20%">
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
                     />
                     <Bar dataKey="streets" name="Ruas" radius={[6, 6, 0, 0]}>
-                      {(data.microareasChart ?? []).map((entry: { color: string }, i: number) => (
+                      {microareasChart.map((entry: { color: string }, i: number) => (
                         <Cell key={i} fill={entry.color} />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
+              </>
             )}
           </CardContent>
         </Card>

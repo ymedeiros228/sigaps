@@ -9,7 +9,7 @@ export function isRetryableQueryError(error: unknown) {
   if (code === 'ECONNABORTED' || code === 'ERR_NETWORK') return true;
   if (!status) return true;
   if (status === 408 || status === 429) return true;
-  if (status === 503) return true;
+  if (status === 500 || status === 503) return true;
   if (status >= 502 && status <= 504) return true;
   return false;
 }

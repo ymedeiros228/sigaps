@@ -11,9 +11,11 @@ import { Map, Refresh, ContactSupport } from '@mui/icons-material';
 interface MapEmptyStateProps {
   onImport?: () => void;
   canImport?: boolean;
+  loadError?: boolean;
+  autoRetrying?: boolean;
 }
 
-export function MapEmptyState({ onImport, canImport = true }: MapEmptyStateProps) {
+export function MapEmptyState({ onImport, canImport = true, loadError = false, autoRetrying = false }: MapEmptyStateProps) {
   const theme = useTheme();
 
   return (
@@ -59,14 +61,25 @@ export function MapEmptyState({ onImport, canImport = true }: MapEmptyStateProps
         </Box>
 
         <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
-          {canImport ? 'Não foi possível carregar as ruas' : 'Mapa sem ruas'}
+          {autoRetrying
+            ? 'Reconectando ao servidor…'
+            : loadError
+              ? 'Não foi possível carregar as ruas'
+              : canImport
+                ? 'Mapa sem ruas'
+                : 'Mapa sem ruas'}
         </Typography>
 
-        {canImport ? (
+        {autoRetrying ? (
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+            Tentando novamente automaticamente. Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto.
+          </Typography>
+        ) : canImport ? (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lineHeight: 1.7 }}>
-              Verifique sua internet e tente novamente. O sistema carrega as ruas do município
-              automaticamente — normalmente você não precisa fazer nada.
+              {loadError
+                ? 'Verifique sua internet e tente novamente. O sistema carrega as ruas do município automaticamente.'
+                : 'As ruas serão carregadas automaticamente. Se nada acontecer, clique abaixo.'}
             </Typography>
             <Button
               variant="contained"
@@ -75,7 +88,7 @@ export function MapEmptyState({ onImport, canImport = true }: MapEmptyStateProps
               onClick={onImport}
               sx={{ py: 1.5 }}
             >
-              Tentar novamente
+              {loadError ? 'Tentar novamente' : 'Carregar ruas'}
             </Button>
           </>
         ) : (

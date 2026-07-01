@@ -95,6 +95,8 @@ export function SigapsMap() {
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'info' | 'warning' } | null>(null);
   const [lastPaintAction, setLastPaintAction] = useState<string | null>(null);
   const [importFailed, setImportFailed] = useState(false);
+  const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
+  const streetsAutoRetryCount = useRef(0);
   const pendingPaintRef = useRef<Set<string>>(new Set());
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
   const lastAssignIdsRef = useRef<string[]>([]);
@@ -288,6 +290,28 @@ export function SigapsMap() {
     }, 20000);
     return () => window.clearInterval(timer);
   }, [importMutation.isPending, streetCount, municipalityId, queryClient]);
+
+  useEffect(() => {
+    if (!municipalityId || streetCount > 0 || streetsFetching || importMutation.isPending) return;
+    if (!streetsLoadError) {
+      streetsAutoRetryCount.current = 0;
+      setStreetsAutoRetrying(false);
+      return;
+    }
+    if (streetsAutoRetryCount.current >= 4) {
+      setStreetsAutoRetrying(false);
+      return;
+    }
+
+    const delay = 3_000 * 2 ** streetsAutoRetryCount.current;
+    setStreetsAutoRetrying(true);
+    const timer = window.setTimeout(() => {
+      streetsAutoRetryCount.current += 1;
+      void refetchStreets();
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [municipalityId, streetCount, streetsFetching, streetsLoadError, importMutation.isPending, refetchStreets]);
 
   useEffect(() => {
     if (!municipalityId || !canImport || isLoading || streetsFetching || importMutation.isPending) return;
@@ -509,6 +533,7 @@ export function SigapsMap() {
   const showEmptyOverlay =
     !importing &&
     !streetsFetching &&
+    !streetsAutoRetrying &&
     streetCount === 0 &&
     (importFailed || streetsLoadError);
 
@@ -537,7 +562,7 @@ export function SigapsMap() {
         selectedCount={selectedStreetIds.size}
       />
 
-      <MapLegend microareas={microareas} streets={streets} />
+      <MapLegend microareas={microareas} streets={streets} loading={streetsFetching && streetCount === 0} />
 
       <SelectionBar
         microareas={microareas}
@@ -601,9 +626,28 @@ export function SigapsMap() {
         </Alert>
       )}
 
+      {streetsAutoRetrying && streetCount === 0 && (
+        <Alert
+          severity="info"
+          sx={{
+            position: 'absolute',
+            top: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            borderRadius: 2,
+            maxWidth: 420,
+          }}
+        >
+          Reconectando ao servidor… (tentativa {streetsAutoRetryCount.current + 1})
+        </Alert>
+      )}
+
       {showEmptyOverlay && (
         <MapEmptyState
           canImport={canImport}
+          loadError={streetsLoadError || importFailed}
+          autoRetrying={false}
           onImport={() => void handleRetryLoadStreets()}
         />
       )}

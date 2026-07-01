@@ -6,9 +6,10 @@ import type { Microarea, Street } from '../../services/api';
 interface MapLegendProps {
   microareas: Microarea[];
   streets: Street[];
+  loading?: boolean;
 }
 
-export function MapLegend({ microareas, streets }: MapLegendProps) {
+export function MapLegend({ microareas, streets, loading = false }: MapLegendProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(true);
   const glassBg = theme.palette.mode === 'dark'
@@ -62,7 +63,7 @@ export function MapLegend({ microareas, streets }: MapLegendProps) {
             Legenda
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {stats.painted}/{streets.length} ruas · {stats.coverage}%
+            {loading ? 'Carregando…' : `${stats.painted}/${streets.length} ruas · ${stats.coverage}%`}
           </Typography>
         </Box>
         <IconButton size="small">{open ? <ExpandLess /> : <ExpandMore />}</IconButton>
@@ -71,8 +72,8 @@ export function MapLegend({ microareas, streets }: MapLegendProps) {
       <Collapse in={open}>
         <Box sx={{ px: 1.5, pb: 1.5 }}>
           <LinearProgress
-            variant="determinate"
-            value={stats.coverage}
+            variant={loading ? 'indeterminate' : 'determinate'}
+            value={loading ? undefined : stats.coverage}
             sx={{
               mb: 1.5,
               height: 6,
