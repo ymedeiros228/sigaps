@@ -44,7 +44,18 @@ export function DashboardPage() {
     enabled: !!municipalityId,
   });
 
-  if (!municipalityId || isLoading) {
+  if (!municipalityId) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 8, gap: 2 }}>
+        <CircularProgress />
+        <Typography variant="body2" color="text.secondary">
+          Carregando dados do município…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 8 }}>
         <CircularProgress />
