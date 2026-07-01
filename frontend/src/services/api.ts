@@ -163,6 +163,15 @@ export const authApi = {
 export const municipalitiesApi = {
   list: () => api.get('/municipalities'),
   get: (id: string) => api.get(`/municipalities/${id}`),
+  update: (id: string, data: Record<string, unknown>) =>
+    api.patch(`/municipalities/${id}`, data),
+  uploadLogo: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post(`/municipalities/${id}/logo`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const streetsApi = {
@@ -236,6 +245,26 @@ export const geoApi = {
       `/geo/import/${municipalityId}`,
       data,
     ),
+  importKml: (municipalityId: string, file: File, updateByName = false) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('updateByName', String(updateByName));
+    return api.post<{ imported: number; updated: number; skipped: number; total: number }>(
+      `/geo/import/${municipalityId}/kml`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
+  importCsv: (municipalityId: string, file: File, updateByName = false) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('updateByName', String(updateByName));
+    return api.post<{ imported: number; updated: number; skipped: number; total: number }>(
+      `/geo/import/${municipalityId}/csv`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
   exportStreets: (municipalityId: string, microareaId?: string) =>
     api.get(`/geo/export/${municipalityId}`, {
       params: microareaId ? { microareaId } : undefined,

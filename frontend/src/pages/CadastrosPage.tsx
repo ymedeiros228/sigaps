@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -30,12 +30,14 @@ import {
   acsApi,
   neighborhoodsApi,
   microareasApi,
+  municipalitiesApi,
   type Ubs,
   type Acs,
   type Neighborhood,
   type Microarea,
 } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
+import { assetUrl } from '../utils/assetUrl';
 
 const MICROAREA_COLORS = ['#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#F44336', '#009688'];
 
@@ -443,6 +445,115 @@ function MicroareasTab({ municipalityId }: { municipalityId: string }) {
   );
 }
 
+function MunicipalityTab({ municipalityId }: { municipalityId: string }) {
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { register, handleSubmit, reset } = useForm<{
+    name: string;
+    state: string;
+    prefecture: string;
+    secretariat: string;
+  }>();
+
+  const { data: municipality, isLoading } = useQuery({
+    queryKey: ['municipality', municipalityId],
+    queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+  });
+
+  useEffect(() => {
+    if (municipality) {
+      reset({
+        name: municipality.name,
+        state: municipality.state,
+        prefecture: municipality.prefecture,
+        secretariat: municipality.secretariat,
+      });
+    }
+  }, [municipality, reset]);
+
+  const saveMutation = useMutation({
+    mutationFn: (values: { name: string; state: string; prefecture: string; secretariat: string }) =>
+      municipalitiesApi.update(municipalityId, values),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['municipality'] }),
+  });
+
+  const logoMutation = useMutation({
+    mutationFn: (file: File) => municipalitiesApi.uploadLogo(municipalityId, file),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['municipality'] }),
+  });
+
+  if (isLoading || !municipality) return <CircularProgress />;
+
+  return (
+    <Box sx={{ maxWidth: 560 }}>
+      <Typography variant="h6" gutterBottom>Município</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Box
+          sx={{
+            width: 80,
+            height: 80,
+            borderRadius: 2,
+            border: '1px dashed',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            bgcolor: 'action.hover',
+          }}
+        >
+          {municipality.logoUrl ? (
+            <Box
+              component="img"
+              src={assetUrl(municipality.logoUrl) ?? ''}
+              alt="Logo"
+              sx={{ maxWidth: '100%', maxHeight: '100%' }}
+            />
+          ) : (
+            <Typography variant="caption" color="text.secondary">Sem logo</Typography>
+          )}
+        </Box>
+        <Box>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => fileRef.current?.click()}
+            disabled={logoMutation.isPending}
+          >
+            {logoMutation.isPending ? 'Enviando...' : 'Enviar logotipo'}
+          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            PNG, JPG, WEBP ou SVG
+          </Typography>
+        </Box>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) logoMutation.mutate(file);
+            e.target.value = '';
+          }}
+        />
+      </Box>
+
+      <form onSubmit={handleSubmit((v) => saveMutation.mutate(v))}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField label="Nome" {...register('name', { required: true })} fullWidth />
+          <TextField label="UF" {...register('state', { required: true, maxLength: 2 })} fullWidth />
+          <TextField label="Prefeitura" {...register('prefecture', { required: true })} fullWidth />
+          <TextField label="Secretaria" {...register('secretariat', { required: true })} fullWidth />
+          <Button type="submit" variant="contained" disabled={saveMutation.isPending}>
+            Salvar dados
+          </Button>
+        </Box>
+      </form>
+    </Box>
+  );
+}
+
 export function CadastrosPage() {
   const municipalityId = useMunicipalityId();
   const [tab, setTab] = useState(0);
@@ -464,16 +575,18 @@ export function CadastrosPage() {
 
       <Card>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable">
+          <Tab label="Município" />
           <Tab label="UBS" />
           <Tab label="ACS" />
           <Tab label="Bairros" />
           <Tab label="Microáreas" />
         </Tabs>
         <CardContent>
-          {tab === 0 && <UbsTab municipalityId={municipalityId} />}
-          {tab === 1 && <AcsTab municipalityId={municipalityId} />}
-          {tab === 2 && <NeighborhoodsTab municipalityId={municipalityId} />}
-          {tab === 3 && <MicroareasTab municipalityId={municipalityId} />}
+          {tab === 0 && <MunicipalityTab municipalityId={municipalityId} />}
+          {tab === 1 && <UbsTab municipalityId={municipalityId} />}
+          {tab === 2 && <AcsTab municipalityId={municipalityId} />}
+          {tab === 3 && <NeighborhoodsTab municipalityId={municipalityId} />}
+          {tab === 4 && <MicroareasTab municipalityId={municipalityId} />}
         </CardContent>
       </Card>
     </Box>

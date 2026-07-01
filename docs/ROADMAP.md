@@ -23,21 +23,23 @@
 
 ### Em progresso (esta sprint)
 
-- [ ] Camada de polígonos no mapa (envelopes)
-- [ ] Seleção múltipla de ruas (Ctrl+clique)
-- [ ] Histórico de alterações no dashboard
-- [ ] Documentação completa + PDF
-- [ ] Repositório GitHub
+- [x] Camada de polígonos no mapa (envelopes)
+- [x] Seleção múltipla de ruas (Ctrl+clique)
+- [x] Histórico de alterações no dashboard
+- [x] Documentação completa + PDF
+- [x] Repositório GitHub
 
 ---
 
-## Fase 2 — Cadastros e importação (Jul–Ago/2026) — **Em andamento**
+## Fase 2 — Cadastros e importação (Jul–Ago/2026) — **Concluída** ✅
 
 - [x] Módulos API: UBS, ACS, Bairros
 - [x] Telas CRUD administrativas
-- [ ] Upload de logo do município
-- [x] Importação GeoJSON, KML, CSV
-- [x] Exportação GeoJSON e PNG do mapa
+- [x] Upload de logo do município
+- [x] Importação GeoJSON
+- [x] Importação KML, CSV
+- [x] Exportação GeoJSON (ruas + microáreas)
+- [x] Exportação PNG do mapa
 - [x] Gráficos no dashboard (Recharts)
 - [x] Busca unificada (rua, bairro, UBS, ACS, microárea)
 - [x] Refresh token automático no frontend

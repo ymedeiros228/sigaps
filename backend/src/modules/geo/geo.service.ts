@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { kml } from '@tmcw/togeojson';
+import { DOMParser } from '@xmldom/xmldom';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ImportGeoJsonDto } from './dto/import-geojson.dto';
 
@@ -85,6 +87,47 @@ export class GeoService {
 
     this.logger.log(`GeoJSON import: ${imported} novas, ${updated} atualizadas, ${skipped} ignoradas`);
     return { imported, updated, skipped, total: features.length };
+  }
+
+  async importKml(municipalityId: string, kmlContent: string, updateByName = false) {
+    const dom = new DOMParser().parseFromString(kmlContent, 'text/xml');
+    const geojson = kml(dom) as GeoJSON.FeatureCollection;
+    return this.importGeoJson(municipalityId, { geojson, updateByName });
+  }
+
+  async importCsv(municipalityId: string, csvContent: string, updateByName = false) {
+    const rows = this.parseCsvRows(csvContent);
+    if (!rows.length) {
+      throw new BadRequestException('CSV vazio ou formato inválido');
+    }
+
+    const features: LineFeature[] = [];
+    for (const row of rows) {
+      const coords = this.csvRowToCoordinates(row);
+      if (coords.length < 2) continue;
+
+      features.push({
+        type: 'Feature',
+        properties: {
+          name: row.name ?? row.nome ?? 'Via importada',
+          streetType: row.street_type ?? row.tipo,
+          microareaName: row.microarea_name ?? row.microarea,
+          microareaNumber: row.microarea_number,
+        },
+        geometry: { type: 'LineString', coordinates: coords },
+      });
+    }
+
+    if (!features.length) {
+      throw new BadRequestException(
+        'Nenhuma rua válida no CSV. Use colunas: name, lon1, lat1, lon2, lat2 (ou coordinates como JSON)',
+      );
+    }
+
+    return this.importGeoJson(municipalityId, {
+      geojson: { type: 'FeatureCollection', features },
+      updateByName,
+    });
   }
 
   async exportGeoJson(municipalityId: string, microareaId?: string) {
@@ -213,5 +256,76 @@ export class GeoService {
     if (lower.includes('travessa') || lower.startsWith('tv ')) return 'Travessa';
     if (lower.includes('rodovia')) return 'Rodovia';
     return 'Rua';
+  }
+
+  private parseCsvRows(content: string): Array<Record<string, string>> {
+    const lines = content.trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 1) return [];
+
+    const delimiter = lines[0].includes(';') ? ';' : ',';
+    const headers = this.parseCsvLine(lines[0], delimiter).map((h) => h.trim().toLowerCase());
+    const hasHeader = headers.some((h) =>
+      ['name', 'nome', 'lon1', 'lat1', 'coordinates'].includes(h),
+    );
+
+    const startIdx = hasHeader ? 1 : 0;
+    const defaultHeaders = ['name', 'street_type', 'lon1', 'lat1', 'lon2', 'lat2', 'microarea_name'];
+    const cols = hasHeader ? headers : defaultHeaders;
+
+    const rows: Array<Record<string, string>> = [];
+    for (let i = startIdx; i < lines.length; i++) {
+      const values = this.parseCsvLine(lines[i], delimiter);
+      const row: Record<string, string> = {};
+      cols.forEach((col, idx) => {
+        if (values[idx] != null) row[col] = values[idx].trim();
+      });
+      if (row.name || row.nome) rows.push(row);
+    }
+    return rows;
+  }
+
+  private parseCsvLine(line: string, delimiter: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === delimiter && !inQuotes) {
+        result.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current);
+    return result;
+  }
+
+  private csvRowToCoordinates(row: Record<string, string>): number[][] {
+    if (row.coordinates) {
+      try {
+        const parsed = JSON.parse(row.coordinates) as number[][];
+        if (Array.isArray(parsed) && parsed.every((p) => p.length >= 2)) {
+          return parsed.map(([lon, lat]) => [Number(lon), Number(lat)]);
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+
+    const lon1 = Number(row.lon1 ?? row.longitude1 ?? row.lng1);
+    const lat1 = Number(row.lat1 ?? row.latitude1);
+    const lon2 = Number(row.lon2 ?? row.longitude2 ?? row.lng2);
+    const lat2 = Number(row.lat2 ?? row.latitude2);
+
+    if ([lon1, lat1, lon2, lat2].every((n) => !Number.isNaN(n))) {
+      return [
+        [lon1, lat1],
+        [lon2, lat2],
+      ];
+    }
+    return [];
   }
 }

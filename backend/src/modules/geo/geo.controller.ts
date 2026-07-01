@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,15 +8,25 @@ import {
   Post,
   Query,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import type { Response } from 'express';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { ImportGeoJsonDto } from './dto/import-geojson.dto';
 import { GeoService } from './geo.service';
+
+const IMPORT_ROLES = [
+  UserRole.ENFERMEIRO,
+  UserRole.COORDENADOR_APS,
+  UserRole.SECRETARIO_SAUDE,
+  UserRole.ADMINISTRADOR,
+] as const;
 
 @ApiTags('Importação / Exportação')
 @ApiBearerAuth()
@@ -25,18 +36,69 @@ export class GeoController {
   constructor(private readonly geoService: GeoService) {}
 
   @Post('import/:municipalityId')
-  @Roles(
-    UserRole.ENFERMEIRO,
-    UserRole.COORDENADOR_APS,
-    UserRole.SECRETARIO_SAUDE,
-    UserRole.ADMINISTRADOR,
-  )
+  @Roles(...IMPORT_ROLES)
   @ApiOperation({ summary: 'Importar ruas via GeoJSON' })
   importGeoJson(
     @Param('municipalityId') municipalityId: string,
     @Body() dto: ImportGeoJsonDto,
   ) {
     return this.geoService.importGeoJson(municipalityId, dto);
+  }
+
+  @Post('import/:municipalityId/kml')
+  @Roles(...IMPORT_ROLES)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        updateByName: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Importar ruas via KML' })
+  async importKml(
+    @Param('municipalityId') municipalityId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('updateByName') updateByName?: string,
+  ) {
+    if (!file?.buffer) throw new BadRequestException('Arquivo KML obrigatório');
+    const content = file.buffer.toString('utf-8');
+    return this.geoService.importKml(
+      municipalityId,
+      content,
+      updateByName === 'true',
+    );
+  }
+
+  @Post('import/:municipalityId/csv')
+  @Roles(...IMPORT_ROLES)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        updateByName: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Importar ruas via CSV' })
+  async importCsv(
+    @Param('municipalityId') municipalityId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('updateByName') updateByName?: string,
+  ) {
+    if (!file?.buffer) throw new BadRequestException('Arquivo CSV obrigatório');
+    const content = file.buffer.toString('utf-8');
+    return this.geoService.importCsv(
+      municipalityId,
+      content,
+      updateByName === 'true',
+    );
   }
 
   @Get('export/:municipalityId')

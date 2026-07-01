@@ -1,9 +1,21 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreateMunicipalityDto } from './dto/municipality.dto';
+import { UpdateMunicipalityDto } from './dto/update-municipality.dto';
 import { MunicipalitiesService } from './municipalities.service';
 
 @ApiTags('Municípios')
@@ -30,5 +42,30 @@ export class MunicipalitiesController {
   @ApiOperation({ summary: 'Cadastrar município' })
   create(@Body() dto: CreateMunicipalityDto) {
     return this.municipalitiesService.create(dto);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE)
+  @ApiOperation({ summary: 'Atualizar município' })
+  update(@Param('id') id: string, @Body() dto: UpdateMunicipalityDto) {
+    return this.municipalitiesService.update(id, dto);
+  }
+
+  @Post(':id/logo')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOperation({ summary: 'Upload do logotipo do município' })
+  uploadLogo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.municipalitiesService.uploadLogo(id, file);
   }
 }
