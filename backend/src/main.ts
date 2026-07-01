@@ -49,16 +49,31 @@ async function bootstrap() {
 
   const publicDir = join(process.cwd(), 'public');
   if (existsSync(publicDir)) {
+    const apiPrefixes = [
+      '/auth',
+      '/municipalities',
+      '/streets',
+      '/microareas',
+      '/ubs',
+      '/acs',
+      '/neighborhoods',
+      '/search',
+      '/dashboard',
+      '/osm',
+      '/geo',
+      '/audit',
+      '/paint-zones',
+      '/docs',
+      '/uploads',
+    ];
+    const isApiPath = (path: string) =>
+      apiPrefixes.some((p) => path === p || path.startsWith(`${p}/`));
+
     app.useStaticAssets(publicDir, { index: false, fallthrough: true });
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') return next();
-      if (
-        req.path.startsWith('/docs') ||
-        req.path.startsWith('/uploads') ||
-        req.path.includes('.')
-      ) {
-        return next();
-      }
+      if (isApiPath(req.path)) return next();
+      if (req.path.includes('.')) return next();
       res.sendFile(join(publicDir, 'index.html'), (err) => {
         if (err) next();
       });

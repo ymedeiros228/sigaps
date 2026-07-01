@@ -46,9 +46,13 @@ export function fixCoordPair(pair: [number, number]): [number, number] {
 }
 
 export function fixLineString(geojson: GeoJSON.LineString): GeoJSON.LineString {
+  const coords = geojson?.coordinates;
+  if (!Array.isArray(coords)) {
+    return { type: 'LineString', coordinates: [] };
+  }
   return {
     type: 'LineString',
-    coordinates: geojson.coordinates.map((c) => fixCoordPair(c as [number, number])),
+    coordinates: coords.map((c) => fixCoordPair(c as [number, number])),
   };
 }
 
