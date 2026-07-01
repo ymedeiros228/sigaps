@@ -38,7 +38,9 @@ function Set-GhSecretIfProvided($name, $prompt, $secret) {
 }
 
 Write-Host "`n--- Secrets do GitHub Actions ---" -ForegroundColor Cyan
-Write-Host "Obtenha DATABASE_URL no Supabase: Settings -> Database -> URI (porta 6543 pooler)`n"
+Write-Host "DATABASE_URL no Supabase (Settings -> Database -> Connection string -> URI):"
+Write-Host "  GitHub Actions (migrate): Session pooler porta 5432"
+Write-Host "  Render (app): Transaction pooler porta 6543`n"
 
 Set-GhSecretIfProvided "DATABASE_URL" "DATABASE_URL (Supabase):" $env:DATABASE_URL
 Set-GhSecretIfProvided "VITE_API_URL" "VITE_API_URL (ex: https://sigaps-api.onrender.com):" $env:VITE_API_URL

@@ -17,4 +17,6 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY prisma ./prisma
 COPY assets ./assets
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+# Migrations run in CI (GitHub Actions) with a direct/session DB URL — not via
+# Supabase transaction pooler (port 6543), which Prisma Migrate cannot use.
+CMD ["node", "dist/src/main.js"]
