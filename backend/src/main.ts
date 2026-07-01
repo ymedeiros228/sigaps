@@ -50,6 +50,7 @@ async function bootstrap() {
   const publicDir = join(process.cwd(), 'public');
   if (existsSync(publicDir)) {
     const apiPrefixes = [
+      '/health',
       '/auth',
       '/municipalities',
       '/streets',

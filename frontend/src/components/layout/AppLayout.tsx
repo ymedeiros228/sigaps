@@ -23,6 +23,7 @@ import {
   ListAlt,
   HelpOutlined,
 } from '@mui/icons-material';
+import { BuildVersion } from '../common/BuildVersion';
 import { HostingNotice } from '../common/HostingNotice';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -218,6 +219,7 @@ export function AppLayout() {
         <Box className="page-enter" sx={{ minHeight: 'calc(100vh - 64px)' }}>
           <Outlet />
         </Box>
+        <BuildVersion />
       </Box>
     </Box>
   );
