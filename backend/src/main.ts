@@ -73,11 +73,21 @@ async function bootstrap() {
         return path === p || path.startsWith(`${p}/`);
       });
 
-    app.useStaticAssets(publicDir, { index: false, fallthrough: true });
+    app.useStaticAssets(publicDir, {
+      index: false,
+      fallthrough: true,
+      maxAge: '365d',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      },
+    });
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') return next();
       if (isApiPath(req.path)) return next();
       if (req.path.includes('.')) return next();
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(join(publicDir, 'index.html'), (err) => {
         if (err) next();
       });
