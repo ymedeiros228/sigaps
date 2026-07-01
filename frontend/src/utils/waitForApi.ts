@@ -45,9 +45,6 @@ export async function waitForApiReady(maxAttempts = 15, intervalMs = 4000): Prom
 }
 
 export async function fetchDashboardIndicators(municipalityId: string) {
-  if (isCloudDeployment()) {
-    await waitForApiReady(8, 3000);
-  }
   const res = await api.get(`/dashboard/${municipalityId}`);
   const data = res.data;
   if (!data || typeof data !== 'object' || typeof data.streets !== 'number') {

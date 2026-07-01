@@ -32,10 +32,9 @@ export class DashboardService {
     const [
       ubsCount,
       acsCount,
-      microareasCount,
+      microareasList,
       streetStats,
       assignedStreets,
-      microareasByStreet,
       recentChanges,
     ] = await Promise.all([
       safe('ubs', () => this.prisma.ubs.count({ where: { municipalityId } }), 0),
@@ -44,7 +43,21 @@ export class DashboardService {
         () => this.prisma.acs.count({ where: { municipalityId, status: 'ATIVO' } }),
         0,
       ),
-      safe('microareas', () => this.prisma.microarea.count({ where: { municipalityId } }), 0),
+      safe(
+        'microareas',
+        () =>
+          this.prisma.microarea.findMany({
+            where: { municipalityId },
+            select: {
+              id: true,
+              name: true,
+              color: true,
+              _count: { select: { streets: true } },
+            },
+            orderBy: { number: 'asc' },
+          }),
+        [],
+      ),
       safe(
         'streetStats',
         () =>
@@ -63,24 +76,11 @@ export class DashboardService {
           }),
         0,
       ),
-      safe(
-        'microareasChart',
-        () =>
-          this.prisma.microarea.findMany({
-            where: { municipalityId },
-            select: {
-              id: true,
-              name: true,
-              color: true,
-              _count: { select: { streets: true } },
-            },
-          }),
-        [],
-      ),
       safe('recentChanges', () => this.audit.findRecent(municipalityId, 10), []),
     ]);
 
     const streetsCount = streetStats._count._all;
+    const microareasCount = microareasList.length;
 
     return {
       ubs: ubsCount,
@@ -92,7 +92,7 @@ export class DashboardService {
       coverage:
         streetsCount > 0 ? Math.round((assignedStreets / streetsCount) * 100) : 0,
       assignedStreets,
-      microareasChart: microareasByStreet.map((m) => ({
+      microareasChart: microareasList.map((m) => ({
         name: m.name,
         color: m.color,
         streets: m._count.streets,

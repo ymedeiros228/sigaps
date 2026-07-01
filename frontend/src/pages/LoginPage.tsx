@@ -52,10 +52,10 @@ export function LoginPage() {
       await waitForApiReady(10, 4000);
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
-      if (res.data.user.municipalityId) {
-        await prefetchMapData(queryClient, res.data.user.municipalityId);
-      }
       navigate('/', { replace: true });
+      if (res.data.user.municipalityId) {
+        void prefetchMapData(queryClient, res.data.user.municipalityId);
+      }
     } catch {
       setError('Email ou senha inválidos. Verifique suas credenciais.');
       setAutoLogging(false);

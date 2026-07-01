@@ -32,7 +32,8 @@ import { CACHE, queryKeys } from '../utils/queryKeys';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
-import { fetchDashboardIndicators, waitForApiReady } from '../utils/waitForApi';
+import { dashboardApi } from '../services/api';
+import { waitForApiReady } from '../utils/waitForApi';
 import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from '../utils/queryRetry';
 
 function dashboardErrorMessage(error: unknown) {
@@ -53,13 +54,10 @@ export function DashboardPage() {
   useEffect(() => {
     if (!import.meta.env.PROD) return;
     let cancelled = false;
-    setWakeMessage('Verificando servidor…');
-    void waitForApiReady(10, 3000).then((ready) => {
-      if (!cancelled) {
-        setWakeMessage(ready ? null : 'Servidor lento — tentando carregar mesmo assim…');
-        if (!ready) {
-          window.setTimeout(() => { if (!cancelled) setWakeMessage(null); }, 4000);
-        }
+    void waitForApiReady(4, 2000).then((ready) => {
+      if (!cancelled && !ready) {
+        setWakeMessage('Servidor acordando — carregando indicadores…');
+        window.setTimeout(() => { if (!cancelled) setWakeMessage(null); }, 5000);
       }
     });
     return () => { cancelled = true; };
@@ -75,7 +73,7 @@ export function DashboardPage() {
 
   const { data, isLoading, isError, error, refetch, isFetching, failureCount, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.dashboard(municipalityId!),
-    queryFn: () => fetchDashboardIndicators(municipalityId!),
+    queryFn: () => dashboardApi.indicators(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
     staleTime: CACHE.dashboard,
     retry: (count, err) => shouldRetryCloudQuery(count, err),
@@ -93,7 +91,7 @@ export function DashboardPage() {
     );
   }
 
-  if (isLoading || (isFetching && !data)) {
+  if (isLoading && !data) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 8, gap: 1.5 }}>
         <CircularProgress />
