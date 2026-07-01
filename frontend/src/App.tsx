@@ -65,6 +65,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/dashboard"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <DashboardPage />
+            </Suspense>
+          }
+        />
+        <Route
           path="/mapa"
           element={
             <ErrorBoundary title="Erro ao abrir o mapa">
@@ -90,7 +98,7 @@ function AppRoutes() {
             </Suspense>
           }
         />
-        <Route path="*" element={<Navigate to="/mapa" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

@@ -51,7 +51,7 @@ export function LoginPage() {
       if (res.data.user.municipalityId) {
         await prefetchMapData(queryClient, res.data.user.municipalityId);
       }
-      navigate('/mapa', { replace: true });
+      navigate('/', { replace: true });
     } catch {
       setError('Email ou senha inválidos. Verifique suas credenciais.');
       setAutoLogging(false);
@@ -64,7 +64,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (token) {
-      navigate('/mapa', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [token, navigate]);
 

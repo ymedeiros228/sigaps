@@ -32,7 +32,7 @@ import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME } from '../../constants/branding';
 const DRAWER_WIDTH = 260;
 
 const navItems = [
-  { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+  { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { label: 'Pintar Mapa', path: '/mapa', icon: <MapIcon /> },
   { label: 'Cadastros', path: '/cadastros', icon: <ListAlt /> },
   { label: 'Ajuda', path: '/ajuda', icon: <HelpOutlined /> },
@@ -90,7 +90,10 @@ export function AppLayout() {
 
       <List sx={{ px: 1, flex: 1 }}>
         {navItems.map((item) => {
-          const selected = location.pathname === item.path;
+          const selected =
+            item.path === '/dashboard'
+              ? location.pathname === '/' || location.pathname === '/dashboard'
+              : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
           return (
             <ListItemButton
               key={item.path}

@@ -23,7 +23,13 @@ export function streetMatchesQuery(
 }
 
 export function formatStreetLabel(street: { name: string; streetType?: string }) {
-  return `${street.streetType ?? 'Rua'} ${street.name}`;
+  const type = (street.streetType ?? 'Rua').trim();
+  const name = street.name.trim();
+  const nameLower = name.toLowerCase();
+  const typeLower = type.toLowerCase();
+  if (nameLower.startsWith(`${typeLower} `) || nameLower === typeLower) return name;
+  if (/^(rua|avenida|av\.?|travessa|tv\.?|rodovia|estrada)\s/i.test(name)) return name;
+  return `${type} ${name}`;
 }
 
 /** Ruas com nome real, geometria válida e origem OSM para exibir no mapa */

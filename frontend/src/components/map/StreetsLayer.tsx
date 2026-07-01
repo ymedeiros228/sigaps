@@ -5,6 +5,7 @@ import type { PathOptions } from 'leaflet';
 import type { Street } from '../../services/api';
 import { useAppStore, useMapStore } from '../../store';
 import { isValidLineString } from '../../utils/geojsonSafe';
+import { formatStreetLabel } from '../../utils/streetSearch';
 
 const HIT_WEIGHT = 32;
 
@@ -166,9 +167,19 @@ export function StreetsLayer({
     if (!street) return;
 
     const path = layer as L.Path;
-    const label = `${props.streetType} ${props.name}`;
+    const label = formatStreetLabel({ name: props.name, streetType: props.streetType });
+    const tooltipText = paintMode
+      ? `Pintar: ${label}`
+      : props.microareaName
+        ? `${label} — ${props.microareaName}`
+        : label;
 
-    if (!paintMode && props.hasMicroarea && showEnvelopes && zoom >= 15) {
+    // Nomes fixos no mapa ficam acima das microáreas (pane de tooltip do Leaflet).
+    // Só exibir fixo quando microáreas estão ocultas; com microáreas visíveis, usar hover.
+    const showFixedName =
+      !paintMode && !showEnvelopes && props.hasMicroarea && zoom >= 16;
+
+    if (showFixedName) {
       layer.bindTooltip(label, {
         permanent: true,
         direction: 'center',
@@ -176,10 +187,10 @@ export function StreetsLayer({
         offset: [0, 0],
       });
     } else {
-      layer.bindTooltip(
-        paintMode ? `Pintar: ${label}` : props.microareaName ? `${label} — ${props.microareaName}` : label,
-        { sticky: true, className: paintMode ? 'paint-tooltip' : 'street-tooltip' },
-      );
+      layer.bindTooltip(tooltipText, {
+        sticky: true,
+        className: paintMode ? 'paint-tooltip' : 'street-tooltip',
+      });
     }
 
     if (paintMode) {

@@ -89,7 +89,8 @@ body {
   border-radius: 8px;
 }
 
-.street-name-label {
+.street-name-label,
+.street-tooltip {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -106,8 +107,14 @@ body {
   pointer-events: none;
 }
 
-.street-name-label::before {
-  display: none;
+.street-name-label {
+  font-size: 10px !important;
+  opacity: 0.85;
+}
+
+.street-name-label::before,
+.street-tooltip::before {
+  display: none !important;
 }
 
 .microarea-map-label {
