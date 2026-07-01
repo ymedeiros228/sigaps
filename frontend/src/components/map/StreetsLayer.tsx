@@ -13,6 +13,7 @@ interface StreetsLayerProps {
   streets: Street[];
   onStreetClick: (street: Street, multiSelect?: boolean) => void;
   onStreetPaint: (street: Street) => void;
+  onStreetUnpaint: (street: Street) => void;
   onDragPaintEnd: () => void;
 }
 
@@ -25,16 +26,20 @@ export function StreetsLayer({
   streets,
   onStreetClick,
   onStreetPaint,
+  onStreetUnpaint,
   onDragPaintEnd,
 }: StreetsLayerProps) {
   const highlightedId = useMapStore((s) => s.highlightedStreetId);
   const selectedIds = useMapStore((s) => s.selectedStreetIds);
   const dragPaintIds = useMapStore((s) => s.dragPaintIds);
   const paintMode = useMapStore((s) => s.paintMode);
+  const eraserMode = useMapStore((s) => s.eraserMode);
   const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
   const microareas = useAppStore((s) => s.microareas);
-  const activeColor = microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
+  const activeColor = eraserMode
+    ? '#EF5350'
+    : microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
   const isPaintingDragRef = useRef(false);
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
@@ -53,9 +58,10 @@ export function StreetsLayer({
   useEffect(() => {
     const container = map.getContainer();
     container.classList.toggle('sigaps-map-painting', paintMode);
+    container.classList.toggle('sigaps-map-eraser', paintMode && eraserMode);
     container.classList.toggle('sigaps-map-selecting', !paintMode);
-    return () => container.classList.remove('sigaps-map-painting', 'sigaps-map-selecting');
-  }, [map, paintMode]);
+    return () => container.classList.remove('sigaps-map-painting', 'sigaps-map-eraser', 'sigaps-map-selecting');
+  }, [map, paintMode, eraserMode]);
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -169,7 +175,11 @@ export function StreetsLayer({
     const path = layer as L.Path;
     const label = formatStreetLabel({ name: props.name, streetType: props.streetType });
     const tooltipText = paintMode
-      ? `Pintar: ${label}`
+      ? eraserMode
+        ? props.hasMicroarea
+          ? `Apagar: ${label}`
+          : `${label} — não pintada`
+        : `Pintar: ${label}`
       : props.microareaName
         ? `${label} — ${props.microareaName}`
         : label;
@@ -195,22 +205,39 @@ export function StreetsLayer({
 
     if (paintMode) {
       layer.on('mouseover', () => {
+        if (eraserMode && !props.hasMicroarea) return;
         setHoveredId(props.id);
-        path.getElement()?.classList.add('sigaps-street-hover');
-        if (isPaintingDragRef.current && selectedMicroareaId) onStreetPaint(street);
+        path.getElement()?.classList.add(eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover');
+        if (isPaintingDragRef.current) {
+          if (eraserMode) {
+            if (props.hasMicroarea) onStreetUnpaint(street);
+          } else if (selectedMicroareaId) {
+            onStreetPaint(street);
+          }
+        }
       });
       layer.on('mouseout', () => {
         setHoveredId(null);
-        path.getElement()?.classList.remove('sigaps-street-hover');
+        path.getElement()?.classList.remove('sigaps-street-hover', 'sigaps-street-eraser-hover');
       });
       layer.on('mousedown', (e: L.LeafletMouseEvent) => {
         stopMapEvent(e);
+        if (eraserMode) {
+          if (!props.hasMicroarea) return;
+          isPaintingDragRef.current = true;
+          onStreetUnpaint(street);
+          return;
+        }
         if (!selectedMicroareaId) return;
         isPaintingDragRef.current = true;
         onStreetPaint(street);
       });
       layer.on('click', (e: L.LeafletMouseEvent) => {
         stopMapEvent(e);
+        if (eraserMode) {
+          if (props.hasMicroarea) onStreetUnpaint(street);
+          return;
+        }
         if (selectedMicroareaId) onStreetPaint(street);
       });
       return;
@@ -253,7 +280,7 @@ export function StreetsLayer({
       )}
 
       <GeoJSON
-        key={`streets-hit-${features.length}-${paintMode}-${selectedMicroareaId}-${zoom}`}
+        key={`streets-hit-${features.length}-${paintMode}-${eraserMode}-${selectedMicroareaId}-${zoom}`}
         data={fc(features)}
         style={() => ({
           color: 'transparent',

@@ -16,6 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import SignpostIcon from '@mui/icons-material/Signpost';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import AutoFixOffIcon from '@mui/icons-material/AutoFixOff';
 import { useQuery } from '@tanstack/react-query';
 import { streetsApi, type Microarea, type Street } from '../../services/api';
 
@@ -24,7 +25,9 @@ interface StreetPanelProps {
   microareas: Microarea[];
   onClose: () => void;
   onAssign: (microareaId: string) => void;
+  onUnassign: () => void;
   assigning: boolean;
+  unassigning: boolean;
 }
 
 export function StreetPanel({
@@ -32,7 +35,9 @@ export function StreetPanel({
   microareas,
   onClose,
   onAssign,
+  onUnassign,
   assigning,
+  unassigning,
 }: StreetPanelProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -152,6 +157,21 @@ export function StreetPanel({
         )}
 
         <Divider sx={{ my: 2 }} />
+
+        {street.microareaId && (
+          <Button
+            fullWidth
+            variant="outlined"
+            color="warning"
+            size="medium"
+            disabled={unassigning}
+            startIcon={<AutoFixOffIcon />}
+            onClick={onUnassign}
+            sx={{ mb: 2, fontWeight: 700, borderWidth: 2 }}
+          >
+            {unassigning ? 'Removendo…' : 'Remover pintura desta rua'}
+          </Button>
+        )}
 
         {!street.microareaId && topSuggestion && (
           <Box sx={{ mb: 2 }}>

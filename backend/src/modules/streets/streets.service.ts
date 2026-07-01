@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
+import { UnassignStreetsDto } from './dto/unassign-streets.dto';
 
 @Injectable()
 export class StreetsService {
@@ -162,6 +163,43 @@ export class StreetsService {
     };
   }
 
+  async unassignFromMicroarea(dto: UnassignStreetsDto, userId: string) {
+    const streets = await this.prisma.street.findMany({
+      where: { id: { in: dto.streetIds }, microareaId: { not: null } },
+      select: { id: true, microareaId: true },
+    });
+
+    if (streets.length === 0) {
+      return { cleared: 0 };
+    }
+
+    const affectedMicroareas = new Set(
+      streets.map((s) => s.microareaId).filter((id): id is string => !!id),
+    );
+
+    await this.prisma.street.updateMany({
+      where: { id: { in: streets.map((s) => s.id) } },
+      data: { microareaId: null },
+    });
+
+    await this.prisma.auditLog.createMany({
+      data: streets.map((street) => ({
+        userId,
+        entityType: 'street',
+        entityId: street.id,
+        action: 'UNASSIGN_MICROAREA',
+        beforeData: { microareaId: street.microareaId },
+        afterData: { microareaId: null },
+      })),
+    });
+
+    for (const microareaId of affectedMicroareas) {
+      this.scheduleEnvelopeUpdate(microareaId);
+    }
+
+    return { cleared: streets.length };
+  }
+
   async clearAllAssignments(municipalityId: string, userId: string) {
     const painted = await this.prisma.street.findMany({
       where: { municipalityId, microareaId: { not: null } },
@@ -171,6 +209,10 @@ export class StreetsService {
     if (painted.length === 0) {
       return { cleared: 0 };
     }
+
+    const affectedMicroareas = new Set(
+      painted.map((s) => s.microareaId).filter((id): id is string => !!id),
+    );
 
     await this.prisma.street.updateMany({
       where: { municipalityId, microareaId: { not: null } },
@@ -186,6 +228,10 @@ export class StreetsService {
         afterData: { cleared: painted.length },
       },
     });
+
+    for (const microareaId of affectedMicroareas) {
+      this.scheduleEnvelopeUpdate(microareaId);
+    }
 
     return { cleared: painted.length };
   }

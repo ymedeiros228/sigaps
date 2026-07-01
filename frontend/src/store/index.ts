@@ -20,6 +20,7 @@ const persistedAuth = readPersistedAuth();
 
 interface MapState {
   paintMode: boolean;
+  eraserMode: boolean;
   selectedMicroareaId: string | null;
   selectedStreetIds: Set<string>;
   showEnvelopes: boolean;
@@ -32,6 +33,7 @@ interface MapState {
   divisionMode: boolean;
   divisionDraft: { lat: number; lng: number; radiusMeters: number; name: string } | null;
   setPaintMode: (enabled: boolean) => void;
+  setEraserMode: (enabled: boolean) => void;
   setSelectedMicroarea: (id: string | null) => void;
   toggleStreetSelection: (id: string) => void;
   clearSelection: () => void;
@@ -103,6 +105,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 export const useMapStore = create<MapState>((set, get) => ({
   paintMode: false,
+  eraserMode: false,
   selectedMicroareaId: null,
   selectedStreetIds: new Set(),
   showEnvelopes: true,
@@ -130,8 +133,16 @@ export const useMapStore = create<MapState>((set, get) => ({
     }
     set({
       paintMode: enabled,
+      eraserMode: enabled ? get().eraserMode : false,
       paintGuideCollapsed: enabled ? false : state.paintGuideCollapsed,
       mapPanEnabled: enabled ? false : true,
+    });
+  },
+  setEraserMode: (enabled) => {
+    set({
+      eraserMode: enabled,
+      paintMode: enabled ? true : get().paintMode,
+      mapPanEnabled: enabled ? false : get().mapPanEnabled,
     });
   },
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),

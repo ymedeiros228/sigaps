@@ -205,6 +205,8 @@ export const streetsApi = {
   get: (id: string) => api.get<Street>(`/streets/${id}`),
   assign: (streetIds: string[], microareaId: string, forceTransfer = false) =>
     api.post('/streets/assign', { streetIds, microareaId, forceTransfer }),
+  unassign: (streetIds: string[]) =>
+    api.post<{ cleared: number }>('/streets/unassign', { streetIds }),
   clearAssignments: (municipalityId: string) =>
     api.post<{ cleared: number }>(
       `/streets/municipality/${municipalityId}/clear-assignments`,

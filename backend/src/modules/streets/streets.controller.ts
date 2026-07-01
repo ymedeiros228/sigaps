@@ -13,6 +13,7 @@ import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
+import { UnassignStreetsDto } from './dto/unassign-streets.dto';
 import { StreetsService } from './streets.service';
 
 @ApiTags('Ruas')
@@ -73,6 +74,18 @@ export class StreetsController {
       req.user.id,
       dto.forceTransfer ?? false,
     );
+  }
+
+  @Post('unassign')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Remover vínculo de ruas com microáreas' })
+  unassign(@Body() dto: UnassignStreetsDto, @Req() req: { user: { id: string } }) {
+    return this.streetsService.unassignFromMicroarea(dto, req.user.id);
   }
 
   @Post('municipality/:municipalityId/clear-assignments')

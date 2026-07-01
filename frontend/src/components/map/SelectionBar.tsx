@@ -7,7 +7,7 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { Close, Link as LinkIcon } from '@mui/icons-material';
+import { Close, Link as LinkIcon, AutoFixOff } from '@mui/icons-material';
 import type { Microarea } from '../../services/api';
 import { useMapStore } from '../../store';
 
@@ -15,10 +15,21 @@ interface SelectionBarProps {
   microareas: Microarea[];
   count: number;
   onAssign: (microareaId: string) => void;
+  onUnassign: () => void;
   assigning: boolean;
+  unassigning: boolean;
+  hasPaintedSelection: boolean;
 }
 
-export function SelectionBar({ microareas, count, onAssign, assigning }: SelectionBarProps) {
+export function SelectionBar({
+  microareas,
+  count,
+  onAssign,
+  onUnassign,
+  assigning,
+  unassigning,
+  hasPaintedSelection,
+}: SelectionBarProps) {
   const theme = useTheme();
   const clearSelection = useMapStore((s) => s.clearSelection);
 
@@ -41,7 +52,7 @@ export function SelectionBar({ microareas, count, onAssign, assigning }: Selecti
         flexDirection: { xs: 'column', sm: 'row' },
         gap: { xs: 1, sm: 1.5 },
         width: { xs: 'calc(100% - 16px)', sm: 'auto' },
-        maxWidth: { xs: '100%', sm: 560 },
+        maxWidth: { xs: '100%', sm: 640 },
         bgcolor: alpha(theme.palette.info.main, 0.12),
         border: `1px solid ${alpha(theme.palette.info.main, 0.35)}`,
         borderRadius: 3,
@@ -62,6 +73,19 @@ export function SelectionBar({ microareas, count, onAssign, assigning }: Selecti
         </IconButton>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+        {hasPaintedSelection && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="warning"
+            disabled={unassigning}
+            startIcon={<AutoFixOff fontSize="small" />}
+            onClick={onUnassign}
+            sx={{ fontWeight: 700 }}
+          >
+            Remover pintura
+          </Button>
+        )}
         <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
           Vincular à:
         </Typography>
