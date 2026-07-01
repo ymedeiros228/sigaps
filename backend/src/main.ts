@@ -64,6 +64,7 @@ async function bootstrap() {
       '/geo',
       '/audit',
       '/paint-zones',
+      '/health',
       '/docs',
       '/uploads',
     ];

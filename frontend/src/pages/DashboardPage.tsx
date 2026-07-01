@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Box, Card, CardContent, Typography, CircularProgress, Chip, Button, Alert } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   LocalHospital,
@@ -29,9 +31,38 @@ import { CACHE, queryKeys } from '../utils/queryKeys';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
+import { waitForApiReady } from '../utils/waitForApi';
+import { isRetryableQueryError } from '../utils/queryRetry';
+
+function dashboardErrorMessage(error: unknown) {
+  if (isRetryableQueryError(error)) {
+    return 'O servidor está acordando (hospedagem gratuita). Aguarde cerca de 1 minuto e tente novamente.';
+  }
+  const status = (error as AxiosError)?.response?.status;
+  if (status === 403) return 'Você não tem permissão para ver estes indicadores.';
+  if (status === 404) return 'Município não encontrado. Faça login novamente.';
+  return 'Não foi possível carregar os indicadores. Verifique sua conexão e tente novamente.';
+}
 
 export function DashboardPage() {
   const municipalityId = useMunicipalityId();
+  const [wakingServer, setWakingServer] = useState(false);
+  const [apiReady, setApiReady] = useState(() => !import.meta.env.PROD);
+
+  useEffect(() => {
+    if (apiReady) return;
+    let cancelled = false;
+    setWakingServer(true);
+    void waitForApiReady().then((ready) => {
+      if (!cancelled) {
+        setApiReady(ready);
+        setWakingServer(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiReady]);
 
   const { data: municipality } = useQuery({
     queryKey: queryKeys.municipality(municipalityId!),
@@ -40,10 +71,10 @@ export function DashboardPage() {
     staleTime: CACHE.default,
   });
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching, failureCount } = useQuery({
     queryKey: queryKeys.dashboard(municipalityId!),
     queryFn: () => dashboardApi.indicators(municipalityId!).then((r) => r.data),
-    enabled: !!municipalityId,
+    enabled: !!municipalityId && apiReady,
     staleTime: CACHE.dashboard,
   });
 
@@ -58,22 +89,39 @@ export function DashboardPage() {
     );
   }
 
-  if (isLoading) {
+  if (wakingServer || (!apiReady && municipalityId)) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 8 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 8, gap: 2 }}>
         <CircularProgress />
+        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          Acordando o servidor…
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420, textAlign: 'center' }}>
+          Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto. Depois fica rápido.
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isLoading || (isFetching && !data)) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 8, gap: 1.5 }}>
+        <CircularProgress />
+        <Typography variant="body2" color="text.secondary">
+          {failureCount > 0 ? `Carregando indicadores… (tentativa ${failureCount + 1})` : 'Carregando indicadores…'}
+        </Typography>
       </Box>
     );
   }
 
   if (isError || !data) {
     return (
-      <Box sx={{ p: 3, maxWidth: 480, mx: 'auto', textAlign: 'center' }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Não foi possível carregar os indicadores.
+      <Box sx={{ p: 3, maxWidth: 520, mx: 'auto', textAlign: 'center' }}>
+        <Alert severity="error" sx={{ mb: 2, textAlign: 'left' }}>
+          {dashboardErrorMessage(error)}
         </Alert>
-        <Button variant="contained" onClick={() => refetch()}>
-          Tentar novamente
+        <Button variant="contained" onClick={() => refetch()} disabled={isFetching}>
+          {isFetching ? 'Tentando…' : 'Tentar novamente'}
         </Button>
       </Box>
     );

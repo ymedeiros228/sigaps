@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store';
 import { prefetchMapData } from '../utils/prefetchAppData';
+import { waitForApiReady } from '../utils/waitForApi';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
 import { getDevLoginDefaults, isDevAutoLoginEnabled } from '../constants/devAuth';
 
@@ -46,6 +47,7 @@ export function LoginPage() {
   const doLogin = async (data: LoginForm) => {
     setError('');
     try {
+      await waitForApiReady(10, 4000);
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
       if (res.data.user.municipalityId) {

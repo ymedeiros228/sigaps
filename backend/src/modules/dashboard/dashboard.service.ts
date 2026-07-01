@@ -39,7 +39,7 @@ export class DashboardService {
           _count: { select: { streets: true } },
         },
       }),
-      this.audit.findRecent(municipalityId, 10),
+      this.audit.findRecent(municipalityId, 10).catch(() => []),
     ]);
 
     const streetsCount = streetStats._count._all;

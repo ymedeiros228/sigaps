@@ -7,6 +7,7 @@ const API_URL =
 export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: import.meta.env.PROD ? 90_000 : 30_000,
 });
 
 let isRefreshing = false;

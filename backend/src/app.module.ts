@@ -15,6 +15,7 @@ import { NeighborhoodsModule } from './modules/neighborhoods/neighborhoods.modul
 import { SearchModule } from './modules/search/search.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { PaintZonesModule } from './modules/paint-zones/paint-zones.module';
+import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -35,6 +36,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     SearchModule,
     GeoModule,
     PaintZonesModule,
+    HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

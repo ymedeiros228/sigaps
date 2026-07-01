@@ -1,9 +1,14 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { microareasApi, neighborhoodsApi, paintZonesApi, streetsApi } from '../services/api';
+import { microareasApi, neighborhoodsApi, paintZonesApi, streetsApi, dashboardApi } from '../services/api';
 import { CACHE, queryKeys } from './queryKeys';
 
 export async function prefetchMapData(queryClient: QueryClient, municipalityId: string) {
   await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.dashboard(municipalityId),
+      queryFn: () => dashboardApi.indicators(municipalityId).then((r) => r.data),
+      staleTime: CACHE.dashboard,
+    }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.microareas(municipalityId),
       queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),

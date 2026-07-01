@@ -46,7 +46,7 @@ async function main() {
       role: UserRole.ENFERMEIRO,
       municipalityId: municipality.id,
     },
-    update: { passwordHash },
+    update: { passwordHash, municipalityId: municipality.id },
   });
 
   const colors = ['#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#F44336'];

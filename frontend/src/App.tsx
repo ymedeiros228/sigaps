@@ -20,14 +20,17 @@ const CadastrosPage = lazy(() =>
   import('./pages/CadastrosPage').then((m) => ({ default: m.CadastrosPage })),
 );
 
+import { cloudQueryRetryDelay, shouldRetryCloudQuery } from './utils/queryRetry';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60_000,
       gcTime: 15 * 60_000,
-      retry: 1,
+      retry: (failureCount, error) => shouldRetryCloudQuery(failureCount, error),
+      retryDelay: cloudQueryRetryDelay,
       refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnReconnect: true,
     },
   },
 });
