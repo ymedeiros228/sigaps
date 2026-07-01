@@ -14,6 +14,8 @@ import {
   Switch,
   Alert,
   CircularProgress,
+  Divider,
+  Typography,
 } from '@mui/material';
 import {
   Upload,
@@ -21,21 +23,25 @@ import {
   Image,
   Map as MapIcon,
   TableChart,
+  PictureAsPdf,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { geoApi } from '../../services/api';
+import { geoApi, type Microarea } from '../../services/api';
 import { useAppStore } from '../../store';
+import { MapPdfDialog } from './MapPdfDialog';
 
 type ImportFormat = 'geojson' | 'kml' | 'csv';
 
 interface MapExportMenuProps {
   mapContainerRef: RefObject<HTMLElement | null>;
+  microareas: Microarea[];
 }
 
-export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
+export function MapExportMenu({ mapContainerRef, microareas }: MapExportMenuProps) {
   const municipalityId = useAppStore((s) => s.municipalityId);
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const kmlCsvInputRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importFormat, setImportFormat] = useState<ImportFormat>('geojson');
@@ -43,12 +49,13 @@ export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
   const [importResult, setImportResult] = useState<string | null>(null);
   const [pendingGeoJson, setPendingGeoJson] = useState<object | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const onImportSuccess = (res: { imported: number; updated: number; skipped: number }) => {
-    queryClient.invalidateQueries({ queryKey: ['streets'] });
+    queryClient.invalidateQueries({ queryKey: ['streets', municipalityId] });
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     setImportResult(
-      `Importação concluída: ${res.imported} novas, ${res.updated} atualizadas, ${res.skipped} ignoradas`,
+      `Pronto! ${res.imported} ruas novas, ${res.updated} atualizadas, ${res.skipped} ignoradas.`,
     );
   };
 
@@ -56,7 +63,7 @@ export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
     mutationFn: (geojson: object) =>
       geoApi.import(municipalityId!, { geojson, updateByName }),
     onSuccess: (res) => onImportSuccess(res.data),
-    onError: () => setImportResult('Erro ao importar GeoJSON. Verifique o formato.'),
+    onError: () => setImportResult('Não foi possível importar o arquivo. Verifique se o formato está correto.'),
   });
 
   const fileMutation = useMutation({
@@ -65,7 +72,7 @@ export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
         ? geoApi.importKml(municipalityId!, file, updateByName)
         : geoApi.importCsv(municipalityId!, file, updateByName),
     onSuccess: (res) => onImportSuccess(res.data),
-    onError: () => setImportResult(`Erro ao importar ${importFormat.toUpperCase()}.`),
+    onError: () => setImportResult('Não foi possível importar o arquivo. Tente outro formato.'),
   });
 
   const isPending = geoJsonMutation.isPending || fileMutation.isPending;
@@ -123,8 +130,6 @@ export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
     setAnchorEl(null);
   };
 
-  const kmlCsvInputRef = useRef<HTMLInputElement>(null);
-
   const handleGeoJsonFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -132,7 +137,7 @@ export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
         setPendingGeoJson(JSON.parse(reader.result as string));
         setImportOpen(true);
       } catch {
-        setImportResult('Arquivo JSON inválido.');
+        setImportResult('Arquivo inválido. Envie um arquivo .geojson ou .json.');
       }
     };
     reader.readAsText(file);
@@ -152,40 +157,59 @@ export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
   };
 
   const formatLabels: Record<ImportFormat, string> = {
-    geojson: 'GeoJSON',
-    kml: 'KML',
-    csv: 'CSV',
+    geojson: 'arquivo de mapa (GeoJSON)',
+    kml: 'arquivo KML',
+    csv: 'planilha CSV',
   };
 
   return (
     <>
       <Button size="small" variant="outlined" onClick={(e) => setAnchorEl(e.currentTarget)}>
-        Importar / Exportar
+        Arquivos
       </Button>
       <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={() => setAnchorEl(null)}>
+        <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
+          Importar
+        </Typography>
         <MenuItem onClick={() => openImport('geojson')}>
           <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
-          <ListItemText>Importar GeoJSON</ListItemText>
+          <ListItemText primary="Ruas de outro sistema" secondary="Formato GeoJSON" />
         </MenuItem>
         <MenuItem onClick={() => openImport('kml')}>
           <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
-          <ListItemText>Importar KML</ListItemText>
+          <ListItemText primary="Mapa do Google Earth / QGIS" secondary="Formato KML" />
         </MenuItem>
         <MenuItem onClick={() => openImport('csv')}>
           <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
-          <ListItemText>Importar CSV</ListItemText>
+          <ListItemText primary="Planilha de ruas" secondary="Formato CSV" />
         </MenuItem>
+        <Divider />
+        <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
+          Exportar / salvar
+        </Typography>
         <MenuItem onClick={handleExportStreets}>
           <ListItemIcon><Download fontSize="small" /></ListItemIcon>
-          <ListItemText>Exportar ruas (GeoJSON)</ListItemText>
+          <ListItemText primary="Lista de ruas" secondary="Arquivo GeoJSON" />
         </MenuItem>
         <MenuItem onClick={handleExportMicroareas}>
           <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Exportar microáreas (GeoJSON)</ListItemText>
+          <ListItemText primary="Microáreas" secondary="Arquivo GeoJSON" />
         </MenuItem>
         <MenuItem onClick={handleExportPng}>
           <ListItemIcon><Image fontSize="small" /></ListItemIcon>
-          <ListItemText>Exportar mapa (PNG)</ListItemText>
+          <ListItemText primary="Imagem do mapa" secondary="Arquivo PNG para impressão" />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setAnchorEl(null);
+            setPdfOpen(true);
+          }}
+        >
+          <ListItemIcon><PictureAsPdf fontSize="small" /></ListItemIcon>
+          <ListItemText
+            primary="Mapa oficial (PDF)"
+            secondary="A4/A3 com legenda, escala e QR Code"
+          />
         </MenuItem>
       </Menu>
 
@@ -212,36 +236,43 @@ export function MapExportMenu({ mapContainerRef }: MapExportMenuProps) {
         }}
       />
 
+      <MapPdfDialog
+        open={pdfOpen}
+        onClose={() => setPdfOpen(false)}
+        mapContainerRef={mapContainerRef}
+        microareas={microareas}
+      />
+
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Importar {formatLabels[importFormat]}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           <Alert severity="info">
-            {importFormat === 'geojson' && 'FeatureCollection com LineString. Propriedades: name, microareaName.'}
-            {importFormat === 'kml' && 'Arquivo KML com linhas (LineString) exportado do QGIS ou Google Earth.'}
-            {importFormat === 'csv' && 'Colunas: name, lon1, lat1, lon2, lat2, microarea_name. Ou coordinates como JSON.'}
+            {importFormat === 'geojson' && 'Arquivo com linhas de ruas. Cada rua deve ter um nome.'}
+            {importFormat === 'kml' && 'Arquivo exportado do Google Earth ou QGIS com as ruas em linhas.'}
+            {importFormat === 'csv' && 'Planilha com colunas: nome da rua e coordenadas.'}
           </Alert>
           {pendingFile && (
-            <Alert severity="success">Arquivo: {pendingFile.name}</Alert>
+            <Alert severity="success">Arquivo selecionado: {pendingFile.name}</Alert>
           )}
           <FormControlLabel
             control={<Switch checked={updateByName} onChange={(e) => setUpdateByName(e.target.checked)} />}
-            label="Atualizar ruas existentes com o mesmo nome"
+            label="Atualizar ruas que já existem com o mesmo nome"
           />
           {importResult && (
-            <Alert severity={importResult.startsWith('Erro') ? 'error' : 'success'}>
+            <Alert severity={importResult.startsWith('Não') ? 'error' : 'success'}>
               {importResult}
             </Alert>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setImportOpen(false)}>Fechar</Button>
+          <Button onClick={() => setImportOpen(false)}>Cancelar</Button>
           <Button
             variant="contained"
             disabled={isPending || (importFormat === 'geojson' ? !pendingGeoJson : !pendingFile)}
             onClick={handleConfirmImport}
             startIcon={isPending ? <CircularProgress size={16} /> : undefined}
           >
-            Importar
+            Importar agora
           </Button>
         </DialogActions>
       </Dialog>

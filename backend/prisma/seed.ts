@@ -1,9 +1,22 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { copyFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { importStreetsFromBundledGeoJson } from '../src/common/utils/bundled-streets.import';
 
 const prisma = new PrismaClient();
 
+function ensureMunicipalityLogo() {
+  const src = join(process.cwd(), 'assets', 'logos', 'passagem-franca.png');
+  const destDir = join(process.cwd(), 'uploads', 'logos');
+  const dest = join(destDir, 'passagem-franca.png');
+  if (!existsSync(src)) return;
+  mkdirSync(destDir, { recursive: true });
+  copyFileSync(src, dest);
+}
+
 async function main() {
+  ensureMunicipalityLogo();
   const municipality = await prisma.municipality.upsert({
     where: { name_state: { name: 'Passagem Franca', state: 'MA' } },
     create: {
@@ -11,10 +24,15 @@ async function main() {
       state: 'MA',
       prefecture: 'Prefeitura Municipal de Passagem Franca',
       secretariat: 'Secretaria Municipal de Saúde',
+      logoUrl: '/uploads/logos/passagem-franca.png',
       latitude: -6.1828,
       longitude: -43.7869,
+      osmRelationId: 332931,
     },
-    update: {},
+    update: {
+      logoUrl: '/uploads/logos/passagem-franca.png',
+      osmRelationId: 332931,
+    },
   });
 
   const passwordHash = await bcrypt.hash('Sigaps@2026', 10);
@@ -90,6 +108,30 @@ async function main() {
     where: { id: microareas[0].id },
     data: { ubsId: ubs.id, acsId: acs1.id },
   });
+
+  const removedDemo = await prisma.street.deleteMany({
+    where: { municipalityId: municipality.id, osmId: null },
+  });
+  if (removedDemo.count > 0) {
+    console.log(`Removidas ${removedDemo.count} ruas demo (sem OSM)`);
+  }
+
+  const streetCount = await prisma.street.count({
+    where: { municipalityId: municipality.id, osmId: { not: null } },
+  });
+  if (streetCount === 0) {
+    const bundled = await importStreetsFromBundledGeoJson(
+      prisma,
+      municipality.id,
+      municipality.name,
+      municipality.state,
+    );
+    if (bundled.imported > 0) {
+      console.log(`Ruas locais carregadas: ${bundled.imported} (${bundled.path})`);
+    }
+  } else {
+    console.log(`Ruas OSM já no banco: ${streetCount}`);
+  }
 
   console.log('Seed concluído!');
   console.log(`Município: ${municipality.name} (${municipality.id})`);

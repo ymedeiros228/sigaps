@@ -1,19 +1,42 @@
 import type React from 'react';
-import { useEffect, useMemo } from 'react';
+import { Suspense, lazy, useEffect, useMemo } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
 import { createAppTheme } from './theme';
 import { useAuthStore, useAppStore } from './store';
 import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { AppLayout } from './components/layout/AppLayout';
-import { SigapsMap } from './components/map/SigapsMap';
-import { CadastrosPage } from './pages/CadastrosPage';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
+const SigapsMap = lazy(() =>
+  import('./components/map/SigapsMap').then((m) => ({ default: m.SigapsMap })),
+);
+const CadastrosPage = lazy(() =>
+  import('./pages/CadastrosPage').then((m) => ({ default: m.CadastrosPage })),
+);
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 10 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
 });
+
+function PageLoader() {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
+      <CircularProgress />
+    </Box>
+  );
+}
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -32,11 +55,34 @@ function AppRoutes() {
           </PrivateRoute>
         }
       >
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/mapa" element={<SigapsMap />} />
-        <Route path="/cadastros" element={<CadastrosPage />} />
+        <Route
+          path="/"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <DashboardPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/mapa"
+          element={
+            <ErrorBoundary title="Erro ao abrir o mapa">
+              <Suspense fallback={<PageLoader />}>
+                <SigapsMap />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/cadastros"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <CadastrosPage />
+            </Suspense>
+          }
+        />
+        <Route path="*" element={<Navigate to="/mapa" replace />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

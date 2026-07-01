@@ -1,6 +1,3 @@
-﻿-- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "postgis";
-
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('ADMINISTRADOR', 'SECRETARIO_SAUDE', 'COORDENADOR_APS', 'ENFERMEIRO', 'ACS');
 
@@ -208,48 +205,3 @@ ALTER TABLE "streets" ADD CONSTRAINT "streets_municipality_id_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- PostGIS extension and geometry columns for SIGAPS
-CREATE EXTENSION IF NOT EXISTS postgis;
-
--- Add geometry column to streets (LineString, WGS84)
-ALTER TABLE streets ADD COLUMN IF NOT EXISTS geom geometry(LineString, 4326);
-CREATE INDEX IF NOT EXISTS streets_geom_idx ON streets USING GIST (geom);
-
--- Add geometry column to microareas (Polygon, WGS84) - auto-generated envelope
-ALTER TABLE microareas ADD COLUMN IF NOT EXISTS envelope_geom geometry(Polygon, 4326);
-CREATE INDEX IF NOT EXISTS microareas_envelope_geom_idx ON microareas USING GIST (envelope_geom);
-
--- Function to sync geojson to PostGIS geometry for streets
-CREATE OR REPLACE FUNCTION sync_street_geom()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.geojson IS NOT NULL THEN
-    NEW.geom := ST_SetSRID(ST_GeomFromGeoJSON(NEW.geojson::text), 4326);
-    IF NEW.length_meters IS NULL AND NEW.geom IS NOT NULL THEN
-      NEW.length_meters := ST_Length(ST_Transform(NEW.geom, 3857));
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS street_geom_trigger ON streets;
-CREATE TRIGGER street_geom_trigger
-  BEFORE INSERT OR UPDATE OF geojson ON streets
-  FOR EACH ROW EXECUTE FUNCTION sync_street_geom();
-
--- Function to update microarea envelope from assigned streets
-CREATE OR REPLACE FUNCTION update_microarea_envelope(p_microarea_id UUID)
-RETURNS void AS $$
-BEGIN
-  UPDATE microareas m
-  SET envelope_geom = sub.envelope
-  FROM (
-    SELECT ST_ConvexHull(ST_Collect(s.geom)) AS envelope
-    FROM streets s
-    WHERE s.microarea_id = p_microarea_id AND s.geom IS NOT NULL
-  ) sub
-  WHERE m.id = p_microarea_id;
-END;
-$$ LANGUAGE plpgsql;

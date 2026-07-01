@@ -27,7 +27,13 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.name,
+      user.municipalityId,
+    );
     await this.prisma.user.update({
       where: { id: user.id },
       data: { refreshToken: tokens.refreshToken },
@@ -53,17 +59,29 @@ export class AuthService {
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
       });
-      if (!user || user.refreshToken !== refreshToken) {
+      if (!user || !user.isActive || user.refreshToken !== refreshToken) {
         throw new UnauthorizedException('Token inválido');
       }
-      return this.generateTokens(user.id, user.email, user.role);
+      return this.generateTokens(
+        user.id,
+        user.email,
+        user.role,
+        user.name,
+        user.municipalityId,
+      );
     } catch {
       throw new UnauthorizedException('Token inválido');
     }
   }
 
-  private async generateTokens(userId: string, email: string, role: string) {
-    const payload = { sub: userId, email, role };
+  private async generateTokens(
+    userId: string,
+    email: string,
+    role: string,
+    name?: string,
+    municipalityId?: string | null,
+  ) {
+    const payload = { sub: userId, email, role, name, municipalityId };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(payload, {
         secret: this.config.get<string>('JWT_SECRET'),

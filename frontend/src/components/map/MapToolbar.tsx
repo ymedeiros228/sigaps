@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import {
   Box,
   Paper,
@@ -6,173 +5,155 @@ import {
   Tooltip,
   ToggleButton,
   ToggleButtonGroup,
-  Autocomplete,
-  TextField,
   Button,
-  Alert,
+  Chip,
   FormControlLabel,
   Switch,
+  useTheme,
+  alpha,
 } from '@mui/material';
 import {
   Fullscreen,
   MyLocation,
-  Brush,
-  Layers,
-  Search,
+  Satellite,
+  Terrain,
+  Map as MapIcon,
+  Download,
 } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
-import { searchApi } from '../../services/api';
-import { useAppStore, useMapStore } from '../../store';
+import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { MapExportMenu } from './MapExportMenu';
+import { StreetSearchBar, type StreetSearchOption } from './StreetSearchBar';
+import { canImportStreets } from '../../utils/permissions';
 import type { RefObject } from 'react';
+import type { Microarea } from '../../services/api';
 
 interface MapToolbarProps {
   onImport: () => void;
   importing: boolean;
-  conflictMsg: string | null;
-  onForceTransfer: () => void;
+  streetCount: number;
   selectedCount?: number;
   mapContainerRef: RefObject<HTMLElement | null>;
+  microareas: Microarea[];
+  streets: Array<{ id: string; name: string; streetType?: string; geojson: GeoJSON.LineString }>;
+  onLocateStreet: (streetId: string, geojson?: GeoJSON.LineString) => void;
 }
 
-type SearchOption = {
-  id: string;
-  label: string;
-  group: string;
-  kind: 'street' | 'neighborhood' | 'ubs' | 'acs' | 'microarea';
-  lat?: number;
-  lng?: number;
+const panelSx = {
+  position: 'absolute' as const,
+  top: 16,
+  left: 16,
+  right: 16,
+  zIndex: 1000,
+  p: 1.5,
+  borderRadius: 3,
 };
 
 export function MapToolbar({
   onImport,
   importing,
-  conflictMsg,
-  onForceTransfer,
+  streetCount,
   selectedCount = 0,
   mapContainerRef,
+  microareas,
+  streets,
+  onLocateStreet,
 }: MapToolbarProps) {
+  const theme = useTheme();
   const municipalityId = useAppStore((s) => s.municipalityId);
-  const microareas = useAppStore((s) => s.microareas);
   const paintMode = useMapStore((s) => s.paintMode);
-  const setPaintMode = useMapStore((s) => s.setPaintMode);
-  const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
   const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
+  const setPaintMode = useMapStore((s) => s.setPaintMode);
   const baseLayer = useMapStore((s) => s.baseLayer);
   const setBaseLayer = useMapStore((s) => s.setBaseLayer);
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
   const setShowEnvelopes = useMapStore((s) => s.setShowEnvelopes);
-  const setHighlightedStreet = useMapStore((s) => s.setHighlightedStreet);
   const flyTo = useMapStore((s) => s.flyTo);
-  const [searchText, setSearchText] = useState('');
+  const user = useAuthStore((s) => s.user);
+  const canImport = canImportStreets(user?.role);
 
-  const { data: searchData, isFetching: searching } = useQuery({
-    queryKey: ['unified-search', municipalityId, searchText],
-    queryFn: () => searchApi.query(municipalityId!, searchText).then((r) => r.data),
-    enabled: !!municipalityId && searchText.length >= 2,
-  });
-
-  const searchOptions = useMemo<SearchOption[]>(() => {
-    if (!searchData) return [];
-    const opts: SearchOption[] = [];
-    searchData.streets.forEach((s) =>
-      opts.push({ id: s.id, label: `${s.streetType ?? 'Rua'} ${s.name}`, group: 'Ruas', kind: 'street' }),
-    );
-    searchData.neighborhoods.forEach((n) =>
-      opts.push({ id: n.id, label: n.name, group: 'Bairros', kind: 'neighborhood' }),
-    );
-    searchData.ubs.forEach((u) =>
-      opts.push({ id: u.id, label: u.name, group: 'UBS', kind: 'ubs', lat: u.latitude, lng: u.longitude }),
-    );
-    searchData.acs.forEach((a) =>
-      opts.push({ id: a.id, label: a.name, group: 'ACS', kind: 'acs' }),
-    );
-    searchData.microareas.forEach((m) =>
-      opts.push({ id: m.id, label: m.name, group: 'Microáreas', kind: 'microarea' }),
-    );
-    return opts;
-  }, [searchData]);
-
-  const handleSearchSelect = (option: SearchOption | null) => {
-    if (!option) return;
-    if (option.kind === 'street') setHighlightedStreet(option.id);
-    if (option.kind === 'microarea') setSelectedMicroarea(option.id);
+  const handleSearchSelect = (option: StreetSearchOption) => {
+    if (option.kind === 'street') {
+      onLocateStreet(option.id, option.geojson);
+    }
+    if (option.kind === 'microarea') {
+      setSelectedMicroarea(option.id);
+      setPaintMode(true);
+    }
     if (option.kind === 'ubs' && option.lat && option.lng) flyTo(option.lat, option.lng);
-    setSearchText('');
   };
+
+  const glassBg = theme.palette.mode === 'dark'
+    ? alpha(theme.palette.background.paper, 0.88)
+    : alpha('#fff', 0.92);
 
   return (
     <Paper
+      className="map-float-panel"
+      elevation={0}
       sx={{
-        position: 'absolute',
-        top: 16,
-        left: 16,
-        right: 16,
-        zIndex: 1000,
-        p: 1.5,
+        ...panelSx,
+        bgcolor: glassBg,
         display: 'flex',
         flexWrap: 'wrap',
         gap: 1,
         alignItems: 'center',
       }}
-      elevation={4}
     >
-      <Autocomplete
-        size="small"
-        sx={{ minWidth: 300, flex: 1 }}
-        freeSolo
-        inputValue={searchText}
-        onInputChange={(_, v) => setSearchText(v)}
-        options={searchOptions}
-        groupBy={(o) => o.group}
-        getOptionLabel={(o) => (typeof o === 'string' ? o : o.label)}
-        loading={searching}
-        onChange={(_, value) => {
-          if (value && typeof value !== 'string') handleSearchSelect(value);
-        }}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder="Buscar rua, bairro, UBS, ACS, microárea..."
-            slotProps={{
-              input: {
-                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
-              },
-            }}
-          />
-        )}
+      <StreetSearchBar
+        municipalityId={municipalityId}
+        streets={streets}
+        onSelect={handleSearchSelect}
       />
 
-      <ToggleButtonGroup size="small" exclusive value={baseLayer} onChange={(_, v) => v && setBaseLayer(v)}>
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        value={baseLayer}
+        onChange={(_, v) => v && setBaseLayer(v)}
+        sx={{ bgcolor: alpha(theme.palette.action.hover, 0.5) }}
+      >
         <ToggleButton value="map">
-          <Tooltip title="Mapa"><Layers fontSize="small" /></Tooltip>
+          <Tooltip title="Mapa padrão"><MapIcon fontSize="small" /></Tooltip>
         </ToggleButton>
-        <ToggleButton value="satellite">Sat</ToggleButton>
-        <ToggleButton value="terrain">Rel</ToggleButton>
+        <ToggleButton value="satellite">
+          <Tooltip title="Satélite"><Satellite fontSize="small" /></Tooltip>
+        </ToggleButton>
+        <ToggleButton value="terrain">
+          <Tooltip title="Relevo"><Terrain fontSize="small" /></Tooltip>
+        </ToggleButton>
       </ToggleButtonGroup>
 
-      <ToggleButton
-        size="small"
-        value="paint"
-        selected={paintMode}
-        onChange={() => setPaintMode(!paintMode)}
-        color="primary"
-      >
-        <Brush sx={{ mr: 0.5 }} fontSize="small" />
-        Pintar Microárea
-      </ToggleButton>
+      {!paintMode && streetCount > 0 && (
+        <Chip
+          label="Clique na rua para selecionar"
+          size="small"
+          variant="outlined"
+          sx={{ fontWeight: 600, display: { xs: 'none', md: 'flex' } }}
+        />
+      )}
 
       {paintMode && (
-        <Autocomplete
+        <Chip label="Pintando" color="primary" size="small" sx={{ fontWeight: 700 }} />
+      )}
+
+      {canImport && (streetCount > 0 || importing) && (
+        <Button
           size="small"
-          sx={{ minWidth: 200 }}
-          options={microareas}
-          getOptionLabel={(m) => m.name}
-          value={microareas.find((m) => m.id === selectedMicroareaId) ?? null}
-          onChange={(_, v) => setSelectedMicroarea(v?.id ?? null)}
-          renderInput={(params) => (
-            <TextField {...params} placeholder="Selecione a microárea" />
-          )}
+          variant="outlined"
+          onClick={onImport}
+          disabled={importing}
+          startIcon={<Download fontSize="small" />}
+        >
+          {importing ? 'Atualizando...' : 'Atualizar ruas'}
+        </Button>
+      )}
+
+      {selectedCount > 0 && (
+        <Chip
+          size="small"
+          label={`${selectedCount} selecionada(s)`}
+          color="info"
+          variant="outlined"
         />
       )}
 
@@ -184,47 +165,24 @@ export function MapToolbar({
             onChange={(e) => setShowEnvelopes(e.target.checked)}
           />
         }
-        label="Polígonos"
+        label="Microáreas"
+        sx={{ mr: 0 }}
       />
 
-      <Button size="small" variant="outlined" onClick={onImport} disabled={importing}>
-        {importing ? 'Importando OSM...' : 'Importar Ruas OSM'}
-      </Button>
+      <MapExportMenu mapContainerRef={mapContainerRef} microareas={microareas} />
 
-      <MapExportMenu mapContainerRef={mapContainerRef} />
-
-      {selectedCount > 0 && (
-        <Alert severity="info" sx={{ py: 0 }}>
-          {selectedCount} rua(s) selecionada(s) — Ctrl+clique para multi-seleção
-        </Alert>
-      )}
-
-      <Tooltip title="Tela cheia">
-        <IconButton size="small" onClick={() => document.documentElement.requestFullscreen()}>
-          <Fullscreen />
-        </IconButton>
-      </Tooltip>
-
-      <Tooltip title="Centralizar município">
-        <IconButton size="small" onClick={() => flyTo(-6.1828, -43.7869, 14)}>
-          <MyLocation />
-        </IconButton>
-      </Tooltip>
-
-      {conflictMsg && (
-        <Box sx={{ width: '100%' }}>
-          <Alert
-            severity="warning"
-            action={
-              <Button color="inherit" size="small" onClick={onForceTransfer}>
-                Transferir
-              </Button>
-            }
-          >
-            {conflictMsg}
-          </Alert>
-        </Box>
-      )}
+      <Box sx={{ display: 'flex', gap: 0.5, ml: { md: 'auto' } }}>
+        <Tooltip title="Tela cheia">
+          <IconButton size="small" onClick={() => document.documentElement.requestFullscreen()}>
+            <Fullscreen fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Centralizar município">
+          <IconButton size="small" onClick={() => flyTo(-6.1828, -43.7869, 14)}>
+            <MyLocation fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Paper>
   );
 }

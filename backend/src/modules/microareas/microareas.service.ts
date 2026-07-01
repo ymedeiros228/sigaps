@@ -39,14 +39,18 @@ export class MicroareasService {
   }
 
   async getEnvelopeGeoJson(id: string) {
-    const result = await this.prisma.$queryRaw<
-      Array<{ geojson: string | null }>
-    >`
-      SELECT ST_AsGeoJSON(envelope_geom)::text as geojson
-      FROM microareas WHERE id = ${id}::uuid
-    `;
-    if (!result[0]?.geojson) return null;
-    return JSON.parse(result[0].geojson);
+    try {
+      const result = await this.prisma.$queryRaw<
+        Array<{ geojson: string | null }>
+      >`
+        SELECT ST_AsGeoJSON(envelope_geom)::text as geojson
+        FROM microareas WHERE id = ${id}::uuid
+      `;
+      if (!result[0]?.geojson) return null;
+      return JSON.parse(result[0].geojson);
+    } catch {
+      return null;
+    }
   }
 
   async create(dto: CreateMicroareaDto) {

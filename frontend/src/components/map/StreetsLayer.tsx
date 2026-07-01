@@ -1,94 +1,269 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GeoJSON, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import type { PathOptions } from 'leaflet';
 import type { Street } from '../../services/api';
-import { useMapStore } from '../../store';
+import { useAppStore, useMapStore } from '../../store';
+import { isValidLineString } from '../../utils/geojsonSafe';
 
-const DEFAULT_COLOR = '#888888';
+const HIT_WEIGHT = 32;
 
 interface StreetsLayerProps {
   streets: Street[];
   onStreetClick: (street: Street, multiSelect?: boolean) => void;
+  onStreetPaint: (street: Street) => void;
+  onDragPaintEnd: () => void;
 }
 
-export function StreetsLayer({ streets, onStreetClick }: StreetsLayerProps) {
+function stopMapEvent(e: L.LeafletMouseEvent) {
+  L.DomEvent.stopPropagation(e);
+  if (e.originalEvent) L.DomEvent.preventDefault(e.originalEvent);
+}
+
+export function StreetsLayer({
+  streets,
+  onStreetClick,
+  onStreetPaint,
+  onDragPaintEnd,
+}: StreetsLayerProps) {
   const highlightedId = useMapStore((s) => s.highlightedStreetId);
   const selectedIds = useMapStore((s) => s.selectedStreetIds);
+  const dragPaintIds = useMapStore((s) => s.dragPaintIds);
   const paintMode = useMapStore((s) => s.paintMode);
+  const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
+  const showEnvelopes = useMapStore((s) => s.showEnvelopes);
+  const microareas = useAppStore((s) => s.microareas);
+  const activeColor = microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
+  const isPaintingDragRef = useRef(false);
+  const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!paintMode) setHoveredId(null);
+  }, [paintMode]);
+
+  useEffect(() => {
+    const onZoom = () => setZoom(map.getZoom());
+    map.on('zoomend', onZoom);
+    return () => { map.off('zoomend', onZoom); };
+  }, [map]);
+
+  useEffect(() => {
+    const container = map.getContainer();
+    container.classList.toggle('sigaps-map-painting', paintMode);
+    container.classList.toggle('sigaps-map-selecting', !paintMode);
+    return () => container.classList.remove('sigaps-map-painting', 'sigaps-map-selecting');
+  }, [map, paintMode]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (isPaintingDragRef.current) {
+        isPaintingDragRef.current = false;
+        onDragPaintEnd();
+      }
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [onDragPaintEnd]);
 
   const features = useMemo(
     () =>
-      streets.map((street) => ({
+      streets
+        .filter((street) => isValidLineString(street.geojson))
+        .map((street) => ({
         type: 'Feature' as const,
         properties: {
           id: street.id,
           name: street.name,
-          color: street.microarea?.color ?? DEFAULT_COLOR,
+          streetType: street.streetType ?? 'Rua',
+          color: street.microarea?.color ?? '#888',
           microareaName: street.microarea?.name,
+          hasMicroarea: !!street.microareaId,
           highlighted: street.id === highlightedId,
           selected: selectedIds.has(street.id),
+          dragPending: dragPaintIds.has(street.id),
         },
         geometry: street.geojson,
       })),
-    [streets, highlightedId, selectedIds],
+    [streets, highlightedId, selectedIds, dragPaintIds],
   );
 
-  const style = (feature?: GeoJSON.Feature): PathOptions => {
+  const { painted } = useMemo(() => {
+    const p: typeof features = [];
+    for (const f of features) {
+      if (f.properties.hasMicroarea || f.properties.dragPending) p.push(f);
+    }
+    return { painted: p };
+  }, [features]);
+
+  const streetsById = useMemo(
+    () => new Map(streets.map((street) => [street.id, street])),
+    [streets],
+  );
+
+  const hoveredFeature = useMemo(() => {
+    if (!paintMode || !hoveredId) return null;
+    const street = streetsById.get(hoveredId);
+    if (!street?.geojson) return null;
+    return {
+      type: 'Feature' as const,
+      properties: { id: hoveredId },
+      geometry: street.geojson,
+    };
+  }, [paintMode, hoveredId, streetsById]);
+
+  const fc = (list: typeof features) => ({ type: 'FeatureCollection' as const, features: list });
+
+  const paintedHaloStyle = (): PathOptions => ({
+    color: '#ffffff',
+    weight: 12,
+    opacity: 0.95,
+    lineCap: 'round',
+    lineJoin: 'round',
+  });
+
+  const paintedLineStyle = (feature?: GeoJSON.Feature): PathOptions => {
     const props = feature?.properties as {
       color: string;
       highlighted: boolean;
       selected: boolean;
+      dragPending: boolean;
     };
+    const color = props?.dragPending ? activeColor : props?.color ?? activeColor;
+    const emphasis = props?.highlighted || props?.selected || props?.dragPending;
     return {
-      color: props?.color ?? DEFAULT_COLOR,
-      weight: props?.highlighted || props?.selected ? 6 : 4,
-      opacity: props?.highlighted ? 1 : 0.85,
+      color,
+      weight: emphasis ? 9 : 7,
+      opacity: 1,
+      lineCap: 'round',
+      lineJoin: 'round',
     };
   };
 
-  const onEachFeature = (feature: GeoJSON.Feature, layer: L.Layer) => {
-    const props = feature.properties as { name: string; microareaName?: string };
-    layer.bindTooltip(props.name, { sticky: true });
-    layer.on('click', (e: L.LeafletMouseEvent) => {
-      const street = streets.find((s) => s.id === (feature.properties as { id: string }).id);
-      if (street) onStreetClick(street, e.originalEvent.ctrlKey || e.originalEvent.metaKey);
-    });
-    if (paintMode) {
-      (layer as L.Path).bringToFront();
+  const unassignedStyle = (): PathOptions => ({
+    color: activeColor,
+    weight: 7,
+    opacity: 0.65,
+    dashArray: '8 6',
+    lineCap: 'round',
+    lineJoin: 'round',
+  });
+
+  const bindInteraction = (feature: GeoJSON.Feature, layer: L.Layer) => {
+    const props = feature.properties as {
+      id: string;
+      name: string;
+      streetType: string;
+      microareaName?: string;
+      hasMicroarea: boolean;
+    };
+    const street = streetsById.get(props.id);
+    if (!street) return;
+
+    const path = layer as L.Path;
+    const label = `${props.streetType} ${props.name}`;
+
+    if (!paintMode && props.hasMicroarea && showEnvelopes && zoom >= 15) {
+      layer.bindTooltip(label, {
+        permanent: true,
+        direction: 'center',
+        className: 'street-name-label',
+        offset: [0, 0],
+      });
+    } else {
+      layer.bindTooltip(
+        paintMode ? `Pintar: ${label}` : props.microareaName ? `${label} — ${props.microareaName}` : label,
+        { sticky: true, className: paintMode ? 'paint-tooltip' : 'street-tooltip' },
+      );
     }
+
+    if (paintMode) {
+      layer.on('mouseover', () => {
+        setHoveredId(props.id);
+        path.getElement()?.classList.add('sigaps-street-hover');
+        if (isPaintingDragRef.current && selectedMicroareaId) onStreetPaint(street);
+      });
+      layer.on('mouseout', () => {
+        setHoveredId(null);
+        path.getElement()?.classList.remove('sigaps-street-hover');
+      });
+      layer.on('mousedown', (e: L.LeafletMouseEvent) => {
+        stopMapEvent(e);
+        if (!selectedMicroareaId) return;
+        isPaintingDragRef.current = true;
+        onStreetPaint(street);
+      });
+      layer.on('click', (e: L.LeafletMouseEvent) => {
+        stopMapEvent(e);
+        if (selectedMicroareaId) onStreetPaint(street);
+      });
+      return;
+    }
+
+    layer.on('mousedown', stopMapEvent);
+    layer.on('click', (e: L.LeafletMouseEvent) => {
+      stopMapEvent(e);
+      const multiSelect = !!(e.originalEvent?.ctrlKey || e.originalEvent?.metaKey);
+      onStreetClick(street, multiSelect);
+    });
   };
 
   return (
-    <GeoJSON
-      key={`streets-${streets.length}-${highlightedId}-${selectedIds.size}`}
-      data={{ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection}
-      style={style}
-      onEachFeature={onEachFeature}
-    />
+    <>
+      {painted.length > 0 && (
+        <>
+          <GeoJSON
+            key={`painted-halo-${painted.length}`}
+            data={fc(painted)}
+            style={paintedHaloStyle}
+            interactive={false}
+          />
+          <GeoJSON
+            key={`painted-line-${painted.length}-${paintMode}`}
+            data={fc(painted)}
+            style={paintedLineStyle}
+            interactive={false}
+          />
+        </>
+      )}
+
+      {hoveredFeature && (
+        <GeoJSON
+          key={`hover-${hoveredId}-${paintMode}`}
+          data={fc([hoveredFeature as (typeof features)[number]])}
+          style={unassignedStyle}
+          interactive={false}
+        />
+      )}
+
+      <GeoJSON
+        key={`streets-hit-${features.length}-${paintMode}-${selectedMicroareaId}-${zoom}`}
+        data={fc(features)}
+        style={() => ({
+          color: 'transparent',
+          weight: HIT_WEIGHT,
+          opacity: 0.001,
+          lineCap: 'round',
+          lineJoin: 'round',
+        })}
+        onEachFeature={bindInteraction}
+        interactive
+      />
+    </>
   );
 }
 
-export function MapCenterController({
-  lat,
-  lng,
-  zoom,
-}: {
-  lat: number;
-  lng: number;
-  zoom: number;
-}) {
+export function MapCenterController() {
   const map = useMap();
   const mapCenter = useMapStore((s) => s.mapCenter);
+  const clearMapCenter = useMapStore((s) => s.clearMapCenter);
 
   useEffect(() => {
-    map.setView([lat, lng], zoom);
-  }, [map, lat, lng, zoom]);
-
-  useEffect(() => {
-    if (mapCenter) {
-      map.flyTo([mapCenter.lat, mapCenter.lng], mapCenter.zoom ?? 16);
-    }
-  }, [map, mapCenter]);
+    if (!mapCenter) return;
+    map.flyTo([mapCenter.lat, mapCenter.lng], mapCenter.zoom ?? 16);
+    clearMapCenter();
+  }, [map, mapCenter, clearMapCenter]);
 
   return null;
 }

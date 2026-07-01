@@ -8,9 +8,16 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Alert,
+  alpha,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import type { Microarea, Street } from '../../services/api';
+import SignpostIcon from '@mui/icons-material/Signpost';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import { useQuery } from '@tanstack/react-query';
+import { streetsApi, type Microarea, type Street } from '../../services/api';
 
 interface StreetPanelProps {
   street: Street;
@@ -27,109 +34,196 @@ export function StreetPanel({
   onAssign,
   assigning,
 }: StreetPanelProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const accent = street.microarea?.color ?? theme.palette.primary.main;
+  const glassBg = theme.palette.mode === 'dark'
+    ? alpha(theme.palette.background.paper, 0.92)
+    : alpha('#fff', 0.95);
+
+  const { data: suggestions = [] } = useQuery({
+    queryKey: ['suggest-microarea', street.id],
+    queryFn: () => streetsApi.suggest(street.id).then((r) => r.data as Array<{ id: string; name: string; color: string }>),
+    enabled: !street.microareaId,
+    staleTime: 60_000,
+  });
+
+  const topSuggestion = suggestions[0];
+
   return (
     <Paper
+      className="map-float-panel"
+      elevation={0}
       sx={{
         position: 'absolute',
-        top: 100,
-        right: 16,
+        top: { xs: 100, sm: 120 },
+        right: { xs: 8, sm: 16 },
+        left: { xs: 8, sm: 'auto' },
         zIndex: 1000,
-        width: 320,
-        maxHeight: 'calc(100vh - 120px)',
+        width: { xs: 'auto', sm: 340 },
+        maxHeight: { xs: 'calc(100vh - 200px)', sm: 'calc(100vh - 140px)' },
         overflow: 'auto',
-        p: 2,
+        bgcolor: glassBg,
+        borderRadius: 3,
+        borderTop: `3px solid ${accent}`,
       }}
-      elevation={6}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-        <Box>
-          <Typography variant="overline" color="text.secondary">
-            {street.streetType ?? 'Rua'}
-          </Typography>
-          <Typography variant="h6">{street.name}</Typography>
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, minWidth: 0 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: alpha(accent, 0.15),
+                color: accent,
+                flexShrink: 0,
+              }}
+            >
+              <SignpostIcon />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                {street.streetType ?? 'Rua'}
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                {street.name}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton size="small" onClick={onClose} sx={{ mt: -0.5 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </Box>
-        <IconButton size="small" onClick={onClose}>
-          <CloseIcon />
-        </IconButton>
-      </Box>
 
-      <Divider sx={{ my: 1.5 }} />
-
-      <InfoRow label="Bairro" value={street.neighborhood?.name ?? '—'} />
-      <InfoRow
-        label="Microárea"
-        value={
-          street.microarea ? (
-            <Chip
-              size="small"
-              label={street.microarea.name}
-              sx={{ bgcolor: street.microarea.color, color: '#fff' }}
-            />
-          ) : (
-            'Não vinculada'
-          )
-        }
-      />
-      <InfoRow label="Comprimento" value={street.lengthMeters ? `${Math.round(street.lengthMeters)} m` : '—'} />
-      <InfoRow label="Imóveis" value={street.propertyCount} />
-      <InfoRow label="Famílias" value={street.familyCount} />
-      <InfoRow label="Habitantes" value={street.inhabitantCount} />
-      <InfoRow
-        label="Atualização"
-        value={new Date(street.updatedAt).toLocaleDateString('pt-BR')}
-      />
-
-      {street.notes && (
-        <>
-          <Divider sx={{ my: 1.5 }} />
-          <Typography variant="body2" color="text.secondary">
-            {street.notes}
+        <Alert severity="info" icon={<LightbulbOutlinedIcon fontSize="small" />} sx={{ mt: 1.5, py: 0.5, borderRadius: 2 }}>
+          <Typography variant="caption" component="div">
+            {isMobile ? (
+              <>Toque em uma rua para ver detalhes e vincular à microárea.</>
+            ) : (
+              <>
+                Segure <strong>Ctrl</strong> (ou <strong>Cmd</strong> no Mac) e clique em várias ruas
+                para selecionar e vincular todas de uma vez.
+              </>
+            )}
           </Typography>
-        </>
-      )}
+        </Alert>
 
-      <Divider sx={{ my: 1.5 }} />
-      <Typography variant="subtitle2" gutterBottom>
-        Adicionar à Microárea
-      </Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {microareas.map((m) => (
-          <Button
-            key={m.id}
-            variant={street.microareaId === m.id ? 'contained' : 'outlined'}
-            size="small"
-            disabled={assigning}
-            onClick={() => onAssign(m.id)}
-            sx={{
-              justifyContent: 'flex-start',
-              borderColor: m.color,
-              ...(street.microareaId === m.id && { bgcolor: m.color }),
-            }}
-          >
-            {assigning ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-            {m.name}
-          </Button>
-        ))}
+        <Divider sx={{ my: 2 }} />
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 2 }}>
+          <StatBox label="Imóveis" value={street.propertyCount} />
+          <StatBox label="Famílias" value={street.familyCount} />
+          <StatBox label="Habitantes" value={street.inhabitantCount} />
+          <StatBox
+            label="Comprimento"
+            value={street.lengthMeters ? `${Math.round(street.lengthMeters)} m` : '—'}
+          />
+        </Box>
+
+        <InfoRow label="Bairro" value={street.neighborhood?.name ?? '—'} />
+        <InfoRow
+          label="Microárea"
+          value={
+            street.microarea ? (
+              <Chip
+                size="small"
+                label={street.microarea.name}
+                sx={{ bgcolor: street.microarea.color, color: '#fff', fontWeight: 600 }}
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary">Não vinculada</Typography>
+            )
+          }
+        />
+        <InfoRow
+          label="Atualização"
+          value={new Date(street.updatedAt).toLocaleDateString('pt-BR')}
+        />
+
+        {street.notes && (
+          <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.action.hover, 0.5) }}>
+            <Typography variant="body2" color="text.secondary">{street.notes}</Typography>
+          </Box>
+        )}
+
+        <Divider sx={{ my: 2 }} />
+
+        {!street.microareaId && topSuggestion && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              Sugestão automática
+            </Typography>
+            <Button
+              fullWidth
+              variant="outlined"
+              size="small"
+              disabled={assigning}
+              onClick={() => onAssign(topSuggestion.id)}
+              sx={{ borderColor: topSuggestion.color, justifyContent: 'flex-start', gap: 1 }}
+            >
+              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: topSuggestion.color }} />
+              Vincular à {topSuggestion.name}
+            </Button>
+          </Box>
+        )}
+
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+          Vincular à microárea
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+          {microareas.map((m) => {
+            const selected = street.microareaId === m.id;
+            return (
+              <Button
+                key={m.id}
+                variant={selected ? 'contained' : 'outlined'}
+                size="small"
+                disabled={assigning}
+                onClick={() => onAssign(m.id)}
+                sx={{
+                  justifyContent: 'flex-start',
+                  gap: 1,
+                  borderColor: m.color,
+                  ...(selected && { bgcolor: m.color, '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' } }),
+                }}
+              >
+                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: selected ? '#fff' : m.color }} />
+                {assigning ? <CircularProgress size={14} sx={{ mr: 0.5 }} /> : null}
+                {m.name}
+              </Button>
+            );
+          })}
+        </Box>
       </Box>
     </Paper>
   );
 }
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function StatBox({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
-      <Typography variant="body2" color="text.secondary">
-        {label}
-      </Typography>
-      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-        {value}
-      </Typography>
+    <Box sx={{ p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{label}</Typography>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{value}</Typography>
+    </Box>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Box sx={{ textAlign: 'right' }}>
+        {typeof value === 'string' || typeof value === 'number' ? (
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{value}</Typography>
+        ) : (
+          value
+        )}
+      </Box>
     </Box>
   );
 }

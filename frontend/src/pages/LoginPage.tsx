@@ -5,12 +5,19 @@ import {
   TextField,
   Typography,
   Alert,
+  InputAdornment,
+  CircularProgress,
 } from '@mui/material';
+import { Email, Lock, Map } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store';
+import { prefetchMapData } from '../utils/prefetchAppData';
+import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
+import { getDevLoginDefaults, isDevAutoLoginEnabled } from '../constants/devAuth';
 
 interface LoginForm {
   email: string;
@@ -19,81 +26,272 @@ interface LoginForm {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const token = useAuthStore((s) => s.token);
+  const devDefaults = getDevLoginDefaults();
   const [error, setError] = useState('');
-  const { register, handleSubmit, formState } = useForm<LoginForm>({
-    defaultValues: {
-      email: 'jonas@passagemfranca.ma.gov.br',
-      password: 'Sigaps@2026',
-    },
+  const [autoLogging, setAutoLogging] = useState(false);
+  const autoLoginTried = useRef(false);
+  const { register, handleSubmit, formState, reset } = useForm<LoginForm>({
+    defaultValues: devDefaults,
   });
 
-  const onSubmit = async (data: LoginForm) => {
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      reset(getDevLoginDefaults());
+    }
+  }, [reset]);
+
+  const doLogin = async (data: LoginForm) => {
     setError('');
     try {
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
-      navigate('/');
+      if (res.data.user.municipalityId) {
+        await prefetchMapData(queryClient, res.data.user.municipalityId);
+      }
+      navigate('/mapa', { replace: true });
     } catch {
-      setError('Email ou senha inválidos');
+      setError('Email ou senha inválidos. Verifique suas credenciais.');
+      setAutoLogging(false);
     }
   };
+
+  const onSubmit = async (data: LoginForm) => {
+    await doLogin(data);
+  };
+
+  useEffect(() => {
+    if (token) {
+      navigate('/mapa', { replace: true });
+    }
+  }, [token, navigate]);
+
+  useEffect(() => {
+    if (token || autoLoginTried.current || !isDevAutoLoginEnabled()) return;
+    autoLoginTried.current = true;
+    setAutoLogging(true);
+    void doLogin(devDefaults);
+  }, [token]);
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0D1117 0%, #1a2332 50%, #0D1117 100%)',
-        p: 2,
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
       }}
     >
-      <Paper sx={{ p: 4, width: '100%', maxWidth: 420 }}>
-        <Typography variant="h4" gutterBottom color="primary">
-          SIGAPS
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Sistema Inteligente de Gestão das Microáreas da APS
-        </Typography>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-          <TextField
-            fullWidth
-            label="Email"
-            margin="normal"
-            {...register('email', { required: true })}
-          />
-          <TextField
-            fullWidth
-            label="Senha"
-            type="password"
-            margin="normal"
-            {...register('password', { required: true })}
-          />
-          <Button
-            fullWidth
-            type="submit"
-            variant="contained"
-            size="large"
-            sx={{ mt: 2 }}
-            disabled={formState.isSubmitting}
-          >
-            Entrar
-          </Button>
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          justifyContent: 'center',
+          p: 6,
+          background: 'linear-gradient(145deg, #0B1220 0%, #0F3D2E 45%, #00A86B 120%)',
+          color: '#fff',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -80,
+            right: -80,
+            width: 300,
+            height: 300,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: -60,
+            left: -60,
+            width: 200,
+            height: 200,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.04)',
+          }}
+        />
+        <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 440 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
+            <Box
+              component="img"
+              src={MUNICIPALITY_LOGO}
+              alt={`Prefeitura de ${MUNICIPALITY_NAME}`}
+              sx={{
+                height: 72,
+                width: 'auto',
+                maxWidth: 200,
+                objectFit: 'contain',
+                bgcolor: '#fff',
+                borderRadius: 2,
+                p: 1,
+              }}
+            />
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                SIGAPS
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                {MUNICIPALITY_NAME} — {MUNICIPALITY_STATE}
+              </Typography>
+            </Box>
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, lineHeight: 1.3 }}>
+            Gestão inteligente das microáreas da Atenção Primária à Saúde
+          </Typography>
+          <Typography variant="body1" sx={{ opacity: 0.9, lineHeight: 1.7, mb: 4 }}>
+            Organize o território dos ACS sobre o mapa real do município. Vincule ruas às
+            microáreas, visualize a cobertura e gere relatórios profissionais.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {['Mapa GIS', 'Microáreas', 'OpenStreetMap'].map((tag) => (
+              <Box
+                key={tag}
+                sx={{
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: 'rgba(255,255,255,0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+              >
+                <Map sx={{ fontSize: 16 }} />
+                {tag}
+              </Box>
+            ))}
+          </Box>
         </Box>
+      </Box>
 
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-          Passagem Franca - Maranhão
-        </Typography>
-      </Paper>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: { xs: 2, sm: 4 },
+          bgcolor: 'background.default',
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, sm: 4 },
+            width: '100%',
+            maxWidth: 420,
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', alignItems: 'center', gap: 1, mb: 3 }}>
+            <Box
+              component="img"
+              src={MUNICIPALITY_LOGO}
+              alt={`Prefeitura de ${MUNICIPALITY_NAME}`}
+              sx={{ height: 56, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
+            />
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+              SIGAPS
+            </Typography>
+          </Box>
+
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Bem-vindo
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Acesse sua conta para continuar
+          </Typography>
+
+          {import.meta.env.DEV && (
+            <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+              Modo desenvolvimento: login preenchido automaticamente
+              {isDevAutoLoginEnabled() ? ' e entrada automática ativa.' : '.'}
+            </Alert>
+          )}
+
+          {autoLogging && (
+            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+              Entrando automaticamente...
+            </Alert>
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              margin="normal"
+              placeholder="seu.email@municipio.ma.gov.br"
+              autoComplete="email"
+              {...register('email', { required: true })}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Email fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Senha"
+              type="password"
+              margin="normal"
+              placeholder="Digite sua senha"
+              autoComplete="current-password"
+              {...register('password', { required: true })}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Lock fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <Button
+              fullWidth
+              type="submit"
+              variant="contained"
+              size="large"
+              sx={{ mt: 3, py: 1.4 }}
+              disabled={formState.isSubmitting || autoLogging}
+            >
+              {formState.isSubmitting || autoLogging ? (
+                <CircularProgress size={22} color="inherit" />
+              ) : (
+                'Entrar no sistema'
+              )}
+            </Button>
+          </Box>
+
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mt: 3, display: 'block', textAlign: 'center' }}
+          >
+            Secretaria Municipal de Saúde — {MUNICIPALITY_NAME}/{MUNICIPALITY_STATE}
+          </Typography>
+        </Paper>
+      </Box>
     </Box>
   );
 }

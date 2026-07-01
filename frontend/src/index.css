@@ -1,6 +1,12 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: 'Inter', 'Roboto', sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -9,5 +15,113 @@ body {
 
 .leaflet-container {
   font-family: inherit;
-  background: #0D1117;
+  background: #0B0F14;
+}
+
+.leaflet-control-zoom a {
+  border-radius: 8px !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.4);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: fadeIn 0.35s ease-out;
+}
+
+.map-float-panel {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.sigaps-map-painting .leaflet-container,
+.leaflet-container.sigaps-map-painting {
+  cursor: crosshair !important;
+}
+
+.leaflet-container.sigaps-map-selecting {
+  cursor: default;
+}
+
+.leaflet-container.sigaps-map-locked {
+  cursor: crosshair !important;
+}
+
+.leaflet-container.sigaps-map-locked.sigaps-map-pan-active {
+  cursor: grab !important;
+}
+
+.leaflet-container.sigaps-map-locked.sigaps-map-pan-active.leaflet-dragging {
+  cursor: grabbing !important;
+}
+
+.sigaps-street-hover {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9));
+}
+
+.paint-tooltip,
+.street-tooltip {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.street-name-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  text-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    0 0 6px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.street-name-label::before {
+  display: none;
+}
+
+.microarea-map-label {
+  background: transparent !important;
+  border: none !important;
+}
+
+.sigaps-pdf-capture .map-float-panel,
+.sigaps-pdf-capture > .MuiAlert-root {
+  visibility: hidden !important;
+  pointer-events: none;
+}
+
+.sigaps-pdf-capture .leaflet-control-layers,
+.sigaps-pdf-capture .leaflet-control-zoom {
+  display: none !important;
 }

@@ -17,6 +17,7 @@ export class OsmController {
     UserRole.ADMINISTRADOR,
     UserRole.SECRETARIO_SAUDE,
     UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
   )
   @ApiOperation({
     summary: 'Importar ruas do OpenStreetMap para o município',

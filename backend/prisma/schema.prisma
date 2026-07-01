@@ -1,12 +1,10 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  extensions = [postgis]
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
@@ -49,6 +47,7 @@ model Municipality {
   logoUrl     String?  @map("logo_url")
   latitude    Float
   longitude   Float
+  osmRelationId Int?   @map("osm_relation_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -112,9 +111,26 @@ model Microarea {
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
   streets Street[]
+  paintZones MicroareaPaintZone[]
 
   @@unique([number, municipalityId])
   @@map("microareas")
+}
+
+model MicroareaPaintZone {
+  id             String    @id @default(uuid())
+  microareaId    String    @map("microarea_id")
+  microarea      Microarea @relation(fields: [microareaId], references: [id], onDelete: Cascade)
+  municipalityId String    @map("municipality_id")
+  centerLat      Float     @map("center_lat")
+  centerLng      Float     @map("center_lng")
+  radiusMeters   Float     @map("radius_meters")
+  geojson        Json
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([microareaId])
+  @@index([municipalityId])
+  @@map("microarea_paint_zones")
 }
 
 model Acs {

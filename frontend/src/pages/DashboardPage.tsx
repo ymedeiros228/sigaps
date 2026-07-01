@@ -1,11 +1,6 @@
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  CircularProgress,
-} from '@mui/material';
+import { Box, Card, CardContent, Typography, CircularProgress, Chip, Button, Alert } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   LocalHospital,
   People,
@@ -13,6 +8,8 @@ import {
   Signpost,
   FamilyRestroom,
   Groups,
+  TrendingUp,
+  Map,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -26,63 +23,50 @@ import {
   Pie,
   Legend,
 } from 'recharts';
-import { dashboardApi } from '../services/api';
+import { dashboardApi, municipalitiesApi } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
-import type { ReactNode } from 'react';
-
-interface StatCardProps {
-  title: string;
-  value: number | string;
-  icon: ReactNode;
-  color: string;
-}
-
-function StatCard({ title, value, icon, color }: StatCardProps) {
-  return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2,
-              bgcolor: `${color}22`,
-              color,
-              display: 'flex',
-            }}
-          >
-            {icon}
-          </Box>
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              {title}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {value}
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
+import { PageHeader } from '../components/ui/PageHeader';
+import { StatCard } from '../components/ui/StatCard';
+import { formatAuditAction } from '../utils/permissions';
 
 export function DashboardPage() {
   const municipalityId = useMunicipalityId();
 
-  const { data, isLoading } = useQuery({
+  const { data: municipality } = useQuery({
+    queryKey: ['municipality', municipalityId],
+    queryFn: () => municipalitiesApi.get(municipalityId!).then((r) => r.data),
+    enabled: !!municipalityId,
+  });
+
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', municipalityId],
     queryFn: () => dashboardApi.indicators(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
   });
 
-  if (isLoading || !data || !municipalityId) {
+  if (!municipalityId || isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 8 }}>
         <CircularProgress />
       </Box>
     );
   }
+
+  if (isError || !data) {
+    return (
+      <Box sx={{ p: 3, maxWidth: 480, mx: 'auto', textAlign: 'center' }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Não foi possível carregar os indicadores.
+        </Alert>
+        <Button variant="contained" onClick={() => refetch()}>
+          Tentar novamente
+        </Button>
+      </Box>
+    );
+  }
+
+  const muniLabel = municipality ? `${municipality.name}/${municipality.state}` : 'Município';
+  const isEmpty = data.streets === 0 && data.microareas === 0;
 
   const stats = [
     { title: 'UBS', value: data.ubs, icon: <LocalHospital />, color: '#2196F3' },
@@ -99,13 +83,34 @@ export function DashboardPage() {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Dashboard
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Indicadores em tempo real — Passagem Franca/MA
-      </Typography>
+    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1400, mx: 'auto' }}>
+      <PageHeader
+        title="Dashboard"
+        subtitle={`Indicadores em tempo real — ${muniLabel}`}
+        action={
+          <Chip
+            icon={<TrendingUp />}
+            label={`${data.coverage}% cobertura`}
+            color="primary"
+            variant="outlined"
+            sx={{ fontWeight: 600 }}
+          />
+        }
+      />
+
+      {isEmpty && (
+        <Alert
+          severity="info"
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Button component={RouterLink} to="/mapa" color="inherit" size="small" startIcon={<Map />}>
+              Ir ao mapa
+            </Button>
+          }
+        >
+          Comece cadastrando microáreas e carregando as ruas do município para ver os indicadores.
+        </Alert>
+      )}
 
       <Box
         sx={{
@@ -127,24 +132,35 @@ export function DashboardPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+          gridTemplateColumns: { xs: '1fr', lg: '1fr 2fr' },
           gap: 2,
           mt: 3,
         }}
       >
         <Card>
           <CardContent>
-            <Typography variant="h6">Cobertura territorial</Typography>
-            <Typography variant="h3" color="primary" sx={{ fontWeight: 700 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+              Cobertura territorial
+            </Typography>
+            <Typography variant="h2" color="primary" sx={{ fontWeight: 800, lineHeight: 1 }}>
               {data.coverage}%
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {data.assignedStreets} de {data.streets} ruas vinculadas
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+              {data.assignedStreets} de {data.streets} ruas vinculadas a microáreas
             </Typography>
-            <Box sx={{ height: 180, mt: 2 }}>
+            <Box sx={{ height: 200 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70}>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={3}
+                  >
                     {pieData.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
@@ -157,25 +173,33 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card sx={{ gridColumn: { md: 'span 2' } }}>
+        <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
               Ruas por microárea
             </Typography>
-            <Box sx={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.microareasChart ?? []}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="streets" name="Ruas">
-                    {(data.microareasChart ?? []).map((entry: { color: string }, i: number) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
+            {(data.microareasChart ?? []).length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                Pinte ruas no mapa para ver a distribuição por microárea.
+              </Typography>
+            ) : (
+              <Box sx={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.microareasChart ?? []} barCategoryGap="20%">
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
+                    />
+                    <Bar dataKey="streets" name="Ruas" radius={[6, 6, 0, 0]}>
+                      {(data.microareasChart ?? []).map((entry: { color: string }, i: number) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Box>
@@ -183,7 +207,7 @@ export function DashboardPage() {
       {data.recentChanges?.length > 0 && (
         <Card sx={{ mt: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
               Últimas alterações
             </Typography>
             {data.recentChanges.map((log: {
@@ -196,15 +220,23 @@ export function DashboardPage() {
               <Box
                 key={log.id}
                 sx={{
-                  py: 1,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  py: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
                   '&:last-child': { borderBottom: 0 },
                 }}
               >
-                <Typography variant="body2">
-                  <strong>{log.user.name}</strong> — {log.action} ({log.entityType})
-                </Typography>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {log.user.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {formatAuditAction(log.action, log.entityType)}
+                  </Typography>
+                </Box>
                 <Typography variant="caption" color="text.secondary">
                   {new Date(log.createdAt).toLocaleString('pt-BR')}
                 </Typography>

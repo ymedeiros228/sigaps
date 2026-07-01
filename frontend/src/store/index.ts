@@ -1,5 +1,21 @@
 import { create } from 'zustand';
 import type { Microarea, User } from '../services/api';
+import { DEV_LOGIN } from '../constants/devAuth';
+
+function readPersistedAuth(): { user: User | null; token: string | null } {
+  try {
+    const token = localStorage.getItem('sigaps_token');
+    const userStr = localStorage.getItem('sigaps_user');
+    if (token && userStr) {
+      return { token, user: JSON.parse(userStr) as User };
+    }
+  } catch {
+    /* sessão inválida */
+  }
+  return { user: null, token: null };
+}
+
+const persistedAuth = readPersistedAuth();
 
 interface MapState {
   paintMode: boolean;
@@ -9,6 +25,9 @@ interface MapState {
   baseLayer: 'map' | 'satellite' | 'terrain' | 'hybrid';
   highlightedStreetId: string | null;
   mapCenter: { lat: number; lng: number; zoom?: number } | null;
+  paintGuideCollapsed: boolean;
+  dragPaintIds: Set<string>;
+  mapPanEnabled: boolean;
   setPaintMode: (enabled: boolean) => void;
   setSelectedMicroarea: (id: string | null) => void;
   toggleStreetSelection: (id: string) => void;
@@ -16,7 +35,12 @@ interface MapState {
   setShowEnvelopes: (show: boolean) => void;
   setBaseLayer: (layer: MapState['baseLayer']) => void;
   setHighlightedStreet: (id: string | null) => void;
+  setPaintGuideCollapsed: (collapsed: boolean) => void;
+  addDragPaintId: (id: string) => void;
+  clearDragPaintIds: () => Set<string>;
+  setMapPanEnabled: (enabled: boolean) => void;
   flyTo: (lat: number, lng: number, zoom?: number) => void;
+  clearMapCenter: () => void;
 }
 
 interface AuthState {
@@ -37,12 +61,19 @@ interface AppState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: null,
+  user: persistedAuth.user,
+  token: persistedAuth.token,
   setAuth: (user, token, refreshToken) => {
     localStorage.setItem('sigaps_token', token);
     localStorage.setItem('sigaps_refresh', refreshToken);
     localStorage.setItem('sigaps_user', JSON.stringify(user));
+    if (import.meta.env.DEV) {
+      localStorage.setItem('sigaps_dev_email', user.email);
+      localStorage.setItem('sigaps_dev_password', DEV_LOGIN.password);
+    }
+    if (user.municipalityId) {
+      useAppStore.getState().setMunicipalityId(user.municipalityId);
+    }
     set({ user, token });
   },
   logout: () => {
@@ -53,7 +84,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     const token = localStorage.getItem('sigaps_token');
     const userStr = localStorage.getItem('sigaps_user');
     if (token && userStr) {
-      set({ token, user: JSON.parse(userStr) });
+      const user = JSON.parse(userStr) as User;
+      if (user.municipalityId) {
+        useAppStore.getState().setMunicipalityId(user.municipalityId);
+      }
+      set({ token, user });
     }
   },
 }));
@@ -63,10 +98,32 @@ export const useMapStore = create<MapState>((set, get) => ({
   selectedMicroareaId: null,
   selectedStreetIds: new Set(),
   showEnvelopes: true,
-  baseLayer: 'map',
+  baseLayer: 'satellite',
   highlightedStreetId: null,
   mapCenter: null,
-  setPaintMode: (enabled) => set({ paintMode: enabled }),
+  paintGuideCollapsed: false,
+  dragPaintIds: new Set(),
+  mapPanEnabled: true,
+  setPaintMode: (enabled) => {
+    const state = get();
+    if (enabled && !state.selectedMicroareaId) {
+      const microareas = useAppStore.getState().microareas;
+      if (microareas.length > 0) {
+        set({
+          paintMode: enabled,
+          selectedMicroareaId: microareas[0].id,
+          paintGuideCollapsed: false,
+          mapPanEnabled: false,
+        });
+        return;
+      }
+    }
+    set({
+      paintMode: enabled,
+      paintGuideCollapsed: enabled ? false : state.paintGuideCollapsed,
+      mapPanEnabled: enabled ? false : true,
+    });
+  },
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),
   toggleStreetSelection: (id) => {
     const next = new Set(get().selectedStreetIds);
@@ -78,11 +135,24 @@ export const useMapStore = create<MapState>((set, get) => ({
   setShowEnvelopes: (show) => set({ showEnvelopes: show }),
   setBaseLayer: (layer) => set({ baseLayer: layer }),
   setHighlightedStreet: (id) => set({ highlightedStreetId: id }),
+  setPaintGuideCollapsed: (collapsed) => set({ paintGuideCollapsed: collapsed }),
+  addDragPaintId: (id) => {
+    const next = new Set(get().dragPaintIds);
+    next.add(id);
+    set({ dragPaintIds: next });
+  },
+  clearDragPaintIds: () => {
+    const ids = get().dragPaintIds;
+    set({ dragPaintIds: new Set() });
+    return ids;
+  },
+  setMapPanEnabled: (enabled) => set({ mapPanEnabled: enabled }),
   flyTo: (lat, lng, zoom = 16) => set({ mapCenter: { lat, lng, zoom } }),
+  clearMapCenter: () => set({ mapCenter: null }),
 }));
 
 export const useAppStore = create<AppState>((set) => ({
-  municipalityId: null,
+  municipalityId: persistedAuth.user?.municipalityId ?? null,
   microareas: [],
   darkMode: true,
   setMunicipalityId: (id) => set({ municipalityId: id }),

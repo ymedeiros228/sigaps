@@ -1,0 +1,99 @@
+import {
+  Paper,
+  Typography,
+  Button,
+  Box,
+  IconButton,
+  alpha,
+  useTheme,
+} from '@mui/material';
+import { Close, Link as LinkIcon } from '@mui/icons-material';
+import type { Microarea } from '../../services/api';
+import { useMapStore } from '../../store';
+
+interface SelectionBarProps {
+  microareas: Microarea[];
+  count: number;
+  onAssign: (microareaId: string) => void;
+  assigning: boolean;
+}
+
+export function SelectionBar({ microareas, count, onAssign, assigning }: SelectionBarProps) {
+  const theme = useTheme();
+  const clearSelection = useMapStore((s) => s.clearSelection);
+
+  if (count === 0) return null;
+
+  return (
+    <Paper
+      className="map-float-panel"
+      elevation={0}
+      sx={{
+        position: 'absolute',
+        top: { xs: 72, sm: 88 },
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1002,
+        px: { xs: 1.5, sm: 2 },
+        py: { xs: 1, sm: 1.25 },
+        display: 'flex',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: { xs: 1, sm: 1.5 },
+        width: { xs: 'calc(100% - 16px)', sm: 'auto' },
+        maxWidth: { xs: '100%', sm: 560 },
+        bgcolor: alpha(theme.palette.info.main, 0.12),
+        border: `1px solid ${alpha(theme.palette.info.main, 0.35)}`,
+        borderRadius: 3,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+        <LinkIcon color="info" fontSize="small" />
+        <Typography variant="body2" sx={{ fontWeight: 700, flex: 1 }}>
+          {count} rua{count > 1 ? 's' : ''} selecionada{count > 1 ? 's' : ''}
+        </Typography>
+        <IconButton
+          size="small"
+          onClick={clearSelection}
+          aria-label="Limpar seleção"
+          sx={{ display: { xs: 'flex', sm: 'none' } }}
+        >
+          <Close fontSize="small" />
+        </IconButton>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+          Vincular à:
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flex: 1 }}>
+          {microareas.map((m) => (
+            <Button
+              key={m.id}
+              size="small"
+              variant="contained"
+              disabled={assigning}
+              onClick={() => onAssign(m.id)}
+              sx={{
+                bgcolor: m.color,
+                minWidth: 0,
+                px: { xs: 1, sm: 1.5 },
+                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
+                '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' },
+              }}
+            >
+              {m.name}
+            </Button>
+          ))}
+        </Box>
+      </Box>
+      <IconButton
+        size="small"
+        onClick={clearSelection}
+        aria-label="Limpar seleção"
+        sx={{ display: { xs: 'none', sm: 'flex' }, ml: 'auto' }}
+      >
+        <Close fontSize="small" />
+      </IconButton>
+    </Paper>
+  );
+}

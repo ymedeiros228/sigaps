@@ -89,6 +89,7 @@ export interface Street {
   id: string;
   name: string;
   streetType?: string;
+  osmId?: string | null;
   geojson: GeoJSON.LineString;
   microareaId?: string;
   microarea?: {
@@ -148,7 +149,7 @@ export interface Neighborhood {
 }
 
 export interface SearchResult {
-  streets: Array<{ id: string; name: string; streetType?: string; microarea?: { id: string; name: string; color: string } }>;
+  streets: Array<{ id: string; name: string; streetType?: string; geojson?: GeoJSON.LineString; microarea?: { id: string; name: string; color: string } }>;
   neighborhoods: Array<{ id: string; name: string; _count: { streets: number } }>;
   ubs: Array<{ id: string; name: string; address: string; latitude: number; longitude: number }>;
   acs: Array<{ id: string; name: string; phone?: string; microarea?: { id: string; name: string; color: string } }>;
@@ -175,7 +176,7 @@ export const municipalitiesApi = {
 };
 
 export const streetsApi = {
-  list: (municipalityId: string, params?: Record<string, string | number>) =>
+  list: (municipalityId: string, params?: Record<string, string | number | boolean>) =>
     api.get<{ items: Street[]; total: number }>(
       `/streets/municipality/${municipalityId}`,
       { params },
@@ -183,6 +184,10 @@ export const streetsApi = {
   get: (id: string) => api.get<Street>(`/streets/${id}`),
   assign: (streetIds: string[], microareaId: string, forceTransfer = false) =>
     api.post('/streets/assign', { streetIds, microareaId, forceTransfer }),
+  clearAssignments: (municipalityId: string) =>
+    api.post<{ cleared: number }>(
+      `/streets/municipality/${municipalityId}/clear-assignments`,
+    ),
   suggest: (id: string) => api.get(`/streets/${id}/suggest-microarea`),
 };
 
@@ -236,7 +241,7 @@ export const dashboardApi = {
 
 export const osmApi = {
   import: (municipalityId: string) =>
-    api.post(`/osm/import/${municipalityId}`),
+    api.post(`/osm/import/${municipalityId}`, undefined, { timeout: 300_000 }),
 };
 
 export const geoApi = {

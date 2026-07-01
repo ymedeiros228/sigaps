@@ -48,8 +48,8 @@
 
 ## Fase 3 — Relatórios oficiais (Set/2026)
 
-- [ ] Geração PDF A4/A3
-- [ ] Layout: logos, legenda, escala, rosa dos ventos, QR Code
+- [x] Geração PDF A4/A3 (mapa oficial com satélite, microáreas, legenda)
+- [x] Layout: logos, legenda, escala, rosa dos ventos, QR Code
 - [ ] Exportação KML, SVG, JPEG
 - [ ] Mapa de calor (famílias/habitantes por rua)
 

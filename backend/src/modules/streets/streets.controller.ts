@@ -28,18 +28,21 @@ export class StreetsController {
   @ApiQuery({ name: 'microareaId', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'mapOnly', required: false, description: 'Resposta leve para o mapa' })
   findByMunicipality(
     @Param('municipalityId') municipalityId: string,
     @Query('search') search?: string,
     @Query('microareaId') microareaId?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('mapOnly') mapOnly?: string,
   ) {
     return this.streetsService.findByMunicipality(municipalityId, {
       search,
       microareaId,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
+      mapOnly: mapOnly === 'true' || mapOnly === '1',
     });
   }
 
@@ -70,5 +73,20 @@ export class StreetsController {
       req.user.id,
       dto.forceTransfer ?? false,
     );
+  }
+
+  @Post('municipality/:municipalityId/clear-assignments')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Remover vínculo de todas as ruas com microáreas' })
+  clearAssignments(
+    @Param('municipalityId') municipalityId: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.clearAllAssignments(municipalityId, req.user.id);
   }
 }

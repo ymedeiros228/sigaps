@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   Box,
   Button,
@@ -21,8 +21,16 @@ import {
   TableHead,
   TableRow,
   Chip,
+  TableContainer,
+  alpha,
+  useTheme,
+  Alert,
 } from '@mui/material';
-import { Add, Delete, Edit } from '@mui/icons-material';
+import { Add, Delete, Edit, LocalHospital, People, LocationCity, GridView, AccountBalance } from '@mui/icons-material';
+import { PageHeader } from '../components/ui/PageHeader';
+import { CadastrosProvider, useCadastros } from '../components/cadastros/CadastrosContext';
+import { useAuthStore } from '../store';
+import { canManageCadastros } from '../utils/permissions';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import {
@@ -42,6 +50,7 @@ import { assetUrl } from '../utils/assetUrl';
 const MICROAREA_COLORS = ['#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#F44336', '#009688'];
 
 function UbsTab({ municipalityId }: { municipalityId: string }) {
+  const { canManage, reportError, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Ubs | null>(null);
@@ -63,11 +72,13 @@ function UbsTab({ municipalityId }: { municipalityId: string }) {
       setEditing(null);
       reset();
     },
+    onError: reportError,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => ubsApi.remove(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ubs'] }),
+    onError: reportError,
   });
 
   const openForm = (item?: Ubs) => {
@@ -89,12 +100,8 @@ function UbsTab({ municipalityId }: { municipalityId: string }) {
 
   return (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">Unidades Básicas de Saúde</Typography>
-        <Button startIcon={<Add />} variant="contained" onClick={() => openForm()}>
-          Nova UBS
-        </Button>
-      </Box>
+      <TabToolbar title="Unidades Básicas de Saúde" onAdd={() => openForm()} addLabel="Nova UBS" canManage={canManage} />
+      <TableContainer>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -113,17 +120,26 @@ function UbsTab({ municipalityId }: { municipalityId: string }) {
               <TableCell>{row.phone ?? '—'}</TableCell>
               <TableCell>{row._count?.microareas ?? 0}</TableCell>
               <TableCell align="right">
-                <IconButton size="small" onClick={() => openForm(row)}>
-                  <Edit fontSize="small" />
-                </IconButton>
-                <IconButton size="small" color="error" onClick={() => deleteMutation.mutate(row.id)}>
-                  <Delete fontSize="small" />
-                </IconButton>
+                {canManage && (
+                  <>
+                    <IconButton size="small" onClick={() => openForm(row)}>
+                      <Edit fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      </TableContainer>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing ? 'Editar UBS' : 'Nova UBS'}</DialogTitle>
@@ -149,6 +165,7 @@ function UbsTab({ municipalityId }: { municipalityId: string }) {
 }
 
 function AcsTab({ municipalityId }: { municipalityId: string }) {
+  const { canManage, reportError, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Acs | null>(null);
@@ -169,11 +186,13 @@ function AcsTab({ municipalityId }: { municipalityId: string }) {
       setOpen(false);
       reset();
     },
+    onError: reportError,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => acsApi.remove(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['acs'] }),
+    onError: reportError,
   });
 
   const openForm = (item?: Acs) => {
@@ -186,12 +205,8 @@ function AcsTab({ municipalityId }: { municipalityId: string }) {
 
   return (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">Agentes Comunitários de Saúde</Typography>
-        <Button startIcon={<Add />} variant="contained" onClick={() => openForm()}>
-          Novo ACS
-        </Button>
-      </Box>
+      <TabToolbar title="Agentes Comunitários de Saúde" onAdd={() => openForm()} addLabel="Novo ACS" canManage={canManage} />
+      <TableContainer>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -216,17 +231,26 @@ function AcsTab({ municipalityId }: { municipalityId: string }) {
               </TableCell>
               <TableCell>{row.status}</TableCell>
               <TableCell align="right">
-                <IconButton size="small" onClick={() => openForm(row)}>
-                  <Edit fontSize="small" />
-                </IconButton>
-                <IconButton size="small" color="error" onClick={() => deleteMutation.mutate(row.id)}>
-                  <Delete fontSize="small" />
-                </IconButton>
+                {canManage && (
+                  <>
+                    <IconButton size="small" onClick={() => openForm(row)}>
+                      <Edit fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      </TableContainer>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing ? 'Editar ACS' : 'Novo ACS'}</DialogTitle>
@@ -251,6 +275,7 @@ function AcsTab({ municipalityId }: { municipalityId: string }) {
 }
 
 function NeighborhoodsTab({ municipalityId }: { municipalityId: string }) {
+  const { canManage, reportError, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Neighborhood | null>(null);
@@ -271,23 +296,26 @@ function NeighborhoodsTab({ municipalityId }: { municipalityId: string }) {
       setOpen(false);
       reset();
     },
+    onError: reportError,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => neighborhoodsApi.remove(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['neighborhoods'] }),
+    onError: reportError,
   });
 
   if (isLoading) return <CircularProgress />;
 
   return (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">Bairros</Typography>
-        <Button startIcon={<Add />} variant="contained" onClick={() => { setEditing(null); reset({ name: '' }); setOpen(true); }}>
-          Novo Bairro
-        </Button>
-      </Box>
+      <TabToolbar
+        title="Bairros"
+        onAdd={() => { setEditing(null); reset({ name: '' }); setOpen(true); }}
+        addLabel="Novo Bairro"
+        canManage={canManage}
+      />
+      <TableContainer>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -302,17 +330,26 @@ function NeighborhoodsTab({ municipalityId }: { municipalityId: string }) {
               <TableCell>{row.name}</TableCell>
               <TableCell>{row._count?.streets ?? 0}</TableCell>
               <TableCell align="right">
-                <IconButton size="small" onClick={() => { setEditing(row); reset({ name: row.name }); setOpen(true); }}>
-                  <Edit fontSize="small" />
-                </IconButton>
-                <IconButton size="small" color="error" onClick={() => deleteMutation.mutate(row.id)}>
-                  <Delete fontSize="small" />
-                </IconButton>
+                {canManage && (
+                  <>
+                    <IconButton size="small" onClick={() => { setEditing(row); reset({ name: row.name }); setOpen(true); }}>
+                      <Edit fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      </TableContainer>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>{editing ? 'Editar Bairro' : 'Novo Bairro'}</DialogTitle>
@@ -331,10 +368,12 @@ function NeighborhoodsTab({ municipalityId }: { municipalityId: string }) {
 }
 
 function MicroareasTab({ municipalityId }: { municipalityId: string }) {
+  const { canManage, reportError } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Microarea | null>(null);
-  const { register, handleSubmit, reset } = useForm<{ number: number; name: string; color: string; description?: string; ubsId?: string; acsId?: string }>();
+  const { register, handleSubmit, reset, watch, setValue } = useForm<{ number: number; name: string; color: string; description?: string; ubsId?: string; acsId?: string }>();
+  const selectedColor = watch('color') || MICROAREA_COLORS[0];
 
   const { data: ubsList = [] } = useQuery({
     queryKey: ['ubs', municipalityId],
@@ -361,22 +400,24 @@ function MicroareasTab({ municipalityId }: { municipalityId: string }) {
       setOpen(false);
       reset();
     },
+    onError: reportError,
   });
 
   if (isLoading) return <CircularProgress />;
 
   return (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">Microáreas</Typography>
-        <Button startIcon={<Add />} variant="contained" onClick={() => {
+      <TabToolbar
+        title="Microáreas"
+        onAdd={() => {
           setEditing(null);
           reset({ number: data.length + 1, name: `Microárea ${String(data.length + 1).padStart(2, '0')}`, color: MICROAREA_COLORS[data.length % MICROAREA_COLORS.length] });
           setOpen(true);
-        }}>
-          Nova Microárea
-        </Button>
-      </Box>
+        }}
+        addLabel="Nova Microárea"
+        canManage={canManage}
+      />
+      <TableContainer>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -401,18 +442,21 @@ function MicroareasTab({ municipalityId }: { municipalityId: string }) {
               <TableCell>{row.acs?.name ?? '—'}</TableCell>
               <TableCell>{row._count?.streets ?? 0}</TableCell>
               <TableCell align="right">
-                <IconButton size="small" onClick={() => {
-                  setEditing(row);
-                  reset({ number: row.number, name: row.name, color: row.color, description: row.description, ubsId: row.ubsId, acsId: row.acsId });
-                  setOpen(true);
-                }}>
-                  <Edit fontSize="small" />
-                </IconButton>
+                {canManage && (
+                  <IconButton size="small" onClick={() => {
+                    setEditing(row);
+                    reset({ number: row.number, name: row.name, color: row.color, description: row.description, ubsId: row.ubsId, acsId: row.acsId });
+                    setOpen(true);
+                  }}>
+                    <Edit fontSize="small" />
+                  </IconButton>
+                )}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      </TableContainer>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing ? 'Editar Microárea' : 'Nova Microárea'}</DialogTitle>
@@ -420,7 +464,42 @@ function MicroareasTab({ municipalityId }: { municipalityId: string }) {
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField label="Número" type="number" {...register('number', { valueAsNumber: true, required: true })} fullWidth />
             <TextField label="Nome" {...register('name', { required: true })} fullWidth />
-            <TextField label="Cor (#hex)" {...register('color', { required: true })} fullWidth />
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>Cor da microárea</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                {MICROAREA_COLORS.map((c) => (
+                  <Box
+                    key={c}
+                    onClick={() => setValue('color', c)}
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      bgcolor: c,
+                      cursor: 'pointer',
+                      border: selectedColor === c ? '3px solid' : '2px solid transparent',
+                      borderColor: selectedColor === c ? 'text.primary' : 'transparent',
+                      boxShadow: selectedColor === c ? 2 : 0,
+                    }}
+                  />
+                ))}
+                <Box
+                  component="input"
+                  type="color"
+                  value={selectedColor}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setValue('color', e.target.value)}
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    border: 'none',
+                    borderRadius: 2,
+                    cursor: 'pointer',
+                    p: 0,
+                  }}
+                />
+              </Box>
+              <input type="hidden" {...register('color', { required: true })} />
+            </Box>
             <TextField label="Descrição" {...register('description')} fullWidth multiline rows={2} />
             <TextField label="UBS" select {...register('ubsId')} fullWidth defaultValue="">
               <MenuItem value="">Nenhuma</MenuItem>
@@ -446,6 +525,7 @@ function MicroareasTab({ municipalityId }: { municipalityId: string }) {
 }
 
 function MunicipalityTab({ municipalityId }: { municipalityId: string }) {
+  const { canManage, reportError } = useCadastros();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const { register, handleSubmit, reset } = useForm<{
@@ -475,18 +555,20 @@ function MunicipalityTab({ municipalityId }: { municipalityId: string }) {
     mutationFn: (values: { name: string; state: string; prefecture: string; secretariat: string }) =>
       municipalitiesApi.update(municipalityId, values),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['municipality'] }),
+    onError: reportError,
   });
 
   const logoMutation = useMutation({
     mutationFn: (file: File) => municipalitiesApi.uploadLogo(municipalityId, file),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['municipality'] }),
+    onError: reportError,
   });
 
   if (isLoading || !municipality) return <CircularProgress />;
 
   return (
     <Box sx={{ maxWidth: 560 }}>
-      <Typography variant="h6" gutterBottom>Município</Typography>
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Dados do município</Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
         <Box
           sx={{
@@ -514,14 +596,16 @@ function MunicipalityTab({ municipalityId }: { municipalityId: string }) {
           )}
         </Box>
         <Box>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => fileRef.current?.click()}
-            disabled={logoMutation.isPending}
-          >
-            {logoMutation.isPending ? 'Enviando...' : 'Enviar logotipo'}
-          </Button>
+          {canManage && (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => fileRef.current?.click()}
+              disabled={logoMutation.isPending}
+            >
+              {logoMutation.isPending ? 'Enviando...' : 'Enviar logotipo'}
+            </Button>
+          )}
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
             PNG, JPG, WEBP ou SVG
           </Typography>
@@ -541,21 +625,57 @@ function MunicipalityTab({ municipalityId }: { municipalityId: string }) {
 
       <form onSubmit={handleSubmit((v) => saveMutation.mutate(v))}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <TextField label="Nome" {...register('name', { required: true })} fullWidth />
-          <TextField label="UF" {...register('state', { required: true, maxLength: 2 })} fullWidth />
-          <TextField label="Prefeitura" {...register('prefecture', { required: true })} fullWidth />
-          <TextField label="Secretaria" {...register('secretariat', { required: true })} fullWidth />
-          <Button type="submit" variant="contained" disabled={saveMutation.isPending}>
-            Salvar dados
-          </Button>
+          <TextField label="Nome" {...register('name', { required: true })} fullWidth disabled={!canManage} />
+          <TextField label="UF" {...register('state', { required: true, maxLength: 2 })} fullWidth disabled={!canManage} />
+          <TextField label="Prefeitura" {...register('prefecture', { required: true })} fullWidth disabled={!canManage} />
+          <TextField label="Secretaria" {...register('secretariat', { required: true })} fullWidth disabled={!canManage} />
+          {canManage && (
+            <Button type="submit" variant="contained" disabled={saveMutation.isPending}>
+              Salvar dados
+            </Button>
+          )}
         </Box>
       </form>
     </Box>
   );
 }
 
+const TAB_ITEMS = [
+  { label: 'Município', icon: <AccountBalance fontSize="small" /> },
+  { label: 'UBS', icon: <LocalHospital fontSize="small" /> },
+  { label: 'ACS', icon: <People fontSize="small" /> },
+  { label: 'Bairros', icon: <LocationCity fontSize="small" /> },
+  { label: 'Microáreas', icon: <GridView fontSize="small" /> },
+];
+
+function TabToolbar({
+  title,
+  onAdd,
+  addLabel,
+  canManage = true,
+}: {
+  title: string;
+  onAdd: () => void;
+  addLabel: string;
+  canManage?: boolean;
+}) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2, flexWrap: 'wrap' }}>
+      <Typography variant="h6" sx={{ fontWeight: 700 }}>{title}</Typography>
+      {canManage && (
+        <Button startIcon={<Add />} variant="contained" size="small" onClick={onAdd}>
+          {addLabel}
+        </Button>
+      )}
+    </Box>
+  );
+}
+
 export function CadastrosPage() {
+  const theme = useTheme();
   const municipalityId = useMunicipalityId();
+  const user = useAuthStore((s) => s.user);
+  const canManage = canManageCadastros(user?.role);
   const [tab, setTab] = useState(0);
 
   if (!municipalityId) {
@@ -567,28 +687,67 @@ export function CadastrosPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>Cadastros</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        UBS, ACS, Bairros e Microáreas — Passagem Franca/MA
-      </Typography>
+    <CadastrosProvider>
+    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1200, mx: 'auto' }}>
+      <PageHeader
+        title="Cadastros"
+        subtitle="Gerencie município, UBS, ACS, bairros e microáreas"
+      />
+
+      {!canManage && (
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          Você está em modo visualização. Para cadastrar ou editar, peça acesso ao coordenador da APS.
+        </Alert>
+      )}
 
       <Card>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable">
-          <Tab label="Município" />
-          <Tab label="UBS" />
-          <Tab label="ACS" />
-          <Tab label="Bairros" />
-          <Tab label="Microáreas" />
+        <Tabs
+          value={tab}
+          onChange={(_, v) => setTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            px: 1,
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              minHeight: 52,
+              gap: 0.75,
+            },
+          }}
+        >
+          {TAB_ITEMS.map((item) => (
+            <Tab
+              key={item.label}
+              label={item.label}
+              icon={item.icon}
+              iconPosition="start"
+            />
+          ))}
         </Tabs>
-        <CardContent>
-          {tab === 0 && <MunicipalityTab municipalityId={municipalityId} />}
-          {tab === 1 && <UbsTab municipalityId={municipalityId} />}
-          {tab === 2 && <AcsTab municipalityId={municipalityId} />}
-          {tab === 3 && <NeighborhoodsTab municipalityId={municipalityId} />}
-          {tab === 4 && <MicroareasTab municipalityId={municipalityId} />}
+        <CardContent sx={{ pt: 3 }}>
+          <Box
+            key={tab}
+            className="page-enter"
+            sx={{
+              '& .MuiTableHead-root .MuiTableCell-root': {
+                fontWeight: 700,
+                bgcolor: alpha(theme.palette.primary.main, 0.06),
+              },
+              '& .MuiTableRow-root:hover': {
+                bgcolor: alpha(theme.palette.action.hover, 0.4),
+              },
+            }}
+          >
+            {tab === 0 && <MunicipalityTab municipalityId={municipalityId} />}
+            {tab === 1 && <UbsTab municipalityId={municipalityId} />}
+            {tab === 2 && <AcsTab municipalityId={municipalityId} />}
+            {tab === 3 && <NeighborhoodsTab municipalityId={municipalityId} />}
+            {tab === 4 && <MicroareasTab municipalityId={municipalityId} />}
+          </Box>
         </CardContent>
       </Card>
     </Box>
+    </CadastrosProvider>
   );
 }

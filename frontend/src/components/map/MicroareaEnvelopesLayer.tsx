@@ -64,6 +64,7 @@ export function MicroareaEnvelopesLayer({ microareas }: MicroareaEnvelopesLayerP
       key={`envelopes-${features.length}`}
       data={{ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection}
       style={style}
+      interactive={false}
     />
   );
 }
