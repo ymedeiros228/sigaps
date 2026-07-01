@@ -19,6 +19,20 @@ export function canManageCadastros(role?: string): boolean {
   return !!role && MANAGE_CADASTROS_ROLES.has(role);
 }
 
+/** Enfermeiro e coordenação podem cadastrar ACS manualmente. */
+export function canManageAcs(role?: string): boolean {
+  return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
+}
+
+export function canDeleteAcs(role?: string): boolean {
+  return !!role && (role === 'ADMINISTRADOR' || role === 'SECRETARIO_SAUDE');
+}
+
+export function canManageCadastrosSection(role: string | undefined, section: string): boolean {
+  if (section === 'acs') return canManageAcs(role);
+  return canManageCadastros(role);
+}
+
 export function canCreateMicroarea(role?: string): boolean {
   return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
 }

@@ -1,37 +1,61 @@
 import { useMemo, useState } from 'react';
-import { Chip, IconButton, MenuItem, TextField, Tooltip } from '@mui/material';
-import { Add, Delete, Edit, People } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import {
+  Add,
+  Delete,
+  Edit,
+  People,
+  Upload,
+  ViewModule,
+  TableRows,
+} from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { acsApi, type Acs } from '../../../services/api';
+import { acsApi, microareasApi, type Acs } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
-import { CadastrosFormDialog } from '../CadastrosFormDialog';
+import { AcsFormDialog, type AcsFormValues } from './AcsFormDialog';
+import { AcsBulkImportDialog } from './AcsBulkImportDialog';
+import { AcsCardsView } from './AcsCardsView';
+import { useAuthStore } from '../../../store';
+import { canDeleteAcs, canManageAcs } from '../../../utils/permissions';
+import { maskCpfDisplay } from '../../../utils/inputMasks';
 
-type AcsForm = { name: string; cpf: string; phone?: string; status: string };
-
-function maskCpf(cpf: string) {
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '***.$2.$3-**');
-}
+type ViewMode = 'cards' | 'table';
 
 export function AcsTab({ municipalityId }: { municipalityId: string }) {
-  const { canManage, reportError, reportSuccess, confirmDelete } = useCadastros();
+  const { reportError, reportSuccess, confirmDelete } = useCadastros();
+  const user = useAuthStore((s) => s.user);
+  const canManage = canManageAcs(user?.role);
+  const canDelete = canDeleteAcs(user?.role);
   const queryClient = useQueryClient();
+
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Acs | null>(null);
   const [search, setSearch] = useState('');
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<AcsForm>();
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [formSession, setFormSession] = useState(0);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['acs', municipalityId],
     queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
+  });
+
+  const { data: microareas = [] } = useQuery({
+    queryKey: ['microareas', municipalityId],
+    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+    enabled: canManage,
   });
 
   const filtered = useMemo(() => {
@@ -42,18 +66,46 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
         row.name.toLowerCase().includes(query) ||
         row.cpf.includes(query) ||
         (row.phone ?? '').includes(query) ||
-        (row.microarea?.name ?? '').toLowerCase().includes(query),
+        (row.microarea?.name ?? '').toLowerCase().includes(query) ||
+        String(row.microarea?.number ?? '').includes(query),
     );
   }, [data, search]);
 
+  const stats = useMemo(() => {
+    const ativos = data.filter((a) => a.status === 'ATIVO').length;
+    const comMicro = data.filter((a) => a.microarea).length;
+    return { ativos, comMicro, semMicro: data.length - comMicro };
+  }, [data]);
+
   const saveMutation = useMutation({
-    mutationFn: (values: AcsForm) =>
-      editing ? acsApi.update(editing.id, values) : acsApi.create({ ...values, municipalityId }),
-    onSuccess: () => {
+    mutationFn: (payload: { values: AcsFormValues; andAnother: boolean }) => {
+      const { values } = payload;
+      const body = {
+        name: values.name,
+        cpf: values.cpf,
+        phone: values.phone || undefined,
+        status: values.status,
+        microareaId: values.microareaId || undefined,
+      };
+      return editing
+        ? acsApi.update(editing.id, {
+            ...body,
+            microareaId: values.microareaId || null,
+          })
+        : acsApi.create({ ...body, municipalityId });
+    },
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['acs'] });
-      setOpen(false);
-      reset();
-      reportSuccess(editing ? 'ACS atualizado.' : 'ACS cadastrado.');
+      queryClient.invalidateQueries({ queryKey: ['microareas'] });
+      if (variables.andAnother) {
+        setEditing(null);
+        setFormSession((n) => n + 1);
+        reportSuccess('ACS cadastrado. Preencha o próximo.');
+      } else {
+        setOpen(false);
+        setEditing(null);
+        reportSuccess(editing ? 'ACS atualizado.' : 'ACS cadastrado.');
+      }
     },
     onError: reportError,
   });
@@ -62,6 +114,7 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
     mutationFn: (id: string) => acsApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['acs'] });
+      queryClient.invalidateQueries({ queryKey: ['microareas'] });
       reportSuccess('ACS removido.');
     },
     onError: reportError,
@@ -69,141 +122,210 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
 
   const openForm = (item?: Acs) => {
     setEditing(item ?? null);
-    reset(item ?? { name: '', cpf: '', phone: '', status: 'ATIVO' });
     setOpen(true);
+  };
+
+  const handleDelete = (row: Acs) => {
+    confirmDelete(row.name, () => deleteMutation.mutate(row.id));
   };
 
   return (
     <>
       <CadastrosSectionHeader
         title="Agentes Comunitários de Saúde"
-        description="Profissionais que podem ser vinculados às microáreas no mapa."
+        description="Cadastre manualmente ou importe da planilha. Vincule cada ACS à microárea correspondente."
         count={data.length}
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Buscar por nome, CPF ou microárea..."
+        searchPlaceholder="Buscar por nome, CPF, telefone ou microárea..."
         onAdd={() => openForm()}
         addLabel="Novo ACS"
         canManage={canManage}
+        extra={
+          <>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={viewMode}
+              onChange={(_, v) => v && setViewMode(v)}
+              aria-label="Modo de visualização"
+            >
+              <ToggleButton value="cards" aria-label="Cartões">
+                <ViewModule fontSize="small" />
+              </ToggleButton>
+              <ToggleButton value="table" aria-label="Tabela">
+                <TableRows fontSize="small" />
+              </ToggleButton>
+            </ToggleButtonGroup>
+            {canManage && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Upload />}
+                onClick={() => setImportOpen(true)}
+              >
+                Importar planilha
+              </Button>
+            )}
+          </>
+        }
       />
 
-      <CadastrosDataTable
-        loading={isLoading}
-        rows={filtered}
-        rowKey={(row) => row.id}
-        columns={[
-          { id: 'name', label: 'Nome', render: (row) => row.name },
-          {
-            id: 'cpf',
-            label: 'CPF',
-            hideOnMobile: true,
-            render: (row) => maskCpf(row.cpf),
-          },
-          {
-            id: 'phone',
-            label: 'Telefone',
-            hideOnMobile: true,
-            render: (row) => row.phone ?? '—',
-          },
-          {
-            id: 'microarea',
-            label: 'Microárea',
-            render: (row) =>
-              row.microarea ? (
-                <Chip
-                  label={row.microarea.name}
-                  size="small"
-                  sx={{ bgcolor: row.microarea.color, color: '#fff' }}
-                />
-              ) : (
-                '—'
-              ),
-          },
-          {
-            id: 'status',
-            label: 'Status',
-            render: (row) => (
-              <Chip
-                label={row.status === 'ATIVO' ? 'Ativo' : 'Inativo'}
-                size="small"
-                color={row.status === 'ATIVO' ? 'success' : 'default'}
-                variant="outlined"
-              />
-            ),
-          },
-        ]}
-        emptyState={
+      {data.length > 0 && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+          <Chip label={`${stats.ativos} ativo(s)`} size="small" color="success" variant="outlined" />
+          <Chip label={`${stats.comMicro} com microárea`} size="small" variant="outlined" />
+          {stats.semMicro > 0 && (
+            <Chip
+              label={`${stats.semMicro} sem microárea`}
+              size="small"
+              color="warning"
+              variant="outlined"
+            />
+          )}
+        </Box>
+      )}
+
+      {viewMode === 'cards' ? (
+        isLoading ? (
+          <Typography color="text.secondary">Carregando…</Typography>
+        ) : filtered.length === 0 ? (
           <CadastrosEmptyState
             icon={<People sx={{ fontSize: 32 }} />}
             title={search ? 'Nenhum ACS encontrado' : 'Nenhum ACS cadastrado'}
             description={
               search
                 ? 'Tente outro termo de busca ou limpe o filtro.'
-                : 'Cadastre os agentes comunitários para vinculá-los às microáreas.'
+                : 'Cadastre os agentes um a um ou importe os dados que você já tem em planilha.'
             }
             action={
               canManage && !search ? (
-                <CadastrosEmptyAction label="Cadastrar ACS" onClick={() => openForm()} icon={<Add />} />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                  <CadastrosEmptyAction label="Cadastrar ACS" onClick={() => openForm()} icon={<Add />} />
+                  <CadastrosEmptyAction
+                    label="Importar planilha"
+                    onClick={() => setImportOpen(true)}
+                    icon={<Upload />}
+                  />
+                </Box>
               ) : undefined
             }
           />
-        }
-        actions={
-          canManage
-            ? (row) => (
-                <>
-                  <Tooltip title="Editar">
-                    <IconButton size="small" onClick={() => openForm(row)}>
-                      <Edit fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Remover">
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              )
-            : undefined
-        }
+        ) : (
+          <AcsCardsView
+            rows={filtered}
+            canManage={canManage}
+            canDelete={canDelete}
+            onEdit={openForm}
+            onDelete={handleDelete}
+          />
+        )
+      ) : (
+        <CadastrosDataTable
+          loading={isLoading}
+          rows={filtered}
+          rowKey={(row) => row.id}
+          columns={[
+            { id: 'name', label: 'Nome', render: (row) => row.name },
+            {
+              id: 'cpf',
+              label: 'CPF',
+              hideOnMobile: true,
+              render: (row) => maskCpfDisplay(row.cpf),
+            },
+            {
+              id: 'phone',
+              label: 'Telefone',
+              hideOnMobile: true,
+              render: (row) => row.phone ?? '—',
+            },
+            {
+              id: 'microarea',
+              label: 'Microárea',
+              render: (row) =>
+                row.microarea ? (
+                  <Chip
+                    label={row.microarea.name}
+                    size="small"
+                    sx={{ bgcolor: row.microarea.color, color: '#fff' }}
+                  />
+                ) : (
+                  '—'
+                ),
+            },
+            {
+              id: 'status',
+              label: 'Status',
+              render: (row) => (
+                <Chip
+                  label={row.status === 'ATIVO' ? 'Ativo' : 'Inativo'}
+                  size="small"
+                  color={row.status === 'ATIVO' ? 'success' : 'default'}
+                  variant="outlined"
+                />
+              ),
+            },
+          ]}
+          emptyState={
+            <CadastrosEmptyState
+              icon={<People sx={{ fontSize: 32 }} />}
+              title={search ? 'Nenhum ACS encontrado' : 'Nenhum ACS cadastrado'}
+              description={
+                search
+                  ? 'Tente outro termo de busca ou limpe o filtro.'
+                  : 'Cadastre os agentes comunitários para vinculá-los às microáreas.'
+              }
+              action={
+                canManage && !search ? (
+                  <CadastrosEmptyAction label="Cadastrar ACS" onClick={() => openForm()} icon={<Add />} />
+                ) : undefined
+              }
+            />
+          }
+          actions={
+            canManage
+              ? (row) => (
+                  <>
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => openForm(row)}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {canDelete && (
+                      <Tooltip title="Remover">
+                        <IconButton size="small" color="error" onClick={() => handleDelete(row)}>
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </>
+                )
+              : undefined
+          }
+        />
+      )}
+
+      <AcsFormDialog
+        key={formSession}
+        open={open}
+        editing={editing}
+        microareas={microareas}
+        loading={saveMutation.isPending}
+        onClose={() => setOpen(false)}
+        onSave={(values, andAnother) => saveMutation.mutate({ values, andAnother })}
       />
 
-      <CadastrosFormDialog
-        open={open}
-        title={editing ? 'Editar ACS' : 'Novo ACS'}
-        onClose={() => setOpen(false)}
-        onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
-        loading={saveMutation.isPending}
-      >
-        <TextField
-          label="Nome completo"
-          {...register('name', { required: 'Informe o nome' })}
-          error={!!errors.name}
-          helperText={errors.name?.message}
-          fullWidth
-        />
-        <TextField
-          label="CPF (11 dígitos)"
-          {...register('cpf', {
-            required: 'Informe o CPF',
-            minLength: { value: 11, message: 'CPF deve ter 11 dígitos' },
-            maxLength: { value: 11, message: 'CPF deve ter 11 dígitos' },
-          })}
-          error={!!errors.cpf}
-          helperText={errors.cpf?.message}
-          fullWidth
-          disabled={!!editing}
-        />
-        <TextField label="Telefone" {...register('phone')} fullWidth />
-        <TextField label="Status" select {...register('status')} fullWidth defaultValue="ATIVO">
-          <MenuItem value="ATIVO">Ativo</MenuItem>
-          <MenuItem value="INATIVO">Inativo</MenuItem>
-        </TextField>
-      </CadastrosFormDialog>
+      <AcsBulkImportDialog
+        open={importOpen}
+        municipalityId={municipalityId}
+        onClose={() => setImportOpen(false)}
+        onSuccess={(msg) => {
+          queryClient.invalidateQueries({ queryKey: ['acs'] });
+          queryClient.invalidateQueries({ queryKey: ['microareas'] });
+          reportSuccess(msg);
+        }}
+        onError={reportError}
+      />
     </>
   );
 }

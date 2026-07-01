@@ -26,6 +26,11 @@ export class CreateAcsDto {
   @IsUUID()
   municipalityId: string;
 
+  @ApiProperty({ required: false, description: 'Vincular ACS à microárea' })
+  @IsOptional()
+  @IsUUID()
+  microareaId?: string;
+
   @ApiProperty({ enum: EntityStatus, required: false })
   @IsOptional()
   @IsEnum(EntityStatus)

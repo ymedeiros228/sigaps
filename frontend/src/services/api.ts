@@ -236,9 +236,32 @@ export const ubsApi = {
 export const acsApi = {
   list: (municipalityId: string) =>
     api.get<Acs[]>(`/acs/municipality/${municipalityId}`),
-  create: (data: { name: string; cpf: string; municipalityId: string; phone?: string; status?: string }) =>
-    api.post('/acs', data),
-  update: (id: string, data: Partial<Acs>) => api.patch(`/acs/${id}`, data),
+  create: (data: {
+    name: string;
+    cpf: string;
+    municipalityId: string;
+    phone?: string;
+    status?: string;
+    microareaId?: string;
+  }) => api.post('/acs', data),
+  update: (
+    id: string,
+    data: Partial<Acs> & { microareaId?: string | null },
+  ) => api.patch(`/acs/${id}`, data),
+  bulkImport: (
+    municipalityId: string,
+    items: Array<{
+      name: string;
+      cpf: string;
+      phone?: string;
+      microareaRef?: string;
+      status?: string;
+    }>,
+  ) =>
+    api.post<{ created: number; updated: number; errors: Array<{ row: number; cpf: string; message: string }>; total: number }>(
+      '/acs/bulk',
+      { municipalityId, items },
+    ),
   remove: (id: string) => api.delete(`/acs/${id}`),
 };
 

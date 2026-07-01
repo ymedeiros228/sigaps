@@ -17,7 +17,7 @@ import { NeighborhoodsTab } from '../components/cadastros/tabs/NeighborhoodsTab'
 import { MicroareasTab } from '../components/cadastros/tabs/MicroareasTab';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
-import { canManageCadastros } from '../utils/permissions';
+import { canManageCadastrosSection } from '../utils/permissions';
 
 function CadastrosContent({ municipalityId, section }: { municipalityId: string; section: CadastrosSectionId }) {
   switch (section) {
@@ -39,13 +39,14 @@ function CadastrosContent({ municipalityId, section }: { municipalityId: string;
 export function CadastrosPage() {
   const municipalityId = useMunicipalityId();
   const user = useAuthStore((s) => s.user);
-  const canManage = canManageCadastros(user?.role);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const section = useMemo(() => {
     const param = searchParams.get('secao');
     return isCadastrosSectionId(param) ? param : 'municipio';
   }, [searchParams]);
+
+  const canManageCurrentSection = canManageCadastrosSection(user?.role, section);
 
   const activeSection = CADASTROS_SECTIONS.find((item) => item.id === section) ?? CADASTROS_SECTIONS[0];
 
@@ -81,9 +82,11 @@ export function CadastrosPage() {
 
         <CadastrosOverview municipalityId={municipalityId} />
 
-        {!canManage && (
+        {!canManageCurrentSection && (
           <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-            Você está em modo visualização. Para cadastrar ou editar, peça acesso ao coordenador da APS.
+            {section === 'acs' && user?.role === 'ENFERMEIRO'
+              ? 'Você pode visualizar todos os cadastros, mas só editar ACS nesta seção.'
+              : 'Você está em modo visualização. Para cadastrar ou editar, peça acesso ao coordenador da APS.'}
           </Alert>
         )}
 
