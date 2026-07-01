@@ -1,7 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsUUID, Max, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 export class PaintCircleDto {
+  @ApiPropertyOptional({ example: 'Mapa Centro' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  name?: string;
   @ApiProperty()
   @IsUUID()
   microareaId: string;

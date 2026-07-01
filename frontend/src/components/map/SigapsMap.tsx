@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   microareasApi,
   osmApi,
+  paintZonesApi,
   streetsApi,
   type Street,
 } from '../../services/api';
@@ -29,6 +30,9 @@ import { StreetPanel } from './StreetPanel';
 import { MapLegend } from './MapLegend';
 import { MicroareaPolygonsLayer } from './MicroareaPolygonsLayer';
 import { PaintGuidePanel } from './PaintGuidePanel';
+import { MapDivisionsPanel } from './MapDivisionsPanel';
+import { PaintZonesLayer } from './PaintZonesLayer';
+import { DivisionMapClickHandler } from './DivisionMapClickHandler';
 import { MapEmptyState } from './MapEmptyState';
 import { SelectionBar } from './SelectionBar';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
@@ -69,6 +73,7 @@ export function SigapsMap() {
   const microareas = useAppStore((s) => s.microareas);
   const baseLayer = useMapStore((s) => s.baseLayer);
   const paintMode = useMapStore((s) => s.paintMode);
+  const divisionDraft = useMapStore((s) => s.divisionDraft);
   const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
   const selectedStreetIds = useMapStore((s) => s.selectedStreetIds);
   const toggleStreetSelection = useMapStore((s) => s.toggleStreetSelection);
@@ -108,6 +113,13 @@ export function SigapsMap() {
       microareasApi.list(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
     staleTime: 5 * 60_000,
+  });
+
+  const { data: paintZones = [] } = useQuery({
+    queryKey: ['paint-zones', municipalityId],
+    queryFn: () => paintZonesApi.list(municipalityId!).then((r) => r.data),
+    enabled: !!municipalityId,
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -406,6 +418,20 @@ export function SigapsMap() {
         clearingPaint={clearPaintMutation.isPending}
         importing={importMutation.isPending}
         lastAction={lastPaintAction}
+        onMicroareaCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ['microareas', municipalityId] });
+        }}
+      />
+
+      <MapDivisionsPanel
+        municipalityId={municipalityId!}
+        microareas={microareas}
+        streets={streets}
+        onAssignStreets={(streetIds, microareaId) => {
+          lastAssignIdsRef.current = streetIds;
+          assignMutation.mutate({ streetIds, microareaId });
+        }}
+        onMessage={(message) => setSnackbar({ message, severity: 'success' })}
       />
 
       {importing && streetCount === 0 && (
@@ -459,6 +485,7 @@ export function SigapsMap() {
           boxZoom={false}
         >
           <MapInteractionController />
+          <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />
           <MapCenterController />
           <TileLayer
@@ -467,6 +494,7 @@ export function SigapsMap() {
             attribution={tile.attribution}
           />
           <ScaleControl imperial={false} />
+          {(paintZones.length > 0 || divisionDraft) && <PaintZonesLayer zones={paintZones} />}
           <MicroareaPolygonsLayer
             microareas={microareas}
             streets={streets}

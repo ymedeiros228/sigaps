@@ -32,6 +32,7 @@ export class PaintZonesService {
 
     return this.prisma.microareaPaintZone.create({
       data: {
+        name: dto.name?.trim() || null,
         microareaId: dto.microareaId,
         municipalityId,
         centerLat: dto.centerLat,
@@ -47,5 +48,12 @@ export class PaintZonesService {
 
   clearByMunicipality(municipalityId: string) {
     return this.prisma.microareaPaintZone.deleteMany({ where: { municipalityId } });
+  }
+
+  async remove(id: string) {
+    const zone = await this.prisma.microareaPaintZone.findUnique({ where: { id } });
+    if (!zone) throw new NotFoundException('Divisão não encontrada.');
+    await this.prisma.microareaPaintZone.delete({ where: { id } });
+    return { removed: true };
   }
 }

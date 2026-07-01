@@ -44,6 +44,7 @@ export class MicroareasController {
     UserRole.ADMINISTRADOR,
     UserRole.SECRETARIO_SAUDE,
     UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
   )
   @ApiOperation({ summary: 'Criar microárea' })
   create(@Body() dto: CreateMicroareaDto) {

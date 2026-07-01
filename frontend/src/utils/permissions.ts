@@ -19,6 +19,10 @@ export function canManageCadastros(role?: string): boolean {
   return !!role && MANAGE_CADASTROS_ROLES.has(role);
 }
 
+export function canCreateMicroarea(role?: string): boolean {
+  return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
+}
+
 export function formatAuditAction(action: string, entityType: string): string {
   const actions: Record<string, string> = {
     ASSIGN_MICROAREA: 'Vinculou rua à microárea',

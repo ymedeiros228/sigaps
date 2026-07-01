@@ -279,3 +279,32 @@ export const geoApi = {
   exportMicroareas: (municipalityId: string) =>
     api.get(`/geo/export/${municipalityId}/microareas`),
 };
+
+export interface PaintZone {
+  id: string;
+  name: string | null;
+  microareaId: string;
+  municipalityId: string;
+  centerLat: number;
+  centerLng: number;
+  radiusMeters: number;
+  geojson: GeoJSON.Polygon;
+  createdAt: string;
+  microarea: { id: string; name: string; color: string; number: number };
+}
+
+export const paintZonesApi = {
+  list: (municipalityId: string) =>
+    api.get<PaintZone[]>(`/paint-zones/municipality/${municipalityId}`),
+  createCircle: (
+    municipalityId: string,
+    data: {
+      microareaId: string;
+      centerLat: number;
+      centerLng: number;
+      radiusMeters: number;
+      name?: string;
+    },
+  ) => api.post<PaintZone>(`/paint-zones/municipality/${municipalityId}/circle`, data),
+  remove: (id: string) => api.delete<{ removed: boolean }>(`/paint-zones/${id}`),
+};

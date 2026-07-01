@@ -18,13 +18,18 @@ import {
   ExpandMore,
   CheckCircle,
   PanTool,
+  Add,
 } from '@mui/icons-material';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import type { Microarea, Street } from '../../services/api';
 import { useMapStore } from '../../store';
 import { useQuery } from '@tanstack/react-query';
 import { neighborhoodsApi } from '../../services/api';
+import { canCreateMicroarea } from '../../utils/permissions';
+import { useAuthStore } from '../../store';
+import { AddMicroareaDialog } from './AddMicroareaDialog';
 
 interface PaintGuidePanelProps {
   microareas: Microarea[];
@@ -36,6 +41,7 @@ interface PaintGuidePanelProps {
   clearingPaint: boolean;
   importing: boolean;
   lastAction?: string | null;
+  onMicroareaCreated?: (id: string) => void;
 }
 
 export function PaintGuidePanel({
@@ -48,8 +54,12 @@ export function PaintGuidePanel({
   clearingPaint,
   importing,
   lastAction,
+  onMicroareaCreated,
 }: PaintGuidePanelProps) {
   const theme = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const canAddMicroarea = canCreateMicroarea(user?.role);
+  const [addOpen, setAddOpen] = useState(false);
   const paintMode = useMapStore((s) => s.paintMode);
   const setPaintMode = useMapStore((s) => s.setPaintMode);
   const mapPanEnabled = useMapStore((s) => s.mapPanEnabled);
@@ -168,14 +178,26 @@ export function PaintGuidePanel({
                 Nenhuma microárea cadastrada
               </Typography>
               Antes de pintar, cadastre as microáreas do município.
-              <Button
-                component={RouterLink}
-                to="/cadastros"
-                size="small"
-                sx={{ mt: 1, display: 'block' }}
-              >
-                Ir para Cadastros → Microáreas
-              </Button>
+              {canAddMicroarea ? (
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => setAddOpen(true)}
+                  sx={{ mt: 1, display: 'block' }}
+                >
+                  Adicionar microárea
+                </Button>
+              ) : (
+                <Button
+                  component={RouterLink}
+                  to="/cadastros"
+                  size="small"
+                  sx={{ mt: 1, display: 'block' }}
+                >
+                  Ir para Cadastros → Microáreas
+                </Button>
+              )}
             </Alert>
           ) : streetCount === 0 ? (
             <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
@@ -210,7 +232,7 @@ export function PaintGuidePanel({
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
             MICROÁREAS — {streetCount > 0 ? `${streetCount} ruas no mapa` : 'nenhuma rua carregada'}
           </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
             {microareas.map((m) => {
               const selected = m.id === selectedMicroareaId;
               return (
@@ -252,7 +274,30 @@ export function PaintGuidePanel({
                 </Button>
               );
             })}
+            {canAddMicroarea && (
+              <Button
+                variant="outlined"
+                size="medium"
+                onClick={() => setAddOpen(true)}
+                sx={{ minWidth: 44, px: 1.5, borderStyle: 'dashed' }}
+                aria-label="Adicionar microárea"
+              >
+                <Add />
+              </Button>
+            )}
           </Box>
+
+          <AddMicroareaDialog
+            open={addOpen}
+            onClose={() => setAddOpen(false)}
+            municipalityId={municipalityId}
+            existingCount={microareas.length}
+            onCreated={(ma) => {
+              setSelectedMicroarea(ma.id);
+              if (streetCount > 0) setPaintMode(true);
+              onMicroareaCreated?.(ma.id);
+            }}
+          />
 
           {paintMode && canPaint && neighborhoods.length > 0 && (
             <Box sx={{ mb: 2 }}>

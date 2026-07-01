@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -14,7 +14,7 @@ export class PaintZonesController {
   constructor(private readonly paintZonesService: PaintZonesService) {}
 
   @Get('municipality/:municipalityId')
-  @ApiOperation({ summary: 'Listar áreas circulares pintadas' })
+  @ApiOperation({ summary: 'Listar divisões de mapa' })
   list(@Param('municipalityId') municipalityId: string) {
     return this.paintZonesService.listByMunicipality(municipalityId);
   }
@@ -26,11 +26,23 @@ export class PaintZonesController {
     UserRole.SECRETARIO_SAUDE,
     UserRole.ADMINISTRADOR,
   )
-  @ApiOperation({ summary: 'Registrar área circular pintada' })
+  @ApiOperation({ summary: 'Criar divisão circular no mapa' })
   createCircle(
     @Param('municipalityId') municipalityId: string,
     @Body() dto: PaintCircleDto,
   ) {
     return this.paintZonesService.createCircle(municipalityId, dto);
+  }
+
+  @Delete(':id')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Remover divisão de mapa' })
+  remove(@Param('id') id: string) {
+    return this.paintZonesService.remove(id);
   }
 }

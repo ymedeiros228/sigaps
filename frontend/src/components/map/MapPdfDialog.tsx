@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,8 +13,9 @@ import {
   CircularProgress,
   Typography,
   Box,
+  IconButton,
 } from '@mui/material';
-import { PictureAsPdf } from '@mui/icons-material';
+import { Close, Download, PictureAsPdf, Print } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import type { RefObject } from 'react';
 import {
@@ -29,6 +30,7 @@ import { assetUrl } from '../../utils/assetUrl';
 import {
   generateOfficialMapPdf,
   downloadPdfBlob,
+  openPdfBlob,
   type PdfFormat,
 } from '../../utils/mapPdfExport';
 
@@ -45,6 +47,17 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
   const [neighborhoodId, setNeighborhoodId] = useState<string>('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFilename, setPreviewFilename] = useState('sigaps-mapa.pdf');
+
+  useEffect(() => {
+    if (open) return;
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setError(null);
+  }, [open]);
 
   const { data: municipality } = useQuery({
     queryKey: ['municipality', municipalityId],
@@ -87,8 +100,7 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       if (!leaflet) throw new Error('Mapa não carregado');
 
       container.classList.add('sigaps-pdf-capture');
-
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 900));
 
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(leaflet, {
@@ -96,6 +108,7 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
         allowTaint: true,
         logging: false,
         scale: 2,
+        backgroundColor: '#0B0F14',
       });
       const mapImageDataUrl = canvas.toDataURL('image/png');
 
@@ -108,6 +121,8 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       const blob = await generateOfficialMapPdf({
         format,
         mapImageDataUrl,
+        mapImageWidth: canvas.width,
+        mapImageHeight: canvas.height,
         municipality: {
           name: municipality.name,
           state: municipality.state,
@@ -124,8 +139,10 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       const suffix = neighborhoodName
         ? neighborhoodName.replace(/\s+/g, '-').toLowerCase()
         : 'municipio';
-      downloadPdfBlob(blob, `sigaps-mapa-microareas-${suffix}-${format}.pdf`);
-      onClose();
+      const filename = `sigaps-mapa-microareas-${suffix}-${format}.pdf`;
+      setPreviewFilename(filename);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(openPdfBlob(blob));
     } catch (e) {
       mapContainerRef.current?.classList.remove('sigaps-pdf-capture');
       setError(e instanceof Error ? e.message : 'Erro ao gerar PDF. Tente novamente.');
@@ -133,6 +150,50 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       setGenerating(false);
     }
   };
+
+  const handleDownload = async () => {
+    if (!previewUrl) return;
+    const res = await fetch(previewUrl);
+    downloadPdfBlob(await res.blob(), previewFilename);
+  };
+
+  const handlePrint = () => {
+    if (!previewUrl) return;
+    const w = window.open(previewUrl, '_blank');
+    w?.focus();
+    w?.print();
+  };
+
+  if (previewUrl) {
+    return (
+      <Dialog open={open} onClose={onClose} fullScreen>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PictureAsPdf color="primary" />
+            Pré-visualização do PDF
+          </Box>
+          <IconButton onClick={onClose} aria-label="Fechar">
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, bgcolor: '#525659' }}>
+          <Box
+            component="iframe"
+            src={previewUrl}
+            title="Pré-visualização PDF"
+            sx={{ width: '100%', height: '100%', minHeight: 'calc(100vh - 130px)', border: 0 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.5 }}>
+          <Button onClick={() => { setPreviewUrl(null); }}>Voltar às opções</Button>
+          <Button startIcon={<Print />} onClick={handlePrint}>Imprimir</Button>
+          <Button variant="contained" startIcon={<Download />} onClick={handleDownload}>
+            Baixar PDF
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -142,8 +203,8 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       </DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          Gera um mapa profissional com imagem de satélite, microáreas coloridas, legenda,
-          escala, rosa dos ventos e QR Code — pronto para impressão na Secretaria de Saúde.
+          Gera um mapa profissional com imagem do satélite, legenda lateral, detalhes
+          por microárea, escala e QR Code — pronto para impressão.
         </Typography>
 
         {paintedCount === 0 && (
@@ -183,8 +244,8 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
 
         <Box sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            Dica: centralize o mapa na área desejada e use visão satélite com
-            microáreas ativadas antes de gerar.
+            Centralize o mapa na área desejada, ative Microáreas + satélite, depois gere
+            e confira na pré-visualização antes de baixar.
           </Typography>
         </Box>
 
@@ -200,7 +261,7 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
           disabled={generating || !municipality}
           startIcon={generating ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdf />}
         >
-          {generating ? 'Gerando PDF...' : 'Baixar PDF oficial'}
+          {generating ? 'Gerando PDF...' : 'Gerar e visualizar'}
         </Button>
       </DialogActions>
     </Dialog>

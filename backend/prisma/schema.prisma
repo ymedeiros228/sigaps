@@ -120,6 +120,7 @@ model Microarea {
 
 model MicroareaPaintZone {
   id             String    @id @default(uuid())
+  name           String?
   microareaId    String    @map("microarea_id")
   microarea      Microarea @relation(fields: [microareaId], references: [id], onDelete: Cascade)
   municipalityId String    @map("municipality_id")

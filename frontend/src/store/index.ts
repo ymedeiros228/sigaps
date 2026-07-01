@@ -28,6 +28,8 @@ interface MapState {
   paintGuideCollapsed: boolean;
   dragPaintIds: Set<string>;
   mapPanEnabled: boolean;
+  divisionMode: boolean;
+  divisionDraft: { lat: number; lng: number; radiusMeters: number; name: string } | null;
   setPaintMode: (enabled: boolean) => void;
   setSelectedMicroarea: (id: string | null) => void;
   toggleStreetSelection: (id: string) => void;
@@ -39,6 +41,8 @@ interface MapState {
   addDragPaintId: (id: string) => void;
   clearDragPaintIds: () => Set<string>;
   setMapPanEnabled: (enabled: boolean) => void;
+  setDivisionMode: (enabled: boolean) => void;
+  setDivisionDraft: (draft: MapState['divisionDraft']) => void;
   flyTo: (lat: number, lng: number, zoom?: number) => void;
   clearMapCenter: () => void;
 }
@@ -104,6 +108,8 @@ export const useMapStore = create<MapState>((set, get) => ({
   paintGuideCollapsed: false,
   dragPaintIds: new Set(),
   mapPanEnabled: true,
+  divisionMode: false,
+  divisionDraft: null,
   setPaintMode: (enabled) => {
     const state = get();
     if (enabled && !state.selectedMicroareaId) {
@@ -147,6 +153,13 @@ export const useMapStore = create<MapState>((set, get) => ({
     return ids;
   },
   setMapPanEnabled: (enabled) => set({ mapPanEnabled: enabled }),
+  setDivisionMode: (enabled) =>
+    set({
+      divisionMode: enabled,
+      paintMode: enabled ? false : get().paintMode,
+      divisionDraft: enabled ? get().divisionDraft : null,
+    }),
+  setDivisionDraft: (draft) => set({ divisionDraft: draft }),
   flyTo: (lat, lng, zoom = 16) => set({ mapCenter: { lat, lng, zoom } }),
   clearMapCenter: () => set({ mapCenter: null }),
 }));

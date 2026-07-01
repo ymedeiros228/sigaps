@@ -14,6 +14,7 @@ import { AcsModule } from './modules/acs/acs.module';
 import { NeighborhoodsModule } from './modules/neighborhoods/neighborhoods.module';
 import { SearchModule } from './modules/search/search.module';
 import { GeoModule } from './modules/geo/geo.module';
+import { PaintZonesModule } from './modules/paint-zones/paint-zones.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -33,6 +34,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     NeighborhoodsModule,
     SearchModule,
     GeoModule,
+    PaintZonesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
