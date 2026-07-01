@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { mkdir, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,8 +13,12 @@ export class MunicipalitiesService {
     return this.prisma.municipality.findMany({ orderBy: { name: 'asc' } });
   }
 
-  findOne(id: string) {
-    return this.prisma.municipality.findUniqueOrThrow({ where: { id } });
+  async findOne(id: string) {
+    const municipality = await this.prisma.municipality.findUnique({ where: { id } });
+    if (!municipality) {
+      throw new NotFoundException('Município não encontrado');
+    }
+    return municipality;
   }
 
   create(dto: CreateMunicipalityDto) {

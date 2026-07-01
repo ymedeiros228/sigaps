@@ -35,6 +35,12 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
   }
 }
 
+# 2b. Corrigir DATABASE_URL no Render (session pooler 5432)
+if ($env:RENDER_API_KEY) {
+  Write-Host "`n[2b] Sincronizando DATABASE_URL no Render..." -ForegroundColor Cyan
+  & (Join-Path $Root "scripts\render-fix-database-url.ps1")
+}
+
 # 3. Redeploy Render
 $apiKey = $env:RENDER_API_KEY
 if (-not $apiKey) {

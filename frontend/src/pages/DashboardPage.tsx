@@ -26,57 +26,60 @@ import {
   Pie,
   Legend,
 } from 'recharts';
-import { dashboardApi, municipalitiesApi } from '../services/api';
+import { municipalitiesApi } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { CACHE, queryKeys } from '../utils/queryKeys';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
-import { waitForApiReady } from '../utils/waitForApi';
-import { isRetryableQueryError } from '../utils/queryRetry';
+import { fetchDashboardIndicators, waitForApiReady } from '../utils/waitForApi';
+import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from '../utils/queryRetry';
 
 function dashboardErrorMessage(error: unknown) {
   if (isRetryableQueryError(error)) {
-    return 'O servidor está acordando (hospedagem gratuita). Aguarde cerca de 1 minuto e tente novamente.';
+    return 'O servidor está acordando (hospedagem gratuita). Aguarde cerca de 1 minuto e clique em Tentar novamente.';
   }
   const status = (error as AxiosError)?.response?.status;
   if (status === 403) return 'Você não tem permissão para ver estes indicadores.';
   if (status === 404) return 'Município não encontrado. Faça login novamente.';
+  if (status === 500) return 'Erro no servidor ao buscar indicadores. Tente novamente em instantes.';
   return 'Não foi possível carregar os indicadores. Verifique sua conexão e tente novamente.';
 }
 
 export function DashboardPage() {
   const municipalityId = useMunicipalityId();
-  const [wakingServer, setWakingServer] = useState(false);
-  const [apiReady, setApiReady] = useState(() => !import.meta.env.PROD);
+  const [wakeMessage, setWakeMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (apiReady) return;
+    if (!import.meta.env.PROD) return;
     let cancelled = false;
-    setWakingServer(true);
-    void waitForApiReady().then((ready) => {
+    setWakeMessage('Verificando servidor…');
+    void waitForApiReady(10, 3000).then((ready) => {
       if (!cancelled) {
-        setApiReady(ready);
-        setWakingServer(false);
+        setWakeMessage(ready ? null : 'Servidor lento — tentando carregar mesmo assim…');
+        if (!ready) {
+          window.setTimeout(() => { if (!cancelled) setWakeMessage(null); }, 4000);
+        }
       }
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [apiReady]);
+    return () => { cancelled = true; };
+  }, []);
 
   const { data: municipality } = useQuery({
     queryKey: queryKeys.municipality(municipalityId!),
     queryFn: () => municipalitiesApi.get(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
     staleTime: CACHE.default,
+    retry: 2,
   });
 
   const { data, isLoading, isError, error, refetch, isFetching, failureCount, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.dashboard(municipalityId!),
-    queryFn: () => dashboardApi.indicators(municipalityId!).then((r) => r.data),
-    enabled: !!municipalityId && apiReady,
+    queryFn: () => fetchDashboardIndicators(municipalityId!),
+    enabled: !!municipalityId,
     staleTime: CACHE.dashboard,
+    retry: (count, err) => shouldRetryCloudQuery(count, err),
+    retryDelay: cloudQueryRetryDelay,
   });
 
   if (!municipalityId) {
@@ -90,27 +93,18 @@ export function DashboardPage() {
     );
   }
 
-  if (wakingServer || (!apiReady && municipalityId)) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 8, gap: 2 }}>
-        <CircularProgress />
-        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-          Acordando o servidor…
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420, textAlign: 'center' }}>
-          Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto. Depois fica rápido.
-        </Typography>
-      </Box>
-    );
-  }
-
   if (isLoading || (isFetching && !data)) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 8, gap: 1.5 }}>
         <CircularProgress />
-        <Typography variant="body2" color="text.secondary">
-          {failureCount > 0 ? `Carregando indicadores… (tentativa ${failureCount + 1})` : 'Carregando indicadores…'}
+        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          {wakeMessage ?? (failureCount > 0 ? `Carregando indicadores… (tentativa ${failureCount + 1})` : 'Carregando indicadores…')}
         </Typography>
+        {failureCount > 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420, textAlign: 'center' }}>
+            Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto.
+          </Typography>
+        )}
       </Box>
     );
   }
@@ -128,7 +122,7 @@ export function DashboardPage() {
     );
   }
 
-  const muniLabel = municipality ? `${municipality.name}/${municipality.state}` : 'Município';
+  const muniLabel = municipality ? `${municipality.name}/${municipality.state}` : 'Passagem Franca/MA';
   const isEmpty = data.streets === 0 && data.microareas === 0;
 
   const stats = [

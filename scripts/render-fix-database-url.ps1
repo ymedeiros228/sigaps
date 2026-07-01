@@ -25,7 +25,15 @@ if (-not $line) {
 }
 
 $dbUrl = ($line -split '=', 2)[1].Trim().Trim('"').Trim("'")
-$dbUrl = $dbUrl -replace ':5432/', ':6543/'
+# Session pooler (5432) — compatível com Prisma em runtime. Evita 6543 sem pgbouncer=true.
+if ($dbUrl -match ':6543/') {
+  $dbUrl = $dbUrl -replace ':6543/', ':5432/'
+}
+if ($dbUrl -notmatch '\?') {
+  $dbUrl = "$dbUrl`?schema=public&connection_limit=5"
+} elseif ($dbUrl -notmatch 'connection_limit=') {
+  $dbUrl = "$dbUrl&connection_limit=5"
+}
 if ($dbUrl -notmatch '^postgresql://') {
   Write-Host "URL invalida em backend\.env" -ForegroundColor Red
   exit 1
@@ -61,7 +69,7 @@ $body = @{ value = $dbUrl } | ConvertTo-Json
 
 try {
   Invoke-RestMethod -Method Put -Uri $uri -Headers $headers -Body $body | Out-Null
-  Write-Host "[ok] DATABASE_URL configurado (pooler 6543)" -ForegroundColor Green
+  Write-Host "[ok] DATABASE_URL configurado (session pooler 5432)" -ForegroundColor Green
 }
 catch {
   Write-Host "Erro na API Render: $($_.Exception.Message)" -ForegroundColor Red
