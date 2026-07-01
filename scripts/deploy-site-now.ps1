@@ -6,21 +6,23 @@ $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $ServiceId = "srv-d92aao6q1p3s73fh15fg"
 $EnvFile = Join-Path $Root "backend\.env"
 
-Write-Host "`n=== SIGAPS — Deploy completo no site ===" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "=== SIGAPS - Deploy completo no site ===" -ForegroundColor Cyan
 
 # 1. Migrations Supabase (session pooler 5432)
 if (Test-Path $EnvFile) {
-  Write-Host "`n[1/3] Aplicando migrations no Supabase..." -ForegroundColor Cyan
+  Write-Host ""
+  Write-Host "[1/3] Aplicando migrations no Supabase..." -ForegroundColor Cyan
   Push-Location (Join-Path $Root "backend")
   npx prisma migrate deploy
   if ($LASTEXITCODE -ne 0) { Pop-Location; exit 1 }
   Pop-Location
   Write-Host "[ok] Migrations aplicadas" -ForegroundColor Green
 } else {
-  Write-Host "[skip] backend\.env nao encontrado — migrations manuais" -ForegroundColor Yellow
+  Write-Host "[skip] backend\.env nao encontrado - migrations manuais" -ForegroundColor Yellow
 }
 
-# 2. GitHub secret DATABASE_URL (migrate automatico nos proximos pushes)
+# 2. GitHub secret DATABASE_URL
 if (Get-Command gh -ErrorAction SilentlyContinue) {
   if (Test-Path $EnvFile) {
     $dbLine = Get-Content $EnvFile | Where-Object { $_ -match '^\s*DATABASE_URL\s*=' } | Select-Object -First 1
@@ -35,21 +37,24 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
   }
 }
 
-# 2b. Corrigir DATABASE_URL no Render (session pooler 5432)
+# 2b. Corrigir DATABASE_URL no Render
 if ($env:RENDER_API_KEY) {
-  Write-Host "`n[2b] Sincronizando DATABASE_URL no Render..." -ForegroundColor Cyan
+  Write-Host ""
+  Write-Host "[2b] Sincronizando DATABASE_URL no Render..." -ForegroundColor Cyan
   & (Join-Path $Root "scripts\render-fix-database-url.ps1")
 }
 
 # 3. Redeploy Render
 $apiKey = $env:RENDER_API_KEY
 if (-not $apiKey) {
-  Write-Host "`n[3/3] RENDER_API_KEY nao definida — abra Render > Manual Deploy" -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "[3/3] RENDER_API_KEY nao definida - abra Render > Manual Deploy" -ForegroundColor Yellow
   Write-Host "  https://dashboard.render.com/web/$ServiceId" -ForegroundColor White
   exit 0
 }
 
-Write-Host "`n[3/3] Disparando redeploy no Render..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "[3/3] Disparando redeploy no Render..." -ForegroundColor Cyan
 $headers = @{ Authorization = "Bearer $apiKey"; Accept = "application/json"; "Content-Type" = "application/json" }
 try {
   $deploy = Invoke-RestMethod -Method Post -Uri "https://api.render.com/v1/services/$ServiceId/deploys" -Headers $headers -Body "{}"

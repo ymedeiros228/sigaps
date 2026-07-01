@@ -1,4 +1,4 @@
-# Configura DATABASE_URL no Render via API (sem browser — evita travamento do Cursor)
+# Configura DATABASE_URL no Render via API (sem browser)
 #
 # 1. Crie API key: https://dashboard.render.com/u/settings#api-keys
 # 2. Rode:
@@ -25,7 +25,7 @@ if (-not $line) {
 }
 
 $dbUrl = ($line -split '=', 2)[1].Trim().Trim('"').Trim("'")
-# Session pooler (5432) — compatível com Prisma em runtime. Evita 6543 sem pgbouncer=true.
+# Session pooler (5432) - compativel com Prisma em runtime. Evita 6543 sem pgbouncer=true.
 if ($dbUrl -match ':6543/') {
   $dbUrl = $dbUrl -replace ':6543/', ':5432/'
 }
