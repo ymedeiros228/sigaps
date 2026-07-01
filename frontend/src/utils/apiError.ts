@@ -25,6 +25,18 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
     return 'Sessão expirada. Faça login novamente.';
   }
 
+  if (err.response?.status === 503) {
+    return 'Servidor acordando — aguarde alguns segundos e tente novamente.';
+  }
+
+  if (err.response?.status === 500) {
+    return 'Servidor temporariamente indisponível. Aguarde um momento e tente novamente.';
+  }
+
+  if (err.response?.status === 502 || err.response?.status === 504) {
+    return 'Servidor lento (hospedagem gratuita). Aguarde cerca de 1 minuto e tente novamente.';
+  }
+
   return fallback;
 }
 

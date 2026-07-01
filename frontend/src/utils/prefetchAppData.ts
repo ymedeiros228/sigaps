@@ -3,22 +3,23 @@ import { microareasApi, neighborhoodsApi, paintZonesApi, streetsApi, dashboardAp
 import { CACHE, queryKeys } from './queryKeys';
 
 export async function prefetchMapData(queryClient: QueryClient, municipalityId: string) {
-  await Promise.all([
+  // Carrega em etapas para não saturar o pooler do Supabase no cold start.
+  await queryClient.prefetchQuery({
+    queryKey: queryKeys.microareas(municipalityId),
+    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+    staleTime: CACHE.microareas,
+  });
+  await queryClient.prefetchQuery({
+    queryKey: queryKeys.streetsMap(municipalityId),
+    queryFn: () =>
+      streetsApi.list(municipalityId, { limit: 2000, mapOnly: true }).then((r) => r.data),
+    staleTime: CACHE.streets,
+  });
+  void Promise.all([
     queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard(municipalityId),
       queryFn: () => dashboardApi.indicators(municipalityId).then((r) => r.data),
       staleTime: CACHE.dashboard,
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.microareas(municipalityId),
-      queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
-      staleTime: CACHE.microareas,
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.streetsMap(municipalityId),
-      queryFn: () =>
-        streetsApi.list(municipalityId, { limit: 2000, mapOnly: true }).then((r) => r.data),
-      staleTime: CACHE.streets,
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.paintZones(municipalityId),

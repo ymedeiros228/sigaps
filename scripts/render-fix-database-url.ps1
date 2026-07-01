@@ -30,11 +30,11 @@ if ($dbUrl -match ':6543/') {
   $dbUrl = $dbUrl -replace ':6543/', ':5432/'
 }
 if ($dbUrl -notmatch '\?') {
-  $dbUrl = "$dbUrl`?schema=public&pgbouncer=true&connection_limit=5"
+  $dbUrl = "$dbUrl`?schema=public&pgbouncer=true&connection_limit=1"
 } else {
   if ($dbUrl -notmatch 'schema=') { $dbUrl = "$dbUrl&schema=public" }
   if ($dbUrl -notmatch 'pgbouncer=') { $dbUrl = "$dbUrl&pgbouncer=true" }
-  if ($dbUrl -notmatch 'connection_limit=') { $dbUrl = "$dbUrl&connection_limit=5" }
+  if ($dbUrl -notmatch 'connection_limit=') { $dbUrl = "$dbUrl&connection_limit=1" }
 }
 if ($dbUrl -notmatch '^postgresql://') {
   Write-Host "URL invalida em backend\.env" -ForegroundColor Red

@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
+import { withDbRetry } from '../../common/utils/prisma-retry.util';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
 
@@ -36,35 +37,37 @@ export class StreetsService {
         : {}),
     };
 
-    const [items, total] = await Promise.all([
-      mapOnly
-        ? this.prisma.street.findMany({
-            where,
-            skip,
-            take: limit,
-            select: {
-              id: true,
-              name: true,
-              streetType: true,
-              microareaId: true,
-              osmId: true,
-              geojson: true,
-              microarea: { select: { id: true, name: true, number: true, color: true } },
-            },
-            orderBy: { name: 'asc' },
-          })
-        : this.prisma.street.findMany({
-            where,
-            skip,
-            take: limit,
-            include: {
-              microarea: { select: { id: true, name: true, number: true, color: true } },
-              neighborhood: { select: { id: true, name: true } },
-            },
-            orderBy: { name: 'asc' },
-          }),
-      this.prisma.street.count({ where }),
-    ]);
+    const [items, total] = await withDbRetry(() =>
+      Promise.all([
+        mapOnly
+          ? this.prisma.street.findMany({
+              where,
+              skip,
+              take: limit,
+              select: {
+                id: true,
+                name: true,
+                streetType: true,
+                microareaId: true,
+                osmId: true,
+                geojson: true,
+                microarea: { select: { id: true, name: true, number: true, color: true } },
+              },
+              orderBy: { name: 'asc' },
+            })
+          : this.prisma.street.findMany({
+              where,
+              skip,
+              take: limit,
+              include: {
+                microarea: { select: { id: true, name: true, number: true, color: true } },
+                neighborhood: { select: { id: true, name: true } },
+              },
+              orderBy: { name: 'asc' },
+            }),
+        this.prisma.street.count({ where }),
+      ]),
+    );
 
     return {
       items: items.map((s) => ({

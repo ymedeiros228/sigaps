@@ -11,7 +11,7 @@ function normalizeDatabaseUrl(raw?: string): string | undefined {
         url.searchParams.set('pgbouncer', 'true');
       }
       if (!url.searchParams.has('connection_limit')) {
-        url.searchParams.set('connection_limit', '5');
+        url.searchParams.set('connection_limit', '1');
       }
     }
     if (!url.searchParams.has('schema')) {
@@ -42,7 +42,16 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    await this.$connect();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await this.$connect();
+        return;
+      } catch (error) {
+        if (attempt === 4) throw error;
+        this.logger.warn(`Conexão DB tentativa ${attempt + 1} falhou — retentando...`);
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
   }
 
   async onModuleDestroy() {

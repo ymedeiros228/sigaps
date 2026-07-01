@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { importStreetsFromBundledGeoJson } from '../../common/utils/bundled-streets.import';
+import { withDbRetry } from '../../common/utils/prisma-retry.util';
 import {
   fixLineStringCoordinates,
   isValidBrazilCoord,
@@ -61,16 +62,20 @@ export class OsmImportService {
 
     OsmImportService.importLocks.add(municipalityId);
     try {
-      const municipality = await this.prisma.municipality.findUnique({
-        where: { id: municipalityId },
-      });
+      const municipality = await withDbRetry(() =>
+        this.prisma.municipality.findUnique({
+          where: { id: municipalityId },
+        }),
+      );
       if (!municipality) {
         throw new NotFoundException('Município não encontrado.');
       }
 
-      const existing = await this.prisma.street.count({
-        where: { municipalityId, osmId: { not: null } },
-      });
+      const existing = await withDbRetry(() =>
+        this.prisma.street.count({
+          where: { municipalityId, osmId: { not: null } },
+        }),
+      );
 
       const bundled = await importStreetsFromBundledGeoJson(
         this.prisma,

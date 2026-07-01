@@ -42,6 +42,7 @@ import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea } from '../../utils/streetsCache';
+import { cloudQueryRetryDelay, shouldRetryCloudQuery } from '../../utils/queryRetry';
 import { LeafletMap } from './LeafletMap';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
@@ -122,13 +123,15 @@ export function SigapsMap() {
     }
   }, [microareasData, setMicroareas]);
 
-  const { data: streetsData, isLoading } = useQuery({
+  const { data: streetsData, isLoading, isError: streetsLoadError, isFetching: streetsFetching, refetch: refetchStreets } = useQuery({
     queryKey: queryKeys.streetsMap(municipalityId!),
     queryFn: () =>
       streetsApi.list(municipalityId!, { limit: 2000, mapOnly: true }).then((r) => r.data),
     enabled: !!municipalityId,
     staleTime: CACHE.streets,
     gcTime: 15 * 60_000,
+    retry: (count, err) => shouldRetryCloudQuery(count, err),
+    retryDelay: cloudQueryRetryDelay,
   });
 
   const streetCount = streetsData?.items?.length ?? 0;
@@ -287,13 +290,14 @@ export function SigapsMap() {
   }, [importMutation.isPending, streetCount, municipalityId, queryClient]);
 
   useEffect(() => {
-    if (!municipalityId || !canImport || isLoading || importMutation.isPending) return;
-    if (streetCount > 0) return;
+    if (!municipalityId || !canImport || isLoading || streetsFetching || importMutation.isPending) return;
+    if (streetsLoadError || !streetsData) return;
+    if (streetCount > 0 || streetsTotal > 0) return;
     if (autoImportAttempted.current) return;
     autoImportAttempted.current = true;
     importMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dispara importação automática uma vez
-  }, [municipalityId, canImport, isLoading, streetCount, importMutation.isPending]);
+  }, [municipalityId, canImport, isLoading, streetsFetching, streetsLoadError, streetsData, streetCount, streetsTotal, importMutation.isPending]);
 
   const paintStreet = useCallback((street: Street) => {
     if (!paintMode || eraserMode || !selectedMicroareaId) return;
@@ -487,9 +491,26 @@ export function SigapsMap() {
     unassignMutation.mutate(ids);
   }, [streets, unassignMutation]);
 
+  const handleRetryLoadStreets = useCallback(async () => {
+    setImportFailed(false);
+    const result = await refetchStreets();
+    if ((result.data?.items?.length ?? 0) > 0 || (result.data?.total ?? 0) > 0) {
+      setSnackbar({ message: 'Ruas carregadas com sucesso!', severity: 'success' });
+      return;
+    }
+    if (!result.isError && canImport) {
+      autoImportAttempted.current = false;
+      importMutation.mutate();
+    }
+  }, [refetchStreets, canImport, importMutation]);
+
   const tile = TILE_LAYERS[baseLayer];
   const importing = importMutation.isPending;
-  const showEmptyOverlay = importFailed && !importing && streetCount === 0;
+  const showEmptyOverlay =
+    !importing &&
+    !streetsFetching &&
+    streetCount === 0 &&
+    (importFailed || streetsLoadError);
 
   if (!municipalityId) {
     return (
@@ -561,7 +582,7 @@ export function SigapsMap() {
         onMessage={(message) => setSnackbar({ message, severity: 'success' })}
       />
 
-      {importing && streetCount === 0 && (
+      {streetsFetching && streetCount === 0 && !showEmptyOverlay && (
         <Alert
           severity="info"
           sx={{
@@ -574,17 +595,16 @@ export function SigapsMap() {
             maxWidth: 420,
           }}
         >
-          Preparando ruas do município (dados locais, alguns segundos)...
+          {importing
+            ? 'Preparando ruas do município (dados locais, alguns segundos)...'
+            : 'Carregando ruas do município…'}
         </Alert>
       )}
 
       {showEmptyOverlay && (
         <MapEmptyState
           canImport={canImport}
-          onImport={() => {
-            setImportFailed(false);
-            importMutation.mutate();
-          }}
+          onImport={() => void handleRetryLoadStreets()}
         />
       )}
       {streetsTotal > streetCount && (
