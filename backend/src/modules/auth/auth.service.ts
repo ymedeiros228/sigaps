@@ -1,0 +1,79 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../../prisma/prisma.service';
+import { LoginDto } from './dto/login.dto';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+  ) {}
+
+  async login(dto: LoginDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    const valid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: tokens.refreshToken },
+    });
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        municipalityId: user.municipalityId,
+      },
+      ...tokens,
+    };
+  }
+
+  async refresh(refreshToken: string) {
+    try {
+      const payload = this.jwt.verify(refreshToken, {
+        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+      });
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+      });
+      if (!user || user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException('Token inválido');
+      }
+      return this.generateTokens(user.id, user.email, user.role);
+    } catch {
+      throw new UnauthorizedException('Token inválido');
+    }
+  }
+
+  private async generateTokens(userId: string, email: string, role: string) {
+    const payload = { sub: userId, email, role };
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwt.signAsync(payload, {
+        secret: this.config.get<string>('JWT_SECRET'),
+        expiresIn: '15m',
+      }),
+      this.jwt.signAsync(payload, {
+        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: '7d',
+      }),
+    ]);
+    return { accessToken, refreshToken };
+  }
+}

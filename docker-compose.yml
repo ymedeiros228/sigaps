@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: sigaps-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sigaps}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sigaps_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-sigaps}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sigaps}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sigaps-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sigaps}:${POSTGRES_PASSWORD:-sigaps_secret}@postgres:5432/${POSTGRES_DB:-sigaps}?schema=public
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sigaps-frontend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: sigaps-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  uploads:

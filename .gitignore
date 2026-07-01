@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Prisma
+backend/prisma/migrations/**/migration.sql.bak
+
+# Uploads
+uploads/
+temp/
+
+# Docker volumes
+postgres_data/
+
+# Coverage
+coverage/
+
+# Frontend
+frontend/dist/

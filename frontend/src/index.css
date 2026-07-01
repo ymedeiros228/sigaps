@@ -1,0 +1,13 @@
+body {
+  margin: 0;
+  font-family: 'Inter', 'Roboto', sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background: #0D1117;
+}

@@ -1,0 +1,64 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { CreateMicroareaDto, UpdateMicroareaDto } from './dto/microarea.dto';
+import { MicroareasService } from './microareas.service';
+
+@ApiTags('Microáreas')
+@ApiBearerAuth()
+@Controller('microareas')
+@UseGuards(RolesGuard)
+export class MicroareasController {
+  constructor(private readonly microareasService: MicroareasService) {}
+
+  @Get('municipality/:municipalityId')
+  @ApiOperation({ summary: 'Listar microáreas do município' })
+  findByMunicipality(@Param('municipalityId') municipalityId: string) {
+    return this.microareasService.findByMunicipality(municipalityId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Detalhes da microárea' })
+  findOne(@Param('id') id: string) {
+    return this.microareasService.findOne(id);
+  }
+
+  @Get(':id/envelope')
+  @ApiOperation({ summary: 'Polígono automático envolvendo as ruas' })
+  getEnvelope(@Param('id') id: string) {
+    return this.microareasService.getEnvelopeGeoJson(id);
+  }
+
+  @Post()
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+  )
+  @ApiOperation({ summary: 'Criar microárea' })
+  create(@Body() dto: CreateMicroareaDto) {
+    return this.microareasService.create(dto);
+  }
+
+  @Patch(':id')
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
+  @ApiOperation({ summary: 'Atualizar microárea' })
+  update(@Param('id') id: string, @Body() dto: UpdateMicroareaDto) {
+    return this.microareasService.update(id, dto);
+  }
+}

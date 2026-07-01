@@ -1,0 +1,16 @@
+{
+  "name": "sigaps",
+  "version": "1.0.0-mvp",
+  "private": true,
+  "description": "SIGAPS — Sistema Inteligente de Gestão das Microáreas da APS",
+  "scripts": {
+    "docs:pdf": "node scripts/generate-pdf.mjs",
+    "dev:backend": "npm run start:dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "docker:up": "docker compose up -d",
+    "docker:build": "docker compose up -d --build"
+  },
+  "devDependencies": {
+    "md-to-pdf": "^5.2.4"
+  }
+}
