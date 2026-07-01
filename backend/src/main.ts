@@ -5,6 +5,8 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import { join } from 'path';
+import { existsSync } from 'fs';
+import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -44,6 +46,25 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
+
+  const publicDir = join(process.cwd(), 'public');
+  if (existsSync(publicDir)) {
+    app.useStaticAssets(publicDir, { index: false, fallthrough: true });
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+      if (
+        req.path.startsWith('/docs') ||
+        req.path.startsWith('/uploads') ||
+        req.path.includes('.')
+      ) {
+        return next();
+      }
+      res.sendFile(join(publicDir, 'index.html'), (err) => {
+        if (err) next();
+      });
+    });
+    console.log(`Frontend SIGAPS em / (pasta ${publicDir})`);
+  }
 
   const port = config.get<number>('PORT', 3000);
   await app.listen(port);
