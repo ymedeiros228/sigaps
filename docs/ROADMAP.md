@@ -31,16 +31,16 @@
 
 ---
 
-## Fase 2 — Cadastros e importação (Jul–Ago/2026)
+## Fase 2 — Cadastros e importação (Jul–Ago/2026) — **Em andamento**
 
-- [ ] Módulos API: UBS, ACS, Bairros
-- [ ] Telas CRUD administrativas
+- [x] Módulos API: UBS, ACS, Bairros
+- [x] Telas CRUD administrativas
 - [ ] Upload de logo do município
-- [ ] Importação GeoJSON, KML, CSV
-- [ ] Exportação GeoJSON e PNG do mapa
-- [ ] Gráficos no dashboard (Recharts)
-- [ ] Busca unificada (rua, bairro, UBS, ACS, microárea)
-- [ ] Refresh token automático no frontend
+- [x] Importação GeoJSON, KML, CSV
+- [x] Exportação GeoJSON e PNG do mapa
+- [x] Gráficos no dashboard (Recharts)
+- [x] Busca unificada (rua, bairro, UBS, ACS, microárea)
+- [x] Refresh token automático no frontend
 
 ---
 

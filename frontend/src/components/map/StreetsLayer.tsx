@@ -78,8 +78,17 @@ export function MapCenterController({
   zoom: number;
 }) {
   const map = useMap();
+  const mapCenter = useMapStore((s) => s.mapCenter);
+
   useEffect(() => {
     map.setView([lat, lng], zoom);
   }, [map, lat, lng, zoom]);
+
+  useEffect(() => {
+    if (mapCenter) {
+      map.flyTo([mapCenter.lat, mapCenter.lng], mapCenter.zoom ?? 16);
+    }
+  }, [map, mapCenter]);
+
   return null;
 }

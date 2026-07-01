@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import {
   Box,
   Paper,
@@ -20,8 +21,10 @@ import {
   Search,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
-import { streetsApi } from '../../services/api';
+import { searchApi } from '../../services/api';
 import { useAppStore, useMapStore } from '../../store';
+import { MapExportMenu } from './MapExportMenu';
+import type { RefObject } from 'react';
 
 interface MapToolbarProps {
   onImport: () => void;
@@ -29,7 +32,17 @@ interface MapToolbarProps {
   conflictMsg: string | null;
   onForceTransfer: () => void;
   selectedCount?: number;
+  mapContainerRef: RefObject<HTMLElement | null>;
 }
+
+type SearchOption = {
+  id: string;
+  label: string;
+  group: string;
+  kind: 'street' | 'neighborhood' | 'ubs' | 'acs' | 'microarea';
+  lat?: number;
+  lng?: number;
+};
 
 export function MapToolbar({
   onImport,
@@ -37,6 +50,7 @@ export function MapToolbar({
   conflictMsg,
   onForceTransfer,
   selectedCount = 0,
+  mapContainerRef,
 }: MapToolbarProps) {
   const municipalityId = useAppStore((s) => s.municipalityId);
   const microareas = useAppStore((s) => s.microareas);
@@ -49,13 +63,43 @@ export function MapToolbar({
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
   const setShowEnvelopes = useMapStore((s) => s.setShowEnvelopes);
   const setHighlightedStreet = useMapStore((s) => s.setHighlightedStreet);
+  const flyTo = useMapStore((s) => s.flyTo);
+  const [searchText, setSearchText] = useState('');
 
-  const { data: searchResults } = useQuery({
-    queryKey: ['street-search', municipalityId],
-    queryFn: () =>
-      streetsApi.list(municipalityId!, { limit: 500 }).then((r) => r.data.items),
-    enabled: !!municipalityId,
+  const { data: searchData, isFetching: searching } = useQuery({
+    queryKey: ['unified-search', municipalityId, searchText],
+    queryFn: () => searchApi.query(municipalityId!, searchText).then((r) => r.data),
+    enabled: !!municipalityId && searchText.length >= 2,
   });
+
+  const searchOptions = useMemo<SearchOption[]>(() => {
+    if (!searchData) return [];
+    const opts: SearchOption[] = [];
+    searchData.streets.forEach((s) =>
+      opts.push({ id: s.id, label: `${s.streetType ?? 'Rua'} ${s.name}`, group: 'Ruas', kind: 'street' }),
+    );
+    searchData.neighborhoods.forEach((n) =>
+      opts.push({ id: n.id, label: n.name, group: 'Bairros', kind: 'neighborhood' }),
+    );
+    searchData.ubs.forEach((u) =>
+      opts.push({ id: u.id, label: u.name, group: 'UBS', kind: 'ubs', lat: u.latitude, lng: u.longitude }),
+    );
+    searchData.acs.forEach((a) =>
+      opts.push({ id: a.id, label: a.name, group: 'ACS', kind: 'acs' }),
+    );
+    searchData.microareas.forEach((m) =>
+      opts.push({ id: m.id, label: m.name, group: 'Microáreas', kind: 'microarea' }),
+    );
+    return opts;
+  }, [searchData]);
+
+  const handleSearchSelect = (option: SearchOption | null) => {
+    if (!option) return;
+    if (option.kind === 'street') setHighlightedStreet(option.id);
+    if (option.kind === 'microarea') setSelectedMicroarea(option.id);
+    if (option.kind === 'ubs' && option.lat && option.lng) flyTo(option.lat, option.lng);
+    setSearchText('');
+  };
 
   return (
     <Paper
@@ -75,16 +119,21 @@ export function MapToolbar({
     >
       <Autocomplete
         size="small"
-        sx={{ minWidth: 280, flex: 1 }}
-        options={searchResults ?? []}
-        getOptionLabel={(o) => `${o.streetType ?? 'Rua'} ${o.name}`}
+        sx={{ minWidth: 300, flex: 1 }}
+        freeSolo
+        inputValue={searchText}
+        onInputChange={(_, v) => setSearchText(v)}
+        options={searchOptions}
+        groupBy={(o) => o.group}
+        getOptionLabel={(o) => (typeof o === 'string' ? o : o.label)}
+        loading={searching}
         onChange={(_, value) => {
-          if (value) setHighlightedStreet(value.id);
+          if (value && typeof value !== 'string') handleSearchSelect(value);
         }}
         renderInput={(params) => (
           <TextField
             {...params}
-            placeholder="Pesquisar rua, avenida, travessa..."
+            placeholder="Buscar rua, bairro, UBS, ACS, microárea..."
             slotProps={{
               input: {
                 startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
@@ -142,6 +191,8 @@ export function MapToolbar({
         {importing ? 'Importando OSM...' : 'Importar Ruas OSM'}
       </Button>
 
+      <MapExportMenu mapContainerRef={mapContainerRef} />
+
       {selectedCount > 0 && (
         <Alert severity="info" sx={{ py: 0 }}>
           {selectedCount} rua(s) selecionada(s) — Ctrl+clique para multi-seleção
@@ -154,8 +205,8 @@ export function MapToolbar({
         </IconButton>
       </Tooltip>
 
-      <Tooltip title="Centralizar">
-        <IconButton size="small">
+      <Tooltip title="Centralizar município">
+        <IconButton size="small" onClick={() => flyTo(-6.1828, -43.7869, 14)}>
           <MyLocation />
         </IconButton>
       </Tooltip>

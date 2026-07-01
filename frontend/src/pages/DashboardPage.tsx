@@ -14,8 +14,20 @@ import {
   FamilyRestroom,
   Groups,
 } from '@mui/icons-material';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+  Legend,
+} from 'recharts';
 import { dashboardApi } from '../services/api';
-import { useAppStore } from '../store';
+import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import type { ReactNode } from 'react';
 
 interface StatCardProps {
@@ -56,7 +68,7 @@ function StatCard({ title, value, icon, color }: StatCardProps) {
 }
 
 export function DashboardPage() {
-  const municipalityId = useAppStore((s) => s.municipalityId);
+  const municipalityId = useMunicipalityId();
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', municipalityId],
@@ -64,7 +76,7 @@ export function DashboardPage() {
     enabled: !!municipalityId,
   });
 
-  if (isLoading || !data) {
+  if (isLoading || !data || !municipalityId) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />
@@ -79,6 +91,11 @@ export function DashboardPage() {
     { title: 'Ruas', value: data.streets, icon: <Signpost />, color: '#9C27B0' },
     { title: 'Famílias', value: data.families, icon: <FamilyRestroom />, color: '#F44336' },
     { title: 'Habitantes', value: data.inhabitants, icon: <Groups />, color: '#00BCD4' },
+  ];
+
+  const pieData = [
+    { name: 'Vinculadas', value: data.assignedStreets, color: '#4CAF50' },
+    { name: 'Pendentes', value: Math.max(0, data.streets - data.assignedStreets), color: '#9E9E9E' },
   ];
 
   return (
@@ -107,17 +124,61 @@ export function DashboardPage() {
         ))}
       </Box>
 
-      <Card sx={{ mt: 3 }}>
-        <CardContent>
-          <Typography variant="h6">Cobertura territorial</Typography>
-          <Typography variant="h3" color="primary" sx={{ fontWeight: 700 }}>
-            {data.coverage}%
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {data.assignedStreets} de {data.streets} ruas vinculadas a microáreas
-          </Typography>
-        </CardContent>
-      </Card>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+          gap: 2,
+          mt: 3,
+        }}
+      >
+        <Card>
+          <CardContent>
+            <Typography variant="h6">Cobertura territorial</Typography>
+            <Typography variant="h3" color="primary" sx={{ fontWeight: 700 }}>
+              {data.coverage}%
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {data.assignedStreets} de {data.streets} ruas vinculadas
+            </Typography>
+            <Box sx={{ height: 180, mt: 2 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70}>
+                    {pieData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Legend />
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card sx={{ gridColumn: { md: 'span 2' } }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Ruas por microárea
+            </Typography>
+            <Box sx={{ height: 260 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.microareasChart ?? []}>
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="streets" name="Ruas">
+                    {(data.microareasChart ?? []).map((entry: { color: string }, i: number) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
 
       {data.recentChanges?.length > 0 && (
         <Card sx={{ mt: 3 }}>

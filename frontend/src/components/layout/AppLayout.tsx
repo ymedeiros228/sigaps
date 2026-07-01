@@ -17,6 +17,7 @@ import {
   DarkMode,
   LightMode,
   Menu as MenuIcon,
+  ListAlt,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -27,6 +28,7 @@ const DRAWER_WIDTH = 240;
 const navItems = [
   { label: 'Mapa', path: '/mapa', icon: <MapIcon /> },
   { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+  { label: 'Cadastros', path: '/cadastros', icon: <ListAlt /> },
 ];
 
 export function AppLayout() {

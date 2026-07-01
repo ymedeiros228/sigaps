@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, LayersControl, ScaleControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Box, CircularProgress } from '@mui/material';
@@ -56,6 +56,7 @@ export function SigapsMap() {
   const setHighlightedStreet = useMapStore((s) => s.setHighlightedStreet);
   const [selectedStreet, setSelectedStreet] = useState<Street | null>(null);
   const [conflictMsg, setConflictMsg] = useState<string | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     municipalitiesApi.list().then((res) => {
@@ -146,8 +147,9 @@ export function SigapsMap() {
   const tile = TILE_LAYERS[baseLayer];
 
   return (
-    <Box sx={{ position: 'relative', height: 'calc(100vh - 64px)', width: '100%' }}>
+    <Box ref={mapContainerRef} sx={{ position: 'relative', height: 'calc(100vh - 64px)', width: '100%' }}>
       <MapToolbar
+        mapContainerRef={mapContainerRef}
         onImport={() => importMutation.mutate()}
         importing={importMutation.isPending}
         conflictMsg={conflictMsg}

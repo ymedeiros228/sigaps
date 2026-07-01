@@ -8,6 +8,7 @@ interface MapState {
   showEnvelopes: boolean;
   baseLayer: 'map' | 'satellite' | 'terrain' | 'hybrid';
   highlightedStreetId: string | null;
+  mapCenter: { lat: number; lng: number; zoom?: number } | null;
   setPaintMode: (enabled: boolean) => void;
   setSelectedMicroarea: (id: string | null) => void;
   toggleStreetSelection: (id: string) => void;
@@ -15,6 +16,7 @@ interface MapState {
   setShowEnvelopes: (show: boolean) => void;
   setBaseLayer: (layer: MapState['baseLayer']) => void;
   setHighlightedStreet: (id: string | null) => void;
+  flyTo: (lat: number, lng: number, zoom?: number) => void;
 }
 
 interface AuthState {
@@ -63,6 +65,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   showEnvelopes: true,
   baseLayer: 'map',
   highlightedStreetId: null,
+  mapCenter: null,
   setPaintMode: (enabled) => set({ paintMode: enabled }),
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),
   toggleStreetSelection: (id) => {
@@ -75,6 +78,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   setShowEnvelopes: (show) => set({ showEnvelopes: show }),
   setBaseLayer: (layer) => set({ baseLayer: layer }),
   setHighlightedStreet: (id) => set({ highlightedStreetId: id }),
+  flyTo: (lat, lng, zoom = 16) => set({ mapCenter: { lat, lng, zoom } }),
 }));
 
 export const useAppStore = create<AppState>((set) => ({

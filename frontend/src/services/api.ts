@@ -7,6 +7,14 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+let isRefreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
+
+function processQueue(token: string) {
+  refreshQueue.forEach((cb) => cb(token));
+  refreshQueue = [];
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('sigaps_token');
   if (token) {
@@ -18,12 +26,48 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('sigaps_token');
-      localStorage.removeItem('sigaps_refresh');
-      window.location.href = '/login';
+    const originalRequest = error.config;
+    if (error.response?.status !== 401 || originalRequest._retry) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/refresh')) {
+      return Promise.reject(error);
+    }
+
+    const refreshToken = localStorage.getItem('sigaps_refresh');
+    if (!refreshToken) {
+      localStorage.clear();
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        refreshQueue.push((token: string) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(api(originalRequest));
+        });
+      });
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+      localStorage.setItem('sigaps_token', data.accessToken);
+      localStorage.setItem('sigaps_refresh', data.refreshToken);
+      processQueue(data.accessToken);
+      originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+      return api(originalRequest);
+    } catch {
+      localStorage.clear();
+      window.location.href = '/login';
+      return Promise.reject(error);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 
@@ -68,8 +112,47 @@ export interface Microarea {
   name: string;
   color: string;
   description?: string;
+  status?: string;
+  ubsId?: string;
+  acsId?: string;
+  ubs?: { id: string; name: string };
   acs?: { id: string; name: string; phone?: string };
   _count?: { streets: number };
+}
+
+export interface Ubs {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string;
+  coordinator?: string;
+  latitude: number;
+  longitude: number;
+  _count?: { microareas: number };
+}
+
+export interface Acs {
+  id: string;
+  name: string;
+  cpf: string;
+  phone?: string;
+  photoUrl?: string;
+  status: string;
+  microarea?: { id: string; name: string; number: number; color: string };
+}
+
+export interface Neighborhood {
+  id: string;
+  name: string;
+  _count?: { streets: number };
+}
+
+export interface SearchResult {
+  streets: Array<{ id: string; name: string; streetType?: string; microarea?: { id: string; name: string; color: string } }>;
+  neighborhoods: Array<{ id: string; name: string; _count: { streets: number } }>;
+  ubs: Array<{ id: string; name: string; address: string; latitude: number; longitude: number }>;
+  acs: Array<{ id: string; name: string; phone?: string; microarea?: { id: string; name: string; color: string } }>;
+  microareas: Array<{ id: string; name: string; number: number; color: string }>;
 }
 
 export const authApi = {
@@ -97,7 +180,44 @@ export const streetsApi = {
 export const microareasApi = {
   list: (municipalityId: string) =>
     api.get<Microarea[]>(`/microareas/municipality/${municipalityId}`),
+  create: (data: Partial<Microarea> & { municipalityId: string; number: number; name: string; color: string }) =>
+    api.post('/microareas', data),
+  update: (id: string, data: Partial<Microarea>) =>
+    api.patch(`/microareas/${id}`, data),
   envelope: (id: string) => api.get(`/microareas/${id}/envelope`),
+};
+
+export const ubsApi = {
+  list: (municipalityId: string) =>
+    api.get<Ubs[]>(`/ubs/municipality/${municipalityId}`),
+  create: (data: Omit<Ubs, 'id' | '_count'> & { municipalityId: string }) =>
+    api.post('/ubs', data),
+  update: (id: string, data: Partial<Ubs>) => api.patch(`/ubs/${id}`, data),
+  remove: (id: string) => api.delete(`/ubs/${id}`),
+};
+
+export const acsApi = {
+  list: (municipalityId: string) =>
+    api.get<Acs[]>(`/acs/municipality/${municipalityId}`),
+  create: (data: { name: string; cpf: string; municipalityId: string; phone?: string; status?: string }) =>
+    api.post('/acs', data),
+  update: (id: string, data: Partial<Acs>) => api.patch(`/acs/${id}`, data),
+  remove: (id: string) => api.delete(`/acs/${id}`),
+};
+
+export const neighborhoodsApi = {
+  list: (municipalityId: string) =>
+    api.get<Neighborhood[]>(`/neighborhoods/municipality/${municipalityId}`),
+  create: (data: { name: string; municipalityId: string }) =>
+    api.post('/neighborhoods', data),
+  update: (id: string, data: { name?: string }) =>
+    api.patch(`/neighborhoods/${id}`, data),
+  remove: (id: string) => api.delete(`/neighborhoods/${id}`),
+};
+
+export const searchApi = {
+  query: (municipalityId: string, q: string) =>
+    api.get<SearchResult>(`/search/municipality/${municipalityId}`, { params: { q } }),
 };
 
 export const dashboardApi = {
@@ -108,4 +228,18 @@ export const dashboardApi = {
 export const osmApi = {
   import: (municipalityId: string) =>
     api.post(`/osm/import/${municipalityId}`),
+};
+
+export const geoApi = {
+  import: (municipalityId: string, data: { geojson: object; updateByName?: boolean }) =>
+    api.post<{ imported: number; updated: number; skipped: number; total: number }>(
+      `/geo/import/${municipalityId}`,
+      data,
+    ),
+  exportStreets: (municipalityId: string, microareaId?: string) =>
+    api.get(`/geo/export/${municipalityId}`, {
+      params: microareaId ? { microareaId } : undefined,
+    }),
+  exportMicroareas: (municipalityId: string) =>
+    api.get(`/geo/export/${municipalityId}/microareas`),
 };

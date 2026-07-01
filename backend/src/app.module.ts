@@ -9,6 +9,11 @@ import { StreetsModule } from './modules/streets/streets.module';
 import { OsmModule } from './modules/osm/osm.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { UbsModule } from './modules/ubs/ubs.module';
+import { AcsModule } from './modules/acs/acs.module';
+import { NeighborhoodsModule } from './modules/neighborhoods/neighborhoods.module';
+import { SearchModule } from './modules/search/search.module';
+import { GeoModule } from './modules/geo/geo.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -23,6 +28,11 @@ import { RolesGuard } from './common/guards/roles.guard';
     OsmModule,
     DashboardModule,
     AuditModule,
+    UbsModule,
+    AcsModule,
+    NeighborhoodsModule,
+    SearchModule,
+    GeoModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

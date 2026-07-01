@@ -32,8 +32,9 @@ async function main() {
   });
 
   const colors = ['#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#F44336'];
+  const microareas = [];
   for (let i = 1; i <= 5; i++) {
-    await prisma.microarea.upsert({
+    const ma = await prisma.microarea.upsert({
       where: {
         number_municipalityId: { number: i, municipalityId: municipality.id },
       },
@@ -46,7 +47,49 @@ async function main() {
       },
       update: {},
     });
+    microareas.push(ma);
   }
+
+  const ubs = await prisma.ubs.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000001' },
+    create: {
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'UBS Centro',
+      address: 'Rua Coronel Manoel Bandeira, s/n — Centro',
+      phone: '(99) 3431-0000',
+      coordinator: 'Coordenação APS',
+      latitude: -6.1835,
+      longitude: -43.7875,
+      municipalityId: municipality.id,
+    },
+    update: {},
+  });
+
+  await prisma.neighborhood.createMany({
+    data: [
+      { name: 'Centro', municipalityId: municipality.id },
+      { name: 'São Francisco', municipalityId: municipality.id },
+      { name: 'Boa Vista', municipalityId: municipality.id },
+    ],
+    skipDuplicates: true,
+  });
+
+  const acs1 = await prisma.acs.upsert({
+    where: { cpf: '11122233344' },
+    create: {
+      name: 'Ana Paula Santos',
+      cpf: '11122233344',
+      phone: '(99) 98888-0001',
+      municipalityId: municipality.id,
+      status: 'ATIVO',
+    },
+    update: {},
+  });
+
+  await prisma.microarea.update({
+    where: { id: microareas[0].id },
+    data: { ubsId: ubs.id, acsId: acs1.id },
+  });
 
   console.log('Seed concluído!');
   console.log(`Município: ${municipality.name} (${municipality.id})`);

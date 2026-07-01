@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { GeoJSON } from 'react-leaflet';
 import { useQuery } from '@tanstack/react-query';
 import type { PathOptions } from 'leaflet';

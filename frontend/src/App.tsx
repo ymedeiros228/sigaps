@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { SigapsMap } from './components/map/SigapsMap';
+import { CadastrosPage } from './pages/CadastrosPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -33,6 +34,7 @@ function AppRoutes() {
       >
         <Route path="/" element={<DashboardPage />} />
         <Route path="/mapa" element={<SigapsMap />} />
+        <Route path="/cadastros" element={<CadastrosPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
