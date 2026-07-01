@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Microarea, User } from '../services/api';
 import { syncApiToken } from '../services/api';
 import { DEV_LOGIN } from '../constants/devAuth';
+import { lineStringBounds, lineStringCentroid } from '../utils/geo';
 
 function readPersistedAuth(): { user: User | null; token: string | null } {
   try {
@@ -26,7 +27,13 @@ interface MapState {
   showEnvelopes: boolean;
   baseLayer: 'map' | 'satellite' | 'terrain' | 'hybrid';
   highlightedStreetId: string | null;
-  mapCenter: { lat: number; lng: number; zoom?: number } | null;
+  mapFlyTarget: {
+    seq: number;
+    lat: number;
+    lng: number;
+    zoom: number;
+    bounds?: [[number, number], [number, number]];
+  } | null;
   paintGuideCollapsed: boolean;
   dragPaintIds: Set<string>;
   mapPanEnabled: boolean;
@@ -47,7 +54,8 @@ interface MapState {
   setDivisionMode: (enabled: boolean) => void;
   setDivisionDraft: (draft: MapState['divisionDraft']) => void;
   flyTo: (lat: number, lng: number, zoom?: number) => void;
-  clearMapCenter: () => void;
+  focusOnLine: (geojson: GeoJSON.LineString, zoom?: number) => void;
+  clearMapFly: () => void;
 }
 
 interface AuthState {
@@ -111,7 +119,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   showEnvelopes: true,
   baseLayer: 'satellite',
   highlightedStreetId: null,
-  mapCenter: null,
+  mapFlyTarget: null,
   paintGuideCollapsed: false,
   dragPaintIds: new Set(),
   mapPanEnabled: true,
@@ -175,8 +183,30 @@ export const useMapStore = create<MapState>((set, get) => ({
       divisionDraft: enabled ? get().divisionDraft : null,
     }),
   setDivisionDraft: (draft) => set({ divisionDraft: draft }),
-  flyTo: (lat, lng, zoom = 16) => set({ mapCenter: { lat, lng, zoom } }),
-  clearMapCenter: () => set({ mapCenter: null }),
+  flyTo: (lat, lng, zoom = 16) =>
+    set((s) => ({
+      mapFlyTarget: {
+        seq: (s.mapFlyTarget?.seq ?? 0) + 1,
+        lat,
+        lng,
+        zoom,
+      },
+    })),
+  focusOnLine: (geojson, zoom = 18) => {
+    const bounds = lineStringBounds(geojson);
+    const center = lineStringCentroid(geojson);
+    if (!center && !bounds) return;
+    set((s) => ({
+      mapFlyTarget: {
+        seq: (s.mapFlyTarget?.seq ?? 0) + 1,
+        lat: center?.lat ?? bounds![0][0],
+        lng: center?.lng ?? bounds![0][1],
+        zoom,
+        bounds: bounds ?? undefined,
+      },
+    }));
+  },
+  clearMapFly: () => set({ mapFlyTarget: null }),
 }));
 
 export const useAppStore = create<AppState>((set) => ({

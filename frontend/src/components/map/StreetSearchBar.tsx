@@ -15,7 +15,7 @@ import { Clear, Search } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { searchApi } from '../../services/api';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { formatStreetLabel, streetMatchesQuery } from '../../utils/streetSearch';
+import { formatStreetLabel, streetMatchesQuery, fixLineString } from '../../utils/streetSearch';
 
 export type StreetSearchOption = {
   id: string;
@@ -71,7 +71,7 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
           label: formatStreetLabel(s),
           group: 'Todas as ruas',
           kind: 'street',
-          geojson: s.geojson as GeoJSON.LineString,
+          geojson: fixLineString(s.geojson as GeoJSON.LineString),
         });
       }
     });

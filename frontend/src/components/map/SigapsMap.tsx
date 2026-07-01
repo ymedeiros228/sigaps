@@ -38,7 +38,7 @@ import { SelectionBar } from './SelectionBar';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
 import { canImportStreets } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
-import { prepareStreetsForMap } from '../../utils/streetSearch';
+import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea } from '../../utils/streetsCache';
@@ -393,6 +393,10 @@ export function SigapsMap() {
 
   const handleLocateStreet = useCallback(
     async (streetId: string, geojson?: GeoJSON.LineString) => {
+      const mapState = useMapStore.getState();
+      mapState.setPaintMode(false);
+      mapState.setEraserMode(false);
+
       let street = streets.find((s) => s.id === streetId);
       if (!street) {
         try {
@@ -404,15 +408,24 @@ export function SigapsMap() {
         }
       }
       if (!street) return;
-      setPaintMode(false);
+
       setHighlightedStreet(streetId);
       setSelectedStreet(street);
       clearSelection();
-      const geom = geojson ? prepareStreetsForMap([{ ...street, geojson }])[0]?.geojson : street.geojson;
-      const center = lineStringCentroid(geom);
-      if (center) useMapStore.getState().flyTo(center.lat, center.lng, 18);
+
+      const rawGeom = geojson ?? street.geojson;
+      const fixed = fixLineString(rawGeom);
+      const prepared = prepareStreetsForMap([{ ...street, geojson: fixed }])[0];
+      const geom = prepared?.geojson ?? fixed;
+
+      if (geom?.coordinates?.length) {
+        useMapStore.getState().focusOnLine(geom, 18);
+      } else {
+        const center = lineStringCentroid(fixed);
+        if (center) useMapStore.getState().flyTo(center.lat, center.lng, 18);
+      }
     },
-    [streets, setPaintMode, setHighlightedStreet, clearSelection],
+    [streets, setHighlightedStreet, clearSelection],
   );
 
   const handleAssign = (microareaId: string, forceTransfer = false) => {

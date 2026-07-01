@@ -298,14 +298,29 @@ export function StreetsLayer({
 
 export function MapCenterController() {
   const map = useMap();
-  const mapCenter = useMapStore((s) => s.mapCenter);
-  const clearMapCenter = useMapStore((s) => s.clearMapCenter);
+  const mapFlyTarget = useMapStore((s) => s.mapFlyTarget);
+  const clearMapFly = useMapStore((s) => s.clearMapFly);
 
   useEffect(() => {
-    if (!mapCenter) return;
-    map.flyTo([mapCenter.lat, mapCenter.lng], mapCenter.zoom ?? 16);
-    clearMapCenter();
-  }, [map, mapCenter, clearMapCenter]);
+    if (!mapFlyTarget) return;
+
+    const onEnd = () => clearMapFly();
+    map.once('moveend', onEnd);
+
+    if (mapFlyTarget.bounds) {
+      map.flyToBounds(mapFlyTarget.bounds, {
+        padding: [48, 48],
+        maxZoom: mapFlyTarget.zoom,
+        duration: 0.75,
+      });
+    } else {
+      map.flyTo([mapFlyTarget.lat, mapFlyTarget.lng], mapFlyTarget.zoom, { duration: 0.75 });
+    }
+
+    return () => {
+      map.off('moveend', onEnd);
+    };
+  }, [map, mapFlyTarget?.seq, clearMapFly, mapFlyTarget]);
 
   return null;
 }
