@@ -38,7 +38,7 @@ interface MapToolbarProps {
   mapContainerRef: RefObject<HTMLElement | null>;
   microareas: Microarea[];
   streets: Array<{ id: string; name: string; streetType?: string; geojson: GeoJSON.LineString; microareaId?: string | null }>;
-  onLocateStreet: (streetId: string, geojson?: GeoJSON.LineString) => void;
+  onSearchSelect: (option: StreetSearchOption) => void;
 }
 
 const panelSx = {
@@ -59,18 +59,18 @@ export function MapToolbar({
   mapContainerRef,
   microareas,
   streets,
-  onLocateStreet,
+  onSearchSelect,
 }: MapToolbarProps) {
   const theme = useTheme();
   const municipalityId = useAppStore((s) => s.municipalityId);
   const paintMode = useMapStore((s) => s.paintMode);
   const eraserMode = useMapStore((s) => s.eraserMode);
-  const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
-  const setPaintMode = useMapStore((s) => s.setPaintMode);
   const baseLayer = useMapStore((s) => s.baseLayer);
   const setBaseLayer = useMapStore((s) => s.setBaseLayer);
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
   const setShowEnvelopes = useMapStore((s) => s.setShowEnvelopes);
+  const showHeatmap = useMapStore((s) => s.showHeatmap);
+  const setShowHeatmap = useMapStore((s) => s.setShowHeatmap);
   const flyTo = useMapStore((s) => s.flyTo);
   const user = useAuthStore((s) => s.user);
   const canImport = canImportStreets(user?.role);
@@ -82,14 +82,7 @@ export function MapToolbar({
   }, [streets, streetCount]);
 
   const handleSearchSelect = (option: StreetSearchOption) => {
-    if (option.kind === 'street') {
-      onLocateStreet(option.id, option.geojson);
-    }
-    if (option.kind === 'microarea') {
-      setSelectedMicroarea(option.id);
-      setPaintMode(true);
-    }
-    if (option.kind === 'ubs' && option.lat && option.lng) flyTo(option.lat, option.lng);
+    onSearchSelect(option);
   };
 
   const glassBg = theme.palette.mode === 'dark'
@@ -203,6 +196,18 @@ export function MapToolbar({
         }
         label="Microáreas"
         sx={{ mr: 0 }}
+      />
+
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={showHeatmap}
+            onChange={(e) => setShowHeatmap(e.target.checked)}
+          />
+        }
+        label="Famílias"
+        sx={{ mr: 0, display: { xs: 'none', md: 'flex' } }}
       />
 
       <MapExportMenu mapContainerRef={mapContainerRef} microareas={microareas} />

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Microarea, User } from '../services/api';
 import { syncApiToken } from '../services/api';
 import { DEV_LOGIN } from '../constants/devAuth';
-import { lineStringBounds, lineStringCentroid } from '../utils/geo';
+import { lineStringBounds, lineStringCentroid, boundsFromLineStrings } from '../utils/geo';
 
 function readPersistedAuth(): { user: User | null; token: string | null } {
   try {
@@ -25,6 +25,7 @@ interface MapState {
   selectedMicroareaId: string | null;
   selectedStreetIds: Set<string>;
   showEnvelopes: boolean;
+  showHeatmap: boolean;
   baseLayer: 'map' | 'satellite' | 'terrain' | 'hybrid';
   highlightedStreetId: string | null;
   mapFlyTarget: {
@@ -45,6 +46,7 @@ interface MapState {
   toggleStreetSelection: (id: string) => void;
   clearSelection: () => void;
   setShowEnvelopes: (show: boolean) => void;
+  setShowHeatmap: (show: boolean) => void;
   setBaseLayer: (layer: MapState['baseLayer']) => void;
   setHighlightedStreet: (id: string | null) => void;
   setPaintGuideCollapsed: (collapsed: boolean) => void;
@@ -55,6 +57,7 @@ interface MapState {
   setDivisionDraft: (draft: MapState['divisionDraft']) => void;
   flyTo: (lat: number, lng: number, zoom?: number) => void;
   focusOnLine: (geojson: GeoJSON.LineString, zoom?: number) => void;
+  focusOnLines: (geojsons: GeoJSON.LineString[], zoom?: number) => void;
   clearMapFly: () => void;
 }
 
@@ -117,6 +120,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   selectedMicroareaId: null,
   selectedStreetIds: new Set(),
   showEnvelopes: true,
+  showHeatmap: false,
   baseLayer: 'satellite',
   highlightedStreetId: null,
   mapFlyTarget: null,
@@ -162,6 +166,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
   clearSelection: () => set({ selectedStreetIds: new Set() }),
   setShowEnvelopes: (show) => set({ showEnvelopes: show }),
+  setShowHeatmap: (show) => set({ showHeatmap: show }),
   setBaseLayer: (layer) => set({ baseLayer: layer }),
   setHighlightedStreet: (id) => set({ highlightedStreetId: id }),
   setPaintGuideCollapsed: (collapsed) => set({ paintGuideCollapsed: collapsed }),
@@ -203,6 +208,21 @@ export const useMapStore = create<MapState>((set, get) => ({
         lng: center?.lng ?? bounds![0][1],
         zoom,
         bounds: bounds ?? undefined,
+      },
+    }));
+  },
+  focusOnLines: (geojsons, zoom = 17) => {
+    const bounds = boundsFromLineStrings(geojsons);
+    if (!bounds) return;
+    const centerLat = (bounds[0][0] + bounds[1][0]) / 2;
+    const centerLng = (bounds[0][1] + bounds[1][1]) / 2;
+    set((s) => ({
+      mapFlyTarget: {
+        seq: (s.mapFlyTarget?.seq ?? 0) + 1,
+        lat: centerLat,
+        lng: centerLng,
+        zoom,
+        bounds,
       },
     }));
   },

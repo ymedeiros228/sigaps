@@ -26,6 +26,7 @@ import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { StreetsLayer, MapCenterController } from './StreetsLayer';
 import { MapInteractionController } from './MapInteractionController';
 import { MapToolbar } from './MapToolbar';
+import type { StreetSearchOption } from './StreetSearchBar';
 import { StreetPanel } from './StreetPanel';
 import { MapLegend } from './MapLegend';
 import { MicroareaPolygonsLayer } from './MicroareaPolygonsLayer';
@@ -456,6 +457,80 @@ export function SigapsMap() {
     [streets, setHighlightedStreet, clearSelection],
   );
 
+  const handleSearchSelect = useCallback(
+    async (option: StreetSearchOption) => {
+      if (option.kind === 'street') {
+        await handleLocateStreet(option.id, option.geojson);
+        return;
+      }
+
+      const mapState = useMapStore.getState();
+      mapState.setPaintMode(false);
+      mapState.setEraserMode(false);
+
+      if (option.kind === 'ubs' && option.lat != null && option.lng != null) {
+        mapState.flyTo(option.lat, option.lng, 17);
+        setSnackbar({ message: option.label, severity: 'info' });
+        return;
+      }
+
+      if (option.kind === 'neighborhood' && municipalityId) {
+        try {
+          const res = await streetsApi.list(municipalityId, {
+            neighborhoodId: option.id,
+            limit: 200,
+            mapOnly: true,
+          });
+          const items = prepareStreetsForMap(res.data.items ?? []);
+          if (items.length > 0) {
+            mapState.focusOnLines(items.map((s) => s.geojson), 16);
+            setSnackbar({ message: `${option.label} — ${items.length} rua(s)`, severity: 'info' });
+          } else {
+            setSnackbar({ message: 'Nenhuma rua vinculada a este bairro.', severity: 'info' });
+          }
+        } catch {
+          setSnackbar({ message: 'Não foi possível localizar o bairro.', severity: 'warning' });
+        }
+        return;
+      }
+
+      const microareaId =
+        option.kind === 'microarea' ? option.id : option.microareaId;
+
+      if (microareaId) {
+        let geoms = streets.filter((s) => s.microareaId === microareaId).map((s) => s.geojson);
+        if (geoms.length === 0 && municipalityId) {
+          try {
+            const res = await streetsApi.list(municipalityId, {
+              microareaId,
+              limit: 200,
+              mapOnly: true,
+            });
+            geoms = prepareStreetsForMap(res.data.items ?? []).map((s) => s.geojson);
+          } catch {
+            /* ignora */
+          }
+        }
+        if (geoms.length > 0) {
+          mapState.focusOnLines(geoms, 16);
+        }
+        if (option.kind === 'microarea') {
+          mapState.setSelectedMicroarea(option.id);
+          mapState.setPaintMode(true);
+          setSnackbar({ message: `Microárea: ${option.label}`, severity: 'info' });
+        } else {
+          setSnackbar({ message: `ACS ${option.label}`, severity: 'info' });
+        }
+        return;
+      }
+
+      if (option.kind === 'acs') {
+        setSnackbar({ message: 'ACS sem microárea vinculada.', severity: 'info' });
+      }
+    },
+    [handleLocateStreet, municipalityId, streets],
+  );
+
   const handleAssign = (microareaId: string, forceTransfer = false) => {
     handleBulkAssign(microareaId, forceTransfer);
   };
@@ -556,7 +631,7 @@ export function SigapsMap() {
         streetCount={streetCount}
         microareas={microareas}
         streets={streets}
-        onLocateStreet={handleLocateStreet}
+        onSearchSelect={handleSearchSelect}
         onImport={() => importMutation.mutate()}
         importing={importMutation.isPending}
         selectedCount={selectedStreetIds.size}

@@ -27,6 +27,7 @@ export class StreetsController {
   @ApiOperation({ summary: 'Listar ruas do município (paginado)' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'microareaId', required: false })
+  @ApiQuery({ name: 'neighborhoodId', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'mapOnly', required: false, description: 'Resposta leve para o mapa' })
@@ -34,6 +35,7 @@ export class StreetsController {
     @Param('municipalityId') municipalityId: string,
     @Query('search') search?: string,
     @Query('microareaId') microareaId?: string,
+    @Query('neighborhoodId') neighborhoodId?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('mapOnly') mapOnly?: string,
@@ -41,6 +43,7 @@ export class StreetsController {
     return this.streetsService.findByMunicipality(municipalityId, {
       search,
       microareaId,
+      neighborhoodId,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       mapOnly: mapOnly === 'true' || mapOnly === '1',

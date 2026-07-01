@@ -6,6 +6,7 @@ import type { Street } from '../../services/api';
 import { useAppStore, useMapStore } from '../../store';
 import { isValidLineString } from '../../utils/geojsonSafe';
 import { formatStreetLabel } from '../../utils/streetSearch';
+import { familyHeatColor } from '../../utils/geo';
 
 const HIT_WEIGHT = 32;
 
@@ -36,6 +37,7 @@ export function StreetsLayer({
   const eraserMode = useMapStore((s) => s.eraserMode);
   const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
+  const showHeatmap = useMapStore((s) => s.showHeatmap);
   const microareas = useAppStore((s) => s.microareas);
   const activeColor = eraserMode
     ? '#EF5350'
@@ -91,6 +93,7 @@ export function StreetsLayer({
           highlighted: street.id === highlightedId,
           selected: selectedIds.has(street.id),
           dragPending: dragPaintIds.has(street.id),
+          familyCount: street.familyCount ?? 0,
         },
         geometry: street.geojson,
       })),
@@ -104,6 +107,27 @@ export function StreetsLayer({
     }
     return { painted: p };
   }, [features]);
+
+  const maxFamilyCount = useMemo(
+    () => Math.max(1, ...streets.map((s) => s.familyCount ?? 0)),
+    [streets],
+  );
+
+  const heatFeatures = useMemo(() => {
+    if (!showHeatmap) return [];
+    return features.filter((f) => (f.properties as { familyCount: number }).familyCount > 0);
+  }, [features, showHeatmap]);
+
+  const heatLineStyle = (feature?: GeoJSON.Feature): PathOptions => {
+    const count = (feature?.properties as { familyCount?: number })?.familyCount ?? 0;
+    return {
+      color: familyHeatColor(count, maxFamilyCount),
+      weight: 5 + Math.min(4, count),
+      opacity: 0.85,
+      lineCap: 'round',
+      lineJoin: 'round',
+    };
+  };
 
   const streetsById = useMemo(
     () => new Map(streets.map((street) => [street.id, street])),
@@ -182,7 +206,9 @@ export function StreetsLayer({
         : `Pintar: ${label}`
       : props.microareaName
         ? `${label} — ${props.microareaName}`
-        : label;
+        : street.familyCount > 0
+          ? `${label} — ${street.familyCount} família(s)`
+          : label;
 
     // Nomes fixos no mapa ficam acima das microáreas (pane de tooltip do Leaflet).
     // Só exibir fixo quando microáreas estão ocultas; com microáreas visíveis, usar hover.
@@ -253,7 +279,25 @@ export function StreetsLayer({
 
   return (
     <>
-      {painted.length > 0 && (
+      {showHeatmap && heatFeatures.length > 0 && (
+        <GeoJSON
+          key={`heat-${heatFeatures.length}-${maxFamilyCount}`}
+          data={fc(heatFeatures)}
+          style={heatLineStyle}
+          interactive={false}
+        />
+      )}
+
+      {painted.length > 0 && showHeatmap && (
+        <GeoJSON
+          key={`painted-over-heat-${painted.length}`}
+          data={fc(painted)}
+          style={paintedLineStyle}
+          interactive={false}
+        />
+      )}
+
+      {painted.length > 0 && !showHeatmap && (
         <>
           <GeoJSON
             key={`painted-halo-${painted.length}`}

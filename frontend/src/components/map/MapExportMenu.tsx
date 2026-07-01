@@ -120,6 +120,21 @@ export function MapExportMenu({ mapContainerRef, microareas }: MapExportMenuProp
     setAnchorEl(null);
   };
 
+  const handleExportJpeg = async () => {
+    const container = mapContainerRef.current?.querySelector('.leaflet-container') as HTMLElement;
+    if (!container) return;
+    const html2canvas = (await import('html2canvas')).default;
+    const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, logging: false });
+    canvas.toBlob(
+      (blob) => {
+        if (blob) downloadBlob(blob, `sigaps-mapa-${Date.now()}.jpg`);
+      },
+      'image/jpeg',
+      0.92,
+    );
+    setAnchorEl(null);
+  };
+
   const openImport = (format: ImportFormat) => {
     setImportFormat(format);
     setImportResult(null);
@@ -200,7 +215,11 @@ export function MapExportMenu({ mapContainerRef, microareas }: MapExportMenuProp
         </MenuItem>
         <MenuItem onClick={handleExportPng}>
           <ListItemIcon><Image fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Imagem do mapa" secondary="Arquivo PNG para impressão" />
+          <ListItemText primary="Imagem PNG" secondary="Alta qualidade para impressão" />
+        </MenuItem>
+        <MenuItem onClick={handleExportJpeg}>
+          <ListItemIcon><Image fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Imagem JPEG" secondary="Arquivo menor para compartilhar" />
         </MenuItem>
         <MenuItem
           onClick={() => {

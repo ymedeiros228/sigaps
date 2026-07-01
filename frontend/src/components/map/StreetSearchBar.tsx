@@ -24,6 +24,7 @@ export type StreetSearchOption = {
   kind: 'street' | 'neighborhood' | 'ubs' | 'acs' | 'microarea';
   lat?: number;
   lng?: number;
+  microareaId?: string;
   geojson?: GeoJSON.LineString;
 };
 
@@ -80,6 +81,23 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
     searchData?.neighborhoods.forEach((n) =>
       map.set(`n-${n.id}`, { id: n.id, label: n.name, group: 'Bairros', kind: 'neighborhood' }),
     );
+    searchData?.microareas.forEach((m) =>
+      map.set(`m-${m.id}`, {
+        id: m.id,
+        label: m.name,
+        group: 'Microáreas',
+        kind: 'microarea',
+      }),
+    );
+    searchData?.acs.forEach((a) =>
+      map.set(`a-${a.id}`, {
+        id: a.id,
+        label: a.name,
+        group: a.microarea ? `ACS — ${a.microarea.name}` : 'ACS',
+        kind: 'acs',
+        microareaId: a.microarea?.id,
+      }),
+    );
     searchData?.ubs.forEach((u) =>
       map.set(`u-${u.id}`, {
         id: u.id,
@@ -123,7 +141,7 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
         onKeyDown={handleKeyDown}
-        placeholder="Buscar rua (ex: Siqueira Campos)"
+        placeholder="Buscar rua, bairro, UBS, ACS..."
         slotProps={{
           input: {
             startAdornment: (

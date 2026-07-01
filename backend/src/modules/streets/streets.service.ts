@@ -17,6 +17,7 @@ export class StreetsService {
     municipalityId: string,
     options: {
       microareaId?: string;
+      neighborhoodId?: string;
       search?: string;
       page?: number;
       limit?: number;
@@ -32,6 +33,7 @@ export class StreetsService {
       municipalityId,
       ...(mapOnly ? { osmId: { not: null } } : {}),
       ...(options.microareaId ? { microareaId: options.microareaId } : {}),
+      ...(options.neighborhoodId ? { neighborhoodId: options.neighborhoodId } : {}),
       ...(options.search
         ? { name: { contains: options.search, mode: 'insensitive' as const } }
         : {}),
@@ -49,9 +51,13 @@ export class StreetsService {
                 name: true,
                 streetType: true,
                 microareaId: true,
+                neighborhoodId: true,
                 osmId: true,
                 geojson: true,
+                familyCount: true,
+                inhabitantCount: true,
                 microarea: { select: { id: true, name: true, number: true, color: true } },
+                neighborhood: { select: { id: true, name: true } },
               },
               orderBy: { name: 'asc' },
             })
@@ -77,8 +83,8 @@ export class StreetsService {
           ? {
               osmId: (s as { osmId?: bigint | null }).osmId?.toString() ?? null,
               propertyCount: 0,
-              familyCount: 0,
-              inhabitantCount: 0,
+              familyCount: (s as { familyCount?: number }).familyCount ?? 0,
+              inhabitantCount: (s as { inhabitantCount?: number }).inhabitantCount ?? 0,
               updatedAt: new Date(0).toISOString(),
             }
           : { osmId: (s as { osmId?: bigint | null }).osmId?.toString() ?? null }),
