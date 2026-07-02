@@ -72,8 +72,10 @@ async function bootstrap() {
     ];
     const isApiPath = (path: string) =>
       apiPrefixes.some((p) => {
-        // /dashboard é rota do React; a API usa /dashboard/:municipalityId
-        if (p === '/dashboard') return path.startsWith('/dashboard/');
+        // Rotas do React; a API usa subcaminhos (ex.: /dashboard/:id, /cadastros/municipality/:id)
+        if (p === '/dashboard' || p === '/cadastros' || p === '/integrations') {
+          return path.startsWith(`${p}/`);
+        }
         return path === p || path.startsWith(`${p}/`);
       });
 
