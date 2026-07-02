@@ -25,6 +25,13 @@ export interface OfficialMapPdfInput {
   ubsList?: Array<{ name: string; address: string }>;
 }
 
+type MicroareaRow = {
+  microarea: Microarea;
+  streetCount: number;
+  familyCount: number;
+  inhabitantCount: number;
+};
+
 async function loadImageDataUrl(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, { mode: 'cors' });
@@ -47,119 +54,226 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function fitImageInBox(
-  imgW: number,
-  imgH: number,
+/** Preenche a área (crop central se necessário) — sem faixas vazias. */
+function drawCoverImage(
+  pdf: jsPDF,
+  dataUrl: string,
+  x: number,
+  y: number,
   boxW: number,
   boxH: number,
-): { offsetX: number; offsetY: number; drawW: number; drawH: number } {
+  imgW: number,
+  imgH: number,
+) {
   if (imgW <= 0 || imgH <= 0) {
-    return { offsetX: 0, offsetY: 0, drawW: boxW, drawH: boxH };
+    pdf.addImage(dataUrl, 'PNG', x, y, boxW, boxH);
+    return;
   }
   const imgRatio = imgW / imgH;
   const boxRatio = boxW / boxH;
+  let sx = 0;
+  let sy = 0;
+  let sw = imgW;
+  let sh = imgH;
+
   if (imgRatio > boxRatio) {
-    const drawW = boxW;
-    const drawH = boxW / imgRatio;
-    return { offsetX: 0, offsetY: (boxH - drawH) / 2, drawW, drawH };
+    sw = imgH * boxRatio;
+    sx = (imgW - sw) / 2;
+  } else {
+    sh = imgW / boxRatio;
+    sy = (imgH - sh) / 2;
   }
-  const drawH = boxH;
-  const drawW = boxH * imgRatio;
-  return { offsetX: (boxW - drawW) / 2, offsetY: 0, drawW, drawH };
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(sw);
+  canvas.height = Math.round(sh);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    pdf.addImage(dataUrl, 'PNG', x, y, boxW, boxH);
+    return;
+  }
+
+  const img = new Image();
+  img.src = dataUrl;
+  return new Promise<void>((resolve) => {
+    img.onload = () => {
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      const cropped = canvas.toDataURL('image/png', 0.95);
+      pdf.addImage(cropped, 'PNG', x, y, boxW, boxH);
+      resolve();
+    };
+    img.onerror = () => {
+      pdf.addImage(dataUrl, 'PNG', x, y, boxW, boxH);
+      resolve();
+    };
+  });
 }
 
 function drawCompassRose(pdf: jsPDF, x: number, y: number, size: number) {
   const cx = x + size / 2;
   const cy = y + size / 2;
-  const r = size / 2 - 1;
 
-  pdf.setDrawColor(40);
-  pdf.setLineWidth(0.35);
-  pdf.circle(cx, cy, r, 'S');
+  pdf.setFillColor(255, 255, 255);
+  pdf.setDrawColor(60, 60, 60);
+  pdf.setLineWidth(0.3);
+  pdf.roundedRect(x, y, size, size, 1.5, 1.5, 'FD');
 
-  // Seta norte
-  pdf.setFillColor(200, 40, 40);
-  pdf.line(cx, y + 2, cx - 2.5, cy);
-  pdf.line(cx, y + 2, cx + 2.5, cy);
-  pdf.line(cx - 2.5, cy, cx + 2.5, cy);
-  pdf.line(cx, y + 2, cx, cy);
+  pdf.setFillColor(190, 45, 45);
+  pdf.triangle(cx, y + 2.5, cx - 3, cy, cx + 3, cy, 'F');
+  pdf.setFillColor(170, 170, 170);
+  pdf.triangle(cx, y + size - 2.5, cx - 3, cy, cx + 3, cy, 'F');
 
-  // Seta sul
-  pdf.setDrawColor(120);
-  pdf.line(cx, y + size - 2, cx, cy);
-
+  pdf.setDrawColor(100);
   pdf.line(cx, y + 3, cx, y + size - 3);
   pdf.line(x + 3, cy, x + size - 3, cy);
 
-  pdf.setFontSize(7);
   pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(180, 30, 30);
-  pdf.text('N', cx - 1.8, y + 6);
+  pdf.setFontSize(7);
+  pdf.setTextColor(190, 45, 45);
+  pdf.text('N', cx - 1.6, y + 7);
   pdf.setTextColor(80);
   pdf.text('S', cx - 1.5, y + size - 2);
-  pdf.text('L', x + 2, cy + 2);
-  pdf.text('O', x + size - 5, cy + 2);
+  pdf.text('L', x + 3, cy + 2);
+  pdf.text('O', x + size - 5.5, cy + 2);
 }
 
-function drawScaleBar(pdf: jsPDF, x: number, y: number, segmentMm: number) {
-  pdf.setDrawColor(0, 0, 0);
-  pdf.setLineWidth(0.4);
-  pdf.setFillColor(0, 0, 0);
-  pdf.rect(x, y, segmentMm, 2.5, 'F');
+function drawScaleBar(pdf: jsPDF, x: number, y: number, widthMm: number) {
+  const h = 3;
+  const seg = widthMm / 4;
   pdf.setFillColor(255, 255, 255);
-  pdf.rect(x + segmentMm, y, segmentMm, 2.5, 'F');
-  pdf.rect(x + segmentMm * 2, y, segmentMm, 2.5, 'S');
-  pdf.setFontSize(6.5);
+  pdf.setDrawColor(50);
+  pdf.setLineWidth(0.35);
+  pdf.roundedRect(x - 1, y - 1, widthMm + 2, h + 7, 1, 1, 'FD');
+
+  for (let i = 0; i < 4; i++) {
+    if (i % 2 === 0) pdf.setFillColor(30, 30, 30);
+    else pdf.setFillColor(255, 255, 255);
+    pdf.rect(x + seg * i, y, seg, h, 'F');
+  }
+  pdf.setDrawColor(30);
+  pdf.rect(x, y, widthMm, h, 'S');
+
+  pdf.setFontSize(6);
   pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(30);
-  pdf.text('0', x - 0.5, y + 5.5);
-  pdf.text('250 m', x + segmentMm - 3, y + 5.5);
-  pdf.text('500 m', x + segmentMm * 2 - 3, y + 5.5);
-  pdf.setFontSize(5.5);
-  pdf.setTextColor(90);
-  pdf.text('Escala gráfica aproximada', x, y + 9);
+  pdf.setTextColor(40);
+  pdf.text('0', x - 0.5, y + h + 4);
+  pdf.text('125 m', x + seg - 4, y + h + 4);
+  pdf.text('250 m', x + seg * 2 - 4, y + h + 4);
+  pdf.text('500 m', x + seg * 3 - 5, y + h + 4);
 }
 
-function drawSidebarLegend(
+function buildMicroareaRows(microareas: Microarea[], streets: Street[]): MicroareaRow[] {
+  return microareas
+    .map((microarea) => {
+      const maStreets = streets.filter((s) => s.microareaId === microarea.id);
+      return {
+        microarea,
+        streetCount: maStreets.length,
+        familyCount: maStreets.reduce((sum, s) => sum + (s.familyCount ?? 0), 0),
+        inhabitantCount: maStreets.reduce((sum, s) => sum + (s.inhabitantCount ?? 0), 0),
+      };
+    })
+    .filter((row) => row.streetCount > 0)
+    .sort((a, b) => a.microarea.number - b.microarea.number);
+}
+
+function truncate(pdf: jsPDF, text: string, maxW: number): string {
+  if (pdf.getTextWidth(text) <= maxW) return text;
+  let out = text;
+  while (out.length > 1 && pdf.getTextWidth(`${out}…`) > maxW) {
+    out = out.slice(0, -1);
+  }
+  return `${out}…`;
+}
+
+function drawLegendTable(
   pdf: jsPDF,
   x: number,
   y: number,
   width: number,
-  microareas: Microarea[],
-  streets: Street[],
+  rows: MicroareaRow[],
+  isA3: boolean,
 ) {
-  pdf.setFillColor(245, 247, 250);
-  pdf.setDrawColor(210, 210, 210);
-  pdf.rect(x, y, width, 42, 'FD');
+  const rowH = isA3 ? 5.5 : 5;
+  const headerH = isA3 ? 7 : 6;
+  const cols = {
+    swatch: 8,
+    name: width * 0.22,
+    acs: width * 0.24,
+    ubs: width * 0.2,
+    streets: width * 0.1,
+    families: width * 0.14,
+  };
 
-  pdf.setTextColor(30, 30, 30);
+  pdf.setFillColor(15, 61, 46);
+  pdf.rect(x, y, width, headerH, 'F');
+  pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(10);
-  pdf.text('LEGENDA', x + 3, y + 6);
+  pdf.setFontSize(isA3 ? 7.5 : 7);
 
+  let cx = x + 2;
+  pdf.text('', cx, y + 4.5);
+  cx += cols.swatch;
+  pdf.text('MICROÁREA', cx, y + 4.5);
+  cx += cols.name;
+  pdf.text('ACS', cx, y + 4.5);
+  cx += cols.acs;
+  pdf.text('UBS', cx, y + 4.5);
+  cx += cols.ubs;
+  pdf.text('RUAS', cx, y + 4.5);
+  cx += cols.streets;
+  pdf.text('FAM./HAB.', cx, y + 4.5);
+
+  let rowY = y + headerH;
   pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(7);
-  let rowY = y + 11;
-  const legendItems = microareas.length > 0
-    ? microareas
-    : [{ id: '0', name: 'Sem microárea', color: '#888888' } as Microarea];
+  pdf.setFontSize(isA3 ? 7 : 6.5);
 
-  for (const ma of legendItems) {
-    const count = streets.filter((s) => s.microareaId === ma.id).length;
-    const [r, g, b] = hexToRgb(ma.color);
+  for (let i = 0; i < rows.length; i++) {
+    const { microarea, streetCount, familyCount, inhabitantCount } = rows[i];
+    const bg = i % 2 === 0 ? [252, 252, 252] : [245, 247, 250];
+    pdf.setFillColor(bg[0], bg[1], bg[2]);
+    pdf.rect(x, rowY, width, rowH, 'F');
+
+    const [r, g, b] = hexToRgb(microarea.color);
     pdf.setFillColor(r, g, b);
-    pdf.rect(x + 3, rowY - 2.5, 5, 3, 'F');
-    pdf.setTextColor(40, 40, 40);
-    pdf.text(`${ma.name}${count > 0 ? ` (${count})` : ''}`, x + 10, rowY);
-    rowY += 4.5;
-    if (rowY > y + 38) break;
+    pdf.setDrawColor(255, 255, 255);
+    pdf.setLineWidth(0.25);
+    pdf.rect(x + 2.5, rowY + 1.2, 4.5, rowH - 2.4, 'FD');
+
+    cx = x + cols.swatch;
+    pdf.setTextColor(25, 25, 25);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(truncate(pdf, microarea.name, cols.name - 2), cx, rowY + 3.8);
+    cx += cols.name;
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(
+      truncate(pdf, microarea.acs?.name ?? '—', cols.acs - 2),
+      cx,
+      rowY + 3.8,
+    );
+    cx += cols.acs;
+    pdf.text(
+      truncate(pdf, microarea.ubs?.name ?? '—', cols.ubs - 2),
+      cx,
+      rowY + 3.8,
+    );
+    cx += cols.ubs;
+    pdf.text(String(streetCount), cx, rowY + 3.8);
+    cx += cols.streets;
+    pdf.text(
+      familyCount > 0 ? `${familyCount} / ${inhabitantCount}` : '—',
+      cx,
+      rowY + 3.8,
+    );
+
+    rowY += rowH;
   }
 
-  pdf.setTextColor(100, 100, 100);
-  pdf.setFontSize(6);
-  pdf.text('— Estrada de terra', x + 10, y + 38);
-  pdf.setFillColor(196, 163, 90);
-  pdf.rect(x + 3, y + 35.5, 5, 3, 'F');
+  pdf.setDrawColor(200);
+  pdf.setLineWidth(0.3);
+  pdf.rect(x, y, width, rowY - y, 'S');
+
+  return rowY;
 }
 
 export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promise<Blob> {
@@ -179,31 +293,37 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  const margin = isA3 ? 10 : 8;
-  const headerH = isA3 ? 26 : 22;
-  const footerH = isA3 ? 18 : 16;
+  const margin = isA3 ? 12 : 10;
+  const headerH = isA3 ? 28 : 24;
+  const footerH = isA3 ? 16 : 14;
 
-  const contentTop = margin + headerH;
-  const contentBottom = pageH - margin - footerH;
-  const contentH = contentBottom - contentTop;
-  const mapRatio = isA3 ? 0.62 : 0.58;
-  const mapW = pageW * mapRatio - margin;
-  const sideW = pageW - mapW - margin * 3;
-  const sideX = margin + mapW + margin;
-
+  const rows = buildMicroareaRows(microareas, streets);
   const totalFamilies = streets.reduce((sum, s) => sum + (s.familyCount ?? 0), 0);
   const totalInhabitants = streets.reduce((sum, s) => sum + (s.inhabitantCount ?? 0), 0);
+  const paintedStreets = streets.filter((s) => s.microareaId).length;
+  const coveragePct =
+    streets.length > 0 ? Math.round((paintedStreets / streets.length) * 100) : 0;
 
+  const legendRowsOnPage = Math.min(rows.length, isA3 ? 8 : 6);
+  const legendH = (isA3 ? 7 : 6) + Math.max(legendRowsOnPage, 1) * (isA3 ? 5.5 : 5) + 4;
+  const contentTop = margin + headerH + 2;
+  const contentBottom = pageH - margin - footerH;
+  const mapH = contentBottom - contentTop - legendH - 3;
+  const mapW = pageW - margin * 2;
+  const mapX = margin;
+  const mapY = contentTop;
+
+  // Cabeçalho institucional
   pdf.setFillColor(15, 61, 46);
-  pdf.rect(0, 0, pageW, headerH + margin, 'F');
+  pdf.rect(0, 0, pageW, headerH + margin * 0.4, 'F');
 
-  const logoSize = isA3 ? 20 : 16;
+  const logoSize = isA3 ? 22 : 18;
   if (municipality.logoUrl) {
     const logo = await loadImageDataUrl(municipality.logoUrl);
     if (logo) {
       try {
         const fmt = logo.includes('image/jpeg') ? 'JPEG' : 'PNG';
-        pdf.addImage(logo, fmt, margin, isA3 ? 5 : 4, logoSize, logoSize);
+        pdf.addImage(logo, fmt, margin, margin * 0.55, logoSize, logoSize);
       } catch {
         /* ignore */
       }
@@ -212,165 +332,197 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
 
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(isA3 ? 16 : 14);
+  pdf.setFontSize(isA3 ? 17 : 14);
+  const titleX = margin + logoSize + 5;
   const title = neighborhoodName
     ? `MAPA DE MICROÁREAS — ${neighborhoodName.toUpperCase()}`
     : 'MAPA OFICIAL DE MICROÁREAS — APS';
-  pdf.text(title, margin + logoSize + 4, isA3 ? 13 : 12);
+  pdf.text(title, titleX, isA3 ? 14 : 12);
 
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(isA3 ? 10 : 9);
-  pdf.text(`${municipality.name} — ${municipality.state}`, margin + logoSize + 4, isA3 ? 20 : 18);
-  pdf.text(municipality.secretariat, pageW - margin - 70, isA3 ? 13 : 12);
-  pdf.text(municipality.prefecture, pageW - margin - 70, isA3 ? 20 : 18);
+  pdf.text(`${municipality.name} — ${municipality.state}`, titleX, isA3 ? 21 : 18);
+  pdf.text(municipality.prefecture, titleX, isA3 ? 27 : 23);
+
+  const rightX = pageW - margin - 72;
+  pdf.setFontSize(isA3 ? 9 : 8);
+  pdf.text(municipality.secretariat, rightX, isA3 ? 14 : 12);
+  pdf.text(
+    `Cobertura: ${coveragePct}% (${paintedStreets}/${streets.length} ruas)`,
+    rightX,
+    isA3 ? 20 : 17,
+  );
   if (totalFamilies > 0) {
-    pdf.setFontSize(8);
     pdf.text(
       `${totalFamilies.toLocaleString('pt-BR')} famílias · ${totalInhabitants.toLocaleString('pt-BR')} habitantes`,
-      pageW - margin - 70,
-      isA3 ? 25 : 22,
+      rightX,
+      isA3 ? 26 : 22,
     );
   }
 
-  pdf.setDrawColor(200);
-  pdf.setLineWidth(0.5);
-  pdf.rect(margin, contentTop, mapW, contentH);
+  // Moldura do mapa
+  pdf.setFillColor(255, 255, 255);
+  pdf.setDrawColor(180, 180, 180);
+  pdf.setLineWidth(0.6);
+  pdf.rect(mapX, mapY, mapW, mapH, 'FD');
+  pdf.setLineWidth(0.25);
+  pdf.setDrawColor(220, 220, 220);
+  pdf.rect(mapX + 1.5, mapY + 1.5, mapW - 3, mapH - 3, 'S');
 
-  const { offsetX, offsetY, drawW, drawH } = fitImageInBox(
+  await drawCoverImage(
+    pdf,
+    mapImageDataUrl,
+    mapX + 2,
+    mapY + 2,
+    mapW - 4,
+    mapH - 4,
     mapImageWidth,
     mapImageHeight,
-    mapW - 1,
-    contentH - 1,
-  );
-  pdf.addImage(
-    mapImageDataUrl,
-    'PNG',
-    margin + 0.5 + offsetX,
-    contentTop + 0.5 + offsetY,
-    drawW,
-    drawH,
   );
 
-  drawSidebarLegend(pdf, sideX, contentTop, sideW, microareas, streets);
+  const compassSize = isA3 ? 18 : 14;
+  drawCompassRose(pdf, mapX + mapW - compassSize - 5, mapY + mapH - compassSize - 5, compassSize);
+  drawScaleBar(pdf, mapX + 5, mapY + mapH - (isA3 ? 16 : 13), isA3 ? 36 : 30);
 
-  if (ubsList.length > 0) {
-    const ubsY = contentTop + 46;
-    pdf.setTextColor(30, 30, 30);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(8);
-    pdf.text('UNIDADES BÁSICAS DE SAÚDE', sideX, ubsY);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(6.5);
-    let uy = ubsY + 4;
-    for (const ubs of ubsList.slice(0, 4)) {
-      pdf.text(`• ${ubs.name}`, sideX + 1, uy);
-      uy += 3.5;
-      if (uy > contentTop + 58) break;
-    }
-  }
-
-  let sideY = contentTop + (ubsList.length > 0 ? 62 : 46);
-  const cardH = 26;
-  const gap = 3;
-  const activeMicroareas = microareas.filter((m) =>
-    streets.some((s) => s.microareaId === m.id),
-  );
-
-  pdf.setTextColor(30, 30, 30);
+  // Legenda horizontal (estilo mapa oficial)
+  const legendY = mapY + mapH + 3;
+  pdf.setTextColor(15, 61, 46);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(8);
-  pdf.text('DETALHES POR MICROÁREA', sideX, sideY);
-  sideY += 5;
+  pdf.setFontSize(isA3 ? 9 : 8);
+  pdf.text('LEGENDA E QUADRO DE MICROÁREAS', margin, legendY + 4);
 
-  for (const ma of activeMicroareas) {
-    if (sideY + cardH > contentBottom) {
-      pdf.addPage();
-      sideY = margin + 8;
+  const tableY = legendY + 6;
+  if (rows.length > 0) {
+    const pageRows = rows.slice(0, legendRowsOnPage);
+    drawLegendTable(pdf, margin, tableY, mapW, pageRows, isA3);
+    if (rows.length > legendRowsOnPage) {
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(100);
+      const moreY = tableY + (isA3 ? 7 : 6) + pageRows.length * (isA3 ? 5.5 : 5) + 1;
+      pdf.text(
+        `+ ${rows.length - legendRowsOnPage} microárea(s) no detalhamento das páginas seguintes`,
+        margin + 2,
+        moreY,
+      );
     }
-
-    const [r, g, b] = hexToRgb(ma.color);
-    pdf.setFillColor(r, g, b);
-    pdf.rect(sideX, sideY, sideW, 4, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(8);
-    pdf.text(ma.name.toUpperCase(), sideX + 2, sideY + 2.8);
-
-    pdf.setDrawColor(220);
+  } else {
     pdf.setFillColor(250, 250, 250);
-    pdf.rect(sideX, sideY + 4, sideW, cardH - 4, 'FD');
-
-    pdf.setTextColor(50, 50, 50);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(6.5);
-    pdf.text(`ACS: ${ma.acs?.name ?? '—'}`, sideX + 2, sideY + 9);
-
-    pdf.setFont('helvetica', 'normal');
-    const maStreets = streets.filter((s) => s.microareaId === ma.id);
-    const maFamilies = maStreets.reduce((sum, s) => sum + (s.familyCount ?? 0), 0);
-    const maInhabitants = maStreets.reduce((sum, s) => sum + (s.inhabitantCount ?? 0), 0);
-    const streetLabels = maStreets.map((s) => formatStreetLabel(s)).slice(0, 5);
-
-    if (maFamilies > 0) {
-      pdf.text(
-        `Famílias: ${maFamilies} · Habitantes: ${maInhabitants}`,
-        sideX + 2,
-        sideY + 13,
-      );
-    }
-
-    pdf.text('Ruas:', sideX + 2, sideY + (maFamilies > 0 ? 17 : 13));
-    streetLabels.forEach((name, i) => {
-      pdf.text(`• ${name}`, sideX + 3, sideY + (maFamilies > 0 ? 20 : 16) + i * 3);
-    });
-    const total = maStreets.length;
-    if (total > 5) {
-      pdf.text(
-        `... +${total - 5} rua(s)`,
-        sideX + 3,
-        sideY + (maFamilies > 0 ? 20 : 16) + 5 * 3,
-      );
-    }
-
-    sideY += cardH + gap;
-  }
-
-  if (activeMicroareas.length === 0) {
+    pdf.setDrawColor(210);
+    pdf.rect(margin, tableY, mapW, 12, 'FD');
     pdf.setTextColor(120);
+    pdf.setFont('helvetica', 'italic');
     pdf.setFontSize(8);
-    pdf.text('Nenhuma rua pintada ainda.', sideX, sideY + 6);
+    pdf.text('Nenhuma rua pintada — vincule ruas às microáreas antes de homologar o mapa.', margin + 3, tableY + 7);
   }
 
-  const footY = pageH - margin - footerH + 2;
+  // Rodapé
+  const footY = pageH - margin - footerH + 3;
   pdf.setDrawColor(200);
+  pdf.setLineWidth(0.35);
   pdf.line(margin, footY - 2, pageW - margin, footY - 2);
 
-  drawScaleBar(pdf, margin + mapW * 0.25, footY + 1, isA3 ? 18 : 15);
-  drawCompassRose(pdf, margin + mapW * 0.52, footY - 1, isA3 ? 16 : 12);
-
   const qrUrl = 'https://sigaps-api.onrender.com';
-  const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 100 });
-  pdf.addImage(qrDataUrl, 'PNG', pageW - margin - 18, footY - 1, isA3 ? 16 : 14, isA3 ? 16 : 14);
-  pdf.setFontSize(5.5);
-  pdf.setTextColor(40, 40, 40);
-  pdf.text('SIGAPS', pageW - margin - 18, footY + (isA3 ? 17 : 16));
-  pdf.setFontSize(5);
-  pdf.text('Acesse o sistema', pageW - margin - 18, footY + (isA3 ? 20 : 19));
+  const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 120 });
+  const qrSize = isA3 ? 14 : 12;
+  pdf.addImage(qrDataUrl, 'PNG', pageW - margin - qrSize, footY - 1, qrSize, qrSize);
 
   pdf.setFontSize(6);
-  pdf.setTextColor(100);
+  pdf.setTextColor(60);
+  pdf.setFont('helvetica', 'normal');
   const dateStr = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
   });
-  pdf.text(`Gerado em ${dateStr} — ${municipality.prefecture}`, margin, pageH - 4);
-  pdf.text('SIRGAS 2000 / WGS84', margin + 90, pageH - 4);
+  pdf.text(`Gerado em ${dateStr}`, margin, footY + 4);
+  pdf.text('SIRGAS 2000 / WGS84 · Esri World Imagery / OpenStreetMap', margin, footY + 8);
   pdf.text(
     'Documento para homologação pela Secretaria Municipal de Saúde',
-    margin + 45,
-    pageH - 1.5,
+    margin + 78,
+    footY + 4,
   );
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('SIGAPS', pageW - margin - qrSize, footY + qrSize + 3);
+
+  if (ubsList.length > 0) {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(5.5);
+    pdf.setTextColor(90);
+    const ubsLine = ubsList
+      .slice(0, 3)
+      .map((u) => u.name)
+      .join(' · ');
+    pdf.text(`UBS: ${ubsLine}`, margin + 78, footY + 8);
+  }
+
+  // Anexo com listagem de ruas (páginas seguintes)
+  if (rows.length > 0) {
+    pdf.addPage();
+    let annexY = margin + 10;
+    const contentW = pageW - margin * 2;
+    const maxY = pageH - margin - 10;
+    const lineH = isA3 ? 3.8 : 3.4;
+
+    pdf.setTextColor(15, 61, 46);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(isA3 ? 12 : 10);
+    pdf.text('DETALHAMENTO DE RUAS POR MICROÁREA', margin, annexY);
+    annexY += 8;
+
+    for (const { microarea, streetCount } of rows) {
+      const maStreets = streets.filter((s) => s.microareaId === microarea.id);
+      const blockH = 8 + Math.min(maStreets.length, 12) * lineH;
+      if (annexY + blockH > maxY) {
+        pdf.addPage();
+        annexY = margin + 10;
+      }
+
+      const [r, g, b] = hexToRgb(microarea.color);
+      pdf.setFillColor(r, g, b);
+      pdf.rect(margin, annexY - 3.5, contentW, 5.5, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(isA3 ? 8.5 : 7.5);
+      const headerLine = [
+        microarea.name.toUpperCase(),
+        microarea.acs?.name ? `ACS: ${microarea.acs.name}` : null,
+        microarea.ubs?.name ? `UBS: ${microarea.ubs.name}` : null,
+        microarea.neighborhood?.name ? `Bairro: ${microarea.neighborhood.name}` : null,
+        `${streetCount} ruas`,
+      ]
+        .filter(Boolean)
+        .join('  ·  ');
+      pdf.text(truncate(pdf, headerLine, contentW - 4), margin + 2, annexY);
+      annexY += 5;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(isA3 ? 7 : 6.5);
+      pdf.setTextColor(45, 45, 45);
+
+      const colW = contentW / 2 - 2;
+      maStreets.slice(0, 24).forEach((street, idx) => {
+        const col = idx % 2;
+        const row = Math.floor(idx / 2);
+        const x = margin + col * (colW + 4);
+        const y = annexY + row * lineH;
+        if (y > maxY - 4) return;
+        const families = street.familyCount ?? 0;
+        const suffix = families > 0 ? ` (${families} fam.)` : '';
+        pdf.text(`• ${formatStreetLabel(street)}${suffix}`, x, y);
+      });
+
+      const listed = Math.min(maStreets.length, 24);
+      annexY += Math.max(1, Math.ceil(listed / 2)) * lineH + 2;
+      const extra = maStreets.length - 24;
+      if (extra > 0) {
+        pdf.setTextColor(110);
+        pdf.text(`… e mais ${extra} rua(s)`, margin, annexY);
+        annexY += 4;
+      }
+      annexY += 3;
+    }
+  }
 
   return pdf.output('blob');
 }

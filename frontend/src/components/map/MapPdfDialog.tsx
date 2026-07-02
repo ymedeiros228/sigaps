@@ -25,9 +25,10 @@ import {
   ubsApi,
   type Microarea,
 } from '../../services/api';
-import { useAppStore } from '../../store';
+import { useAppStore, useMapStore } from '../../store';
 import { assetUrl } from '../../utils/assetUrl';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
+import { captureLeafletMapImage, waitForMapReady } from '../../utils/mapPdfCapture';
 import {
   generateOfficialMapPdf,
   downloadPdfBlob,
@@ -94,6 +95,14 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
     setGenerating(true);
     setError(null);
 
+    const mapState = useMapStore.getState();
+    const prevView = {
+      baseLayer: mapState.baseLayer,
+      showEnvelopes: mapState.showEnvelopes,
+      showHeatmap: mapState.showHeatmap,
+      showUbsMarkers: mapState.showUbsMarkers,
+    };
+
     try {
       const container = mapContainerRef.current;
       if (!container) throw new Error('Mapa não encontrado');
@@ -101,30 +110,33 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       const leaflet = container.querySelector('.leaflet-container') as HTMLElement;
       if (!leaflet) throw new Error('Mapa não carregado');
 
-      container.classList.add('sigaps-pdf-capture');
-      await new Promise((r) => setTimeout(r, 900));
-
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(leaflet, {
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        scale: 2,
-        backgroundColor: '#0B0F14',
-      });
-      const mapImageDataUrl = canvas.toDataURL('image/png');
-
-      container.classList.remove('sigaps-pdf-capture');
-
       const filteredStreets = neighborhoodId
         ? streets.filter((s) => s.neighborhood?.id === neighborhoodId)
         : streets;
 
+      mapState.setBaseLayer('satellite');
+      mapState.setShowEnvelopes(true);
+      mapState.setShowHeatmap(false);
+      mapState.setShowUbsMarkers(true);
+
+      const paintedGeojsons = filteredStreets
+        .filter((s) => s.microareaId && s.geojson)
+        .map((s) => s.geojson!);
+      if (paintedGeojsons.length > 0) {
+        mapState.focusOnLines(paintedGeojsons, 16);
+      }
+
+      container.classList.add('sigaps-pdf-capture');
+      await waitForMapReady(2600);
+
+      const { dataUrl, width, height } = await captureLeafletMapImage(leaflet, { scale: 3 });
+      container.classList.remove('sigaps-pdf-capture');
+
       const blob = await generateOfficialMapPdf({
         format,
-        mapImageDataUrl,
-        mapImageWidth: canvas.width,
-        mapImageHeight: canvas.height,
+        mapImageDataUrl: dataUrl,
+        mapImageWidth: width,
+        mapImageHeight: height,
         municipality: {
           name: municipality.name,
           state: municipality.state,
@@ -149,6 +161,10 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       mapContainerRef.current?.classList.remove('sigaps-pdf-capture');
       setError(e instanceof Error ? e.message : 'Erro ao gerar PDF. Tente novamente.');
     } finally {
+      mapState.setBaseLayer(prevView.baseLayer);
+      mapState.setShowEnvelopes(prevView.showEnvelopes);
+      mapState.setShowHeatmap(prevView.showHeatmap);
+      mapState.setShowUbsMarkers(prevView.showUbsMarkers);
       setGenerating(false);
     }
   };
@@ -205,8 +221,8 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
       </DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          Gera um mapa profissional com imagem do satélite, legenda lateral, detalhes
-          por microárea, escala e QR Code — pronto para impressão.
+          Gera mapa oficial com satélite, áreas coloridas, legenda em tabela,
+          detalhamento de ruas, escala e QR Code — pronto para impressão A3/A4.
         </Typography>
 
         {paintedCount === 0 && (
@@ -246,8 +262,9 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
 
         <Box sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            Centralize o mapa na área desejada, ative Microáreas + satélite, depois gere
-            e confira na pré-visualização antes de baixar.
+            O sistema centraliza automaticamente nas ruas pintadas, ativa satélite e
+            microáreas, e gera o PDF em alta resolução. Para bairro específico, selecione
+            o filtro antes de gerar.
           </Typography>
         </Box>
 

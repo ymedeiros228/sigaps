@@ -131,7 +131,8 @@ body {
 }
 
 .sigaps-pdf-capture .map-float-panel,
-.sigaps-pdf-capture > .MuiAlert-root {
+.sigaps-pdf-capture > .MuiAlert-root,
+.sigaps-pdf-capture .leaflet-control-scale {
   visibility: hidden !important;
   pointer-events: none;
 }
@@ -139,4 +140,19 @@ body {
 .sigaps-pdf-capture .leaflet-control-layers,
 .sigaps-pdf-capture .leaflet-control-zoom {
   display: none !important;
+}
+
+.sigaps-pdf-capture .leaflet-overlay-pane svg path,
+.sigaps-pdf-capture .leaflet-overlay-pane canvas {
+  filter: saturate(1.08) contrast(1.05);
+}
+
+.sigaps-pdf-capture .microarea-map-label div {
+  font-size: 13px !important;
+  padding: 6px 14px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55) !important;
+}
+
+.sigaps-pdf-capture .leaflet-container {
+  background: #101418 !important;
 }
