@@ -73,6 +73,33 @@ export class GeoController {
     );
   }
 
+  @Post('import/:municipalityId/shapefile')
+  @Roles(...IMPORT_ROLES)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        updateByName: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Importar ruas via Shapefile (.zip ou .shp)' })
+  async importShapefile(
+    @Param('municipalityId') municipalityId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('updateByName') updateByName?: string,
+  ) {
+    if (!file?.buffer) throw new BadRequestException('Arquivo Shapefile obrigatório');
+    return this.geoService.importShapefile(
+      municipalityId,
+      file.buffer,
+      updateByName === 'true',
+    );
+  }
+
   @Post('import/:municipalityId/csv')
   @Roles(...IMPORT_ROLES)
   @UseInterceptors(FileInterceptor('file'))

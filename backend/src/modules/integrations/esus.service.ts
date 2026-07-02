@@ -59,7 +59,61 @@ export class EsusService {
   }
 
   async importCsv(municipalityId: string, content: string, userId: string) {
+    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
     const items = this.parseCsv(content);
+    const result = await this.applyImport(municipalityId, items, userId, 'esus-csv');
+
+    await this.prisma.municipality.update({
+      where: { id: municipalityId },
+      data: { esusImportCsv: content, esusLastSyncAt: new Date() },
+    });
+
+    return {
+      ok: true,
+      message: `${result.updated} de ${result.total} ruas atualizadas${
+        result.errors.length > 0 ? ` (${result.errors.length} não encontradas)` : ''
+      }`,
+      lastSyncAt: syncedAt.toISOString(),
+      ...result,
+    };
+  }
+
+  async syncLast(municipalityId: string, userId: string) {
+    const municipality = await this.prisma.municipality.findUnique({
+      where: { id: municipalityId },
+      select: { esusImportCsv: true, esusLastSyncAt: true },
+    });
+    if (!municipality?.esusImportCsv?.trim()) {
+      throw new BadRequestException(
+        'Nenhuma importação e-SUS anterior neste município. Importe um CSV primeiro.',
+      );
+    }
+
+    const items = this.parseCsv(municipality.esusImportCsv);
+    const result = await this.applyImport(municipalityId, items, userId, 'esus-sync');
+    const syncedAt = new Date();
+
+    await this.prisma.municipality.update({
+      where: { id: municipalityId },
+      data: { esusLastSyncAt: syncedAt },
+    });
+
+    return {
+      ok: true,
+      message: `${result.updated} de ${result.total} ruas atualizadas${
+        result.errors.length > 0 ? ` (${result.errors.length} não encontradas)` : ''
+      }`,
+      lastSyncAt: syncedAt.toISOString(),
+      ...result,
+    };
+  }
+
+  private async applyImport(
+    municipalityId: string,
+    items: EsusRow[],
+    userId: string,
+    source: 'esus-csv' | 'esus-sync',
+  ) {
     let updated = 0;
     const errors: Array<{ row: number; streetRef: string; message: string }> = [];
 
@@ -96,7 +150,7 @@ export class EsusService {
       entityType: 'street',
       entityId: municipalityId,
       action: 'UPDATE_DEMOGRAPHICS',
-      afterData: { source: 'esus-csv', updated, total: items.length, errors: errors.length },
+      afterData: { source, updated, total: items.length, errors: errors.length },
     });
 
     return { updated, errors, total: items.length };

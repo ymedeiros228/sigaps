@@ -20,6 +20,11 @@ export interface AcsCoverageRow {
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
+  private readonly indicatorsCache = new Map<
+    string,
+    { expiresAt: number; data: Awaited<ReturnType<DashboardService['computeIndicators']>> }
+  >();
+  private readonly CACHE_TTL_MS = 30_000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -27,6 +32,20 @@ export class DashboardService {
   ) {}
 
   async getIndicators(municipalityId: string) {
+    const cached = this.indicatorsCache.get(municipalityId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.data;
+    }
+
+    const data = await this.computeIndicators(municipalityId);
+    this.indicatorsCache.set(municipalityId, {
+      data,
+      expiresAt: Date.now() + this.CACHE_TTL_MS,
+    });
+    return data;
+  }
+
+  private async computeIndicators(municipalityId: string) {
     const municipality = await this.prisma.municipality.findUnique({
       where: { id: municipalityId },
       select: { id: true },

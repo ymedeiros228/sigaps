@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { kml } from '@tmcw/togeojson';
 import { DOMParser } from '@xmldom/xmldom';
+import shp from 'shpjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { featureCollectionToKml } from '../../common/utils/geojson-to-kml.util';
 import { ImportGeoJsonDto } from './dto/import-geojson.dto';
@@ -108,6 +109,32 @@ export class GeoService {
     return this.importGeoJson(municipalityId, { geojson, updateByName });
   }
 
+  async importShapefile(
+    municipalityId: string,
+    buffer: Buffer,
+    updateByName = false,
+  ) {
+    let parsed: GeoJSON.FeatureCollection | GeoJSON.FeatureCollection[];
+    try {
+      parsed = await shp(buffer);
+    } catch {
+      throw new BadRequestException(
+        'Arquivo Shapefile inválido. Envie um .zip com .shp/.dbf/.shx ou os arquivos brutos.',
+      );
+    }
+
+    const collections = Array.isArray(parsed) ? parsed : [parsed];
+    const features = collections.flatMap((fc) => fc.features ?? []);
+    if (!features.length) {
+      throw new BadRequestException('Nenhuma feição encontrada no Shapefile');
+    }
+
+    return this.importGeoJson(municipalityId, {
+      geojson: { type: 'FeatureCollection', features },
+      updateByName,
+    });
+  }
+
   async importCsv(municipalityId: string, csvContent: string, updateByName = false) {
     const rows = this.parseCsvRows(csvContent);
     if (!rows.length) {
@@ -191,30 +218,35 @@ export class GeoService {
   }
 
   async exportMicroareasGeoJson(municipalityId: string) {
-    const microareas = await this.prisma.microarea.findMany({
-      where: { municipalityId },
-      orderBy: { number: 'asc' },
-    });
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        number: number;
+        color: string;
+        geojson: string | null;
+      }>
+    >`
+      SELECT id, name, number, color,
+        ST_AsGeoJSON(envelope_geom)::text AS geojson
+      FROM microareas
+      WHERE municipality_id = ${municipalityId}::uuid
+        AND envelope_geom IS NOT NULL
+      ORDER BY number ASC
+    `;
 
-    const features: GeoJSON.Feature[] = [];
-    for (const ma of microareas) {
-      const result = await this.prisma.$queryRaw<Array<{ geojson: string | null }>>`
-        SELECT ST_AsGeoJSON(envelope_geom)::text as geojson
-        FROM microareas WHERE id = ${ma.id}::uuid
-      `;
-      if (result[0]?.geojson) {
-        features.push({
-          type: 'Feature',
-          properties: {
-            id: ma.id,
-            name: ma.name,
-            number: ma.number,
-            color: ma.color,
-          },
-          geometry: JSON.parse(result[0].geojson),
-        });
-      }
-    }
+    const features: GeoJSON.Feature[] = rows
+      .filter((r) => r.geojson)
+      .map((r) => ({
+        type: 'Feature',
+        properties: {
+          id: r.id,
+          name: r.name,
+          number: r.number,
+          color: r.color,
+        },
+        geometry: JSON.parse(r.geojson!),
+      }));
 
     return { type: 'FeatureCollection', features } satisfies GeoJSON.FeatureCollection;
   }

@@ -22,7 +22,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | **Dashboard** | ✅ Forte | Cards, gráficos, cobertura %, relatório por ACS, histórico de alterações |
 | **Administração** | ✅ Forte | CRUD usuários, backup manual/automático, auditoria paginada |
 | **Infra** | ✅ Forte | JWT, PostGIS, deploy Render, multi-município na UI |
-| **Integrações gov** | 🟡 Piloto | CNES (consulta), e-SUS (import CSV famílias) |
+| **Integrações gov** | 🟡 Piloto | CNES (consulta), e-SUS (import CSV + sync) |
 | **Mobile / PWA** | ✅ Entregue | Instalável, cache offline para ACS |
 
 ---
@@ -30,7 +30,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 ## Gaps remanescentes
 
 1. **Homologação PDF A3** — Layout pronto; falta aceite formal da SMS.
-2. **Integração e-SUS completa** — Piloto CSV; sincronização automática ainda não existe.
+2. **Integração e-SUS completa** — Piloto CSV com re-sincronização automática do último import; API oficial ainda pendente.
 3. **Segundo município em produção** — UI multi-município pronta; falta onboarding de outro cliente.
 4. **Domínio institucional** — `.gov.br` e servidor sempre ligado (plano pago Render).
 
@@ -80,7 +80,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | B3 | PWA offline para ACS em campo | [x] |
 | B4 | Multi-município na UI | [x] |
 | B5 | Domínio institucional `.gov.br` | [ ] |
-| B6 | Importação Shapefile (SHP) | [ ] |
+| B6 | Importação Shapefile (SHP) | [x] Sprint 9 |
 
 ---
 
@@ -137,6 +137,21 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 - [x] A6 — Fluxo de homologação SMS (registro admin + carimbo no PDF)
 - [x] PDF — Campos de assinatura, legenda no mapa, captura com flyTo
 
+### Sprint 9 — Performance e importações — ✅ Concluído
+
+- [x] B6 — Importação Shapefile (.zip com .shp/.dbf/.shx) via `shpjs`
+- [x] M7+ — Carregamento de ruas por viewport/bbox (PostGIS) para municípios com >800 ruas
+- [x] Export microáreas — query única (elimina N+1)
+- [x] MapDivisionsPanel — debounce no preview do raio (300ms)
+- [x] bulkAssignNeighborhood — lookup em lote com `findMany` + `updateMany`
+
+### Sprint 10 — Integração e UX de mapa — ✅ Concluído
+
+- [x] e-SUS sync piloto — reprocessar último CSV importado (`POST /integrations/esus/municipality/:id/sync`)
+- [x] `esusLastSyncAt` no município + botão "Sincronizar e-SUS" na área de cadastros
+- [x] Dashboard — cache em memória de 30s para indicadores do município
+- [x] Mapa — indicador de progresso ao carregar ruas por viewport + dica "Mova o mapa para carregar mais ruas"
+
 ---
 
 ## Histórico de fases (referência)
@@ -159,8 +174,8 @@ UBS, ACS, bairros, microáreas, GeoJSON/KML/CSV, busca unificada, admin + backup
 ### Fase 4 — Integrações governamentais — 🟡 Piloto
 
 - [x] CNES (consulta)
-- [x] e-SUS (import CSV piloto)
-- [ ] Sincronização automática
+- [x] e-SUS (import CSV piloto + re-sync do último CSV)
+- [x] Sincronização automática (piloto re-sync)
 
 ### Fase 5 — Mobile e offline — ✅ Concluída
 

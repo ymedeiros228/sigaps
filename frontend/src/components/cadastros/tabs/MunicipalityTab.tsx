@@ -10,16 +10,18 @@ import {
   Typography,
   alpha,
   useTheme,
+  Alert,
 } from '@mui/material';
-import { AccountBalance, CloudUpload, Upload } from '@mui/icons-material';
+import { AccountBalance, CloudUpload, Sync, Upload } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { municipalitiesApi } from '../../../services/api';
+import { municipalitiesApi, integrationsApi } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
 import { EsusImportDialog } from '../EsusImportDialog';
 import { canImportStreets } from '../../../utils/permissions';
 import { useAuthStore } from '../../../store';
 import { assetUrl } from '../../../utils/assetUrl';
+import { queryKeys } from '../../../utils/queryKeys';
 
 type MunicipalityForm = {
   name: string;
@@ -73,6 +75,20 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['municipality'] });
       reportSuccess('Logotipo enviado com sucesso.');
+    },
+    onError: reportError,
+  });
+
+  const syncEsusMutation = useMutation({
+    mutationFn: () => integrationsApi.syncEsus(municipalityId),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['municipality', municipalityId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(municipalityId) });
+      if (res.data.ok) {
+        reportSuccess(res.data.message);
+      } else {
+        reportError(new Error(res.data.message));
+      }
     },
     onError: reportError,
   });
@@ -163,14 +179,31 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
               Importe famílias e habitantes por logradouro a partir de CSV exportado do e-SUS.
             </Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Upload />}
-              onClick={() => setEsusOpen(true)}
-            >
-              Importar CSV e-SUS
-            </Button>
+            {municipality.esusLastSyncAt && (
+              <Alert severity="info" sx={{ mb: 1.5, py: 0.25 }}>
+                Última sincronização:{' '}
+                {new Date(municipality.esusLastSyncAt).toLocaleString('pt-BR')}
+              </Alert>
+            )}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Upload />}
+                onClick={() => setEsusOpen(true)}
+              >
+                Importar CSV e-SUS
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Sync />}
+                disabled={syncEsusMutation.isPending}
+                onClick={() => syncEsusMutation.mutate()}
+              >
+                {syncEsusMutation.isPending ? 'Sincronizando…' : 'Sincronizar e-SUS'}
+              </Button>
+            </Box>
           </CardContent>
         </Card>
       )}
@@ -228,7 +261,10 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
         open={esusOpen}
         municipalityId={municipalityId}
         onClose={() => setEsusOpen(false)}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['streets'] })}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['streets'] });
+          queryClient.invalidateQueries({ queryKey: ['municipality', municipalityId] });
+        }}
       />
     </Box>
   );

@@ -25,6 +25,11 @@ export class StreetsService {
       limit?: number;
       mapOnly?: boolean;
       geoPrecision?: number;
+      bbox?: string;
+      minLat?: number;
+      maxLat?: number;
+      minLng?: number;
+      maxLng?: number;
     } = {},
     viewer?: AuthViewer,
   ) {
@@ -42,6 +47,25 @@ export class StreetsService {
     const skip = (page - 1) * limit;
     const mapOnly = options.mapOnly ?? false;
     const geoPrecision = options.geoPrecision ?? (mapOnly ? 4 : 5);
+    const bbox = this.parseBbox(
+      options.bbox,
+      options.minLat,
+      options.maxLat,
+      options.minLng,
+      options.maxLng,
+    );
+
+    if (mapOnly && bbox) {
+      return this.findMapStreetsInBbox(municipalityId, {
+        bbox,
+        page,
+        limit,
+        geoPrecision,
+        microareaId: scopedMicroareaId,
+        neighborhoodId: options.neighborhoodId,
+        search: options.search,
+      });
+    }
 
     const where = {
       municipalityId,
@@ -234,9 +258,19 @@ export class StreetsService {
     items: Array<{ streetRef: string; neighborhoodRef: string }>,
     userId: string,
   ) {
+    const uniqueStreetRefs = [
+      ...new Set(items.map((i) => i.streetRef.trim().toLowerCase())),
+    ];
+
     const [streets, neighborhoods] = await Promise.all([
       this.prisma.street.findMany({
-        where: { municipalityId },
+        where: {
+          municipalityId,
+          OR: uniqueStreetRefs.flatMap((ref) => [
+            { name: { equals: ref, mode: 'insensitive' as const } },
+            { name: { contains: ref, mode: 'insensitive' as const } },
+          ]),
+        },
         select: { id: true, name: true, neighborhoodId: true },
       }),
       this.prisma.neighborhood.findMany({
@@ -245,15 +279,28 @@ export class StreetsService {
       }),
     ]);
 
+    const neighborhoodByName = new Map(
+      neighborhoods.map((n) => [n.name.toLowerCase(), n]),
+    );
+    const streetsByExactName = new Map<string, typeof streets>();
+    for (const street of streets) {
+      const key = street.name.toLowerCase();
+      const list = streetsByExactName.get(key) ?? [];
+      list.push(street);
+      streetsByExactName.set(key, list);
+    }
+
     let updated = 0;
     const errors: Array<{ row: number; streetRef: string; message: string }> = [];
+    const pendingUpdates = new Map<
+      string,
+      { neighborhoodId: string; streetIds: string[]; before: Map<string, string | null> }
+    >();
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const row = i + 1;
-      const neighborhood = neighborhoods.find(
-        (n) => n.name.toLowerCase() === item.neighborhoodRef.trim().toLowerCase(),
-      );
+      const neighborhood = neighborhoodByName.get(item.neighborhoodRef.trim().toLowerCase());
       if (!neighborhood) {
         errors.push({
           row,
@@ -264,7 +311,7 @@ export class StreetsService {
       }
 
       const ref = item.streetRef.trim().toLowerCase();
-      let matched = streets.filter((s) => s.name.toLowerCase() === ref);
+      let matched = streetsByExactName.get(ref) ?? [];
       if (matched.length === 0) {
         const partial = streets.filter((s) => s.name.toLowerCase().includes(ref));
         if (partial.length === 1) {
@@ -284,22 +331,52 @@ export class StreetsService {
         continue;
       }
 
+      const group = pendingUpdates.get(neighborhood.id) ?? {
+        neighborhoodId: neighborhood.id,
+        streetIds: [],
+        before: new Map<string, string | null>(),
+      };
       for (const street of matched) {
         if (street.neighborhoodId === neighborhood.id) continue;
-        await this.prisma.street.update({
-          where: { id: street.id },
-          data: { neighborhoodId: neighborhood.id },
-        });
-        await this.audit.log({
+        if (!group.streetIds.includes(street.id)) {
+          group.streetIds.push(street.id);
+          group.before.set(street.id, street.neighborhoodId);
+        }
+      }
+      if (group.streetIds.length > 0) {
+        pendingUpdates.set(neighborhood.id, group);
+      }
+    }
+
+    const auditRows: Array<{
+      userId: string;
+      entityType: string;
+      entityId: string;
+      action: string;
+      beforeData: object;
+      afterData: object;
+    }> = [];
+
+    for (const group of pendingUpdates.values()) {
+      await this.prisma.street.updateMany({
+        where: { id: { in: group.streetIds } },
+        data: { neighborhoodId: group.neighborhoodId },
+      });
+      for (const streetId of group.streetIds) {
+        auditRows.push({
           userId,
           entityType: 'street',
-          entityId: street.id,
+          entityId: streetId,
           action: 'ASSIGN_NEIGHBORHOOD',
-          beforeData: { neighborhoodId: street.neighborhoodId },
-          afterData: { neighborhoodId: neighborhood.id },
+          beforeData: { neighborhoodId: group.before.get(streetId) ?? null },
+          afterData: { neighborhoodId: group.neighborhoodId },
         });
-        updated++;
       }
+      updated += group.streetIds.length;
+    }
+
+    if (auditRows.length > 0) {
+      await this.prisma.auditLog.createMany({ data: auditRows });
     }
 
     return { updated, errors, total: items.length };
@@ -529,6 +606,138 @@ export class StreetsService {
     } catch {
       return [];
     }
+  }
+
+  private parseBbox(
+    bbox?: string,
+    minLat?: number,
+    maxLat?: number,
+    minLng?: number,
+    maxLng?: number,
+  ): { west: number; south: number; east: number; north: number } | null {
+    if (bbox) {
+      const parts = bbox.split(',').map((v) => Number(v.trim()));
+      if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+        return { west: parts[0], south: parts[1], east: parts[2], north: parts[3] };
+      }
+    }
+    if (
+      minLat != null &&
+      maxLat != null &&
+      minLng != null &&
+      maxLng != null &&
+      [minLat, maxLat, minLng, maxLng].every((n) => Number.isFinite(n))
+    ) {
+      return { west: minLng, south: minLat, east: maxLng, north: maxLat };
+    }
+    return null;
+  }
+
+  private async findMapStreetsInBbox(
+    municipalityId: string,
+    options: {
+      bbox: { west: number; south: number; east: number; north: number };
+      page: number;
+      limit: number;
+      geoPrecision: number;
+      microareaId?: string;
+      neighborhoodId?: string;
+      search?: string;
+    },
+  ) {
+    const { bbox, page, limit, geoPrecision } = options;
+    const skip = (page - 1) * limit;
+    const envelope = `ST_MakeEnvelope(${bbox.west}, ${bbox.south}, ${bbox.east}, ${bbox.north}, 4326)`;
+    const intersects = `(
+      (s.geom IS NOT NULL AND s.geom && ${envelope})
+      OR (s.geom IS NULL AND ST_Intersects(
+        ST_SetSRID(ST_GeomFromGeoJSON(s.geojson::text), 4326),
+        ${envelope}
+      ))
+    )`;
+
+    const filters: string[] = [
+      `s.municipality_id = '${municipalityId}'::uuid`,
+      's.osm_id IS NOT NULL',
+      intersects,
+    ];
+    if (options.microareaId) {
+      filters.push(`s.microarea_id = '${options.microareaId}'::uuid`);
+    }
+    if (options.neighborhoodId) {
+      filters.push(`s.neighborhood_id = '${options.neighborhoodId}'::uuid`);
+    }
+    if (options.search?.trim()) {
+      const q = options.search.trim().replace(/'/g, "''");
+      filters.push(`s.name ILIKE '%${q}%'`);
+    }
+    const whereSql = filters.join(' AND ');
+
+    type BboxRow = {
+      id: string;
+      name: string;
+      street_type: string | null;
+      microarea_id: string | null;
+      neighborhood_id: string | null;
+      osm_id: bigint | null;
+      geojson: unknown;
+      family_count: number;
+      inhabitant_count: number;
+      property_count: number;
+      ma_id: string | null;
+      ma_name: string | null;
+      ma_number: number | null;
+      ma_color: string | null;
+      n_id: string | null;
+      n_name: string | null;
+    };
+
+    const [rows, countResult] = await withDbRetry(() =>
+      Promise.all([
+        this.prisma.$queryRawUnsafe<BboxRow[]>(`
+          SELECT s.id, s.name, s.street_type, s.microarea_id, s.neighborhood_id,
+            s.osm_id, s.geojson, s.family_count, s.inhabitant_count, s.property_count,
+            m.id AS ma_id, m.name AS ma_name, m.number AS ma_number, m.color AS ma_color,
+            n.id AS n_id, n.name AS n_name
+          FROM streets s
+          LEFT JOIN microareas m ON m.id = s.microarea_id
+          LEFT JOIN neighborhoods n ON n.id = s.neighborhood_id
+          WHERE ${whereSql}
+          ORDER BY s.name ASC
+          LIMIT ${limit} OFFSET ${skip}
+        `),
+        this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(`
+          SELECT COUNT(*)::bigint AS count FROM streets s WHERE ${whereSql}
+        `),
+      ]),
+    );
+
+    const total = Number(countResult[0]?.count ?? 0);
+    const items = rows.map((s) => ({
+      id: s.id,
+      name: s.name,
+      streetType: s.street_type,
+      microareaId: s.microarea_id,
+      neighborhoodId: s.neighborhood_id,
+      osmId: s.osm_id?.toString() ?? null,
+      geojson: compactLineStringGeojson(s.geojson, geoPrecision),
+      familyCount: s.family_count ?? 0,
+      inhabitantCount: s.inhabitant_count ?? 0,
+      propertyCount: s.property_count ?? 0,
+      updatedAt: new Date(0).toISOString(),
+      microarea: s.ma_id
+        ? { id: s.ma_id, name: s.ma_name!, number: s.ma_number!, color: s.ma_color! }
+        : undefined,
+      neighborhood: s.n_id ? { id: s.n_id, name: s.n_name! } : undefined,
+    }));
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   private scheduleEnvelopeUpdate(microareaId: string) {

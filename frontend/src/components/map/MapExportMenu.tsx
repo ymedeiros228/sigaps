@@ -33,7 +33,7 @@ const MapPdfDialog = lazy(() =>
   import('./MapPdfDialog').then((m) => ({ default: m.MapPdfDialog })),
 );
 
-type ImportFormat = 'geojson' | 'kml' | 'csv';
+type ImportFormat = 'geojson' | 'kml' | 'csv' | 'shapefile';
 
 interface MapExportMenuProps {
   mapContainerRef: RefObject<HTMLElement | null>;
@@ -46,6 +46,7 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const kmlCsvInputRef = useRef<HTMLInputElement>(null);
+  const shapefileInputRef = useRef<HTMLInputElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importFormat, setImportFormat] = useState<ImportFormat>('geojson');
@@ -73,10 +74,11 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
   });
 
   const fileMutation = useMutation({
-    mutationFn: ({ file, format }: { file: File; format: 'kml' | 'csv' }) =>
-      format === 'kml'
-        ? geoApi.importKml(municipalityId!, file, updateByName)
-        : geoApi.importCsv(municipalityId!, file, updateByName),
+    mutationFn: ({ file, format }: { file: File; format: 'kml' | 'csv' | 'shapefile' }) => {
+      if (format === 'kml') return geoApi.importKml(municipalityId!, file, updateByName);
+      if (format === 'shapefile') return geoApi.importShapefile(municipalityId!, file, updateByName);
+      return geoApi.importCsv(municipalityId!, file, updateByName);
+    },
     onSuccess: (res) => onImportSuccess(res.data),
     onError: () => setImportResult('Não foi possível importar o arquivo. Tente outro formato.'),
   });
@@ -169,6 +171,8 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
     setPendingFile(null);
     if (format === 'geojson') {
       fileInputRef.current?.click();
+    } else if (format === 'shapefile') {
+      shapefileInputRef.current?.click();
     } else {
       kmlCsvInputRef.current?.click();
     }
@@ -196,7 +200,7 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
   const handleConfirmImport = () => {
     if (importFormat === 'geojson' && pendingGeoJson) {
       geoJsonMutation.mutate(pendingGeoJson);
-    } else if (pendingFile && (importFormat === 'kml' || importFormat === 'csv')) {
+    } else if (pendingFile && (importFormat === 'kml' || importFormat === 'csv' || importFormat === 'shapefile')) {
       fileMutation.mutate({ file: pendingFile, format: importFormat });
     }
   };
@@ -205,6 +209,7 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
     geojson: 'arquivo de mapa (GeoJSON)',
     kml: 'arquivo KML',
     csv: 'planilha CSV',
+    shapefile: 'Shapefile (.zip)',
   };
 
   return (
@@ -227,6 +232,10 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
         <MenuItem onClick={() => openImport('csv')}>
           <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
           <ListItemText primary="Planilha de ruas" secondary="Formato CSV" />
+        </MenuItem>
+        <MenuItem onClick={() => openImport('shapefile')}>
+          <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Shapefile (.zip)" secondary="QGIS / ArcGIS (.shp/.dbf/.shx)" />
         </MenuItem>
         {onImportFamilies && (
           <MenuItem
@@ -296,6 +305,17 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
         }}
       />
       <input
+        ref={shapefileInputRef}
+        type="file"
+        accept=".zip,.shp"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleKmlCsvFile(file);
+          e.target.value = '';
+        }}
+      />
+      <input
         ref={kmlCsvInputRef}
         type="file"
         accept=".kml,.kmz,.csv,.txt"
@@ -325,6 +345,7 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
             {importFormat === 'geojson' && 'Arquivo com linhas de ruas. Cada rua deve ter um nome.'}
             {importFormat === 'kml' && 'Arquivo exportado do Google Earth ou QGIS com as ruas em linhas.'}
             {importFormat === 'csv' && 'Planilha com colunas: nome da rua e coordenadas.'}
+            {importFormat === 'shapefile' && 'Arquivo .zip com .shp, .dbf e .shx (ou .shp solto). Linhas serão importadas como ruas.'}
           </Alert>
           {pendingFile && (
             <Alert severity="success">Arquivo selecionado: {pendingFile.name}</Alert>

@@ -12,6 +12,7 @@ import {
   DialogActions,
   Button,
   Typography,
+  LinearProgress,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -44,11 +45,10 @@ import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../u
 import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
-import { fetchAllMapStreets } from '../../utils/fetchAllStreets';
+import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea } from '../../utils/streetsCache';
-import { cloudQueryRetryDelay, shouldRetryCloudQuery } from '../../utils/queryRetry';
 import { LeafletMap } from './LeafletMap';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
@@ -154,18 +154,18 @@ export function SigapsMap() {
     }
   }, [microareasData, setMicroareas]);
 
-  const { data: streetsData, isLoading, isError: streetsLoadError, isFetching: streetsFetching, refetch: refetchStreets } = useQuery({
-    queryKey: queryKeys.streetsMap(municipalityId!),
-    queryFn: () => fetchAllMapStreets(municipalityId!),
-    enabled: !!municipalityId,
-    staleTime: CACHE.streets,
-    gcTime: 15 * 60_000,
-    retry: (count, err) => shouldRetryCloudQuery(count, err),
-    retryDelay: cloudQueryRetryDelay,
-  });
+  const {
+    streetsData,
+    streetsTotal,
+    useViewport,
+    isLoading,
+    isFetching: streetsFetching,
+    isError: streetsLoadError,
+    refetch: refetchStreets,
+    onBounds,
+  } = useMapViewportStreets(municipalityId);
 
   const streetCount = streetsData?.items?.length ?? 0;
-  const streetsTotal = streetsData?.total ?? streetCount;
   const streets = useMemo(
     () => prepareStreetsForMap(streetsData?.items ?? []),
     [streetsData?.items],
@@ -851,6 +851,19 @@ export function SigapsMap() {
         onMessage={(message) => setSnackbar({ message, severity: 'success' })}
       />
 
+      {useViewport && streetsFetching && (
+        <LinearProgress
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1100,
+            height: 3,
+          }}
+        />
+      )}
+
       {streetsFetching && streetCount === 0 && !showEmptyOverlay && (
         <Alert
           severity="info"
@@ -895,7 +908,7 @@ export function SigapsMap() {
           onImport={() => void handleRetryLoadStreets()}
         />
       )}
-      {streetsTotal > 2000 && (
+      {streetsTotal > VIEWPORT_STREETS_THRESHOLD && (
         <Alert
           severity="info"
           sx={{
@@ -912,6 +925,25 @@ export function SigapsMap() {
         </Alert>
       )}
 
+      {useViewport && streetCount === 0 && !streetsFetching && !isLoading && !showEmptyOverlay && (
+        <Alert
+          severity="info"
+          variant="outlined"
+          sx={{
+            position: 'absolute',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            borderRadius: 2,
+            maxWidth: 360,
+            bgcolor: 'background.paper',
+          }}
+        >
+          Mova o mapa para carregar mais ruas
+        </Alert>
+      )}
+
       <LeafletMap
           center={[PASSAGEM_FRANCA.lat, PASSAGEM_FRANCA.lng]}
           zoom={PASSAGEM_FRANCA.zoom}
@@ -922,6 +954,7 @@ export function SigapsMap() {
           preferCanvas
         >
           <MapInteractionController />
+          {useViewport && <MapBoundsReporter onBounds={onBounds} />}
           <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />
           <MapCenterController />

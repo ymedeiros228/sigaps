@@ -37,4 +37,19 @@ export class IntegrationsController {
   ) {
     return this.esus.importCsv(municipalityId, body.csv, req.user.id);
   }
+
+  @Post('esus/municipality/:id/sync')
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
+  @ApiOperation({ summary: 'Re-sincronizar dados e-SUS do último CSV importado' })
+  syncEsus(
+    @Param('id') municipalityId: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.esus.syncLast(municipalityId, req.user.id);
+  }
 }

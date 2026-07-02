@@ -19,7 +19,26 @@ export class MunicipalitiesService {
   }
 
   async findOne(id: string) {
-    const municipality = await this.prisma.municipality.findUnique({ where: { id } });
+    const municipality = await this.prisma.municipality.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        state: true,
+        prefecture: true,
+        secretariat: true,
+        logoUrl: true,
+        latitude: true,
+        longitude: true,
+        osmRelationId: true,
+        mapHomologatedAt: true,
+        mapHomologatedBy: true,
+        mapHomologationNotes: true,
+        esusLastSyncAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
     if (!municipality) {
       throw new NotFoundException('Município não encontrado');
     }

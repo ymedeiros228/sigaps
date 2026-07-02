@@ -53,6 +53,8 @@ model Municipality {
   mapHomologatedAt     DateTime? @map("map_homologated_at")
   mapHomologatedBy     String?   @map("map_homologated_by")
   mapHomologationNotes String?   @map("map_homologation_notes")
+  esusLastSyncAt       DateTime? @map("esus_last_sync_at")
+  esusImportCsv        String?   @map("esus_import_csv") @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

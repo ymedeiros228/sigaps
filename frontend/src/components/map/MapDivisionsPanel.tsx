@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -30,6 +30,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { paintZonesApi, type Microarea, type Street } from '../../services/api';
 import { useMapStore } from '../../store';
 import { streetsInsideCircle } from '../../utils/paintZone';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface MapDivisionsPanelProps {
@@ -58,6 +59,11 @@ export function MapDivisionsPanel({
   const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
   const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
   const flyTo = useMapStore((s) => s.flyTo);
+  const debouncedRadius = useDebouncedValue(draft?.radiusMeters ?? 400, 300);
+  const previewStreets = useMemo(() => {
+    if (!draft || !selectedMicroareaId) return [];
+    return streetsInsideCircle(streets, draft.lat, draft.lng, debouncedRadius);
+  }, [streets, draft, selectedMicroareaId, debouncedRadius]);
 
   const { data: zones = [] } = useQuery({
     queryKey: ['paint-zones', municipalityId],
@@ -107,10 +113,7 @@ export function MapDivisionsPanel({
     ? alpha(theme.palette.background.paper, 0.94)
     : alpha('#fff', 0.96);
 
-  const previewCount =
-    draft && selectedMicroareaId
-      ? streetsInsideCircle(streets, draft.lat, draft.lng, draft.radiusMeters).length
-      : 0;
+  const previewCount = previewStreets.length;
 
   return (
     <>

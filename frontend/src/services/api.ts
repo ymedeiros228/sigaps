@@ -122,6 +122,7 @@ export interface Municipality {
   mapHomologatedAt?: string | null;
   mapHomologatedBy?: string | null;
   mapHomologationNotes?: string | null;
+  esusLastSyncAt?: string | null;
 }
 
 export interface Street {
@@ -505,10 +506,19 @@ export const integrationsApi = {
   lookupCnes: (code: string) =>
     api.get<CnesLookupResult>(`/integrations/cnes/${encodeURIComponent(code)}`),
   importEsus: (municipalityId: string, csv: string) =>
-    api.post<{ updated: number; total: number; errors: Array<{ row: number; streetRef: string; message: string }> }>(
+    api.post<{ updated: number; total: number; errors: Array<{ row: number; streetRef: string; message: string }>; lastSyncAt?: string }>(
       `/integrations/esus/import/${municipalityId}`,
       { csv },
     ),
+  syncEsus: (municipalityId: string) =>
+    api.post<{
+      ok: boolean;
+      message: string;
+      lastSyncAt: string | null;
+      updated: number;
+      total: number;
+      errors: Array<{ row: number; streetRef: string; message: string }>;
+    }>(`/integrations/esus/municipality/${municipalityId}/sync`),
 };
 
 export const osmApi = {
@@ -540,6 +550,16 @@ export const geoApi = {
       `/geo/import/${municipalityId}/csv`,
       form,
       { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+  },
+  importShapefile: (municipalityId: string, file: File, updateByName = false) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('updateByName', String(updateByName));
+    return api.post<{ imported: number; updated: number; skipped: number; total: number }>(
+      `/geo/import/${municipalityId}/shapefile`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 300_000 },
     );
   },
   exportStreets: (municipalityId: string, microareaId?: string) =>

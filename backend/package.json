@@ -41,6 +41,7 @@
     "@tmcw/togeojson": "^7.1.2",
     "@turf/circle": "^7.3.5",
     "@xmldom/xmldom": "^0.9.10",
+    "adm-zip": "^0.5.18",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
@@ -49,7 +50,8 @@
     "passport-jwt": "^4.0.1",
     "prisma": "^5.22.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "shpjs": "^6.2.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

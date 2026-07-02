@@ -37,6 +37,11 @@ export class StreetsController {
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'mapOnly', required: false, description: 'Resposta leve para o mapa' })
   @ApiQuery({ name: 'geoPrecision', required: false, description: 'Casas decimais da geometria (mapa)' })
+  @ApiQuery({ name: 'bbox', required: false, description: 'west,south,east,north (mapOnly)' })
+  @ApiQuery({ name: 'minLat', required: false })
+  @ApiQuery({ name: 'maxLat', required: false })
+  @ApiQuery({ name: 'minLng', required: false })
+  @ApiQuery({ name: 'maxLng', required: false })
   findByMunicipality(
     @Param('municipalityId') municipalityId: string,
     @Query('search') search?: string,
@@ -46,6 +51,11 @@ export class StreetsController {
     @Query('limit') limit?: number,
     @Query('mapOnly') mapOnly?: string,
     @Query('geoPrecision') geoPrecision?: number,
+    @Query('bbox') bbox?: string,
+    @Query('minLat') minLat?: number,
+    @Query('maxLat') maxLat?: number,
+    @Query('minLng') minLng?: number,
+    @Query('maxLng') maxLng?: number,
     @Req() req?: { user: { id: string; role: string } },
   ) {
     return this.streetsService.findByMunicipality(
@@ -58,6 +68,11 @@ export class StreetsController {
         limit: limit ? Number(limit) : undefined,
         mapOnly: mapOnly === 'true' || mapOnly === '1',
         geoPrecision: geoPrecision ? Number(geoPrecision) : undefined,
+        bbox,
+        minLat: minLat != null ? Number(minLat) : undefined,
+        maxLat: maxLat != null ? Number(maxLat) : undefined,
+        minLng: minLng != null ? Number(minLng) : undefined,
+        maxLng: maxLng != null ? Number(maxLng) : undefined,
       },
       req?.user,
     );
