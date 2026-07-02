@@ -41,8 +41,9 @@ jobs:
       - run: npx prisma generate
         if: steps.check.outputs.configured == 'true'
 
-      - run: npx prisma migrate deploy
+      - name: Aplicar migrações (com reparo P3009)
         if: steps.check.outputs.configured == 'true'
+        run: sh scripts/migrate-deploy.sh
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 

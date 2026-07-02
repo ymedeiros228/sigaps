@@ -34,6 +34,7 @@ COPY --from=backend-builder /app/dist ./dist
 COPY --from=backend-builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=backend-builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY backend/prisma ./prisma
+COPY backend/scripts ./scripts
 COPY backend/assets ./assets
 COPY --from=frontend-builder /frontend/dist ./public
 COPY docker-entrypoint.sh /docker-entrypoint.sh
