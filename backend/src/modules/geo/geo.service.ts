@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { kml } from '@tmcw/togeojson';
 import { DOMParser } from '@xmldom/xmldom';
-import shp from 'shpjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { featureCollectionToKml } from '../../common/utils/geojson-to-kml.util';
 import { ImportGeoJsonDto } from './dto/import-geojson.dto';
@@ -109,6 +108,20 @@ export class GeoService {
     return this.importGeoJson(municipalityId, { geojson, updateByName });
   }
 
+  private async parseShapefileBuffer(
+    buffer: Buffer,
+  ): Promise<GeoJSON.FeatureCollection | GeoJSON.FeatureCollection[]> {
+    // shpjs assume ambiente browser (usa `self`); carrega só quando necessário.
+    if (typeof (globalThis as { self?: unknown }).self === 'undefined') {
+      (globalThis as { self: typeof globalThis }).self = globalThis;
+    }
+    const shpModule = await import('shpjs');
+    const shp = (shpModule.default ?? shpModule) as (
+      input: Buffer,
+    ) => Promise<GeoJSON.FeatureCollection | GeoJSON.FeatureCollection[]>;
+    return shp(buffer);
+  }
+
   async importShapefile(
     municipalityId: string,
     buffer: Buffer,
@@ -116,7 +129,7 @@ export class GeoService {
   ) {
     let parsed: GeoJSON.FeatureCollection | GeoJSON.FeatureCollection[];
     try {
-      parsed = await shp(buffer);
+      parsed = await this.parseShapefileBuffer(buffer);
     } catch {
       throw new BadRequestException(
         'Arquivo Shapefile inválido. Envie um .zip com .shp/.dbf/.shx ou os arquivos brutos.',
