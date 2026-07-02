@@ -22,7 +22,11 @@ export function formatPhone(value: string): string {
 export function maskCpfDisplay(cpf: string): string {
   const d = digitsOnly(cpf);
   if (d.length < 11) return cpf;
-  return `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**`;
+  return `***.***.***-${d.slice(-2)}`;
+}
+
+export function isMaskedCpf(cpf: string): boolean {
+  return cpf.includes('*');
 }
 
 /** Validação básica de CPF (dígitos verificadores). */

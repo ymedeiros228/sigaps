@@ -133,6 +133,13 @@ export function AdminPage() {
     enabled: tab === 'auditoria',
   });
 
+  const { data: autoBackupInfo, refetch: refetchAutoBackups } = useQuery({
+    queryKey: ['admin', 'auto-backups', municipalityId],
+    queryFn: () => adminApi.listAutoBackups(municipalityId).then((r) => r.data),
+    enabled: tab === 'backup',
+  });
+  const autoBackups = autoBackupInfo?.items ?? [];
+
   const exportMutation = useMutation({
     mutationFn: () => adminApi.exportBackup(municipalityId).then((r) => r.data),
     onSuccess: (data) => {
@@ -155,6 +162,25 @@ export function AdminPage() {
       setImportOpen(false);
       setPendingBackup(null);
       void queryClient.invalidateQueries();
+    },
+    onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
+  });
+
+  const runAutoBackupMutation = useMutation({
+    mutationFn: () => adminApi.runAutoBackup(municipalityId).then((r) => r.data),
+    onSuccess: () => {
+      setMessage({ type: 'success', text: 'Backup automático gerado no servidor.' });
+      void refetchAutoBackups();
+    },
+    onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
+  });
+
+  const downloadAutoBackupMutation = useMutation({
+    mutationFn: (filename: string) =>
+      adminApi.downloadAutoBackup(municipalityId, filename).then((r) => r.data),
+    onSuccess: (data, filename) => {
+      downloadJson(data, filename);
+      setMessage({ type: 'success', text: 'Backup automático baixado.' });
     },
     onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
   });
@@ -323,7 +349,8 @@ export function AdminPage() {
       )}
 
       {tab === 'backup' && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
           <Card variant="outlined" sx={{ borderRadius: 3 }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -378,6 +405,80 @@ export function AdminPage() {
                   e.target.value = '';
                 }}
               />
+            </CardContent>
+          </Card>
+          </Box>
+
+          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Storage color="primary" />
+                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                    Backups automáticos
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={runAutoBackupMutation.isPending ? <CircularProgress size={16} /> : <Refresh />}
+                  disabled={runAutoBackupMutation.isPending}
+                  onClick={() => runAutoBackupMutation.mutate()}
+                >
+                  Gerar agora
+                </Button>
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {autoBackupInfo?.retentionNote ??
+                  'Backup semanal (domingo, 03h). Baixe periodicamente — disco efêmero no Render free.'}
+              </Typography>
+              {autoBackupInfo?.lastAutoBackupAt && (
+                <Chip
+                  size="small"
+                  label={`Último backup: ${new Date(autoBackupInfo.lastAutoBackupAt).toLocaleString('pt-BR')}`}
+                  color="success"
+                  variant="outlined"
+                />
+              )}
+              {autoBackups.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  Nenhum backup automático ainda. Use &quot;Gerar agora&quot; ou aguarde o agendamento semanal.
+                </Typography>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Arquivo</TableCell>
+                        <TableCell>Data</TableCell>
+                        <TableCell>Tamanho</TableCell>
+                        <TableCell align="right">Ação</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {autoBackups.map((b) => (
+                        <TableRow key={b.filename} hover>
+                          <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{b.filename}</TableCell>
+                          <TableCell>
+                            {new Date(b.createdAt).toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell>{(b.sizeBytes / 1024).toFixed(0)} KB</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              startIcon={<CloudDownload />}
+                              disabled={downloadAutoBackupMutation.isPending}
+                              onClick={() => downloadAutoBackupMutation.mutate(b.filename)}
+                            >
+                              Baixar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </CardContent>
           </Card>
         </Box>

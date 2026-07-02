@@ -35,3 +35,7 @@ services:
         value: https://nominatim.openstreetmap.org
       - key: OVERPASS_URL
         value: https://overpass-api.de/api/interpreter
+      - key: KEEP_ALIVE_ENABLED
+        value: "true"
+      - key: AUTO_BACKUP_ENABLED
+        value: "true"

@@ -20,6 +20,8 @@ import { CreateAcsDto, UpdateAcsDto } from './dto/acs.dto';
 import { BulkAcsImportDto } from './dto/bulk-acs.dto';
 import { AcsService } from './acs.service';
 
+type AuthUser = { id: string; role: UserRole };
+
 @ApiTags('ACS')
 @ApiBearerAuth()
 @Controller('acs')
@@ -29,14 +31,17 @@ export class AcsController {
 
   @Get('municipality/:municipalityId')
   @ApiOperation({ summary: 'Listar ACS do município' })
-  findByMunicipality(@Param('municipalityId') municipalityId: string) {
-    return this.acsService.findByMunicipality(municipalityId);
+  findByMunicipality(
+    @Param('municipalityId') municipalityId: string,
+    @Req() req: { user: AuthUser },
+  ) {
+    return this.acsService.findByMunicipality(municipalityId, req.user.role);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Detalhes do ACS' })
-  findOne(@Param('id') id: string) {
-    return this.acsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: { user: AuthUser }) {
+    return this.acsService.findOne(id, req.user.role);
   }
 
   @Post()
@@ -47,8 +52,8 @@ export class AcsController {
     UserRole.ENFERMEIRO,
   )
   @ApiOperation({ summary: 'Cadastrar ACS' })
-  create(@Body() dto: CreateAcsDto, @Req() req: { user: { id: string } }) {
-    return this.acsService.create(dto, req.user.id);
+  create(@Body() dto: CreateAcsDto, @Req() req: { user: AuthUser }) {
+    return this.acsService.create(dto, req.user.id, req.user.role);
   }
 
   @Post('bulk')
@@ -59,8 +64,8 @@ export class AcsController {
     UserRole.ENFERMEIRO,
   )
   @ApiOperation({ summary: 'Importar vários ACS de uma vez (planilha)' })
-  bulkImport(@Body() dto: BulkAcsImportDto, @Req() req: { user: { id: string } }) {
-    return this.acsService.bulkImport(dto, req.user.id);
+  bulkImport(@Body() dto: BulkAcsImportDto, @Req() req: { user: AuthUser }) {
+    return this.acsService.bulkImport(dto, req.user.id, req.user.role);
   }
 
   @Post(':id/photo')
@@ -82,9 +87,9 @@ export class AcsController {
   uploadPhoto(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: { user: { id: string } },
+    @Req() req: { user: AuthUser },
   ) {
-    return this.acsService.uploadPhoto(id, file, req.user.id);
+    return this.acsService.uploadPhoto(id, file, req.user.id, req.user.role);
   }
 
   @Patch(':id')
@@ -98,9 +103,9 @@ export class AcsController {
   update(
     @Param('id') id: string,
     @Body() dto: UpdateAcsDto,
-    @Req() req: { user: { id: string } },
+    @Req() req: { user: AuthUser },
   ) {
-    return this.acsService.update(id, dto, req.user.id);
+    return this.acsService.update(id, dto, req.user.id, req.user.role);
   }
 
   @Delete(':id')

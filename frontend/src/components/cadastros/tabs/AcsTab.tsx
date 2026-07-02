@@ -29,7 +29,7 @@ import { AcsBulkImportDialog } from './AcsBulkImportDialog';
 import { AcsCardsView } from './AcsCardsView';
 import { useAuthStore } from '../../../store';
 import { canDeleteAcs } from '../../../utils/permissions';
-import { maskCpfDisplay } from '../../../utils/inputMasks';
+import { maskCpfDisplay, isMaskedCpf } from '../../../utils/inputMasks';
 
 type ViewMode = 'cards' | 'table';
 type AcsFilter = 'all' | 'sem-micro';
@@ -111,7 +111,7 @@ export function AcsTab({
       const { values } = payload;
       const body = {
         name: values.name,
-        cpf: values.cpf,
+        ...(editing && isMaskedCpf(editing.cpf) ? {} : { cpf: values.cpf }),
         phone: values.phone || undefined,
         status: values.status,
         microareaId: values.microareaId || undefined,
@@ -121,7 +121,7 @@ export function AcsTab({
             ...body,
             microareaId: values.microareaId || null,
           })
-        : acsApi.create({ ...body, municipalityId });
+        : acsApi.create({ ...body, cpf: values.cpf, municipalityId });
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['acs'] });

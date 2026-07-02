@@ -9,6 +9,7 @@ import { extname, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
+import { maskCpfField } from '../../common/utils/mask-cpf.util';
 import { CreateAcsDto, UpdateAcsDto } from './dto/acs.dto';
 import { BulkAcsImportDto } from './dto/bulk-acs.dto';
 
@@ -19,23 +20,29 @@ export class AcsService {
     private readonly audit: AuditService,
   ) {}
 
-  findByMunicipality(municipalityId: string) {
-    return this.prisma.acs.findMany({
-      where: { municipalityId },
-      include: {
-        microarea: { select: { id: true, name: true, number: true, color: true } },
-      },
-      orderBy: { name: 'asc' },
-    });
+  findByMunicipality(municipalityId: string, viewerRole?: string) {
+    return this.prisma.acs
+      .findMany({
+        where: { municipalityId },
+        include: {
+          microarea: { select: { id: true, name: true, number: true, color: true } },
+        },
+        orderBy: { name: 'asc' },
+      })
+      .then((rows) => rows.map((row) => this.maskAcsRow(row, viewerRole)));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, viewerRole?: string) {
     const acs = await this.prisma.acs.findUnique({
       where: { id },
       include: { microarea: true },
     });
     if (!acs) throw new NotFoundException('ACS não encontrado');
-    return acs;
+    return this.maskAcsRow(acs, viewerRole);
+  }
+
+  private maskAcsRow<T extends { cpf: string }>(row: T, viewerRole?: string): T {
+    return { ...row, cpf: maskCpfField(row.cpf, viewerRole) ?? row.cpf };
   }
 
   private acsAuditFields(acs: {
@@ -85,7 +92,7 @@ export class AcsService {
     return partial?.id;
   }
 
-  async create(dto: CreateAcsDto, userId: string) {
+  async create(dto: CreateAcsDto, userId: string, viewerRole?: string) {
     const { microareaId, ...data } = dto;
     const existing = await this.prisma.acs.findUnique({ where: { cpf: data.cpf } });
     if (existing) {
@@ -93,21 +100,22 @@ export class AcsService {
     }
     const acs = await this.prisma.acs.create({ data });
     if (microareaId) await this.assignToMicroarea(acs.id, microareaId);
-    const result = await this.findOne(acs.id);
+    const result = await this.findOne(acs.id, viewerRole);
 
     await this.audit.log({
       userId,
       entityType: 'acs',
       entityId: acs.id,
       action: 'CREATE',
-      afterData: this.acsAuditFields(result),
+      afterData: this.acsAuditFields(acs),
     });
 
     return result;
   }
 
-  async update(id: string, dto: UpdateAcsDto, userId: string) {
-    const before = await this.findOne(id);
+  async update(id: string, dto: UpdateAcsDto, userId: string, viewerRole?: string) {
+    const beforeRaw = await this.prisma.acs.findUnique({ where: { id } });
+    if (!beforeRaw) throw new NotFoundException('ACS não encontrado');
     const { microareaId, municipalityId: _m, cpf: _c, ...data } = dto;
     if (dto.cpf) {
       const dup = await this.prisma.acs.findFirst({
@@ -119,22 +127,23 @@ export class AcsService {
     if (microareaId !== undefined) {
       await this.assignToMicroarea(id, microareaId || null);
     }
-    const result = await this.findOne(id);
+    const afterRaw = await this.prisma.acs.findUnique({ where: { id } });
+    const result = await this.findOne(id, viewerRole);
 
     await this.audit.log({
       userId,
       entityType: 'acs',
       entityId: id,
       action: 'UPDATE',
-      beforeData: this.acsAuditFields(before),
-      afterData: this.acsAuditFields(result),
+      beforeData: this.acsAuditFields(beforeRaw),
+      afterData: afterRaw ? this.acsAuditFields(afterRaw) : undefined,
     });
 
     return result;
   }
 
-  async uploadPhoto(id: string, file: Express.Multer.File, userId: string) {
-    const before = await this.findOne(id);
+  async uploadPhoto(id: string, file: Express.Multer.File, userId: string, viewerRole?: string) {
+    const before = await this.findOne(id, viewerRole);
 
     const allowed = ['.png', '.jpg', '.jpeg', '.webp'];
     const ext = extname(file.originalname).toLowerCase() || '.jpg';
@@ -166,10 +175,10 @@ export class AcsService {
       afterData: { photoUrl },
     });
 
-    return result;
+    return this.maskAcsRow(result, viewerRole);
   }
 
-  async bulkImport(dto: BulkAcsImportDto, userId: string) {
+  async bulkImport(dto: BulkAcsImportDto, userId: string, viewerRole?: string) {
     const microareas = await this.prisma.microarea.findMany({
       where: { municipalityId: dto.municipalityId },
       select: { id: true, name: true, number: true },
@@ -187,7 +196,7 @@ export class AcsService {
         if (item.microareaRef && !microareaId) {
           errors.push({
             row,
-            cpf: item.cpf,
+            cpf: maskCpfField(item.cpf, viewerRole) ?? item.cpf,
             message: `Microárea "${item.microareaRef}" não encontrada`,
           });
           continue;
@@ -245,7 +254,7 @@ export class AcsService {
       } catch (error) {
         errors.push({
           row,
-          cpf: item.cpf,
+          cpf: maskCpfField(item.cpf, viewerRole) ?? item.cpf,
           message: (error as Error).message || 'Erro ao importar linha',
         });
       }
@@ -262,7 +271,8 @@ export class AcsService {
   }
 
   async remove(id: string, userId: string) {
-    const before = await this.findOne(id);
+    const beforeRaw = await this.prisma.acs.findUnique({ where: { id } });
+    if (!beforeRaw) throw new NotFoundException('ACS não encontrado');
     await this.prisma.microarea.updateMany({
       where: { acsId: id },
       data: { acsId: null },
@@ -274,7 +284,7 @@ export class AcsService {
       entityType: 'acs',
       entityId: id,
       action: 'DELETE',
-      beforeData: this.acsAuditFields(before),
+      beforeData: this.acsAuditFields(beforeRaw),
     });
 
     return { ok: true };

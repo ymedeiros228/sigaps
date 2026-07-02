@@ -44,6 +44,7 @@ import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../u
 import { canImportStreets } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
+import { fetchAllMapStreets } from '../../utils/fetchAllStreets';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea } from '../../utils/streetsCache';
@@ -147,8 +148,7 @@ export function SigapsMap() {
 
   const { data: streetsData, isLoading, isError: streetsLoadError, isFetching: streetsFetching, refetch: refetchStreets } = useQuery({
     queryKey: queryKeys.streetsMap(municipalityId!),
-    queryFn: () =>
-      streetsApi.list(municipalityId!, { limit: 2000, mapOnly: true }).then((r) => r.data),
+    queryFn: () => fetchAllMapStreets(municipalityId!),
     enabled: !!municipalityId,
     staleTime: CACHE.streets,
     gcTime: 15 * 60_000,
@@ -877,9 +877,9 @@ export function SigapsMap() {
           onImport={() => void handleRetryLoadStreets()}
         />
       )}
-      {streetsTotal > streetCount && (
+      {streetsTotal > 2000 && (
         <Alert
-          severity="warning"
+          severity="info"
           sx={{
             position: 'absolute',
             top: 80,
@@ -889,7 +889,8 @@ export function SigapsMap() {
             borderRadius: 2,
           }}
         >
-          Mostrando {streetCount} de {streetsTotal} ruas. Use a busca para localizar ruas específicas.
+          Malha grande ({streetsTotal} ruas). O mapa simplifica geometrias e carrega por área visível
+          para manter a performance.
         </Alert>
       )}
 

@@ -23,12 +23,14 @@ export class StreetsService {
       page?: number;
       limit?: number;
       mapOnly?: boolean;
+      geoPrecision?: number;
     } = {},
   ) {
     const page = options.page ?? 1;
-    const limit = Math.min(options.limit ?? 500, 2000);
+    const limit = Math.min(options.limit ?? 500, options.mapOnly ? 5000 : 2000);
     const skip = (page - 1) * limit;
     const mapOnly = options.mapOnly ?? false;
+    const geoPrecision = options.geoPrecision ?? (mapOnly ? 4 : 5);
 
     const where = {
       municipalityId,
@@ -80,7 +82,7 @@ export class StreetsService {
     return {
       items: items.map((s) => ({
         ...s,
-        geojson: compactLineStringGeojson(s.geojson),
+        geojson: compactLineStringGeojson(s.geojson, geoPrecision),
         ...(mapOnly
           ? {
               osmId: (s as { osmId?: bigint | null }).osmId?.toString() ?? null,

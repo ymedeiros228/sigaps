@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
+import { maskCpfField } from '../../common/utils/mask-cpf.util';
 import { CreateMicroareaDto, UpdateMicroareaDto } from './dto/microarea.dto';
 
 @Injectable()
@@ -28,7 +29,7 @@ export class MicroareasService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, viewerRole?: string) {
     const microarea = await this.prisma.microarea.findUnique({
       where: { id },
       include: {
@@ -46,6 +47,15 @@ export class MicroareasService {
       },
     });
     if (!microarea) throw new NotFoundException('Microárea não encontrada');
+    if (microarea.acs) {
+      return {
+        ...microarea,
+        acs: {
+          ...microarea.acs,
+          cpf: maskCpfField(microarea.acs.cpf, viewerRole) ?? microarea.acs.cpf,
+        },
+      };
+    }
     return microarea;
   }
 

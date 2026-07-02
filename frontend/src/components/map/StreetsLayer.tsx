@@ -7,8 +7,10 @@ import { useAppStore, useMapStore } from '../../store';
 import { isValidLineString } from '../../utils/geojsonSafe';
 import { formatStreetLabel } from '../../utils/streetSearch';
 import { familyHeatColor } from '../../utils/geo';
+import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetViewport';
 
 const HIT_WEIGHT = 32;
+const VIEWPORT_CULL_MIN = 600;
 
 interface StreetsLayerProps {
   streets: Street[];
@@ -45,6 +47,7 @@ export function StreetsLayer({
   const isPaintingDragRef = useRef(false);
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
+  const [mapBounds, setMapBounds] = useState(map.getBounds());
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,8 +56,13 @@ export function StreetsLayer({
 
   useEffect(() => {
     const onZoom = () => setZoom(map.getZoom());
+    const onMove = () => setMapBounds(map.getBounds());
     map.on('zoomend', onZoom);
-    return () => { map.off('zoomend', onZoom); };
+    map.on('moveend', onMove);
+    return () => {
+      map.off('zoomend', onZoom);
+      map.off('moveend', onMove);
+    };
   }, [map]);
 
   useEffect(() => {
@@ -76,9 +84,21 @@ export function StreetsLayer({
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [onDragPaintEnd]);
 
+  const renderStreets = useMemo(() => {
+    if (streets.length < VIEWPORT_CULL_MIN || paintMode) return streets;
+    return streets.filter(
+      (street) =>
+        selectedIds.has(street.id) ||
+        dragPaintIds.has(street.id) ||
+        street.id === highlightedId ||
+        !!street.microareaId ||
+        lineIntersectsBounds(street.geojson, mapBounds),
+    );
+  }, [streets, mapBounds, paintMode, selectedIds, dragPaintIds, highlightedId]);
+
   const features = useMemo(
     () =>
-      streets
+      renderStreets
         .filter((street) => isValidLineString(street.geojson))
         .map((street) => ({
         type: 'Feature' as const,
@@ -95,9 +115,9 @@ export function StreetsLayer({
           dragPending: dragPaintIds.has(street.id),
           familyCount: street.familyCount ?? 0,
         },
-        geometry: street.geojson,
+        geometry: simplifyLineGeojson(street.geojson, zoom),
       })),
-    [streets, highlightedId, selectedIds, dragPaintIds],
+    [renderStreets, highlightedId, selectedIds, dragPaintIds, zoom],
   );
 
   const { painted } = useMemo(() => {
@@ -213,7 +233,11 @@ export function StreetsLayer({
     // Nomes fixos no mapa ficam acima das microáreas (pane de tooltip do Leaflet).
     // Só exibir fixo quando microáreas estão ocultas; com microáreas visíveis, usar hover.
     const showFixedName =
-      !paintMode && !showEnvelopes && props.hasMicroarea && zoom >= 16;
+      !paintMode &&
+      !showEnvelopes &&
+      props.hasMicroarea &&
+      zoom >= 16 &&
+      streets.length <= 500;
 
     if (showFixedName) {
       layer.bindTooltip(label, {

@@ -42,6 +42,15 @@ export function canAccessAdmin(role?: string): boolean {
   return role === 'ADMINISTRADOR';
 }
 
+/** Perfis que veem CPF completo na API e exportações. */
+export function canViewFullCpf(role?: string): boolean {
+  return (
+    role === 'ADMINISTRADOR' ||
+    role === 'SECRETARIO_SAUDE' ||
+    role === 'COORDENADOR_APS'
+  );
+}
+
 export function formatRoleLabel(role?: string): string {
   const labels: Record<string, string> = {
     ADMINISTRADOR: 'Administrador',

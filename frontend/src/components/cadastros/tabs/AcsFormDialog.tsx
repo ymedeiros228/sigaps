@@ -22,6 +22,7 @@ import {
   digitsOnly,
   formatCpf,
   formatPhone,
+  isMaskedCpf,
   isValidCpf,
 } from '../../../utils/inputMasks';
 import { assetUrl } from '../../../utils/assetUrl';
@@ -177,8 +178,9 @@ export function AcsFormDialog({
             name="cpf"
             control={control}
             rules={{
-              required: 'Informe o CPF',
+              required: editing && isMaskedCpf(editing.cpf) ? false : 'Informe o CPF',
               validate: (v) => {
+                if (editing && isMaskedCpf(editing.cpf)) return true;
                 const d = digitsOnly(v);
                 if (d.length !== 11) return 'CPF deve ter 11 dígitos';
                 if (!isValidCpf(d)) return 'CPF inválido';
@@ -188,10 +190,15 @@ export function AcsFormDialog({
             render={({ field }) => (
               <TextField
                 label="CPF"
-                value={formatCpf(field.value)}
+                value={editing && isMaskedCpf(editing.cpf) ? editing.cpf : formatCpf(field.value)}
                 onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 11))}
                 error={!!errors.cpf}
-                helperText={errors.cpf?.message}
+                helperText={
+                  errors.cpf?.message ??
+                  (editing && isMaskedCpf(editing.cpf)
+                    ? 'CPF mascarado — não editável neste perfil.'
+                    : undefined)
+                }
                 fullWidth
                 disabled={!!editing}
                 placeholder="000.000.000-00"

@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store';
 import { prefetchMapData } from '../utils/prefetchAppData';
-import { waitForApiReady } from '../utils/waitForApi';
+import { startApiKeepAlive, waitForApiReady } from '../utils/waitForApi';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
 import { getDevLoginDefaults, isDevAutoLoginEnabled } from '../constants/devAuth';
 
@@ -33,6 +33,7 @@ export function LoginPage() {
   const devDefaults = getDevLoginDefaults();
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const [wakeStatus, setWakeStatus] = useState<string | null>(null);
   const [autoLogging, setAutoLogging] = useState(false);
   const autoLoginTried = useRef(false);
   const { register, handleSubmit, formState, reset } = useForm<LoginForm>({
@@ -45,11 +46,19 @@ export function LoginPage() {
     }
   }, [reset]);
 
+  useEffect(() => startApiKeepAlive(), []);
+
   const doLogin = async (data: LoginForm) => {
     setError('');
     setConnecting(true);
+    setWakeStatus('Conectando ao servidor…');
     try {
-      await waitForApiReady(10, 4000);
+      await waitForApiReady(12, 5000, (attempt, max) => {
+        if (attempt > 1) {
+          setWakeStatus(`Servidor acordando… tentativa ${attempt} de ${max}`);
+        }
+      });
+      setWakeStatus(null);
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
       navigate('/', { replace: true });
@@ -61,6 +70,7 @@ export function LoginPage() {
       setAutoLogging(false);
     } finally {
       setConnecting(false);
+      setWakeStatus(null);
     }
   };
 
@@ -230,9 +240,16 @@ export function LoginPage() {
             </Alert>
           )}
 
+          {import.meta.env.PROD && !connecting && !autoLogging && (
+            <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+              Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto enquanto o
+              servidor acorda. Depois disso, o acesso fica rápido.
+            </Alert>
+          )}
+
           {connecting && !autoLogging && (
             <Alert severity="info" icon={<CircularProgress size={16} />} sx={{ mb: 2, borderRadius: 2 }}>
-              Conectando ao servidor…
+              {wakeStatus ?? 'Conectando ao servidor…'}
             </Alert>
           )}
 

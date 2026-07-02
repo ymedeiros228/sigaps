@@ -17,6 +17,8 @@ Limitações para usuários: [docs/LIMITACOES_PLANO_GRATUITO.md](docs/LIMITACOES
 Stack sugerida: **Supabase** (banco) + **Render** (API) + **Cloudflare Pages** (site).  
 Variáveis de exemplo: `.env.production.example` | Blueprint: `render.yaml`
 
+**Produção (Sprint 4):** o frontend envia ping periódico em `/health` para reduzir cold start. No backend, `RENDER_EXTERNAL_URL` ativa keep-alive automático; `AUTO_BACKUP_ENABLED=false` desliga o cron semanal. Backups automáticos ficam em `uploads/backups/` (disco efêmero no Render gratuito — baixe via Administração).
+
 ---
 | Documento | Descrição |
 |-----------|-----------|

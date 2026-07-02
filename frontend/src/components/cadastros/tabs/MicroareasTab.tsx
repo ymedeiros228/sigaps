@@ -18,6 +18,9 @@ import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyStat
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
 import { MicroareaLinkFields } from '../MicroareaLinkFields';
 import { MICROAREA_COLORS } from '../cadastrosConfig';
+import { useAuthStore } from '../../../store';
+import { maskCpfDisplay } from '../../../utils/inputMasks';
+import { canViewFullCpf } from '../../../utils/permissions';
 
 type MicroareaForm = {
   number: number;
@@ -40,6 +43,7 @@ function sanitizeLinks(values: MicroareaForm): MicroareaForm {
 
 export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
   const { canManage, reportError, reportSuccess } = useCadastros();
+  const userRole = useAuthStore((s) => s.user?.role);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Microarea | null>(null);
@@ -139,7 +143,11 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         m.name,
         m.number,
         m.acs?.name ?? '',
-        acs?.cpf ?? '',
+        acs?.cpf
+          ? canViewFullCpf(userRole)
+            ? acs.cpf
+            : maskCpfDisplay(acs.cpf)
+          : '',
         m.ubs?.name ?? '',
         m.neighborhood?.name ?? '',
         m._count?.streets ?? 0,

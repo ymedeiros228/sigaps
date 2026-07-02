@@ -32,16 +32,30 @@ async function pingHealth(timeoutMs = 15_000): Promise<boolean> {
 }
 
 /** Aguarda a API responder (útil no cold start do Render). Sempre tenta seguir em frente. */
-export async function waitForApiReady(maxAttempts = 15, intervalMs = 4000): Promise<boolean> {
+export async function waitForApiReady(
+  maxAttempts = 15,
+  intervalMs = 4000,
+  onProgress?: (attempt: number, maxAttempts: number) => void,
+): Promise<boolean> {
   if (!isCloudDeployment()) return true;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    onProgress?.(attempt + 1, maxAttempts);
     if (await pingHealth()) return true;
     if (attempt < maxAttempts - 1) {
       await new Promise((r) => setTimeout(r, intervalMs));
     }
   }
   return false;
+}
+
+/** Ping periódico enquanto o app está aberto (reduz cold start no Render). */
+export function startApiKeepAlive(intervalMs = 12 * 60 * 1000): () => void {
+  if (!isCloudDeployment()) return () => {};
+
+  void pingHealth(10_000);
+  const id = window.setInterval(() => void pingHealth(10_000), intervalMs);
+  return () => window.clearInterval(id);
 }
 
 export async function fetchDashboardIndicators(municipalityId: string) {

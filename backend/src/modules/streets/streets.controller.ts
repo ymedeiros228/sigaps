@@ -36,6 +36,7 @@ export class StreetsController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'mapOnly', required: false, description: 'Resposta leve para o mapa' })
+  @ApiQuery({ name: 'geoPrecision', required: false, description: 'Casas decimais da geometria (mapa)' })
   findByMunicipality(
     @Param('municipalityId') municipalityId: string,
     @Query('search') search?: string,
@@ -44,6 +45,7 @@ export class StreetsController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('mapOnly') mapOnly?: string,
+    @Query('geoPrecision') geoPrecision?: number,
   ) {
     return this.streetsService.findByMunicipality(municipalityId, {
       search,
@@ -52,6 +54,7 @@ export class StreetsController {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       mapOnly: mapOnly === 'true' || mapOnly === '1',
+      geoPrecision: geoPrecision ? Number(geoPrecision) : undefined,
     });
   }
 

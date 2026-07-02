@@ -397,6 +397,20 @@ export const adminApi = {
       payload,
       { timeout: 300_000 },
     ),
+  listAutoBackups: (municipalityId: string) =>
+    api.get<{
+      lastAutoBackupAt: string | null;
+      items: Array<{ filename: string; sizeBytes: number; createdAt: string }>;
+      retentionNote: string;
+    }>(`/admin/municipality/${municipalityId}/backup/auto`),
+  runAutoBackup: (municipalityId: string) =>
+    api.post<{ filename: string; sizeBytes: number; createdAt: string }>(
+      `/admin/municipality/${municipalityId}/backup/auto/run`,
+    ),
+  downloadAutoBackup: (municipalityId: string, filename: string) =>
+    api.get<Record<string, unknown>>(
+      `/admin/municipality/${municipalityId}/backup/auto/${encodeURIComponent(filename)}`,
+    ),
   audit: (municipalityId: string, page = 1, limit = 50, filters?: AuditFilters) =>
     api.get<{
       items: AuditLogEntry[];

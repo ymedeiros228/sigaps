@@ -24,6 +24,7 @@ const AdminPage = lazy(() =>
 );
 
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from './utils/queryRetry';
+import { startApiKeepAlive } from './utils/waitForApi';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -133,6 +134,8 @@ export default function App() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => startApiKeepAlive(), []);
 
   return (
     <QueryClientProvider client={queryClient}>

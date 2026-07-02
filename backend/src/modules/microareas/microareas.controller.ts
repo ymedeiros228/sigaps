@@ -30,8 +30,8 @@ export class MicroareasController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Detalhes da microárea' })
-  findOne(@Param('id') id: string) {
-    return this.microareasService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: { user: { role: string } }) {
+    return this.microareasService.findOne(id, req.user.role);
   }
 
   @Get(':id/envelope')

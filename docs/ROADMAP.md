@@ -133,10 +133,10 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 **Objetivo:** Uso diário sem fricção.
 
-- [ ] M4 — Plano pago Render ou keep-alive documentado
-- [ ] M6 — Backup automatizado semanal
-- [ ] M7 — Otimização ruas > 2000
-- [ ] M1 — CPF mascarado na API por perfil
+- [x] M4 — Plano pago Render ou keep-alive documentado
+- [x] M6 — Backup automatizado semanal
+- [x] M7 — Otimização ruas > 2000
+- [x] M1 — CPF mascarado na API por perfil
 
 **Critério de aceite:** Abertura < 5s em horário de pico; backup semanal documentado.
 

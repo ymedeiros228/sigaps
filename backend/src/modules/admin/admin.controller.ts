@@ -41,6 +41,27 @@ export class AdminController {
     return this.backup.importBackup(municipalityId, payload);
   }
 
+  @Get('municipality/:municipalityId/backup/auto')
+  @ApiOperation({ summary: 'Listar backups automáticos do município' })
+  listAutoBackups(@Param('municipalityId') municipalityId: string) {
+    return this.backup.listAutoBackups(municipalityId);
+  }
+
+  @Post('municipality/:municipalityId/backup/auto/run')
+  @ApiOperation({ summary: 'Gerar backup automático agora' })
+  runAutoBackup(@Param('municipalityId') municipalityId: string) {
+    return this.backup.saveAutoBackup(municipalityId);
+  }
+
+  @Get('municipality/:municipalityId/backup/auto/:filename')
+  @ApiOperation({ summary: 'Baixar backup automático' })
+  downloadAutoBackup(
+    @Param('municipalityId') municipalityId: string,
+    @Param('filename') filename: string,
+  ) {
+    return this.backup.readAutoBackup(municipalityId, filename);
+  }
+
   @Get('municipality/:municipalityId/audit')
   @ApiOperation({ summary: 'Log de auditoria paginado' })
   audit(
