@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
@@ -52,7 +52,20 @@ export class UbsService {
     return data as Prisma.UbsUncheckedCreateInput | Prisma.UbsUncheckedUpdateInput;
   }
 
+  private async assertMunicipality(municipalityId: string) {
+    const exists = await this.prisma.municipality.findUnique({
+      where: { id: municipalityId },
+      select: { id: true },
+    });
+    if (!exists) {
+      throw new BadRequestException(
+        'Município inválido ou não encontrado. Recarregue a página ou selecione o município no menu lateral.',
+      );
+    }
+  }
+
   async create(dto: CreateUbsDto, userId: string) {
+    await this.assertMunicipality(dto.municipalityId);
     const ubs = await this.prisma.ubs.create({ data: this.prepareUbsData(dto) });
     await this.audit.log({
       userId,

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { Prisma } from '@prisma/client';
@@ -14,19 +14,26 @@ export interface AuditEntry {
 
 @Injectable()
 export class AuditService {
+  private readonly logger = new Logger(AuditService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async log(entry: AuditEntry) {
-    return this.prisma.auditLog.create({
-      data: {
-        userId: entry.userId,
-        entityType: entry.entityType,
-        entityId: entry.entityId,
-        action: entry.action,
-        beforeData: entry.beforeData ?? undefined,
-        afterData: entry.afterData ?? undefined,
-      },
-    });
+    try {
+      return await this.prisma.auditLog.create({
+        data: {
+          userId: entry.userId,
+          entityType: entry.entityType,
+          entityId: entry.entityId,
+          action: entry.action,
+          beforeData: entry.beforeData ?? undefined,
+          afterData: entry.afterData ?? undefined,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(`Auditoria não registrada (${entry.entityType}/${entry.entityId}): ${(error as Error).message}`);
+      return null;
+    }
   }
 
   async findPaginated(

@@ -7,6 +7,7 @@ import { createAppTheme } from './theme';
 import { useAuthStore, useAppStore } from './store';
 import { LoginPage } from './pages/LoginPage';
 import { AppLayout } from './components/layout/AppLayout';
+import { useEnsureValidMunicipality } from './hooks/useEnsureValidMunicipality';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AjudaHostingPage } from './components/common/HostingNotice';
 
@@ -62,10 +63,15 @@ function HomeRoute() {
   );
 }
 
+function AppLayoutWithMunicipality({ children }: { children: React.ReactNode }) {
+  useEnsureValidMunicipality();
+  return <>{children}</>;
+}
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
   if (!token) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return <AppLayoutWithMunicipality>{children}</AppLayoutWithMunicipality>;
 }
 
 function AppRoutes() {

@@ -50,15 +50,29 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       if (exception.code === 'P2002') {
         const target = exception.meta?.target;
         const fields = Array.isArray(target) ? target.map(String) : [];
+        const msg = String(exception.message).toLowerCase();
+        const isCpfConflict = fields.some((f) => f.includes('cpf')) || msg.includes('acs_cpf');
         const isCnesConflict =
-          fields.some((f) => f.includes('cnes_code')) ||
-          String(exception.message).includes('ubs_cnes_code');
+          fields.some((f) => f.includes('cnes_code')) || msg.includes('ubs_cnes_code');
         response.status(HttpStatus.CONFLICT).json({
           statusCode: HttpStatus.CONFLICT,
-          message: isCnesConflict
-            ? 'Já existe uma UBS com este código CNES neste município.'
-            : 'Conflito ao salvar — o registro pode já existir.',
-          code: isCnesConflict ? 'UBS_CNES_DUPLICATE' : 'UNIQUE_CONSTRAINT',
+          message: isCpfConflict
+            ? 'Já existe um ACS com este CPF.'
+            : isCnesConflict
+              ? 'Já existe uma UBS com este código CNES neste município.'
+              : 'Conflito ao salvar — o registro pode já existir.',
+          code: isCpfConflict ? 'ACS_CPF_DUPLICATE' : isCnesConflict ? 'UBS_CNES_DUPLICATE' : 'UNIQUE_CONSTRAINT',
+        });
+        return;
+      }
+
+      if (exception.code === 'P2003') {
+        this.logger.error(`FK violation: ${exception.message}`);
+        response.status(HttpStatus.BAD_REQUEST).json({
+          statusCode: HttpStatus.BAD_REQUEST,
+          message:
+            'Município ou vínculo inválido. Recarregue a página ou selecione o município correto no menu lateral.',
+          code: 'INVALID_REFERENCE',
         });
         return;
       }
@@ -76,6 +90,16 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         });
         return;
       }
+    }
+
+    if (exception instanceof Prisma.PrismaClientValidationError) {
+      this.logger.error(`Validação Prisma: ${exception.message}`);
+      response.status(HttpStatus.BAD_REQUEST).json({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Dados inválidos para salvar. Verifique os campos obrigatórios.',
+        code: 'PRISMA_VALIDATION',
+      });
+      return;
     }
 
     this.logger.error(exception.message, exception.stack);

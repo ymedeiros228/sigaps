@@ -54,6 +54,9 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
   }
 
   if (err.response?.status === 500) {
+    if (typeof data.message === 'string' && data.message.length > 0) {
+      return data.message;
+    }
     return 'Servidor temporariamente indisponível. Aguarde um momento e tente novamente.';
   }
 

@@ -92,13 +92,28 @@ export class AcsService {
     return partial?.id;
   }
 
+  private async assertMunicipality(municipalityId: string) {
+    const exists = await this.prisma.municipality.findUnique({
+      where: { id: municipalityId },
+      select: { id: true },
+    });
+    if (!exists) {
+      throw new BadRequestException(
+        'Município inválido ou não encontrado. Recarregue a página ou selecione o município no menu lateral.',
+      );
+    }
+  }
+
   async create(dto: CreateAcsDto, userId: string, viewerRole?: string) {
-    const { microareaId, ...data } = dto;
-    const existing = await this.prisma.acs.findUnique({ where: { cpf: data.cpf } });
+    const { microareaId, municipalityId, ...rest } = dto;
+    await this.assertMunicipality(municipalityId);
+    const existing = await this.prisma.acs.findUnique({ where: { cpf: rest.cpf } });
     if (existing) {
       throw new ConflictException('Já existe um ACS com este CPF.');
     }
-    const acs = await this.prisma.acs.create({ data });
+    const acs = await this.prisma.acs.create({
+      data: { ...rest, municipalityId, status: rest.status ?? 'ATIVO' },
+    });
     if (microareaId) await this.assignToMicroarea(acs.id, microareaId);
     const result = await this.findOne(acs.id, viewerRole);
 
