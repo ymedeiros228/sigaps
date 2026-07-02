@@ -1,30 +1,30 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
-  cadastrosApi,
   microareasApi,
   neighborhoodsApi,
   paintZonesApi,
   dashboardApi,
 } from '../services/api';
-import { fetchAllMapStreets } from './fetchAllStreets';
+import { fetchCadastrosBundle } from './fetchCadastrosData';
 import { hydrateCadastrosCache } from './hydrateCadastrosCache';
+import { fetchAllMapStreets } from './fetchAllStreets';
 import { CACHE, queryKeys } from './queryKeys';
 
-/** Prefetch bundle de cadastros (1 request). */
+/** Prefetch cadastros com bundle + fallback (compatível com API antiga). */
 export function prefetchCadastrosData(queryClient: QueryClient, municipalityId: string) {
   if (!municipalityId) return;
   void queryClient.prefetchQuery({
     queryKey: queryKeys.cadastrosBundle(municipalityId),
-    queryFn: () =>
-      cadastrosApi.getBundle(municipalityId).then((r) => {
-        hydrateCadastrosCache(queryClient, municipalityId, r.data);
-        return r.data;
-      }),
+    queryFn: async () => {
+      const bundle = await fetchCadastrosBundle(municipalityId);
+      hydrateCadastrosCache(queryClient, municipalityId, bundle);
+      return bundle;
+    },
     staleTime: CACHE.default,
   });
 }
 
-/** Prefetch leve: dashboard e mapa; cadastros em bundle separado. */
+/** Prefetch leve: dashboard e mapa. */
 export function prefetchMapData(queryClient: QueryClient, municipalityId: string) {
   void Promise.all([
     queryClient.prefetchQuery({
@@ -64,7 +64,6 @@ export function prefetchMapData(queryClient: QueryClient, municipalityId: string
   }
 }
 
-/** Invalida dashboard com debounce durante pintura rápida */
 let dashboardInvalidateTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function scheduleDashboardInvalidate(queryClient: QueryClient, municipalityId?: string) {

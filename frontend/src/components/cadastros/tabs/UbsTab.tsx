@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, CircularProgress, IconButton, TextField, Tooltip } from '@mui/material';
 import { Add, Delete, Edit, LocalHospital, Search } from '@mui/icons-material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { integrationsApi, ubsApi, type Ubs } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
-import { useCadastrosData } from '../CadastrosDataContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
 import { getApiErrorMessage } from '../../../utils/apiError';
+import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
+import { queryKeys } from '../../../utils/queryKeys';
 
 type UbsForm = Omit<Ubs, 'id' | '_count'>;
 
@@ -31,8 +32,12 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
     formState: { errors },
   } = useForm<UbsForm>();
 
-  const { bundle, isLoading } = useCadastrosData();
-  const data = (bundle?.ubs ?? []) as Ubs[];
+  const { data = [], isPending: isLoading } = useQuery({
+    queryKey: queryKeys.ubs(municipalityId),
+    queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();

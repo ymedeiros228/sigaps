@@ -1,15 +1,19 @@
 import axios from 'axios';
 
-const PRODUCTION_API_URL = 'https://sigaps-api.onrender.com';
+/** URL da API: vazio em produção = mesma origem (Render unificado). */
+function resolveApiUrl(): string {
+  const env = import.meta.env.VITE_API_URL;
+  if (typeof env === 'string' && env.length > 0) return env;
+  if (import.meta.env.PROD) return '';
+  return 'http://localhost:3000';
+}
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? PRODUCTION_API_URL : 'http://localhost:3000');
+const API_URL = resolveApiUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: import.meta.env.PROD ? 90_000 : 30_000,
+  timeout: import.meta.env.PROD ? 45_000 : 30_000,
 });
 
 let isRefreshing = false;

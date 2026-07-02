@@ -13,17 +13,18 @@ import {
   Alert,
 } from '@mui/material';
 import { AccountBalance, CloudUpload, Sync, Upload } from '@mui/icons-material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { municipalitiesApi, integrationsApi } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
-import { useCadastrosData } from '../CadastrosDataContext';
 import { EsusImportDialog } from '../EsusImportDialog';
 import { canImportStreets } from '../../../utils/permissions';
 import { useAuthStore } from '../../../store';
 import { assetUrl } from '../../../utils/assetUrl';
 import { queryKeys } from '../../../utils/queryKeys';
+import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
+import { CadastrosLoadError } from '../CadastrosLoadError';
 
 type MunicipalityForm = {
   name: string;
@@ -47,8 +48,18 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     formState: { errors },
   } = useForm<MunicipalityForm>();
 
-  const { bundle, isLoading } = useCadastrosData();
-  const municipality = bundle?.municipality;
+  const {
+    data: municipality,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.municipality(municipalityId),
+    queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
 
   useEffect(() => {
     if (municipality) {
@@ -93,7 +104,17 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     onError: reportError,
   });
 
-  if (isLoading && !municipality) {
+  if (isError) {
+    return (
+      <CadastrosLoadError
+        title="Erro ao carregar município"
+        message={error instanceof Error ? error.message : 'Tente novamente.'}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+
+  if (isPending && !municipality) {
     return (
       <Box sx={{ maxWidth: 640 }}>
         <Skeleton width="45%" height={32} sx={{ mb: 1 }} />

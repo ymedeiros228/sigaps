@@ -2,15 +2,16 @@ import { useMemo, useState, type ChangeEvent } from 'react';
 import { Box, Button, Chip, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { Add, Edit, GridView, Map as MapIcon, Download } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import {
+  acsApi,
   microareasApi,
-  type Acs,
+  neighborhoodsApi,
+  ubsApi,
   type Microarea,
 } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
-import { useCadastrosData } from '../CadastrosDataContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
@@ -20,7 +21,10 @@ import { MICROAREA_COLORS } from '../cadastrosConfig';
 import { useAuthStore } from '../../../store';
 import { maskCpfDisplay } from '../../../utils/inputMasks';
 import { canViewFullCpf } from '../../../utils/permissions';
+import { CACHE, queryKeys } from '../../../utils/queryKeys';
+import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
+import { CadastrosLoadError } from '../CadastrosLoadError';
 
 type MicroareaForm = {
   number: number;
@@ -59,11 +63,41 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
 
   const selectedColor = watch('color') || MICROAREA_COLORS[0];
 
-  const { bundle, isLoading } = useCadastrosData();
-  const data = (bundle?.microareas ?? []) as Microarea[];
-  const ubsList = bundle?.ubs ?? [];
-  const acsList = (bundle?.acs ?? []) as Acs[];
-  const neighborhoods = bundle?.neighborhoods ?? [];
+  const { data: ubsList = [] } = useQuery({
+    queryKey: queryKeys.ubs(municipalityId),
+    queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
+
+  const { data: acsList = [] } = useQuery({
+    queryKey: queryKeys.acs(municipalityId),
+    queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
+
+  const { data: neighborhoods = [] } = useQuery({
+    queryKey: queryKeys.neighborhoods(municipalityId),
+    queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+    staleTime: CACHE.neighborhoods,
+  });
+
+  const {
+    data = [],
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.microareas(municipalityId),
+    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+    staleTime: CACHE.microareas,
+  });
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -223,8 +257,16 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         </Box>
       )}
 
+      {isError && (
+        <CadastrosLoadError
+          title="Erro ao carregar microáreas"
+          message={error instanceof Error ? error.message : 'Tente novamente.'}
+          onRetry={() => void refetch()}
+        />
+      )}
+
       <CadastrosDataTable
-        loading={isLoading && data.length === 0}
+        loading={isPending && data.length === 0 && !isError}
         rows={filtered}
         rowKey={(row) => row.id}
         columns={[

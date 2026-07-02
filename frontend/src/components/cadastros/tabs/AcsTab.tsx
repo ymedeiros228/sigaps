@@ -18,10 +18,9 @@ import {
   ViewModule,
   TableRows,
 } from '@mui/icons-material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { acsApi, type Acs } from '../../../services/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { acsApi, microareasApi, type Acs } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
-import { useCadastrosData } from '../CadastrosDataContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
@@ -31,6 +30,8 @@ import { AcsCardsView } from './AcsCardsView';
 import { useAuthStore } from '../../../store';
 import { canDeleteAcs } from '../../../utils/permissions';
 import { maskCpfDisplay, isMaskedCpf } from '../../../utils/inputMasks';
+import { CACHE, queryKeys } from '../../../utils/queryKeys';
+import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
 
 type ViewMode = 'cards' | 'table';
@@ -74,9 +75,20 @@ export function AcsTab({
     onActionConsumed?.();
   }, [pendingAction, onActionConsumed]);
 
-  const { bundle, isLoading } = useCadastrosData();
-  const data = (bundle?.acs ?? []) as Acs[];
-  const microareas = bundle?.microareas ?? [];
+  const { data = [], isPending: isLoading } = useQuery({
+    queryKey: queryKeys.acs(municipalityId),
+    queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
+
+  const { data: microareas = [] } = useQuery({
+    queryKey: queryKeys.microareas(municipalityId),
+    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId && canManage,
+    ...cadastrosQueryDefaults,
+    staleTime: CACHE.microareas,
+  });
 
   const filtered = useMemo(() => {
     let rows = data;

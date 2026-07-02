@@ -1,9 +1,8 @@
 import { useEffect, useMemo } from 'react';
-import { Alert, Box, Breadcrumbs, Card, LinearProgress, Link, Typography } from '@mui/material';
+import { Alert, Box, Breadcrumbs, Card, Link, Typography } from '@mui/material';
 import { Link as RouterLink, Navigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { CadastrosProvider } from '../components/cadastros/CadastrosContext';
-import { CadastrosDataProvider, useCadastrosData } from '../components/cadastros/CadastrosDataContext';
 import { CadastrosNav } from '../components/cadastros/CadastrosNav';
 import { CadastrosOverview } from '../components/cadastros/CadastrosOverview';
 import {
@@ -62,9 +61,9 @@ function CadastrosContent({
   }
 }
 
-function CadastrosPageBody({ municipalityId }: { municipalityId: string }) {
+export function CadastrosPage() {
+  const municipalityId = useMunicipalityId();
   const user = useAuthStore((s) => s.user);
-  const { isLoading, isError, error, refetch } = useCadastrosData();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -103,86 +102,6 @@ function CadastrosPageBody({ municipalityId }: { municipalityId: string }) {
     setSearchParams(next, { replace: true });
   };
 
-  return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1280, mx: 'auto' }}>
-      {isLoading && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
-
-      {isError && (
-        <CadastrosLoadError
-          title="Erro ao carregar cadastros"
-          message={error?.message ?? 'Não foi possível conectar à API.'}
-          onRetry={refetch}
-        />
-      )}
-
-      <Breadcrumbs sx={{ mb: 2, fontSize: '0.85rem' }}>
-        <Link component={RouterLink} to="/" underline="hover" color="inherit">
-          Início
-        </Link>
-        <Typography color="text.primary" sx={{ fontWeight: 600 }}>
-          Cadastros
-        </Typography>
-        <Typography color="text.secondary">{activeSection.shortLabel}</Typography>
-      </Breadcrumbs>
-
-      <PageHeader
-        title="Cadastros"
-        subtitle="Gerencie município, UBS, ACS, bairros e microáreas da APS"
-      />
-
-      <CadastrosOverview
-        section={section}
-        onSectionChange={handleSectionChange}
-        onAcsAction={handleAcsAction}
-      />
-
-      {!canManageCurrentSection && (
-        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-          Você está em modo visualização. Para cadastrar ou editar, peça acesso ao coordenador da APS.
-        </Alert>
-      )}
-
-      {user?.role === 'ENFERMEIRO' && section !== 'acs' && enfermeiroCanManageAcs && (
-        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-          Como enfermeiro(a), você pode cadastrar e editar ACS na seção{' '}
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => handleSectionChange('acs')}
-            sx={{ fontWeight: 700, verticalAlign: 'baseline' }}
-          >
-            Agentes Comunitários
-          </Link>
-          .
-        </Alert>
-      )}
-
-      <Card sx={{ overflow: 'hidden' }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 480 }}>
-          <CadastrosNav
-            section={section}
-            onChange={handleSectionChange}
-            highlightAcs={user?.role === 'ENFERMEIRO'}
-          />
-          <Box sx={{ flex: 1, p: { xs: 2, sm: 3 }, minWidth: 0 }}>
-            <CadastrosContent
-              municipalityId={municipalityId}
-              section={section}
-              acsAction={acsAction}
-              onAcsActionConsumed={clearAcsAction}
-              onGoToMicroareas={() => handleSectionChange('microareas')}
-            />
-          </Box>
-        </Box>
-      </Card>
-    </Box>
-  );
-}
-
-export function CadastrosPage() {
-  const municipalityId = useMunicipalityId();
-  const user = useAuthStore((s) => s.user);
-
   if (isAcsUser(user?.role)) {
     return <Navigate to="/mapa" replace />;
   }
@@ -200,9 +119,64 @@ export function CadastrosPage() {
 
   return (
     <CadastrosProvider>
-      <CadastrosDataProvider municipalityId={municipalityId}>
-        <CadastrosPageBody municipalityId={municipalityId} />
-      </CadastrosDataProvider>
+      <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1280, mx: 'auto' }}>
+        <Breadcrumbs sx={{ mb: 2, fontSize: '0.85rem' }}>
+          <Link component={RouterLink} to="/" underline="hover" color="inherit">
+            Início
+          </Link>
+          <Typography color="text.primary" sx={{ fontWeight: 600 }}>
+            Cadastros
+          </Typography>
+          <Typography color="text.secondary">{activeSection.shortLabel}</Typography>
+        </Breadcrumbs>
+
+        <PageHeader
+          title="Cadastros"
+          subtitle="Gerencie município, UBS, ACS, bairros e microáreas da APS"
+        />
+
+        <CadastrosOverview municipalityId={municipalityId} section={section} onSectionChange={handleSectionChange} onAcsAction={handleAcsAction} />
+
+        {!canManageCurrentSection && (
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+            Você está em modo visualização. Para cadastrar ou editar, peça acesso ao coordenador da APS.
+          </Alert>
+        )}
+
+        {user?.role === 'ENFERMEIRO' && section !== 'acs' && enfermeiroCanManageAcs && (
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+            Como enfermeiro(a), você pode cadastrar e editar ACS na seção{' '}
+            <Link
+              component="button"
+              variant="body2"
+              onClick={() => handleSectionChange('acs')}
+              sx={{ fontWeight: 700, verticalAlign: 'baseline' }}
+            >
+              Agentes Comunitários
+            </Link>
+            .
+          </Alert>
+        )}
+
+        <Card sx={{ overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 480 }}>
+            <CadastrosNav
+              section={section}
+              onChange={handleSectionChange}
+              highlightAcs={user?.role === 'ENFERMEIRO'}
+            />
+            <Box sx={{ flex: 1, p: { xs: 2, sm: 3 }, minWidth: 0 }}>
+              <CadastrosContent
+                municipalityId={municipalityId}
+                section={section}
+                acsAction={acsAction}
+                onAcsActionConsumed={clearAcsAction}
+                onGoToMicroareas={() => handleSectionChange('microareas')}
+              />
+            </Box>
+          </Box>
+        </Card>
+      </Box>
     </CadastrosProvider>
   );
 }

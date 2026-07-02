@@ -1,17 +1,15 @@
 import { api } from '../services/api';
 import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from './queryRetry';
 
-const PRODUCTION_API_URL = 'https://sigaps-api.onrender.com';
-
-function apiBaseUrl(): string {
-  return (
-    import.meta.env.VITE_API_URL ||
-    (import.meta.env.PROD ? PRODUCTION_API_URL : 'http://localhost:3000')
-  ).replace(/\/$/, '');
+function resolveApiUrl(): string {
+  const env = import.meta.env.VITE_API_URL;
+  if (typeof env === 'string' && env.length > 0) return env.replace(/\/$/, '');
+  if (import.meta.env.PROD) return '';
+  return 'http://localhost:3000';
 }
 
 function apiHealthUrl(): string {
-  const base = apiBaseUrl();
+  const base = resolveApiUrl();
   return base ? `${base}/health` : '/health';
 }
 

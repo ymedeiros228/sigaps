@@ -1,6 +1,8 @@
 # SIGAPS — API + frontend (mesma URL no Render)
 FROM node:20-alpine AS frontend-builder
 WORKDIR /frontend
+ARG RENDER_GIT_COMMIT
+ENV GIT_COMMIT=${RENDER_GIT_COMMIT}
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
@@ -12,6 +14,8 @@ RUN npm run build
 FROM node:20-alpine AS backend-builder
 RUN apk add --no-cache openssl
 WORKDIR /app
+ARG RENDER_GIT_COMMIT
+ENV GIT_COMMIT=${RENDER_GIT_COMMIT}
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
@@ -21,7 +25,9 @@ RUN npm run build
 FROM node:20-alpine AS production
 RUN apk add --no-cache openssl
 WORKDIR /app
+ARG RENDER_GIT_COMMIT
 ENV NODE_ENV=production
+ENV GIT_COMMIT=${RENDER_GIT_COMMIT}
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=backend-builder /app/dist ./dist

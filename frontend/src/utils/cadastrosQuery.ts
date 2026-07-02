@@ -6,7 +6,7 @@ export const cadastrosQueryDefaults = {
   staleTime: CACHE.default,
   gcTime: 15 * 60_000,
   retry: (failureCount: number, error: unknown) =>
-    failureCount < 2 && shouldRetryCloudQuery(failureCount, error),
-  retryDelay: 1500,
+    failureCount < 1 && shouldRetryCloudQuery(failureCount, error),
+  retryDelay: 1000,
   refetchOnWindowFocus: false,
 } as const;

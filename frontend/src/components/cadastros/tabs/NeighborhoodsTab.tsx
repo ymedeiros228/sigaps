@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Button, IconButton, TextField, Tooltip } from '@mui/material';
 import { Add, Delete, Edit, LocationCity, Upload } from '@mui/icons-material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { neighborhoodsApi, type Neighborhood } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
-import { useCadastrosData } from '../CadastrosDataContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
 import { NeighborhoodBulkAssignDialog } from '../NeighborhoodBulkAssignDialog';
+import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
-import { queryKeys } from '../../../utils/queryKeys';
+import { CACHE, queryKeys } from '../../../utils/queryKeys';
 
 type NeighborhoodForm = { name: string };
 
@@ -30,8 +30,13 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
     formState: { errors },
   } = useForm<NeighborhoodForm>();
 
-  const { bundle, isLoading } = useCadastrosData();
-  const data = (bundle?.neighborhoods ?? []) as Neighborhood[];
+  const { data = [], isPending: isLoading } = useQuery({
+    queryKey: queryKeys.neighborhoods(municipalityId),
+    queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+    staleTime: CACHE.neighborhoods,
+  });
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();

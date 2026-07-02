@@ -1,11 +1,16 @@
 import { Box, Button, Grid, Skeleton, Typography } from '@mui/material';
 import { Add, LocalHospital, People, LocationCity, GridView, Upload } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
 import { StatCard } from '../ui/StatCard';
 import { useCadastros } from './CadastrosContext';
-import { useCadastrosData } from './CadastrosDataContext';
 import type { CadastrosSectionId } from './cadastrosConfig';
+import { queryKeys } from '../../utils/queryKeys';
+import { cadastrosQueryDefaults } from '../../utils/cadastrosQuery';
+import { fetchCadastrosSummary } from '../../utils/fetchCadastrosData';
+import { CadastrosLoadError } from './CadastrosLoadError';
 
 type CadastrosOverviewProps = {
+  municipalityId: string;
   section: CadastrosSectionId;
   onSectionChange: (section: CadastrosSectionId) => void;
   onAcsAction?: (action: 'new' | 'import') => void;
@@ -26,13 +31,25 @@ function StatCardSkeleton() {
 }
 
 export function CadastrosOverview({
+  municipalityId,
   section,
   onSectionChange,
   onAcsAction,
 }: CadastrosOverviewProps) {
   const { canManageAcs } = useCadastros();
-  const { bundle, isLoading } = useCadastrosData();
-  const summary = bundle?.summary;
+
+  const {
+    data: summary,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.cadastrosSummary(municipalityId),
+    queryFn: () => fetchCadastrosSummary(municipalityId),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
 
   const ubs = summary?.ubs ?? 0;
   const acs = summary?.acs ?? 0;
@@ -40,7 +57,7 @@ export function CadastrosOverview({
   const microareas = summary?.microareas ?? 0;
   const acsSemMicro = summary?.acsSemMicro ?? 0;
   const acsAtivos = summary?.acsAtivos ?? 0;
-  const showSkeleton = isLoading && !summary;
+  const showSkeleton = isPending && !summary;
 
   const stats = [
     {
@@ -82,6 +99,14 @@ export function CadastrosOverview({
 
   return (
     <Box sx={{ mb: 3 }}>
+      {isError && (
+        <CadastrosLoadError
+          title="Erro ao carregar resumo"
+          message={error instanceof Error ? error.message : 'Tente novamente.'}
+          onRetry={() => void refetch()}
+        />
+      )}
+
       <Grid container spacing={2}>
         {showSkeleton
           ? Array.from({ length: 4 }).map((_, i) => (
