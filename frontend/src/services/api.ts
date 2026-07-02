@@ -285,6 +285,77 @@ export const dashboardApi = {
     api.get(`/dashboard/${municipalityId}`),
 };
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOverview {
+  municipality: {
+    id: string;
+    name: string;
+    state: string;
+    prefecture: string;
+    secretariat: string;
+    logoUrl?: string;
+    updatedAt: string;
+  };
+  counts: {
+    users: number;
+    activeUsers: number;
+    ubs: number;
+    acs: number;
+    acsSemMicro: number;
+    microareas: number;
+    streets: number;
+    assignedStreets: number;
+    paintZones: number;
+    auditLogs: number;
+    coverage: number;
+  };
+  users: AdminUser[];
+  system: {
+    commit: string | null;
+    nodeEnv: string;
+    exportedAt: string;
+  };
+}
+
+export interface AuditLogEntry {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  createdAt: string;
+  user: { id: string; name: string; role: string; email: string };
+}
+
+export const adminApi = {
+  overview: (municipalityId: string) =>
+    api.get<AdminOverview>(`/admin/municipality/${municipalityId}/overview`),
+  exportBackup: (municipalityId: string) =>
+    api.get<Record<string, unknown>>(`/admin/municipality/${municipalityId}/backup/export`),
+  importBackup: (municipalityId: string, payload: Record<string, unknown>) =>
+    api.post<{ ok: boolean; restored: Record<string, number> }>(
+      `/admin/municipality/${municipalityId}/backup/import`,
+      payload,
+      { timeout: 300_000 },
+    ),
+  audit: (municipalityId: string, page = 1, limit = 50) =>
+    api.get<{
+      items: AuditLogEntry[];
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+    }>(`/admin/municipality/${municipalityId}/audit`, { params: { page, limit } }),
+};
+
 export const osmApi = {
   import: (municipalityId: string) =>
     api.post(`/osm/import/${municipalityId}`, undefined, { timeout: 300_000 }),

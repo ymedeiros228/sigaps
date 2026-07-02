@@ -37,6 +37,22 @@ export function canCreateMicroarea(role?: string): boolean {
   return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
 }
 
+/** Apenas administrador do sistema. */
+export function canAccessAdmin(role?: string): boolean {
+  return role === 'ADMINISTRADOR';
+}
+
+export function formatRoleLabel(role?: string): string {
+  const labels: Record<string, string> = {
+    ADMINISTRADOR: 'Administrador',
+    SECRETARIO_SAUDE: 'Secretário de Saúde',
+    COORDENADOR_APS: 'Coordenador APS',
+    ENFERMEIRO: 'Enfermeiro',
+    ACS: 'ACS',
+  };
+  return role ? (labels[role] ?? role.replace(/_/g, ' ')) : '—';
+}
+
 export function formatAuditAction(action: string, entityType: string): string {
   const actions: Record<string, string> = {
     ASSIGN_MICROAREA: 'Vinculou rua à microárea',

@@ -16,6 +16,7 @@ import { SearchModule } from './modules/search/search.module';
 import { GeoModule } from './modules/geo/geo.module';
 import { PaintZonesModule } from './modules/paint-zones/paint-zones.module';
 import { HealthModule } from './modules/health/health.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -39,6 +40,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     GeoModule,
     PaintZonesModule,
     HealthModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

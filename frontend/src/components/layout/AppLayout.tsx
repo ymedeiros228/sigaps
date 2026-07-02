@@ -22,18 +22,25 @@ import {
   Menu as MenuIcon,
   ListAlt,
   HelpOutlined,
+  AdminPanelSettings,
 } from '@mui/icons-material';
 import { BuildVersion } from '../common/BuildVersion';
 import { HostingNotice } from '../common/HostingNotice';
 import { useAppDataPrefetch } from '../../hooks/useAppDataPrefetch';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore, useAppStore } from '../../store';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME } from '../../constants/branding';
+import { canAccessAdmin, formatRoleLabel } from '../../utils/permissions';
+import { useMunicipalityId } from '../../hooks/useMunicipalityId';
+import { municipalitiesApi } from '../../services/api';
+import { assetUrl } from '../../utils/assetUrl';
+import { queryKeys } from '../../utils/queryKeys';
 
 const DRAWER_WIDTH = 260;
 
-const navItems = [
+const baseNavItems = [
   { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
   { label: 'Pintar Mapa', path: '/mapa', icon: <MapIcon /> },
   { label: 'Cadastros', path: '/cadastros', icon: <ListAlt /> },
@@ -49,6 +56,31 @@ export function AppLayout() {
   const darkMode = useAppStore((s) => s.darkMode);
   const toggleDarkMode = useAppStore((s) => s.toggleDarkMode);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const municipalityId = useMunicipalityId();
+  const isAdmin = canAccessAdmin(user?.role);
+
+  const { data: municipality } = useQuery({
+    queryKey: queryKeys.municipality(municipalityId!),
+    queryFn: () => municipalitiesApi.get(municipalityId!).then((r) => r.data),
+    enabled: !!municipalityId,
+    staleTime: 5 * 60_000,
+  });
+
+  const navItems = useMemo(() => {
+    const items = [...baseNavItems];
+    if (isAdmin) {
+      items.push({
+        label: 'Administração',
+        path: '/admin',
+        icon: <AdminPanelSettings />,
+      });
+    }
+    return items;
+  }, [isAdmin]);
+
+  const logoSrc = assetUrl(municipality?.logoUrl) ?? MUNICIPALITY_LOGO;
+  const displayName = municipality?.name ?? MUNICIPALITY_NAME;
+  const displayState = municipality?.state ? `${municipality.state}` : 'MA';
 
   useAppDataPrefetch();
 
@@ -70,8 +102,8 @@ export function AppLayout() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box
             component="img"
-            src={MUNICIPALITY_LOGO}
-            alt={`Prefeitura de ${MUNICIPALITY_NAME}`}
+            src={logoSrc}
+            alt={`Prefeitura de ${displayName}`}
             sx={{
               width: 40,
               height: 40,
@@ -86,7 +118,7 @@ export function AppLayout() {
               SIGAPS
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Passagem Franca/MA
+              {displayName}/{displayState}
             </Typography>
           </Box>
         </Box>
@@ -108,6 +140,16 @@ export function AppLayout() {
               }}
               sx={{
                 py: 1.25,
+                ...(item.path === '/admin'
+                  ? {
+                      '&.Mui-selected': {
+                        bgcolor: 'warning.main',
+                        color: 'warning.contrastText',
+                        '&:hover': { bgcolor: 'warning.dark' },
+                        '& .MuiListItemIcon-root': { color: 'inherit' },
+                      },
+                    }
+                  : {}),
                 '& .MuiListItemIcon-root': {
                   color: selected ? 'primary.main' : 'text.secondary',
                   minWidth: 40,
@@ -149,7 +191,7 @@ export function AppLayout() {
               {user?.name}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
-              {user?.role?.replace(/_/g, ' ')}
+              {formatRoleLabel(user?.role)}
             </Typography>
           </Box>
         </Box>

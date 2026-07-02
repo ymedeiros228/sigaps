@@ -43,10 +43,10 @@ async function main() {
       email: 'jonas@passagemfranca.ma.gov.br',
       passwordHash,
       name: 'Jonas Almeida Medeiros',
-      role: UserRole.ENFERMEIRO,
+      role: UserRole.ADMINISTRADOR,
       municipalityId: municipality.id,
     },
-    update: { passwordHash, municipalityId: municipality.id },
+    update: { passwordHash, municipalityId: municipality.id, role: UserRole.ADMINISTRADOR },
   });
 
   const colors = ['#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#F44336'];

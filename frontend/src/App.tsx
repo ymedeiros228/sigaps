@@ -19,6 +19,9 @@ const SigapsMap = lazy(() =>
 const CadastrosPage = lazy(() =>
   import('./pages/CadastrosPage').then((m) => ({ default: m.CadastrosPage })),
 );
+const AdminPage = lazy(() =>
+  import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })),
+);
 
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from './utils/queryRetry';
 
@@ -96,6 +99,16 @@ function AppRoutes() {
             <Suspense fallback={<PageLoader />}>
               <CadastrosPage />
             </Suspense>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ErrorBoundary title="Erro ao abrir administração">
+              <Suspense fallback={<PageLoader />}>
+                <AdminPage />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route
