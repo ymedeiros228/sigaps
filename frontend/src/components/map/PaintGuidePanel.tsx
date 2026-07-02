@@ -133,10 +133,22 @@ export function PaintGuidePanel({
     setPaintGuideCollapsed(false);
   };
 
-  const handleMinimize = (e: MouseEvent) => {
-    e.stopPropagation();
+  const handleMinimize = (e?: MouseEvent) => {
+    e?.stopPropagation();
     setPaintGuideCollapsed(true);
     setPaintMode(false);
+    setEraserMode(false);
+  };
+
+  const handleToggleMicroarea = (microareaId: string) => {
+    const isSelected = microareaId === selectedMicroareaId && !eraserMode;
+    if (isSelected) {
+      setSelectedMicroarea(null);
+      setPaintMode(false);
+      setEraserMode(false);
+      return;
+    }
+    setSelectedMicroarea(microareaId);
     setEraserMode(false);
   };
 
@@ -152,7 +164,9 @@ export function PaintGuidePanel({
           transform: 'translateX(-50%)',
           zIndex: 1001,
           width: { xs: 'calc(100% - 16px)', sm: 520, md: 600 },
-          maxHeight: collapsed ? 'none' : { xs: 'min(58vh, 420px)', sm: 'none' },
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: collapsed ? undefined : { xs: 'min(52vh, 440px)', sm: 'min(58vh, 480px)' },
           bgcolor: glassBg,
           borderRadius: 3,
           overflow: 'hidden',
@@ -169,40 +183,34 @@ export function PaintGuidePanel({
             justifyContent: 'space-between',
             px: 2,
             py: 1.25,
+            flexShrink: 0,
+            position: 'sticky',
+            top: 0,
+            zIndex: 2,
             bgcolor: paintMode
               ? alpha(accentColor, 0.12)
               : alpha(theme.palette.primary.main, 0.06),
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
             cursor: 'pointer',
           }}
           onClick={() => setPaintGuideCollapsed(!collapsed)}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', minWidth: 0 }}>
             {eraserMode ? <AutoFixOff color="error" /> : <Brush color={paintMode ? 'primary' : 'action'} />}
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {eraserMode ? 'Modo apagar ativo' : paintMode ? 'Modo pintar ativo' : 'Pintar microáreas'}
+              {eraserMode ? 'Modo apagar' : paintMode ? 'Pintando' : 'Pintar microáreas'}
             </Typography>
             {collapsed && (
               <Typography variant="caption" color="text.secondary">
-                Toque para abrir · suas ruas pintadas ficam salvas
+                Toque para abrir · ruas salvas
               </Typography>
             )}
-            {paintMode && selectedMicroarea && !eraserMode && (
+            {!collapsed && selectedMicroarea && (
               <Chip
                 size="small"
                 label={selectedMicroarea.name}
                 sx={{ bgcolor: selectedMicroarea.color, color: '#fff', fontWeight: 700 }}
               />
-            )}
-            {selectedMicroarea && (selectedMicroarea.acs || selectedMicroarea.ubs || selectedMicroarea.neighborhood) && (
-              <Typography variant="caption" color="text.secondary" sx={{ width: '100%', mt: -0.5 }}>
-                {[
-                  selectedMicroarea.acs?.name && `ACS: ${selectedMicroarea.acs.name}`,
-                  selectedMicroarea.ubs?.name && `UBS: ${selectedMicroarea.ubs.name}`,
-                  selectedMicroarea.neighborhood?.name && `Bairro: ${selectedMicroarea.neighborhood.name}`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Typography>
             )}
             {paintedCount > 0 && (
               <Chip
@@ -213,39 +221,30 @@ export function PaintGuidePanel({
               />
             )}
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {!collapsed && paintMode && (
-              <Tooltip title="Para de pintar, mas mantém as ruas já coloridas">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+            {!collapsed && (
+              <Tooltip title="Guardar e ver o mapa (não apaga ruas)">
                 <Button
                   size="small"
-                  color="inherit"
+                  variant="contained"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setPaintMode(false);
-                    setEraserMode(false);
+                    handleMinimize(e);
                   }}
+                  sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
                 >
-                  Parar
+                  Guardar
                 </Button>
               </Tooltip>
             )}
-            <Tooltip
-              title={
-                collapsed
-                  ? 'Abrir painel de pintura'
-                  : 'Minimizar painel (não apaga ruas pintadas)'
-              }
-            >
+            <Tooltip title={collapsed ? 'Abrir painel' : 'Minimizar painel'}>
               <IconButton
                 size="small"
                 aria-label={collapsed ? 'Abrir painel' : 'Minimizar painel'}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (collapsed) {
-                    setPaintGuideCollapsed(false);
-                  } else {
-                    handleMinimize(e);
-                  }
+                  if (collapsed) setPaintGuideCollapsed(false);
+                  else handleMinimize(e);
                 }}
               >
                 {collapsed ? <ExpandMore /> : <UnfoldLess />}
@@ -254,8 +253,16 @@ export function PaintGuidePanel({
           </Box>
         </Box>
 
-        <Collapse in={!collapsed}>
-          <Box sx={{ p: 2, pt: 1.5, overflow: 'auto', maxHeight: { xs: 'calc(62vh - 56px)', sm: 'none' } }}>
+        <Collapse in={!collapsed} sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+          <Box
+            sx={{
+              p: 2,
+              pt: 1.5,
+              overflowY: 'auto',
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
             {microareas.length === 0 ? (
               <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
@@ -288,50 +295,42 @@ export function PaintGuidePanel({
                 Carregando ruas do município automaticamente. Aguarde alguns segundos.
               </Alert>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+              <>
                 {neighborhoods.length > 0 &&
                   streets.filter((s) => !s.neighborhood?.id).length > 0 && (
-                    <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                    <Alert severity="warning" sx={{ borderRadius: 2, mb: 1.5 }}>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {streets.filter((s) => !s.neighborhood?.id).length} rua(s) sem bairro
-                      </Typography>
-                      <Typography variant="caption" component="div">
-                        Vincule em Cadastros → Bairros (planilha CSV) ou selecione ruas no mapa.
                       </Typography>
                       <Button
                         component={RouterLink}
                         to="/cadastros?secao=bairros"
                         size="small"
-                        sx={{ mt: 1 }}
+                        sx={{ mt: 0.5 }}
                       >
                         Ir para Bairros
                       </Button>
                     </Alert>
                   )}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <StepRow
-                  number={1}
-                  done={!!selectedMicroareaId}
-                  icon={<Palette fontSize="small" />}
-                  title="Escolha a cor da microárea"
-                  subtitle="Toque na microárea que você quer pintar"
-                />
-                <StepRow
-                  number={2}
-                  done={paintMode && !eraserMode}
-                  icon={<TouchApp fontSize="small" />}
-                  title="Ative o modo pintar"
-                  subtitle="Clique ou arraste sobre as ruas no mapa"
-                />
-                <StepRow
-                  number={3}
-                  done={eraserMode}
-                  icon={<AutoFixOff fontSize="small" />}
-                  title="Corrija com o modo apagar"
-                  subtitle="Clique nas ruas pintadas para remover o vínculo"
-                />
-              </Box>
-              </Box>
+                {!paintMode && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
+                    <StepRow
+                      number={1}
+                      done={!!selectedMicroareaId}
+                      icon={<Palette fontSize="small" />}
+                      title="Escolha a microárea"
+                      subtitle="Toque de novo para desmarcar"
+                    />
+                    <StepRow
+                      number={2}
+                      done={paintMode && !eraserMode}
+                      icon={<TouchApp fontSize="small" />}
+                      title="Clique em Pintar"
+                      subtitle="Depois clique nas ruas no mapa"
+                    />
+                  </Box>
+                )}
+              </>
             )}
 
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
@@ -346,10 +345,7 @@ export function PaintGuidePanel({
                     key={m.id}
                     variant={selected && !eraserMode ? 'contained' : 'outlined'}
                     size="medium"
-                    onClick={() => {
-                      setSelectedMicroarea(m.id);
-                      setEraserMode(false);
-                    }}
+                    onClick={() => handleToggleMicroarea(m.id)}
                     sx={{
                       fontSize: { xs: '0.75rem', sm: '0.875rem' },
                       py: { xs: 0.5, sm: 0.75 },
@@ -587,6 +583,43 @@ export function PaintGuidePanel({
               >
                 Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>Esc</strong> parar
               </Typography>
+            )}
+          </Box>
+
+          <Box
+            sx={{
+              px: 2,
+              py: 1.25,
+              flexShrink: 0,
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+              bgcolor: alpha(theme.palette.background.paper, 0.98),
+              display: 'flex',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Button
+              fullWidth
+              variant="contained"
+              size="medium"
+              onClick={() => handleMinimize()}
+              sx={{ fontWeight: 800, flex: 1 }}
+            >
+              Guardar e ver mapa
+            </Button>
+            {selectedMicroareaId && (
+              <Button
+                variant="outlined"
+                size="medium"
+                onClick={() => {
+                  setSelectedMicroarea(null);
+                  setPaintMode(false);
+                  setEraserMode(false);
+                }}
+                sx={{ fontWeight: 700 }}
+              >
+                Desmarcar microárea
+              </Button>
             )}
           </Box>
         </Collapse>
