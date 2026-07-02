@@ -39,7 +39,6 @@ import { municipalitiesApi } from '../../services/api';
 import { assetUrl } from '../../utils/assetUrl';
 import { prefetchCadastrosData } from '../../utils/prefetchAppData';
 import { queryKeys } from '../../utils/queryKeys';
-import { MunicipalitySwitcher } from './MunicipalitySwitcher';
 
 const DRAWER_WIDTH = 260;
 
@@ -134,8 +133,6 @@ export function AppLayout() {
           </Box>
         </Box>
       </Box>
-
-      {isAdmin && <MunicipalitySwitcher />}
 
       <List sx={{ px: 1, flex: 1 }}>
         {navItems.map((item) => {
