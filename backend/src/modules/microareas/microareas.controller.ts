@@ -24,8 +24,11 @@ export class MicroareasController {
 
   @Get('municipality/:municipalityId')
   @ApiOperation({ summary: 'Listar microáreas do município' })
-  findByMunicipality(@Param('municipalityId') municipalityId: string) {
-    return this.microareasService.findByMunicipality(municipalityId);
+  findByMunicipality(
+    @Param('municipalityId') municipalityId: string,
+    @Req() req: { user: { id: string; role: string } },
+  ) {
+    return this.microareasService.findByMunicipality(municipalityId, req.user);
   }
 
   @Get(':id')

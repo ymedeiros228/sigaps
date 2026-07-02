@@ -46,16 +46,21 @@ export class StreetsController {
     @Query('limit') limit?: number,
     @Query('mapOnly') mapOnly?: string,
     @Query('geoPrecision') geoPrecision?: number,
+    @Req() req?: { user: { id: string; role: string } },
   ) {
-    return this.streetsService.findByMunicipality(municipalityId, {
-      search,
-      microareaId,
-      neighborhoodId,
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
-      mapOnly: mapOnly === 'true' || mapOnly === '1',
-      geoPrecision: geoPrecision ? Number(geoPrecision) : undefined,
-    });
+    return this.streetsService.findByMunicipality(
+      municipalityId,
+      {
+        search,
+        microareaId,
+        neighborhoodId,
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+        mapOnly: mapOnly === 'true' || mapOnly === '1',
+        geoPrecision: geoPrecision ? Number(geoPrecision) : undefined,
+      },
+      req?.user,
+    );
   }
 
   @Get(':id')

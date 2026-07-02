@@ -47,6 +47,18 @@ function PageLoader() {
   );
 }
 
+function HomeRoute() {
+  const role = useAuthStore((s) => s.user?.role);
+  if (role === 'ACS') return <Navigate to="/mapa" replace />;
+  return (
+    <ErrorBoundary title="Erro ao abrir o dashboard">
+      <Suspense fallback={<PageLoader />}>
+        <DashboardPage />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
   if (!token) return <Navigate to="/login" replace />;
@@ -66,23 +78,11 @@ function AppRoutes() {
       >
         <Route
           path="/dashboard"
-          element={
-            <ErrorBoundary title="Erro ao abrir o dashboard">
-              <Suspense fallback={<PageLoader />}>
-                <DashboardPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
+          element={<HomeRoute />}
         />
         <Route
           path="/"
-          element={
-            <ErrorBoundary title="Erro ao abrir o dashboard">
-              <Suspense fallback={<PageLoader />}>
-                <DashboardPage />
-              </Suspense>
-            </ErrorBoundary>
-          }
+          element={<HomeRoute />}
         />
         <Route
           path="/mapa"

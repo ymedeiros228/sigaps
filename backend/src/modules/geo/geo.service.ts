@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { kml } from '@tmcw/togeojson';
 import { DOMParser } from '@xmldom/xmldom';
 import { PrismaService } from '../../prisma/prisma.service';
+import { featureCollectionToKml } from '../../common/utils/geojson-to-kml.util';
 import { ImportGeoJsonDto } from './dto/import-geojson.dto';
 
 type LineFeature = GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString>;
@@ -216,6 +217,13 @@ export class GeoService {
     }
 
     return { type: 'FeatureCollection', features } satisfies GeoJSON.FeatureCollection;
+  }
+
+  async exportKml(municipalityId: string, microareaId?: string) {
+    const geojson = await this.exportGeoJson(municipalityId, microareaId);
+    const name =
+      (geojson as { metadata?: { name?: string } }).metadata?.name ?? 'SIGAPS';
+    return featureCollectionToKml(geojson as GeoJSON.FeatureCollection, name);
   }
 
   private extractLineFeatures(

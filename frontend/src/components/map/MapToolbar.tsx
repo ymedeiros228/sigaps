@@ -40,6 +40,7 @@ interface MapToolbarProps {
   streets: Array<{ id: string; name: string; streetType?: string; geojson: GeoJSON.LineString; microareaId?: string | null }>;
   onSearchSelect: (option: StreetSearchOption) => void;
   onImportFamilies?: () => void;
+  readOnly?: boolean;
 }
 
 const panelSx = {
@@ -62,6 +63,7 @@ export function MapToolbar({
   streets,
   onSearchSelect,
   onImportFamilies,
+  readOnly = false,
 }: MapToolbarProps) {
   const theme = useTheme();
   const municipalityId = useAppStore((s) => s.municipalityId);
@@ -169,7 +171,11 @@ export function MapToolbar({
         />
       )}
 
-      {canImport && (streetCount > 0 || importing) && (
+      {readOnly && (
+        <Chip label="Consulta — sua microárea" size="small" color="primary" variant="outlined" />
+      )}
+
+      {!readOnly && canImport && (streetCount > 0 || importing) && (
         <Button
           size="small"
           variant="outlined"

@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { maskCpfField } from '../../common/utils/mask-cpf.util';
+import { applyAcsMicroareaScope, type AuthViewer } from '../../common/utils/acs-scope.util';
 import { CreateMicroareaDto, UpdateMicroareaDto } from './dto/microarea.dto';
 
 @Injectable()
@@ -16,9 +17,15 @@ export class MicroareasService {
     private readonly audit: AuditService,
   ) {}
 
-  async findByMunicipality(municipalityId: string) {
+  async findByMunicipality(municipalityId: string, viewer?: AuthViewer) {
+    const scopedId = await applyAcsMicroareaScope(this.prisma, viewer, undefined);
+    if (scopedId === '__none__') return [];
+
     return this.prisma.microarea.findMany({
-      where: { municipalityId },
+      where: {
+        municipalityId,
+        ...(scopedId ? { id: scopedId } : {}),
+      },
       include: {
         acs: { select: { id: true, name: true, phone: true, photoUrl: true } },
         ubs: { select: { id: true, name: true } },

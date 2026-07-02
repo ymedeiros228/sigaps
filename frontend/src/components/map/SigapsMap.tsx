@@ -41,7 +41,7 @@ import { SelectionBar } from './SelectionBar';
 import { UbsMarkersLayer } from './UbsMarkersLayer';
 import { FamilyBulkImportDialog } from './FamilyBulkImportDialog';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
-import { canImportStreets } from '../../utils/permissions';
+import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
 import { fetchAllMapStreets } from '../../utils/fetchAllStreets';
@@ -93,8 +93,11 @@ export function SigapsMap() {
   const addDragPaintId = useMapStore((s) => s.addDragPaintId);
   const clearDragPaintIds = useMapStore((s) => s.clearDragPaintIds);
   const setPaintMode = useMapStore((s) => s.setPaintMode);
+  const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
   const user = useAuthStore((s) => s.user);
-  const canImport = canImportStreets(user?.role);
+  const acsReadOnly = isAcsUser(user?.role);
+  const lockedMicroareaId = user?.acsProfile?.microarea?.id;
+  const canImport = canImportStreets(user?.role) && !acsReadOnly;
   const [selectedStreet, setSelectedStreet] = useState<Street | null>(null);
   const [conflictMsg, setConflictMsg] = useState<string | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -109,7 +112,12 @@ export function SigapsMap() {
   const lastAssignIdsRef = useRef<string[]>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const autoImportAttempted = useRef(false);
-  const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
+
+  useEffect(() => {
+    if (!acsReadOnly || !lockedMicroareaId) return;
+    setSelectedMicroarea(lockedMicroareaId);
+    setPaintMode(false);
+  }, [acsReadOnly, lockedMicroareaId, setSelectedMicroarea, setPaintMode]);
 
   const { data: microareasData = [] } = useQuery({
     queryKey: queryKeys.microareas(municipalityId!),
@@ -777,7 +785,8 @@ export function SigapsMap() {
         onImport={() => importMutation.mutate()}
         importing={importMutation.isPending}
         selectedCount={selectedStreetIds.size}
-        onImportFamilies={() => setFamilyImportOpen(true)}
+        onImportFamilies={acsReadOnly ? undefined : () => setFamilyImportOpen(true)}
+        readOnly={acsReadOnly}
       />
 
       <MapLegend
@@ -802,6 +811,7 @@ export function SigapsMap() {
         )}
       />
 
+      {!acsReadOnly && (
       <PaintGuidePanel
         microareas={microareas}
         streets={streets}
@@ -821,6 +831,7 @@ export function SigapsMap() {
           queryClient.invalidateQueries({ queryKey: ['microareas', municipalityId] });
         }}
       />
+      )}
 
       <MapDivisionsPanel
         municipalityId={municipalityId!}

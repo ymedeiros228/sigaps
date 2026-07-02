@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
+import { applyAcsMicroareaScope, type AuthViewer } from '../../common/utils/acs-scope.util';
 import { withDbRetry } from '../../common/utils/prisma-retry.util';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
@@ -25,7 +26,17 @@ export class StreetsService {
       mapOnly?: boolean;
       geoPrecision?: number;
     } = {},
+    viewer?: AuthViewer,
   ) {
+    const scopedMicroareaId = await applyAcsMicroareaScope(
+      this.prisma,
+      viewer,
+      options.microareaId,
+    );
+    if (scopedMicroareaId === '__none__') {
+      return { items: [], total: 0, page: 1, limit: options.limit ?? 500, totalPages: 0 };
+    }
+
     const page = options.page ?? 1;
     const limit = Math.min(options.limit ?? 500, options.mapOnly ? 5000 : 2000);
     const skip = (page - 1) * limit;
@@ -35,7 +46,7 @@ export class StreetsService {
     const where = {
       municipalityId,
       ...(mapOnly ? { osmId: { not: null } } : {}),
-      ...(options.microareaId ? { microareaId: options.microareaId } : {}),
+      ...(scopedMicroareaId ? { microareaId: scopedMicroareaId } : {}),
       ...(options.neighborhoodId ? { neighborhoodId: options.neighborhoodId } : {}),
       ...(options.search
         ? { name: { contains: options.search, mode: 'insensitive' as const } }

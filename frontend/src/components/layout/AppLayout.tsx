@@ -32,7 +32,8 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore, useAppStore } from '../../store';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME } from '../../constants/branding';
-import { canAccessAdmin, formatRoleLabel } from '../../utils/permissions';
+import { canAccessAdmin, formatRoleLabel, isAcsUser } from '../../utils/permissions';
+import { InstallPrompt } from '../common/InstallPrompt';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
 import { municipalitiesApi } from '../../services/api';
 import { assetUrl } from '../../utils/assetUrl';
@@ -58,6 +59,7 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const municipalityId = useMunicipalityId();
   const isAdmin = canAccessAdmin(user?.role);
+  const isAcs = isAcsUser(user?.role);
 
   const { data: municipality } = useQuery({
     queryKey: queryKeys.municipality(municipalityId!),
@@ -67,6 +69,12 @@ export function AppLayout() {
   });
 
   const navItems = useMemo(() => {
+    if (isAcs) {
+      return [
+        { label: 'Minha microárea', path: '/mapa', icon: <MapIcon /> },
+        { label: 'Ajuda', path: '/ajuda', icon: <HelpOutlined /> },
+      ];
+    }
     const items = [...baseNavItems];
     if (isAdmin) {
       items.push({
@@ -76,7 +84,7 @@ export function AppLayout() {
       });
     }
     return items;
-  }, [isAdmin]);
+  }, [isAdmin, isAcs]);
 
   const logoSrc = assetUrl(municipality?.logoUrl) ?? MUNICIPALITY_LOGO;
   const displayName = municipality?.name ?? MUNICIPALITY_NAME;
@@ -261,6 +269,9 @@ export function AppLayout() {
       >
         <Toolbar />
         <HostingNotice />
+        <Box sx={{ px: { xs: 2, sm: 3 }, pt: 1 }}>
+          <InstallPrompt />
+        </Box>
         <Box className="page-enter" sx={{ minHeight: 'calc(100vh - 64px)' }}>
           <Outlet />
         </Box>

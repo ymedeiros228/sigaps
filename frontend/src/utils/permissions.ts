@@ -42,6 +42,10 @@ export function canAccessAdmin(role?: string): boolean {
   return role === 'ADMINISTRADOR';
 }
 
+export function isAcsUser(role?: string): boolean {
+  return role === 'ACS';
+}
+
 /** Perfis que veem CPF completo na API e exportações. */
 export function canViewFullCpf(role?: string): boolean {
   return (

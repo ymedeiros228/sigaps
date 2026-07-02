@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { geoApi, type Microarea } from '../../services/api';
+import { streetsToSvg } from '../../utils/mapSvgExport';
 import { useAppStore } from '../../store';
 import { queryKeys } from '../../utils/queryKeys';
 import { MapPdfDialog } from './MapPdfDialog';
@@ -97,6 +98,30 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
       new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/geo+json' }),
       'sigaps-ruas.geojson',
     );
+    setAnchorEl(null);
+  };
+
+  const handleExportKml = async () => {
+    if (!municipalityId) return;
+    const res = await geoApi.exportStreetsKml(municipalityId);
+    downloadBlob(new Blob([res.data], { type: 'application/vnd.google-earth.kml+xml' }), 'sigaps-ruas.kml');
+    setAnchorEl(null);
+  };
+
+  const handleExportSvg = async () => {
+    if (!municipalityId) return;
+    const res = await geoApi.exportStreets(municipalityId);
+    const fc = res.data as GeoJSON.FeatureCollection;
+    const features = (fc.features ?? [])
+      .filter((f) => f.geometry?.type === 'LineString')
+      .map((f) => ({
+        name: String((f.properties as { name?: string })?.name ?? 'Rua'),
+        color: String((f.properties as { microareaColor?: string })?.microareaColor ?? '#888888'),
+        coordinates: (f.geometry as GeoJSON.LineString).coordinates as [number, number][],
+      }));
+    const title = String((fc as { metadata?: { name?: string } }).metadata?.name ?? 'SIGAPS');
+    const svg = streetsToSvg(features, title);
+    downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), 'sigaps-ruas.svg');
     setAnchorEl(null);
   };
 
@@ -223,6 +248,14 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
         <MenuItem onClick={handleExportStreets}>
           <ListItemIcon><Download fontSize="small" /></ListItemIcon>
           <ListItemText primary="Lista de ruas" secondary="Arquivo GeoJSON" />
+        </MenuItem>
+        <MenuItem onClick={handleExportKml}>
+          <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Ruas (KML)" secondary="Google Earth / QGIS" />
+        </MenuItem>
+        <MenuItem onClick={handleExportSvg}>
+          <ListItemIcon><Image fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Ruas (SVG)" secondary="Vetorial leve para impressão" />
         </MenuItem>
         <MenuItem onClick={handleExportMicroareas}>
           <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>

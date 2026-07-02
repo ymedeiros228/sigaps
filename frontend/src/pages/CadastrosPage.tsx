@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Alert, Box, Breadcrumbs, Card, CircularProgress, Link, Typography } from '@mui/material';
-import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, Navigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { CadastrosProvider } from '../components/cadastros/CadastrosContext';
 import { CadastrosNav } from '../components/cadastros/CadastrosNav';
@@ -17,7 +17,7 @@ import { NeighborhoodsTab } from '../components/cadastros/tabs/NeighborhoodsTab'
 import { MicroareasTab } from '../components/cadastros/tabs/MicroareasTab';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
-import { canManageAcs, canManageCadastrosSection } from '../utils/permissions';
+import { canManageAcs, canManageCadastrosSection, isAcsUser } from '../utils/permissions';
 
 function defaultSectionForRole(role?: string): CadastrosSectionId {
   if (role === 'ENFERMEIRO') return 'acs';
@@ -108,6 +108,10 @@ export function CadastrosPage() {
         <CircularProgress />
       </Box>
     );
+  }
+
+  if (isAcsUser(user?.role)) {
+    return <Navigate to="/mapa" replace />;
   }
 
   return (

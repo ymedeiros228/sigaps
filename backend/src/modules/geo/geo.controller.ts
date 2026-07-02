@@ -118,6 +118,23 @@ export class GeoController {
     return data;
   }
 
+  @Get('export/:municipalityId/kml')
+  @Header('Content-Type', 'application/vnd.google-earth.kml+xml')
+  @ApiOperation({ summary: 'Exportar ruas como KML' })
+  @ApiQuery({ name: 'microareaId', required: false })
+  async exportKml(
+    @Param('municipalityId') municipalityId: string,
+    @Query('microareaId') microareaId: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const data = await this.geoService.exportKml(municipalityId, microareaId);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sigaps-ruas-${municipalityId.slice(0, 8)}.kml"`,
+    );
+    return data;
+  }
+
   @Get('export/:municipalityId/microareas')
   @Header('Content-Type', 'application/geo+json')
   @ApiOperation({ summary: 'Exportar polígonos das microáreas como GeoJSON' })

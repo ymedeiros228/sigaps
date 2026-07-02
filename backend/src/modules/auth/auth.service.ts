@@ -16,6 +16,13 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
+      include: {
+        acsProfile: {
+          include: {
+            microarea: { select: { id: true, name: true, number: true, color: true } },
+          },
+        },
+      },
     });
 
     if (!user || !user.isActive) {
@@ -46,6 +53,12 @@ export class AuthService {
         email: user.email,
         role: user.role,
         municipalityId: user.municipalityId,
+        acsProfile: user.acsProfile
+          ? {
+              id: user.acsProfile.id,
+              microarea: user.acsProfile.microarea ?? undefined,
+            }
+          : undefined,
       },
       ...tokens,
     };

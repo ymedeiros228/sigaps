@@ -121,6 +121,28 @@ async function main() {
     data: { ubsId: ubs.id, acsId: acs1.id },
   });
 
+  const acsUser = await prisma.user.upsert({
+    where: { email: 'acs@passagemfranca.ma.gov.br' },
+    create: {
+      email: 'acs@passagemfranca.ma.gov.br',
+      passwordHash,
+      name: 'Ana Paula Santos',
+      role: UserRole.ACS,
+      municipalityId: municipality.id,
+    },
+    update: {
+      passwordHash,
+      municipalityId: municipality.id,
+      role: UserRole.ACS,
+      name: 'Ana Paula Santos',
+    },
+  });
+
+  await prisma.acs.update({
+    where: { id: acs1.id },
+    data: { userId: acsUser.id },
+  });
+
   const removedDemo = await prisma.street.deleteMany({
     where: { municipalityId: municipality.id, osmId: null },
   });

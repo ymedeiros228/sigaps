@@ -98,6 +98,10 @@ export interface User {
   email: string;
   role: string;
   municipalityId?: string;
+  acsProfile?: {
+    id: string;
+    microarea?: { id: string; name: string; number: number; color: string };
+  };
 }
 
 export interface LoginResponse {
@@ -470,6 +474,11 @@ export const geoApi = {
   exportStreets: (municipalityId: string, microareaId?: string) =>
     api.get(`/geo/export/${municipalityId}`, {
       params: microareaId ? { microareaId } : undefined,
+    }),
+  exportStreetsKml: (municipalityId: string, microareaId?: string) =>
+    api.get<string>(`/geo/export/${municipalityId}/kml`, {
+      params: microareaId ? { microareaId } : undefined,
+      responseType: 'text' as const,
     }),
   exportMicroareas: (municipalityId: string) =>
     api.get(`/geo/export/${municipalityId}/microareas`),
