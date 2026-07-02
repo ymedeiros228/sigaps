@@ -4,8 +4,8 @@ import {
   Button,
   Card,
   CardContent,
-  CircularProgress,
   Divider,
+  Skeleton,
   TextField,
   Typography,
   alpha,
@@ -21,7 +21,7 @@ import { EsusImportDialog } from '../EsusImportDialog';
 import { canImportStreets } from '../../../utils/permissions';
 import { useAuthStore } from '../../../store';
 import { assetUrl } from '../../../utils/assetUrl';
-import { queryKeys } from '../../../utils/queryKeys';
+import { queryKeys, CACHE } from '../../../utils/queryKeys';
 
 type MunicipalityForm = {
   name: string;
@@ -46,8 +46,10 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   } = useForm<MunicipalityForm>();
 
   const { data: municipality, isLoading } = useQuery({
-    queryKey: ['municipality', municipalityId],
+    queryKey: queryKeys.municipality(municipalityId),
     queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+    staleTime: CACHE.default,
+    enabled: !!municipalityId,
   });
 
   useEffect(() => {
@@ -64,7 +66,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   const saveMutation = useMutation({
     mutationFn: (values: MunicipalityForm) => municipalitiesApi.update(municipalityId, values),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['municipality'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
       reportSuccess('Dados do município atualizados.');
     },
     onError: reportError,
@@ -73,7 +75,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   const logoMutation = useMutation({
     mutationFn: (file: File) => municipalitiesApi.uploadLogo(municipalityId, file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['municipality'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
       reportSuccess('Logotipo enviado com sucesso.');
     },
     onError: reportError,
@@ -82,7 +84,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   const syncEsusMutation = useMutation({
     mutationFn: () => integrationsApi.syncEsus(municipalityId),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ['municipality', municipalityId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(municipalityId) });
       if (res.data.ok) {
         reportSuccess(res.data.message);
@@ -93,13 +95,35 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     onError: reportError,
   });
 
-  if (isLoading || !municipality) {
+  if (isLoading && !municipality) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-        <CircularProgress />
+      <Box sx={{ maxWidth: 640 }}>
+        <Skeleton width="45%" height={32} sx={{ mb: 1 }} />
+        <Skeleton width="70%" height={20} sx={{ mb: 3 }} />
+        <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
+          <CardContent sx={{ display: 'flex', gap: 2.5, alignItems: 'center' }}>
+            <Skeleton variant="rounded" width={96} height={96} />
+            <Box sx={{ flex: 1 }}>
+              <Skeleton width="50%" height={22} />
+              <Skeleton width="80%" height={18} sx={{ mt: 1 }} />
+              <Skeleton variant="rounded" width={140} height={32} sx={{ mt: 1.5 }} />
+            </Box>
+          </CardContent>
+        </Card>
+        <Divider sx={{ mb: 3 }} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Skeleton variant="rounded" height={56} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 2 }}>
+            <Skeleton variant="rounded" height={56} />
+            <Skeleton variant="rounded" height={56} />
+          </Box>
+          <Skeleton variant="rounded" height={56} />
+        </Box>
       </Box>
     );
   }
+
+  if (!municipality) return null;
 
   return (
     <Box sx={{ maxWidth: 640 }}>
@@ -265,7 +289,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
         onClose={() => setEsusOpen(false)}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['streets'] });
-          queryClient.invalidateQueries({ queryKey: ['municipality', municipalityId] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
         }}
       />
     </Box>

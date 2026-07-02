@@ -29,7 +29,7 @@ import { HostingNotice } from '../common/HostingNotice';
 import { useAppDataPrefetch } from '../../hooks/useAppDataPrefetch';
 import { useMemo, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, useAppStore } from '../../store';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME } from '../../constants/branding';
 import { canAccessAdmin, formatRoleLabel, isAcsUser } from '../../utils/permissions';
@@ -37,6 +37,7 @@ import { InstallPrompt } from '../common/InstallPrompt';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
 import { municipalitiesApi } from '../../services/api';
 import { assetUrl } from '../../utils/assetUrl';
+import { prefetchCadastrosData } from '../../utils/prefetchAppData';
 import { queryKeys } from '../../utils/queryKeys';
 import { MunicipalitySwitcher } from './MunicipalitySwitcher';
 
@@ -53,6 +54,7 @@ export function AppLayout() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const darkMode = useAppStore((s) => s.darkMode);
@@ -145,6 +147,11 @@ export function AppLayout() {
             <ListItemButton
               key={item.path}
               selected={selected}
+              onMouseEnter={() => {
+                if (item.path === '/cadastros' && municipalityId) {
+                  prefetchCadastrosData(queryClient, municipalityId);
+                }
+              }}
               onClick={() => {
                 navigate(item.path);
                 setMobileOpen(false);

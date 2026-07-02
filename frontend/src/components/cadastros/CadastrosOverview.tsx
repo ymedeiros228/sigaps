@@ -1,10 +1,11 @@
-import { Box, Button, Grid, Typography } from '@mui/material';
+import { Box, Button, Grid, Skeleton, Typography } from '@mui/material';
 import { Add, LocalHospital, People, LocationCity, GridView, Upload } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { StatCard } from '../ui/StatCard';
-import { acsApi, microareasApi, neighborhoodsApi, ubsApi } from '../../services/api';
+import { municipalitiesApi } from '../../services/api';
 import { useCadastros } from './CadastrosContext';
 import type { CadastrosSectionId } from './cadastrosConfig';
+import { CACHE, queryKeys } from '../../utils/queryKeys';
 
 type CadastrosOverviewProps = {
   municipalityId: string;
@@ -12,6 +13,20 @@ type CadastrosOverviewProps = {
   onSectionChange: (section: CadastrosSectionId) => void;
   onAcsAction?: (action: 'new' | 'import') => void;
 };
+
+function StatCardSkeleton() {
+  return (
+    <Box sx={{ p: 2.5, borderRadius: 2, border: 1, borderColor: 'divider', height: '100%' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Skeleton variant="rounded" width={48} height={48} />
+        <Box sx={{ flex: 1 }}>
+          <Skeleton width="40%" height={18} />
+          <Skeleton width="25%" height={32} sx={{ mt: 0.5 }} />
+        </Box>
+      </Box>
+    </Box>
+  );
+}
 
 export function CadastrosOverview({
   municipalityId,
@@ -21,34 +36,26 @@ export function CadastrosOverview({
 }: CadastrosOverviewProps) {
   const { canManageAcs } = useCadastros();
 
-  const { data: ubs = [] } = useQuery({
-    queryKey: ['ubs', municipalityId],
-    queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
+  const { data: summary, isLoading } = useQuery({
+    queryKey: queryKeys.cadastrosSummary(municipalityId),
+    queryFn: () => municipalitiesApi.cadastrosSummary(municipalityId).then((r) => r.data),
+    staleTime: CACHE.default,
+    enabled: !!municipalityId,
   });
 
-  const { data: acs = [] } = useQuery({
-    queryKey: ['acs', municipalityId],
-    queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
-  });
-
-  const { data: neighborhoods = [] } = useQuery({
-    queryKey: ['neighborhoods', municipalityId],
-    queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
-  });
-
-  const { data: microareas = [] } = useQuery({
-    queryKey: ['microareas', municipalityId],
-    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
-  });
-
-  const acsSemMicro = acs.filter((a) => !a.microarea).length;
-  const acsAtivos = acs.filter((a) => a.status === 'ATIVO').length;
+  const ubs = summary?.ubs ?? 0;
+  const acs = summary?.acs ?? 0;
+  const neighborhoods = summary?.neighborhoods ?? 0;
+  const microareas = summary?.microareas ?? 0;
+  const acsSemMicro = summary?.acsSemMicro ?? 0;
+  const acsAtivos = summary?.acsAtivos ?? 0;
+  const showSkeleton = isLoading && !summary;
 
   const stats = [
     {
       title: 'UBS',
       section: 'ubs' as const,
-      value: ubs.length,
+      value: ubs,
       subtitle: undefined,
       icon: <LocalHospital />,
       color: '#2196F3',
@@ -56,9 +63,9 @@ export function CadastrosOverview({
     {
       title: 'ACS',
       section: 'acs' as const,
-      value: acs.length,
+      value: acs,
       subtitle:
-        acs.length > 0
+        acs > 0
           ? `${acsAtivos} ativo(s)${acsSemMicro > 0 ? ` · ${acsSemMicro} sem microárea` : ''}`
           : 'Cadastre os agentes da equipe',
       icon: <People />,
@@ -67,7 +74,7 @@ export function CadastrosOverview({
     {
       title: 'Bairros',
       section: 'bairros' as const,
-      value: neighborhoods.length,
+      value: neighborhoods,
       subtitle: undefined,
       icon: <LocationCity />,
       color: '#FF9800',
@@ -75,7 +82,7 @@ export function CadastrosOverview({
     {
       title: 'Microáreas',
       section: 'microareas' as const,
-      value: microareas.length,
+      value: microareas,
       subtitle: undefined,
       icon: <GridView />,
       color: '#9C27B0',
@@ -85,32 +92,38 @@ export function CadastrosOverview({
   return (
     <Box sx={{ mb: 3 }}>
       <Grid container spacing={2}>
-        {stats.map((stat) => (
-          <Grid key={stat.title} size={{ xs: 6, md: 3 }}>
-            <Box
-              onClick={() => onSectionChange(stat.section)}
-              sx={{
-                cursor: 'pointer',
-                height: '100%',
-                outline: section === stat.section ? 2 : 0,
-                outlineColor: stat.color,
-                outlineOffset: 2,
-                borderRadius: 2,
-              }}
-            >
-              <StatCard
-                title={stat.title}
-                value={stat.value}
-                icon={stat.icon}
-                color={stat.color}
-                subtitle={stat.subtitle}
-              />
-            </Box>
-          </Grid>
-        ))}
+        {showSkeleton
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Grid key={i} size={{ xs: 6, md: 3 }}>
+                <StatCardSkeleton />
+              </Grid>
+            ))
+          : stats.map((stat) => (
+              <Grid key={stat.title} size={{ xs: 6, md: 3 }}>
+                <Box
+                  onClick={() => onSectionChange(stat.section)}
+                  sx={{
+                    cursor: 'pointer',
+                    height: '100%',
+                    outline: section === stat.section ? 2 : 0,
+                    outlineColor: stat.color,
+                    outlineOffset: 2,
+                    borderRadius: 2,
+                  }}
+                >
+                  <StatCard
+                    title={stat.title}
+                    value={stat.value}
+                    icon={stat.icon}
+                    color={stat.color}
+                    subtitle={stat.subtitle}
+                  />
+                </Box>
+              </Grid>
+            ))}
       </Grid>
 
-      {section === 'acs' && canManageAcs && onAcsAction && (
+      {section === 'acs' && canManageAcs && onAcsAction && !showSkeleton && (
         <Box
           sx={{
             mt: 2,
@@ -124,7 +137,7 @@ export function CadastrosOverview({
           }}
         >
           <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
-            {acs.length === 0
+            {acs === 0
               ? 'Comece cadastrando os ACS manualmente ou importando uma planilha.'
               : acsSemMicro > 0
                 ? `${acsSemMicro} agente(s) ainda sem microárea — vincule na aba ACS ou em Microáreas.`

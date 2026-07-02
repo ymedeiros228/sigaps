@@ -18,9 +18,10 @@ type CadastrosNavProps = {
   section: CadastrosSectionId;
   onChange: (section: CadastrosSectionId) => void;
   highlightAcs?: boolean;
+  onSectionHover?: (section: CadastrosSectionId) => void;
 };
 
-export function CadastrosNav({ section, onChange, highlightAcs }: CadastrosNavProps) {
+export function CadastrosNav({ section, onChange, highlightAcs, onSectionHover }: CadastrosNavProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const sectionIndex = CADASTROS_SECTIONS.findIndex((item) => item.id === section);
@@ -74,6 +75,7 @@ export function CadastrosNav({ section, onChange, highlightAcs }: CadastrosNavPr
               key={item.id}
               selected={selected}
               onClick={() => onChange(item.id)}
+              onMouseEnter={() => onSectionHover?.(item.id)}
               sx={{
                 py: 1.25,
                 mb: 0.5,

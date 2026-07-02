@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Alert, Box, Breadcrumbs, Card, CircularProgress, Link, Typography } from '@mui/material';
 import { Link as RouterLink, Navigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../components/ui/PageHeader';
 import { CadastrosProvider } from '../components/cadastros/CadastrosContext';
 import { CadastrosNav } from '../components/cadastros/CadastrosNav';
@@ -18,6 +19,7 @@ import { MicroareasTab } from '../components/cadastros/tabs/MicroareasTab';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
 import { canManageAcs, canManageCadastrosSection, isAcsUser } from '../utils/permissions';
+import { prefetchCadastrosData } from '../utils/prefetchAppData';
 
 function defaultSectionForRole(role?: string): CadastrosSectionId {
   if (role === 'ENFERMEIRO') return 'acs';
@@ -62,8 +64,15 @@ function CadastrosContent({
 
 export function CadastrosPage() {
   const municipalityId = useMunicipalityId();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (municipalityId) {
+      prefetchCadastrosData(queryClient, municipalityId);
+    }
+  }, [municipalityId, queryClient]);
 
   useEffect(() => {
     const param = searchParams.get('secao');
@@ -162,7 +171,12 @@ export function CadastrosPage() {
 
         <Card sx={{ overflow: 'hidden' }}>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 480 }}>
-            <CadastrosNav section={section} onChange={handleSectionChange} highlightAcs={user?.role === 'ENFERMEIRO'} />
+            <CadastrosNav
+              section={section}
+              onChange={handleSectionChange}
+              highlightAcs={user?.role === 'ENFERMEIRO'}
+              onSectionHover={() => prefetchCadastrosData(queryClient, municipalityId)}
+            />
             <Box sx={{ flex: 1, p: { xs: 2, sm: 3 }, minWidth: 0 }}>
               <CadastrosContent
                 municipalityId={municipalityId}

@@ -2,7 +2,7 @@ import { useMemo, useState, type ChangeEvent } from 'react';
 import { Box, Button, Chip, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { Add, Edit, GridView, Map as MapIcon, Download } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import {
   acsApi,
@@ -21,6 +21,7 @@ import { MICROAREA_COLORS } from '../cadastrosConfig';
 import { useAuthStore } from '../../../store';
 import { maskCpfDisplay } from '../../../utils/inputMasks';
 import { canViewFullCpf } from '../../../utils/permissions';
+import { CACHE, queryKeys } from '../../../utils/queryKeys';
 
 type MicroareaForm = {
   number: number;
@@ -60,23 +61,32 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
   const selectedColor = watch('color') || MICROAREA_COLORS[0];
 
   const { data: ubsList = [] } = useQuery({
-    queryKey: ['ubs', municipalityId],
+    queryKey: queryKeys.ubs(municipalityId),
     queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
+    staleTime: CACHE.default,
+    enabled: !!municipalityId,
   });
 
   const { data: acsList = [] } = useQuery({
-    queryKey: ['acs', municipalityId],
+    queryKey: queryKeys.acs(municipalityId),
     queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
+    staleTime: CACHE.default,
+    enabled: !!municipalityId,
   });
 
   const { data: neighborhoods = [] } = useQuery({
-    queryKey: ['neighborhoods', municipalityId],
+    queryKey: queryKeys.neighborhoods(municipalityId),
     queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
+    staleTime: CACHE.neighborhoods,
+    enabled: !!municipalityId,
   });
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ['microareas', municipalityId],
+    queryKey: queryKeys.microareas(municipalityId),
     queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+    staleTime: CACHE.microareas,
+    placeholderData: keepPreviousData,
+    enabled: !!municipalityId,
   });
 
   const filtered = useMemo(() => {
@@ -100,8 +110,9 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         : microareasApi.create({ ...body, municipalityId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['microareas'] });
-      queryClient.invalidateQueries({ queryKey: ['acs'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.acs(municipalityId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
       setOpen(false);
       reset();
       reportSuccess(editing ? 'Microárea atualizada.' : 'Microárea cadastrada.');
@@ -239,7 +250,7 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
       )}
 
       <CadastrosDataTable
-        loading={isLoading}
+        loading={isLoading && data.length === 0}
         rows={filtered}
         rowKey={(row) => row.id}
         columns={[

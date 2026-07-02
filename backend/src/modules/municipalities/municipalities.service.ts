@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EntityStatus } from '@prisma/client';
 import { mkdir, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -17,6 +18,22 @@ export class MunicipalitiesService {
 
   findAll() {
     return this.prisma.municipality.findMany({ orderBy: { name: 'asc' } });
+  }
+
+  async getCadastrosSummary(id: string) {
+    await this.findOne(id);
+    const [ubs, acs, neighborhoods, microareas, acsSemMicro, acsAtivos] =
+      await this.prisma.$transaction([
+        this.prisma.ubs.count({ where: { municipalityId: id } }),
+        this.prisma.acs.count({ where: { municipalityId: id } }),
+        this.prisma.neighborhood.count({ where: { municipalityId: id } }),
+        this.prisma.microarea.count({ where: { municipalityId: id } }),
+        this.prisma.acs.count({ where: { municipalityId: id, microarea: null } }),
+        this.prisma.acs.count({
+          where: { municipalityId: id, status: EntityStatus.ATIVO },
+        }),
+      ]);
+    return { ubs, acs, neighborhoods, microareas, acsSemMicro, acsAtivos };
   }
 
   async findOne(id: string) {

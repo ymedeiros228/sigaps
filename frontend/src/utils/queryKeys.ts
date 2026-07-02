@@ -13,6 +13,9 @@ export const queryKeys = {
   operationalChecklist: (municipalityId: string) =>
     ['dashboard', municipalityId, 'checklist'] as const,
   municipality: (municipalityId: string) => ['municipality', municipalityId] as const,
+  cadastrosSummary: (municipalityId: string) =>
+    ['cadastros-summary', municipalityId] as const,
+  acs: (municipalityId: string) => ['acs', municipalityId] as const,
 };
 
 export const CACHE = {

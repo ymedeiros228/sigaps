@@ -125,6 +125,15 @@ export interface Municipality {
   esusLastSyncAt?: string | null;
 }
 
+export interface CadastrosSummary {
+  ubs: number;
+  acs: number;
+  neighborhoods: number;
+  microareas: number;
+  acsSemMicro: number;
+  acsAtivos: number;
+}
+
 export interface Street {
   id: string;
   name: string;
@@ -218,6 +227,8 @@ export const authApi = {
 export const municipalitiesApi = {
   list: () => api.get<Municipality[]>('/municipalities'),
   get: (id: string) => api.get<Municipality>(`/municipalities/${id}`),
+  cadastrosSummary: (id: string) =>
+    api.get<CadastrosSummary>(`/municipalities/${id}/cadastros-summary`),
   update: (id: string, data: Record<string, unknown>) =>
     api.patch(`/municipalities/${id}`, data),
   setMapHomologation: (id: string, data: { homologated: boolean; notes?: string }) =>

@@ -33,6 +33,12 @@ export class MunicipalitiesController {
     return this.municipalitiesService.findAll();
   }
 
+  @Get(':id/cadastros-summary')
+  @ApiOperation({ summary: 'Contagens resumidas dos cadastros do município' })
+  cadastrosSummary(@Param('id') id: string) {
+    return this.municipalitiesService.getCadastrosSummary(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalhes do município' })
   findOne(@Param('id') id: string) {
