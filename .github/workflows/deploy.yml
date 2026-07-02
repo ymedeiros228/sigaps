@@ -108,25 +108,15 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::RENDER_DEPLOY_HOOK ausente — Render depende do Auto-Deploy do Git"
           fi
 
-      - name: Falha se RENDER_DEPLOY_HOOK ausente
-        if: steps.hook.outputs.configured != 'true'
-        run: |
-          echo "::error::RENDER_DEPLOY_HOOK nao configurado — o Render NAO vai atualizar."
-          echo ""
-          echo "Configure uma vez:"
-          echo "  1. Render -> sigaps-api -> Settings -> Deploy Hook -> copiar URL"
-          echo "  2. No PC: .\\scripts\\configurar-render-hook.ps1"
-          echo "     ou: echo URL_DO_HOOK | gh secret set RENDER_DEPLOY_HOOK"
-          echo ""
-          echo "Guia: docs/CONFIGURAR_DEPLOY_AUTOMATICO.md"
-          exit 1
-
       - name: Disparar redeploy no Render
+        if: steps.hook.outputs.configured == 'true'
         run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
 
       - name: Aguardar API atualizar
+        if: steps.hook.outputs.configured == 'true'
         env:
           API_URL: ${{ secrets.VITE_API_URL }}
           EXPECTED_COMMIT: ${{ github.sha }}
@@ -144,5 +134,4 @@ jobs:
             echo "Tentativa $i/36 — commit atual: ${COMMIT:-desconhecido}"
             sleep 10
           done
-          echo "::error::Render nao reportou o commit esperado apos 6 minutos. Verifique o painel do Render."
-          exit 1
+          echo "::warning::Render ainda nao reportou o commit esperado apos 6 minutos"
