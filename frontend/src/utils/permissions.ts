@@ -62,6 +62,7 @@ export function formatAuditAction(action: string, entityType: string): string {
     CREATE: 'Cadastrou',
     UPDATE: 'Atualizou',
     DELETE: 'Removeu',
+    RESET_PASSWORD: 'Redefiniu senha de',
   };
   const entities: Record<string, string> = {
     street: 'rua',
@@ -70,6 +71,7 @@ export function formatAuditAction(action: string, entityType: string): string {
     acs: 'ACS',
     neighborhood: 'bairro',
     municipality: 'município',
+    user: 'usuário',
   };
   const verb = actions[action] ?? action.replace(/_/g, ' ').toLowerCase();
   const entity = entities[entityType] ?? entityType;

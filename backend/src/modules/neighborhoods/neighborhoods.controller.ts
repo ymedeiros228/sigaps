@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -37,21 +38,25 @@ export class NeighborhoodsController {
   @Post()
   @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
   @ApiOperation({ summary: 'Cadastrar bairro' })
-  create(@Body() dto: CreateNeighborhoodDto) {
-    return this.neighborhoodsService.create(dto);
+  create(@Body() dto: CreateNeighborhoodDto, @Req() req: { user: { id: string } }) {
+    return this.neighborhoodsService.create(dto, req.user.id);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
   @ApiOperation({ summary: 'Atualizar bairro' })
-  update(@Param('id') id: string, @Body() dto: UpdateNeighborhoodDto) {
-    return this.neighborhoodsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateNeighborhoodDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.neighborhoodsService.update(id, dto, req.user.id);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE)
   @ApiOperation({ summary: 'Excluir bairro' })
-  remove(@Param('id') id: string) {
-    return this.neighborhoodsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: { user: { id: string } }) {
+    return this.neighborhoodsService.remove(id, req.user.id);
   }
 }

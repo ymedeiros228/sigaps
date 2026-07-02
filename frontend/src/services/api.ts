@@ -279,6 +279,13 @@ export const acsApi = {
       { municipalityId, items },
     ),
   remove: (id: string) => api.delete(`/acs/${id}`),
+  uploadPhoto: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<Acs>(`/acs/${id}/photo`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const neighborhoodsApi = {
@@ -347,8 +354,18 @@ export interface AuditLogEntry {
   entityType: string;
   entityId: string;
   action: string;
+  beforeData?: Record<string, unknown> | null;
+  afterData?: Record<string, unknown> | null;
   createdAt: string;
   user: { id: string; name: string; role: string; email: string };
+}
+
+export interface AuditFilters {
+  entityType?: string;
+  action?: string;
+  userId?: string;
+  from?: string;
+  to?: string;
 }
 
 export const adminApi = {
@@ -362,14 +379,29 @@ export const adminApi = {
       payload,
       { timeout: 300_000 },
     ),
-  audit: (municipalityId: string, page = 1, limit = 50) =>
+  audit: (municipalityId: string, page = 1, limit = 50, filters?: AuditFilters) =>
     api.get<{
       items: AuditLogEntry[];
       total: number;
       page: number;
       limit: number;
       pages: number;
-    }>(`/admin/municipality/${municipalityId}/audit`, { params: { page, limit } }),
+    }>(`/admin/municipality/${municipalityId}/audit`, {
+      params: { page, limit, ...filters },
+    }),
+  createUser: (
+    municipalityId: string,
+    data: { email: string; password: string; name: string; role: string },
+  ) => api.post<AdminUser>(`/admin/municipality/${municipalityId}/users`, data),
+  updateUser: (
+    municipalityId: string,
+    userId: string,
+    data: Partial<{ email: string; name: string; role: string; isActive: boolean }>,
+  ) => api.patch<AdminUser>(`/admin/municipality/${municipalityId}/users/${userId}`, data),
+  resetPassword: (municipalityId: string, userId: string, password: string) =>
+    api.post(`/admin/municipality/${municipalityId}/users/${userId}/reset-password`, {
+      password,
+    }),
 };
 
 export const osmApi = {

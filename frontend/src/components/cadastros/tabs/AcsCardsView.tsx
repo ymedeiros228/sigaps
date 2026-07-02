@@ -14,6 +14,7 @@ import {
 import { Delete, Edit, GridView, Phone } from '@mui/icons-material';
 import type { Acs } from '../../../services/api';
 import { maskCpfDisplay } from '../../../utils/inputMasks';
+import { assetUrl } from '../../../utils/assetUrl';
 
 interface AcsCardsViewProps {
   rows: Acs[];
@@ -82,6 +83,7 @@ export function AcsCardsView({
             <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
                 <Avatar
+                  src={assetUrl(acs.photoUrl) ?? undefined}
                   sx={{
                     width: 52,
                     height: 52,

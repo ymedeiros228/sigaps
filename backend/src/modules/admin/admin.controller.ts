@@ -1,10 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AdminService } from './admin.service';
 import { BackupService } from './backup.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('Administração')
 @ApiBearerAuth()
@@ -44,11 +47,49 @@ export class AdminController {
     @Param('municipalityId') municipalityId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('entityType') entityType?: string,
+    @Query('action') action?: string,
+    @Query('userId') userId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     return this.admin.getAuditLog(
       municipalityId,
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 50,
+      { entityType, action, userId, from, to },
     );
+  }
+
+  @Post('municipality/:municipalityId/users')
+  @ApiOperation({ summary: 'Criar usuário do município' })
+  createUser(
+    @Param('municipalityId') municipalityId: string,
+    @Body() dto: CreateUserDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.admin.createUser(municipalityId, dto, req.user.id);
+  }
+
+  @Patch('municipality/:municipalityId/users/:userId')
+  @ApiOperation({ summary: 'Atualizar usuário do município' })
+  updateUser(
+    @Param('municipalityId') municipalityId: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateUserDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.admin.updateUser(municipalityId, userId, dto, req.user.id);
+  }
+
+  @Post('municipality/:municipalityId/users/:userId/reset-password')
+  @ApiOperation({ summary: 'Redefinir senha do usuário' })
+  resetPassword(
+    @Param('municipalityId') municipalityId: string,
+    @Param('userId') userId: string,
+    @Body() dto: ResetPasswordDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.admin.resetPassword(municipalityId, userId, dto.password, req.user.id);
   }
 }

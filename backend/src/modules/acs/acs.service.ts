@@ -4,13 +4,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { mkdir, writeFile } from 'fs/promises';
+import { extname, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../common/services/audit.service';
+import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { CreateAcsDto, UpdateAcsDto } from './dto/acs.dto';
 import { BulkAcsImportDto } from './dto/bulk-acs.dto';
 
 @Injectable()
 export class AcsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   findByMunicipality(municipalityId: string) {
     return this.prisma.acs.findMany({
@@ -29,6 +36,22 @@ export class AcsService {
     });
     if (!acs) throw new NotFoundException('ACS não encontrado');
     return acs;
+  }
+
+  private acsAuditFields(acs: {
+    name: string;
+    cpf: string;
+    phone?: string | null;
+    status: string;
+    photoUrl?: string | null;
+  }) {
+    return auditSnapshot(acs as Record<string, unknown>, [
+      'name',
+      'cpf',
+      'phone',
+      'status',
+      'photoUrl',
+    ]);
   }
 
   private async assignToMicroarea(acsId: string, microareaId?: string | null) {
@@ -62,7 +85,7 @@ export class AcsService {
     return partial?.id;
   }
 
-  async create(dto: CreateAcsDto) {
+  async create(dto: CreateAcsDto, userId: string) {
     const { microareaId, ...data } = dto;
     const existing = await this.prisma.acs.findUnique({ where: { cpf: data.cpf } });
     if (existing) {
@@ -70,11 +93,21 @@ export class AcsService {
     }
     const acs = await this.prisma.acs.create({ data });
     if (microareaId) await this.assignToMicroarea(acs.id, microareaId);
-    return this.findOne(acs.id);
+    const result = await this.findOne(acs.id);
+
+    await this.audit.log({
+      userId,
+      entityType: 'acs',
+      entityId: acs.id,
+      action: 'CREATE',
+      afterData: this.acsAuditFields(result),
+    });
+
+    return result;
   }
 
-  async update(id: string, dto: UpdateAcsDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateAcsDto, userId: string) {
+    const before = await this.findOne(id);
     const { microareaId, municipalityId: _m, cpf: _c, ...data } = dto;
     if (dto.cpf) {
       const dup = await this.prisma.acs.findFirst({
@@ -86,10 +119,57 @@ export class AcsService {
     if (microareaId !== undefined) {
       await this.assignToMicroarea(id, microareaId || null);
     }
-    return this.findOne(id);
+    const result = await this.findOne(id);
+
+    await this.audit.log({
+      userId,
+      entityType: 'acs',
+      entityId: id,
+      action: 'UPDATE',
+      beforeData: this.acsAuditFields(before),
+      afterData: this.acsAuditFields(result),
+    });
+
+    return result;
   }
 
-  async bulkImport(dto: BulkAcsImportDto) {
+  async uploadPhoto(id: string, file: Express.Multer.File, userId: string) {
+    const before = await this.findOne(id);
+
+    const allowed = ['.png', '.jpg', '.jpeg', '.webp'];
+    const ext = extname(file.originalname).toLowerCase() || '.jpg';
+    if (!allowed.includes(ext)) {
+      throw new BadRequestException('Formato de imagem não suportado. Use PNG, JPG ou WEBP.');
+    }
+
+    const uploadDir = join(process.cwd(), 'uploads', 'acs');
+    await mkdir(uploadDir, { recursive: true });
+
+    const filename = `${id}${ext}`;
+    await writeFile(join(uploadDir, filename), file.buffer);
+
+    const photoUrl = `/uploads/acs/${filename}`;
+    const result = await this.prisma.acs.update({
+      where: { id },
+      data: { photoUrl },
+      include: {
+        microarea: { select: { id: true, name: true, number: true, color: true } },
+      },
+    });
+
+    await this.audit.log({
+      userId,
+      entityType: 'acs',
+      entityId: id,
+      action: 'UPDATE',
+      beforeData: { photoUrl: before.photoUrl },
+      afterData: { photoUrl },
+    });
+
+    return result;
+  }
+
+  async bulkImport(dto: BulkAcsImportDto, userId: string) {
     const microareas = await this.prisma.microarea.findMany({
       where: { municipalityId: dto.municipalityId },
       select: { id: true, name: true, number: true },
@@ -124,6 +204,18 @@ export class AcsService {
             },
           });
           if (microareaId) await this.assignToMicroarea(existing.id, microareaId);
+          await this.audit.log({
+            userId,
+            entityType: 'acs',
+            entityId: existing.id,
+            action: 'UPDATE',
+            afterData: auditSnapshot({
+              name: item.name,
+              cpf: item.cpf,
+              phone: item.phone,
+              status: item.status ?? existing.status,
+            }),
+          });
           updated++;
         } else {
           const acs = await this.prisma.acs.create({
@@ -136,6 +228,18 @@ export class AcsService {
             },
           });
           if (microareaId) await this.assignToMicroarea(acs.id, microareaId);
+          await this.audit.log({
+            userId,
+            entityType: 'acs',
+            entityId: acs.id,
+            action: 'CREATE',
+            afterData: auditSnapshot({
+              name: item.name,
+              cpf: item.cpf,
+              phone: item.phone,
+              status: item.status ?? 'ATIVO',
+            }),
+          });
           created++;
         }
       } catch (error) {
@@ -157,12 +261,22 @@ export class AcsService {
     return { created, updated, errors, total: dto.items.length };
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, userId: string) {
+    const before = await this.findOne(id);
     await this.prisma.microarea.updateMany({
       where: { acsId: id },
       data: { acsId: null },
     });
-    return this.prisma.acs.delete({ where: { id } });
+    await this.prisma.acs.delete({ where: { id } });
+
+    await this.audit.log({
+      userId,
+      entityType: 'acs',
+      entityId: id,
+      action: 'DELETE',
+      beforeData: this.acsAuditFields(before),
+    });
+
+    return { ok: true };
   }
 }

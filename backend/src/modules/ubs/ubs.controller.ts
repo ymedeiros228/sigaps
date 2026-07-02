@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -37,21 +38,25 @@ export class UbsController {
   @Post()
   @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
   @ApiOperation({ summary: 'Cadastrar UBS' })
-  create(@Body() dto: CreateUbsDto) {
-    return this.ubsService.create(dto);
+  create(@Body() dto: CreateUbsDto, @Req() req: { user: { id: string } }) {
+    return this.ubsService.create(dto, req.user.id);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
   @ApiOperation({ summary: 'Atualizar UBS' })
-  update(@Param('id') id: string, @Body() dto: UpdateUbsDto) {
-    return this.ubsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUbsDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.ubsService.update(id, dto, req.user.id);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE)
   @ApiOperation({ summary: 'Excluir UBS' })
-  remove(@Param('id') id: string) {
-    return this.ubsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: { user: { id: string } }) {
+    return this.ubsService.remove(id, req.user.id);
   }
 }

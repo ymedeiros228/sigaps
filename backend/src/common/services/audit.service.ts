@@ -29,12 +29,35 @@ export class AuditService {
     });
   }
 
-  async findPaginated(municipalityId: string, page = 1, limit = 50) {
+  async findPaginated(
+    municipalityId: string,
+    page = 1,
+    limit = 50,
+    filters?: {
+      entityType?: string;
+      action?: string;
+      userId?: string;
+      from?: string;
+      to?: string;
+    },
+  ) {
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(100, Math.max(1, limit));
     const skip = (safePage - 1) * safeLimit;
 
-    const where = { user: { municipalityId } };
+    const where: Prisma.AuditLogWhereInput = { user: { municipalityId } };
+    if (filters?.entityType) where.entityType = filters.entityType;
+    if (filters?.action) where.action = filters.action;
+    if (filters?.userId) where.userId = filters.userId;
+    if (filters?.from || filters?.to) {
+      where.createdAt = {};
+      if (filters.from) where.createdAt.gte = new Date(filters.from);
+      if (filters.to) {
+        const end = new Date(filters.to);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
 
     const [items, total] = await Promise.all([
       this.prisma.auditLog.findMany({

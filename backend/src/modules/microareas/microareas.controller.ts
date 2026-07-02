@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -47,8 +48,8 @@ export class MicroareasController {
     UserRole.ENFERMEIRO,
   )
   @ApiOperation({ summary: 'Criar microárea' })
-  create(@Body() dto: CreateMicroareaDto) {
-    return this.microareasService.create(dto);
+  create(@Body() dto: CreateMicroareaDto, @Req() req: { user: { id: string } }) {
+    return this.microareasService.create(dto, req.user.id);
   }
 
   @Patch(':id')
@@ -59,7 +60,11 @@ export class MicroareasController {
     UserRole.ENFERMEIRO,
   )
   @ApiOperation({ summary: 'Atualizar microárea' })
-  update(@Param('id') id: string, @Body() dto: UpdateMicroareaDto) {
-    return this.microareasService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateMicroareaDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.microareasService.update(id, dto, req.user.id);
   }
 }

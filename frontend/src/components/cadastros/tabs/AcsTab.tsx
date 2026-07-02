@@ -149,6 +149,16 @@ export function AcsTab({
     onError: reportError,
   });
 
+  const photoMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => acsApi.uploadPhoto(id, file),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['acs'] });
+      if (editing) setEditing(res.data);
+      reportSuccess('Foto do ACS atualizada.');
+    },
+    onError: reportError,
+  });
+
   const openForm = (item?: Acs) => {
     setEditing(item ?? null);
     setOpen(true);
@@ -366,8 +376,14 @@ export function AcsTab({
         editing={editing}
         microareas={microareas}
         loading={saveMutation.isPending}
+        photoLoading={photoMutation.isPending}
         onClose={() => setOpen(false)}
         onSave={(values, andAnother) => saveMutation.mutate({ values, andAnother })}
+        onPhotoUpload={
+          editing
+            ? (file) => photoMutation.mutate({ id: editing.id, file })
+            : undefined
+        }
       />
 
       <AcsBulkImportDialog

@@ -4,11 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../common/services/audit.service';
+import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { CreateMicroareaDto, UpdateMicroareaDto } from './dto/microarea.dto';
 
 @Injectable()
 export class MicroareasService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async findByMunicipality(municipalityId: string) {
     return this.prisma.microarea.findMany({
@@ -59,6 +64,24 @@ export class MicroareasService {
     }
   }
 
+  private microareaSnapshot(microarea: {
+    number: number;
+    name: string;
+    color: string;
+    ubsId?: string | null;
+    acsId?: string | null;
+    neighborhoodId?: string | null;
+  }) {
+    return auditSnapshot(microarea as Record<string, unknown>, [
+      'number',
+      'name',
+      'color',
+      'ubsId',
+      'acsId',
+      'neighborhoodId',
+    ]);
+  }
+
   private async validateLinks(
     municipalityId: string,
     links: { ubsId?: string | null; acsId?: string | null; neighborhoodId?: string | null },
@@ -91,7 +114,7 @@ export class MicroareasService {
     });
   }
 
-  async create(dto: CreateMicroareaDto) {
+  async create(dto: CreateMicroareaDto, userId: string) {
     const { municipalityId, ubsId, acsId, neighborhoodId, ...rest } = dto;
     await this.validateLinks(municipalityId, { ubsId, acsId, neighborhoodId });
 
@@ -106,17 +129,27 @@ export class MicroareasService {
     });
 
     if (acsId) await this.ensureAcsExclusive(microarea.id, acsId);
-    return this.findOne(microarea.id);
+    const result = await this.findOne(microarea.id);
+
+    await this.audit.log({
+      userId,
+      entityType: 'microarea',
+      entityId: microarea.id,
+      action: 'CREATE',
+      afterData: this.microareaSnapshot(result),
+    });
+
+    return result;
   }
 
-  async update(id: string, dto: UpdateMicroareaDto) {
-    const current = await this.findOne(id);
-    const municipalityId = dto.municipalityId ?? current.municipalityId;
+  async update(id: string, dto: UpdateMicroareaDto, userId: string) {
+    const before = await this.findOne(id);
+    const municipalityId = dto.municipalityId ?? before.municipalityId;
 
-    const ubsId = dto.ubsId !== undefined ? dto.ubsId : current.ubsId;
-    const acsId = dto.acsId !== undefined ? dto.acsId : current.acsId;
+    const ubsId = dto.ubsId !== undefined ? dto.ubsId : before.ubsId;
+    const acsId = dto.acsId !== undefined ? dto.acsId : before.acsId;
     const neighborhoodId =
-      dto.neighborhoodId !== undefined ? dto.neighborhoodId : current.neighborhoodId;
+      dto.neighborhoodId !== undefined ? dto.neighborhoodId : before.neighborhoodId;
 
     await this.validateLinks(municipalityId, { ubsId, acsId, neighborhoodId });
 
@@ -136,6 +169,17 @@ export class MicroareasService {
       },
     });
 
-    return this.findOne(id);
+    const result = await this.findOne(id);
+
+    await this.audit.log({
+      userId,
+      entityType: 'microarea',
+      entityId: id,
+      action: 'UPDATE',
+      beforeData: this.microareaSnapshot(before),
+      afterData: this.microareaSnapshot(result),
+    });
+
+    return result;
   }
 }

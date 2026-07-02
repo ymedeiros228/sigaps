@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
+  Avatar,
   Box,
   Button,
   Chip,
@@ -11,7 +12,10 @@ import {
   MenuItem,
   TextField,
   Typography,
+  alpha,
+  useTheme,
 } from '@mui/material';
+import { CloudUpload, Person } from '@mui/icons-material';
 import { Controller, useForm } from 'react-hook-form';
 import type { Acs, Microarea } from '../../../services/api';
 import {
@@ -20,6 +24,7 @@ import {
   formatPhone,
   isValidCpf,
 } from '../../../utils/inputMasks';
+import { assetUrl } from '../../../utils/assetUrl';
 
 export type AcsFormValues = {
   name: string;
@@ -34,8 +39,10 @@ interface AcsFormDialogProps {
   editing: Acs | null;
   microareas: Microarea[];
   loading: boolean;
+  photoLoading?: boolean;
   onClose: () => void;
   onSave: (values: AcsFormValues, andAnother: boolean) => void;
+  onPhotoUpload?: (file: File) => void;
 }
 
 const emptyValues: AcsFormValues = {
@@ -51,9 +58,13 @@ export function AcsFormDialog({
   editing,
   microareas,
   loading,
+  photoLoading,
   onClose,
   onSave,
+  onPhotoUpload,
 }: AcsFormDialogProps) {
+  const theme = useTheme();
+  const fileRef = useRef<HTMLInputElement>(null);
   const {
     register,
     control,
@@ -106,6 +117,51 @@ export function AcsFormDialog({
               Preencha os dados do agente. Você pode vincular a microárea agora ou depois, na aba
               Microáreas.
             </Typography>
+          )}
+
+          {editing && onPhotoUpload && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                src={assetUrl(editing.photoUrl) ?? undefined}
+                sx={{
+                  width: 72,
+                  height: 72,
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  border: 2,
+                  borderColor: 'divider',
+                }}
+              >
+                <Person />
+              </Avatar>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  Foto do ACS
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  PNG, JPG ou WEBP. Aparece no cartão do agente.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={photoLoading ? <CircularProgress size={14} /> : <CloudUpload />}
+                  disabled={photoLoading}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {editing.photoUrl ? 'Trocar foto' : 'Enviar foto'}
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onPhotoUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+              </Box>
+            </Box>
           )}
 
           <TextField

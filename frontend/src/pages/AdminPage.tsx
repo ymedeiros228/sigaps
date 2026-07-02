@@ -11,8 +11,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
   IconButton,
+  InputLabel,
+  MenuItem,
   Pagination,
+  Select,
   Tab,
   Tabs,
   Table,
@@ -21,32 +25,64 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import {
+  Add,
   AdminPanelSettings,
   Backup,
   CloudDownload,
   CloudUpload,
+  Edit,
   History,
   People,
   Refresh,
   Signpost,
   Storage,
+  Visibility,
   Warning,
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
+import { UserFormDialog, type UserFormValues } from '../components/admin/UserFormDialog';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
-import { adminApi } from '../services/api';
+import { adminApi, type AdminUser, type AuditFilters, type AuditLogEntry } from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import { canAccessAdmin, formatAuditAction, formatRoleLabel } from '../utils/permissions';
 
 type AdminTab = 'resumo' | 'backup' | 'usuarios' | 'auditoria';
+
+const ENTITY_FILTER_OPTIONS = [
+  { value: '', label: 'Todas entidades' },
+  { value: 'acs', label: 'ACS' },
+  { value: 'ubs', label: 'UBS' },
+  { value: 'microarea', label: 'Microárea' },
+  { value: 'neighborhood', label: 'Bairro' },
+  { value: 'street', label: 'Rua' },
+  { value: 'user', label: 'Usuário' },
+];
+
+const ACTION_FILTER_OPTIONS = [
+  { value: '', label: 'Todas ações' },
+  { value: 'CREATE', label: 'Cadastro' },
+  { value: 'UPDATE', label: 'Atualização' },
+  { value: 'DELETE', label: 'Remoção' },
+  { value: 'RESET_PASSWORD', label: 'Redefinição de senha' },
+  { value: 'ASSIGN_MICROAREA', label: 'Pintura de rua' },
+  { value: 'ASSIGN_NEIGHBORHOOD', label: 'Vínculo bairro' },
+];
+
+function formatAuditData(data?: Record<string, unknown> | null) {
+  if (!data || Object.keys(data).length === 0) return '—';
+  return Object.entries(data)
+    .map(([k, v]) => `${k}: ${v === null ? '—' : String(v)}`)
+    .join(' · ');
+}
 
 function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -66,6 +102,10 @@ export function AdminPage() {
 
   const [tab, setTab] = useState<AdminTab>('resumo');
   const [auditPage, setAuditPage] = useState(1);
+  const [auditFilters, setAuditFilters] = useState<AuditFilters>({});
+  const [auditDetail, setAuditDetail] = useState<AuditLogEntry | null>(null);
+  const [userOpen, setUserOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [pendingBackup, setPendingBackup] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -88,8 +128,8 @@ export function AdminPage() {
   });
 
   const { data: auditData, isLoading: auditLoading } = useQuery({
-    queryKey: ['admin', 'audit', municipalityId, auditPage],
-    queryFn: () => adminApi.audit(municipalityId, auditPage, 30).then((r) => r.data),
+    queryKey: ['admin', 'audit', municipalityId, auditPage, auditFilters],
+    queryFn: () => adminApi.audit(municipalityId, auditPage, 30, auditFilters).then((r) => r.data),
     enabled: tab === 'auditoria',
   });
 
@@ -115,6 +155,50 @@ export function AdminPage() {
       setImportOpen(false);
       setPendingBackup(null);
       void queryClient.invalidateQueries();
+    },
+    onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
+  });
+
+  const saveUserMutation = useMutation({
+    mutationFn: (values: UserFormValues) => {
+      if (editingUser) {
+        return adminApi
+          .updateUser(municipalityId, editingUser.id, {
+            name: values.name,
+            email: values.email,
+            role: values.role,
+            isActive: String(values.isActive) === 'true',
+          })
+          .then((r) => r.data);
+      }
+      return adminApi
+        .createUser(municipalityId, {
+          name: values.name,
+          email: values.email,
+          role: values.role,
+          password: values.password,
+        })
+        .then((r) => r.data);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'overview', municipalityId] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] });
+      setUserOpen(false);
+      setEditingUser(null);
+      setMessage({
+        type: 'success',
+        text: editingUser ? 'Usuário atualizado.' : 'Usuário criado com sucesso.',
+      });
+    },
+    onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ userId, password }: { userId: string; password: string }) =>
+      adminApi.resetPassword(municipalityId, userId, password),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] });
+      setMessage({ type: 'success', text: 'Senha redefinida com sucesso.' });
     },
     onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
   });
@@ -301,6 +385,19 @@ export function AdminPage() {
 
       {tab === 'usuarios' && overview && (
         <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2, pb: 0 }}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Add />}
+              onClick={() => {
+                setEditingUser(null);
+                setUserOpen(true);
+              }}
+            >
+              Novo usuário
+            </Button>
+          </Box>
           <TableContainer>
             <Table size="small">
               <TableHead>
@@ -310,6 +407,7 @@ export function AdminPage() {
                   <TableCell>Perfil</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Cadastro</TableCell>
+                  <TableCell align="right">Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -332,6 +430,19 @@ export function AdminPage() {
                         {new Date(u.createdAt).toLocaleDateString('pt-BR')}
                       </Typography>
                     </TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Editar">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setEditingUser(u);
+                            setUserOpen(true);
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -342,6 +453,110 @@ export function AdminPage() {
 
       {tab === 'auditoria' && (
         <Box>
+          <Card variant="outlined" sx={{ borderRadius: 3, mb: 2, p: 2 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(5, 1fr)' },
+                gap: 2,
+              }}
+            >
+              <FormControl size="small" fullWidth>
+                <InputLabel>Entidade</InputLabel>
+                <Select
+                  label="Entidade"
+                  value={auditFilters.entityType ?? ''}
+                  onChange={(e) => {
+                    setAuditPage(1);
+                    setAuditFilters((f) => ({ ...f, entityType: e.target.value || undefined }));
+                  }}
+                >
+                  {ENTITY_FILTER_OPTIONS.map((o) => (
+                    <MenuItem key={o.value || 'all'} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Ação</InputLabel>
+                <Select
+                  label="Ação"
+                  value={auditFilters.action ?? ''}
+                  onChange={(e) => {
+                    setAuditPage(1);
+                    setAuditFilters((f) => ({ ...f, action: e.target.value || undefined }));
+                  }}
+                >
+                  {ACTION_FILTER_OPTIONS.map((o) => (
+                    <MenuItem key={o.value || 'all'} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Usuário</InputLabel>
+                <Select
+                  label="Usuário"
+                  value={auditFilters.userId ?? ''}
+                  onChange={(e) => {
+                    setAuditPage(1);
+                    setAuditFilters((f) => ({ ...f, userId: e.target.value || undefined }));
+                  }}
+                >
+                  <MenuItem value="">Todos</MenuItem>
+                  {(overview?.users ?? []).map((u) => (
+                    <MenuItem key={u.id} value={u.id}>
+                      {u.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <TextField
+                label="De"
+                type="date"
+                size="small"
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={auditFilters.from ?? ''}
+                onChange={(e) => {
+                  setAuditPage(1);
+                  setAuditFilters((f) => ({ ...f, from: e.target.value || undefined }));
+                }}
+                fullWidth
+              />
+              <TextField
+                label="Até"
+                type="date"
+                size="small"
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={auditFilters.to ?? ''}
+                onChange={(e) => {
+                  setAuditPage(1);
+                  setAuditFilters((f) => ({ ...f, to: e.target.value || undefined }));
+                }}
+                fullWidth
+              />
+            </Box>
+            {(auditFilters.entityType ||
+              auditFilters.action ||
+              auditFilters.userId ||
+              auditFilters.from ||
+              auditFilters.to) && (
+              <Box sx={{ mt: 1.5 }}>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setAuditFilters({});
+                    setAuditPage(1);
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              </Box>
+            )}
+          </Card>
+
           {auditLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress />
@@ -357,6 +572,7 @@ export function AdminPage() {
                         <TableCell>Usuário</TableCell>
                         <TableCell>Ação</TableCell>
                         <TableCell>Entidade</TableCell>
+                        <TableCell align="right">Detalhes</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -376,12 +592,21 @@ export function AdminPage() {
                               {log.entityId.slice(0, 8)}…
                             </Typography>
                           </TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Ver alterações">
+                              <IconButton size="small" onClick={() => setAuditDetail(log)}>
+                                <Visibility fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
                         </TableRow>
                       ))}
                       {(auditData?.items ?? []).length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                            <Typography color="text.secondary">Nenhum registro de auditoria.</Typography>
+                          <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                            <Typography color="text.secondary">
+                              Nenhum registro de auditoria.
+                            </Typography>
                           </TableCell>
                         </TableRow>
                       )}
@@ -389,16 +614,19 @@ export function AdminPage() {
                   </Table>
                 </TableContainer>
               </Card>
-              {(auditData?.pages ?? 0) > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {auditData?.total ?? 0} registro(s)
+                </Typography>
+                {(auditData?.pages ?? 0) > 1 && (
                   <Pagination
                     count={auditData?.pages}
                     page={auditPage}
                     onChange={(_, p) => setAuditPage(p)}
                     color="primary"
                   />
-                </Box>
-              )}
+                )}
+              </Box>
             </>
           )}
         </Box>
@@ -440,6 +668,69 @@ export function AdminPage() {
           >
             {importMutation.isPending ? 'Restaurando…' : 'Restaurar backup'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <UserFormDialog
+        open={userOpen}
+        editing={editingUser}
+        loading={saveUserMutation.isPending}
+        resetLoading={resetPasswordMutation.isPending}
+        onClose={() => {
+          setUserOpen(false);
+          setEditingUser(null);
+        }}
+        onSave={(values) => saveUserMutation.mutate(values)}
+        onResetPassword={
+          editingUser
+            ? (password) =>
+                resetPasswordMutation.mutate({ userId: editingUser.id, password })
+            : undefined
+        }
+      />
+
+      <Dialog
+        open={!!auditDetail}
+        onClose={() => setAuditDetail(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Detalhes da auditoria</DialogTitle>
+        <DialogContent>
+          {auditDetail && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body2">
+                <strong>Ação:</strong>{' '}
+                {formatAuditAction(auditDetail.action, auditDetail.entityType)}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Usuário:</strong> {auditDetail.user.name}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Data:</strong>{' '}
+                {new Date(auditDetail.createdAt).toLocaleString('pt-BR')}
+              </Typography>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  Antes
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {formatAuditData(auditDetail.beforeData)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  Depois
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {formatAuditData(auditDetail.afterData)}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAuditDetail(null)}>Fechar</Button>
         </DialogActions>
       </Dialog>
     </Box>

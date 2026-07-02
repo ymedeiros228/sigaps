@@ -1,6 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -90,7 +99,136 @@ export class AdminService {
     };
   }
 
-  getAuditLog(municipalityId: string, page = 1, limit = 50) {
-    return this.audit.findPaginated(municipalityId, page, limit);
+  getAuditLog(
+    municipalityId: string,
+    page = 1,
+    limit = 50,
+    filters?: {
+      entityType?: string;
+      action?: string;
+      userId?: string;
+      from?: string;
+      to?: string;
+    },
+  ) {
+    return this.audit.findPaginated(municipalityId, page, limit, filters);
+  }
+
+  private async findUserInMunicipality(municipalityId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, municipalityId },
+    });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+    return user;
+  }
+
+  async createUser(municipalityId: string, dto: CreateUserDto, actorId: string) {
+    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
+
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException('Já existe um usuário com este e-mail.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        name: dto.name,
+        role: dto.role,
+        passwordHash,
+        municipalityId,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    await this.audit.log({
+      userId: actorId,
+      entityType: 'user',
+      entityId: user.id,
+      action: 'CREATE',
+      afterData: auditSnapshot(user as Record<string, unknown>),
+    });
+
+    return user;
+  }
+
+  async updateUser(
+    municipalityId: string,
+    userId: string,
+    dto: UpdateUserDto,
+    actorId: string,
+  ) {
+    const before = await this.findUserInMunicipality(municipalityId, userId);
+
+    if (dto.email && dto.email !== before.email) {
+      const dup = await this.prisma.user.findUnique({ where: { email: dto.email } });
+      if (dup) throw new ConflictException('Já existe um usuário com este e-mail.');
+    }
+
+    if (userId === actorId && dto.isActive === false) {
+      throw new BadRequestException('Você não pode desativar sua própria conta.');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: dto,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    await this.audit.log({
+      userId: actorId,
+      entityType: 'user',
+      entityId: user.id,
+      action: 'UPDATE',
+      beforeData: auditSnapshot(before as unknown as Record<string, unknown>, [
+        'email',
+        'name',
+        'role',
+        'isActive',
+      ]),
+      afterData: auditSnapshot(user as Record<string, unknown>),
+    });
+
+    return user;
+  }
+
+  async resetPassword(
+    municipalityId: string,
+    userId: string,
+    password: string,
+    actorId: string,
+  ) {
+    await this.findUserInMunicipality(municipalityId, userId);
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, refreshToken: null },
+    });
+
+    await this.audit.log({
+      userId: actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'RESET_PASSWORD',
+    });
+
+    return { ok: true };
   }
 }
