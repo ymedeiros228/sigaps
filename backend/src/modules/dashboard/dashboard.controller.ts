@@ -1,5 +1,6 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Header, Param, Query, Res } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { DashboardService } from './dashboard.service';
 
 @ApiTags('Dashboard')
@@ -7,6 +8,41 @@ import { DashboardService } from './dashboard.service';
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
+
+  @Get('municipality/:municipalityId/acs-coverage')
+  @ApiOperation({ summary: 'Relatório de cobertura territorial por ACS' })
+  @ApiQuery({ name: 'format', required: false, enum: ['json', 'csv'] })
+  async getAcsCoverage(
+    @Param('municipalityId') municipalityId: string,
+    @Query('format') format: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const rows = await this.dashboardService.getAcsCoverage(municipalityId);
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="sigaps-cobertura-acs-${municipalityId.slice(0, 8)}.csv"`,
+      );
+      return this.dashboardService.buildAcsCoverageCsv(rows);
+    }
+    return rows;
+  }
+
+  @Get('municipality/:municipalityId/acs-coverage.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @ApiOperation({ summary: 'Exportar cobertura por ACS em CSV' })
+  async getAcsCoverageCsv(
+    @Param('municipalityId') municipalityId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const rows = await this.dashboardService.getAcsCoverage(municipalityId);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sigaps-cobertura-acs-${municipalityId.slice(0, 8)}.csv"`,
+    );
+    return this.dashboardService.buildAcsCoverageCsv(rows);
+  }
 
   @Get(':municipalityId')
   @ApiOperation({ summary: 'Indicadores em tempo real' })

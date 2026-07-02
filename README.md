@@ -43,23 +43,27 @@ Variáveis de exemplo: `.env.production.example` | Blueprint: `render.yaml`
 
 ---
 
-## Funcionalidades (Fase 1 — MVP)
+## Funcionalidades
 
-- Autenticação JWT com perfis (Administrador, Secretário, Coordenador, Enfermeiro, ACS)
-- Dashboard com indicadores e histórico de alterações
-- Mapa interativo de Passagem Franca/MA
-- Importação automática de ruas via OpenStreetMap (Overpass API)
-- Vinculação de ruas a microáreas com cores automáticas
-- Modo **Pintar Microárea** (pincel no mapa)
-- Seleção múltipla de ruas (Ctrl+clique)
-- Polígonos automáticos envolvendo ruas (PostGIS)
-- Sugestão de microárea por proximidade geográfica
-- Histórico de alterações (audit log)
+- Autenticação JWT com perfis (Administrador, Secretário, Coordenador, Enfermeiro, ACS) e refresh automático
+- **Multi-município** — troca de contexto na UI para escalar além de Passagem Franca/MA
+- Dashboard com indicadores, gráficos, cobertura territorial, relatório **cobertura por ACS** e histórico de alterações
+- Mapa interativo com camadas OSM, satélite e relevo
+- Importação de ruas via OpenStreetMap (Overpass API) e enriquecimento com bairro quando disponível
+- Vinculação de ruas a microáreas e bairros (individual, seleção múltipla, import CSV/GeoJSON)
+- Modo **Pintar Microárea** (pincel), borracha, zonas circulares e conflito 1 rua = 1 microárea
+- Cadastros CRUD: UBS, bairros, ACS (manual + CSV + foto), microáreas com vínculo ACS/UBS/bairro
+- Famílias e habitantes por rua (edição manual + import CSV piloto e-SUS)
+- Exportação: PDF oficial A4/A3, PNG/JPEG, GeoJSON, KML, SVG e planilhas CSV
+- Mapa de calor por densidade de famílias
+- Marcadores de UBS no mapa
+- **PWA** — instalável no celular, cache offline para ACS em campo
+- Integrações piloto: consulta **CNES** e importação CSV **e-SUS**
+- Administração: CRUD de usuários, backup manual/automático, auditoria paginada
+- LGPD: CPF mascarado na API conforme perfil
 - API documentada via Swagger
 
-### Próximas fases
-
-Ver [ROADMAP.md](docs/ROADMAP.md): exportação PDF, cadastros CRUD, importação GeoJSON/KML, integrações e-SUS.
+Detalhamento e próximos passos: [ROADMAP.md](docs/ROADMAP.md)
 
 ---
 

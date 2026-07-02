@@ -1,5 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Box, Card, CardContent, Typography, CircularProgress, Chip, Button, Alert, IconButton, Tooltip as MuiTooltip } from '@mui/material';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  CircularProgress,
+  Chip,
+  Button,
+  Alert,
+  IconButton,
+  Tooltip as MuiTooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  alpha,
+  useTheme,
+} from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { Link as RouterLink } from 'react-router-dom';
@@ -13,6 +32,7 @@ import {
   TrendingUp,
   Map,
   Refresh,
+  Download,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -32,7 +52,7 @@ import { CACHE, queryKeys } from '../utils/queryKeys';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
-import { dashboardApi } from '../services/api';
+import { dashboardApi, type AcsCoverageRow } from '../services/api';
 import { waitForApiReady } from '../utils/waitForApi';
 import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from '../utils/queryRetry';
 
@@ -49,7 +69,9 @@ function dashboardErrorMessage(error: unknown) {
 
 export function DashboardPage() {
   const municipalityId = useMunicipalityId();
+  const theme = useTheme();
   const [wakeMessage, setWakeMessage] = useState<string | null>(null);
+  const [csvLoading, setCsvLoading] = useState(false);
 
   useEffect(() => {
     if (!import.meta.env.PROD) return;
@@ -79,6 +101,31 @@ export function DashboardPage() {
     retry: (count, err) => shouldRetryCloudQuery(count, err),
     retryDelay: cloudQueryRetryDelay,
   });
+
+  const { data: acsCoverage = [], isLoading: acsCoverageLoading } = useQuery({
+    queryKey: queryKeys.acsCoverage(municipalityId!),
+    queryFn: () => dashboardApi.acsCoverage(municipalityId!).then((r) => r.data),
+    enabled: !!municipalityId && !!data,
+    staleTime: CACHE.dashboard,
+    retry: (count, err) => shouldRetryCloudQuery(count, err),
+    retryDelay: cloudQueryRetryDelay,
+  });
+
+  const downloadAcsCoverageCsv = async () => {
+    if (!municipalityId) return;
+    setCsvLoading(true);
+    try {
+      const { data: blob } = await dashboardApi.acsCoverageCsv(municipalityId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sigaps-cobertura-acs.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setCsvLoading(false);
+    }
+  };
 
   if (!municipalityId) {
     return (
@@ -307,6 +354,121 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </Box>
+
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 1.5,
+              mb: 2,
+            }}
+          >
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Cobertura por ACS
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Ruas pintadas, famílias e participação no município por agente ativo
+              </Typography>
+            </Box>
+            {acsCoverage.length > 0 && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={() => void downloadAcsCoverageCsv()}
+                disabled={csvLoading}
+              >
+                {csvLoading ? 'Exportando…' : 'Baixar CSV'}
+              </Button>
+            )}
+          </Box>
+
+          {acsCoverageLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : acsCoverage.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+              Cadastre ACS ativos e vincule microáreas para ver a cobertura territorial.
+            </Typography>
+          ) : (
+            <TableContainer
+              sx={{
+                borderRadius: 2,
+                border: 1,
+                borderColor: 'divider',
+                overflow: 'auto',
+              }}
+            >
+              <Table size="medium">
+                <TableHead>
+                  <TableRow>
+                    {[
+                      'ACS',
+                      'Microárea',
+                      'UBS',
+                      'Ruas',
+                      'Cobertura',
+                      'Município',
+                      'Famílias',
+                      'Habitantes',
+                    ].map((label) => (
+                      <TableCell
+                        key={label}
+                        align={label === 'ACS' || label === 'Microárea' || label === 'UBS' ? 'left' : 'right'}
+                        sx={{
+                          fontWeight: 700,
+                          bgcolor: alpha(theme.palette.primary.main, 0.06),
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {label}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {acsCoverage.map((row: AcsCoverageRow) => (
+                    <TableRow key={row.acsId} hover>
+                      <TableCell sx={{ fontWeight: 600 }}>{row.acsName}</TableCell>
+                      <TableCell>
+                        {row.microareaName
+                          ? `${row.microareaNumber} — ${row.microareaName}`
+                          : '—'}
+                      </TableCell>
+                      <TableCell>{row.ubsName ?? '—'}</TableCell>
+                      <TableCell align="right">
+                        {row.streetCount}
+                        {row.microareaStreetTotal > 0 && (
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                            / {row.microareaStreetTotal}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Chip
+                          label={`${row.streetCoveragePct}%`}
+                          size="small"
+                          color={row.streetCoveragePct >= 80 ? 'success' : row.streetCoveragePct >= 40 ? 'warning' : 'default'}
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell align="right">{row.municipalitySharePct}%</TableCell>
+                      <TableCell align="right">{row.familyCount}</TableCell>
+                      <TableCell align="right">{row.inhabitantCount}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
 
       {data.recentChanges?.length > 0 && (
         <Card sx={{ mt: 3 }}>

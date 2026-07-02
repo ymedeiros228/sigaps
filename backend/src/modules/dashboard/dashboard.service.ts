@@ -2,6 +2,21 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 
+export interface AcsCoverageRow {
+  acsId: string;
+  acsName: string;
+  microareaId: string | null;
+  microareaName: string | null;
+  microareaNumber: number | null;
+  ubsName: string | null;
+  streetCount: number;
+  microareaStreetTotal: number;
+  streetCoveragePct: number;
+  municipalitySharePct: number;
+  familyCount: number;
+  inhabitantCount: number;
+}
+
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
@@ -110,5 +125,132 @@ export class DashboardService {
       })),
       recentChanges,
     };
+  }
+
+  async getAcsCoverage(municipalityId: string): Promise<AcsCoverageRow[]> {
+    const municipality = await this.prisma.municipality.findUnique({
+      where: { id: municipalityId },
+      select: { id: true },
+    });
+    if (!municipality) {
+      throw new NotFoundException('Município não encontrado');
+    }
+
+    const [municipalityStreetTotal, acsList, streetAggByMicroarea, neighborhoodStreetCounts] =
+      await Promise.all([
+        this.prisma.street.count({ where: { municipalityId } }),
+        this.prisma.acs.findMany({
+          where: { municipalityId, status: 'ATIVO' },
+          select: {
+            id: true,
+            name: true,
+            microarea: {
+              select: {
+                id: true,
+                name: true,
+                number: true,
+                neighborhoodId: true,
+                ubs: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.street.groupBy({
+          by: ['microareaId'],
+          where: { municipalityId, microareaId: { not: null } },
+          _count: { _all: true },
+          _sum: { familyCount: true, inhabitantCount: true },
+        }),
+        this.prisma.street.groupBy({
+          by: ['neighborhoodId'],
+          where: { municipalityId, neighborhoodId: { not: null } },
+          _count: { _all: true },
+        }),
+      ]);
+
+    const paintedByMicroarea = new Map(
+      streetAggByMicroarea.map((row) => [
+        row.microareaId!,
+        {
+          count: row._count._all,
+          families: row._sum.familyCount ?? 0,
+          inhabitants: row._sum.inhabitantCount ?? 0,
+        },
+      ]),
+    );
+    const streetsByNeighborhood = new Map(
+      neighborhoodStreetCounts.map((row) => [row.neighborhoodId!, row._count._all]),
+    );
+
+    return acsList.map((acs) => {
+      const microarea = acs.microarea;
+      const painted = microarea ? paintedByMicroarea.get(microarea.id) : undefined;
+      const streetCount = painted?.count ?? 0;
+      const familyCount = painted?.families ?? 0;
+      const inhabitantCount = painted?.inhabitants ?? 0;
+
+      const microareaStreetTotal = microarea?.neighborhoodId
+        ? (streetsByNeighborhood.get(microarea.neighborhoodId) ?? streetCount)
+        : streetCount;
+
+      const streetCoveragePct =
+        microareaStreetTotal > 0
+          ? Math.min(100, Math.round((streetCount / microareaStreetTotal) * 100))
+          : 0;
+      const municipalitySharePct =
+        municipalityStreetTotal > 0
+          ? Math.round((streetCount / municipalityStreetTotal) * 100)
+          : 0;
+
+      return {
+        acsId: acs.id,
+        acsName: acs.name,
+        microareaId: microarea?.id ?? null,
+        microareaName: microarea?.name ?? null,
+        microareaNumber: microarea?.number ?? null,
+        ubsName: microarea?.ubs?.name ?? null,
+        streetCount,
+        microareaStreetTotal,
+        streetCoveragePct,
+        municipalitySharePct,
+        familyCount,
+        inhabitantCount,
+      };
+    });
+  }
+
+  buildAcsCoverageCsv(rows: AcsCoverageRow[]): string {
+    const header = [
+      'acs',
+      'microarea',
+      'numero_microarea',
+      'ubs',
+      'ruas_pintadas',
+      'ruas_microarea',
+      'cobertura_microarea_pct',
+      'participacao_municipio_pct',
+      'familias',
+      'habitantes',
+    ].join(';');
+
+    const lines = rows.map((row) =>
+      [
+        row.acsName,
+        row.microareaName ?? '',
+        row.microareaNumber ?? '',
+        row.ubsName ?? '',
+        row.streetCount,
+        row.microareaStreetTotal,
+        row.streetCoveragePct,
+        row.municipalitySharePct,
+        row.familyCount,
+        row.inhabitantCount,
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(';'),
+    );
+
+    return [header, ...lines].join('\n');
   }
 }

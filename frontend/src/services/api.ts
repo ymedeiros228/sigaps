@@ -340,7 +340,28 @@ export const searchApi = {
 export const dashboardApi = {
   indicators: (municipalityId: string) =>
     api.get(`/dashboard/${municipalityId}`),
+  acsCoverage: (municipalityId: string) =>
+    api.get<AcsCoverageRow[]>(`/dashboard/municipality/${municipalityId}/acs-coverage`),
+  acsCoverageCsv: (municipalityId: string) =>
+    api.get(`/dashboard/municipality/${municipalityId}/acs-coverage.csv`, {
+      responseType: 'blob',
+    }),
 };
+
+export interface AcsCoverageRow {
+  acsId: string;
+  acsName: string;
+  microareaId: string | null;
+  microareaName: string | null;
+  microareaNumber: number | null;
+  ubsName: string | null;
+  streetCount: number;
+  microareaStreetTotal: number;
+  streetCoveragePct: number;
+  municipalitySharePct: number;
+  familyCount: number;
+  inhabitantCount: number;
+}
 
 export interface AdminUser {
   id: string;
