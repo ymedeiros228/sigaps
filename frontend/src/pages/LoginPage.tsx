@@ -14,11 +14,15 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
-import { useAuthStore } from '../store';
-import { prefetchMapData } from '../utils/prefetchAppData';
+import { useAuthStore, ACTIVE_MUNICIPALITY_KEY } from '../store';
+import { prefetchCadastrosData, prefetchMapData } from '../utils/prefetchAppData';
 import { waitForApiReady } from '../utils/waitForApi';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
-import { getDevLoginDefaults, isDevAutoLoginEnabled } from '../constants/devAuth';
+import {
+  ensureDevAdminAuth,
+  getDevLoginDefaults,
+  isDevAutoLoginEnabled,
+} from '../constants/devAuth';
 
 interface LoginForm {
   email: string;
@@ -29,6 +33,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const logout = useAuthStore((s) => s.logout);
   const token = useAuthStore((s) => s.token);
   const devDefaults = getDevLoginDefaults();
   const [error, setError] = useState('');
@@ -60,8 +65,11 @@ export function LoginPage() {
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
       navigate('/', { replace: true });
-      if (res.data.user.municipalityId) {
-        void prefetchMapData(queryClient, res.data.user.municipalityId);
+      const muniId =
+        res.data.user.municipalityId ?? localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
+      if (muniId) {
+        prefetchCadastrosData(queryClient, muniId);
+        void prefetchMapData(queryClient, muniId);
       }
     } catch {
       setError('Email ou senha inválidos. Verifique suas credenciais.');
@@ -86,8 +94,25 @@ export function LoginPage() {
     if (token || autoLoginTried.current || !isDevAutoLoginEnabled()) return;
     autoLoginTried.current = true;
     setAutoLogging(true);
-    void doLogin(devDefaults);
-  }, [token]);
+    void ensureDevAdminAuth(
+      () => useAuthStore.getState(),
+      setAuth,
+      logout,
+    ).then((ok) => {
+      if (ok) {
+        const user = useAuthStore.getState().user;
+        const muniId =
+          user?.municipalityId ?? localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
+        if (muniId) {
+          prefetchCadastrosData(queryClient, muniId);
+          void prefetchMapData(queryClient, muniId);
+        }
+        navigate('/', { replace: true });
+      } else {
+        setAutoLogging(false);
+      }
+    });
+  }, [token, setAuth, logout, navigate, queryClient]);
 
   return (
     <Box
@@ -227,8 +252,8 @@ export function LoginPage() {
 
           {import.meta.env.DEV && (
             <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-              Modo desenvolvimento: login preenchido automaticamente
-              {isDevAutoLoginEnabled() ? ' e entrada automática ativa.' : '.'}
+              Modo desenvolvimento: entrada automática como administrador
+              {isDevAutoLoginEnabled() ? ' (admin@passagemfranca.ma.gov.br).' : ' desativada.'}
             </Alert>
           )}
 

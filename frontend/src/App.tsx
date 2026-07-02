@@ -23,6 +23,9 @@ const AdminPage = lazy(() =>
   import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })),
 );
 
+import { ACTIVE_MUNICIPALITY_KEY } from './store';
+import { ensureDevAdminAuth, isDevAutoLoginEnabled } from './constants/devAuth';
+import { prefetchCadastrosData, prefetchMapData } from './utils/prefetchAppData';
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from './utils/queryRetry';
 import { startApiKeepAlive } from './utils/waitForApi';
 
@@ -133,6 +136,21 @@ export default function App() {
 
   useEffect(() => {
     hydrate();
+    if (!isDevAutoLoginEnabled()) return;
+    void ensureDevAdminAuth(
+      () => useAuthStore.getState(),
+      useAuthStore.getState().setAuth,
+      useAuthStore.getState().logout,
+    ).then((ok) => {
+      if (!ok) return;
+      const user = useAuthStore.getState().user;
+      const muniId =
+        user?.municipalityId ?? localStorage.getItem(ACTIVE_MUNICIPALITY_KEY) ?? null;
+      if (muniId) {
+        prefetchCadastrosData(queryClient, muniId);
+        void prefetchMapData(queryClient, muniId);
+      }
+    });
   }, [hydrate]);
 
   useEffect(() => startApiKeepAlive(), []);
