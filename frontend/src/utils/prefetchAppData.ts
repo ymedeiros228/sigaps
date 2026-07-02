@@ -1,50 +1,38 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
-  acsApi,
   microareasApi,
   municipalitiesApi,
   neighborhoodsApi,
   paintZonesApi,
   dashboardApi,
-  ubsApi,
 } from '../services/api';
 import { fetchAllMapStreets } from './fetchAllStreets';
 import { CACHE, queryKeys } from './queryKeys';
+import { waitForApiReady } from './waitForApi';
 
-/** Prefetch cadastros: município, resumo e listas usadas nas abas. */
-export function prefetchCadastrosData(queryClient: QueryClient, municipalityId: string) {
-  void Promise.all([
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.municipality(municipalityId),
-      queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
-      staleTime: CACHE.default,
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.cadastrosSummary(municipalityId),
-      queryFn: () => municipalitiesApi.cadastrosSummary(municipalityId).then((r) => r.data),
-      staleTime: CACHE.default,
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.microareas(municipalityId),
-      queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
-      staleTime: CACHE.microareas,
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.ubs(municipalityId),
-      queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
-      staleTime: CACHE.default,
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.neighborhoods(municipalityId),
-      queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
-      staleTime: CACHE.neighborhoods,
-    }),
-    queryClient.prefetchQuery({
-      queryKey: queryKeys.acs(municipalityId),
-      queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
-      staleTime: CACHE.default,
-    }),
-  ]);
+/** Prefetch leve: município, resumo e microáreas (evita saturar API no cold start). */
+export async function prefetchCadastrosData(queryClient: QueryClient, municipalityId: string) {
+  if (!municipalityId) return;
+
+  await waitForApiReady(6, 2500);
+
+  void queryClient.prefetchQuery({
+    queryKey: queryKeys.municipality(municipalityId),
+    queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+    staleTime: CACHE.default,
+  });
+
+  void queryClient.prefetchQuery({
+    queryKey: queryKeys.cadastrosSummary(municipalityId),
+    queryFn: () => municipalitiesApi.cadastrosSummary(municipalityId).then((r) => r.data),
+    staleTime: CACHE.default,
+  });
+
+  void queryClient.prefetchQuery({
+    queryKey: queryKeys.microareas(municipalityId),
+    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+    staleTime: CACHE.microareas,
+  });
 }
 
 /** Prefetch leve: dashboard e cadastros primeiro; malha de ruas em idle. */

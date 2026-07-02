@@ -21,7 +21,9 @@ import { EsusImportDialog } from '../EsusImportDialog';
 import { canImportStreets } from '../../../utils/permissions';
 import { useAuthStore } from '../../../store';
 import { assetUrl } from '../../../utils/assetUrl';
-import { queryKeys, CACHE } from '../../../utils/queryKeys';
+import { queryKeys } from '../../../utils/queryKeys';
+import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
+import { CadastrosLoadError } from '../CadastrosLoadError';
 
 type MunicipalityForm = {
   name: string;
@@ -45,11 +47,17 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     formState: { errors },
   } = useForm<MunicipalityForm>();
 
-  const { data: municipality, isLoading } = useQuery({
+  const {
+    data: municipality,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: queryKeys.municipality(municipalityId),
     queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
-    staleTime: CACHE.default,
     enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
   });
 
   useEffect(() => {
@@ -95,7 +103,17 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     onError: reportError,
   });
 
-  if (isLoading && !municipality) {
+  if (isError) {
+    return (
+      <CadastrosLoadError
+        title="Erro ao carregar dados do município"
+        message={error instanceof Error ? error.message : 'Tente novamente em instantes.'}
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+
+  if (isPending && !municipality) {
     return (
       <Box sx={{ maxWidth: 640 }}>
         <Skeleton width="45%" height={32} sx={{ mb: 1 }} />

@@ -22,6 +22,8 @@ import { useAuthStore } from '../../../store';
 import { maskCpfDisplay } from '../../../utils/inputMasks';
 import { canViewFullCpf } from '../../../utils/permissions';
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
+import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
+import { CadastrosLoadError } from '../CadastrosLoadError';
 
 type MicroareaForm = {
   number: number;
@@ -63,30 +65,38 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
   const { data: ubsList = [] } = useQuery({
     queryKey: queryKeys.ubs(municipalityId),
     queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.default,
     enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
   });
 
   const { data: acsList = [] } = useQuery({
     queryKey: queryKeys.acs(municipalityId),
     queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.default,
     enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
   });
 
   const { data: neighborhoods = [] } = useQuery({
     queryKey: queryKeys.neighborhoods(municipalityId),
     queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.neighborhoods,
     enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+    staleTime: CACHE.neighborhoods,
   });
 
-  const { data = [], isLoading } = useQuery({
+  const {
+    data = [],
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: queryKeys.microareas(municipalityId),
     queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.microareas,
-    placeholderData: keepPreviousData,
     enabled: !!municipalityId,
+    placeholderData: keepPreviousData,
+    ...cadastrosQueryDefaults,
+    staleTime: CACHE.microareas,
   });
 
   const filtered = useMemo(() => {
@@ -249,8 +259,16 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         </Box>
       )}
 
+      {isError && (
+        <CadastrosLoadError
+          title="Erro ao carregar microáreas"
+          message={error instanceof Error ? error.message : 'Tente novamente em instantes.'}
+          onRetry={() => void refetch()}
+        />
+      )}
+
       <CadastrosDataTable
-        loading={isLoading && data.length === 0}
+        loading={isPending && data.length === 0 && !isError}
         rows={filtered}
         rowKey={(row) => row.id}
         columns={[

@@ -1,7 +1,17 @@
 import { api } from '../services/api';
 import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from './queryRetry';
 
-const WAKE_PATH = '/health';
+function apiBaseUrl(): string {
+  return (
+    import.meta.env.VITE_API_URL ??
+    (import.meta.env.PROD ? '' : 'http://localhost:3000')
+  ).replace(/\/$/, '');
+}
+
+function apiHealthUrl(): string {
+  const base = apiBaseUrl();
+  return base ? `${base}/health` : '/health';
+}
 
 function isCloudDeployment() {
   if (!import.meta.env.PROD) return false;
@@ -17,13 +27,15 @@ function isRetryableWakeError(error: unknown) {
   return !status || status >= 502;
 }
 
-/** Ping público sem token — evita falha quando JWT expirado durante cold start. */
+/** Ping público na API (não no host do frontend) — acorda o Render no cold start. */
 async function pingHealth(timeoutMs = 15_000): Promise<boolean> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(WAKE_PATH, { signal: controller.signal, cache: 'no-store' });
-    return res.ok;
+    const res = await fetch(apiHealthUrl(), { signal: controller.signal, cache: 'no-store' });
+    if (!res.ok) return false;
+    const contentType = res.headers.get('content-type') ?? '';
+    return contentType.includes('application/json');
   } catch {
     return false;
   } finally {

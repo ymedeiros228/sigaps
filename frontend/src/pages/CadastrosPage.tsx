@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Alert, Box, Breadcrumbs, Card, CircularProgress, Link, Typography } from '@mui/material';
+import { Alert, Box, Breadcrumbs, Card, Link, Typography } from '@mui/material';
 import { Link as RouterLink, Navigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../components/ui/PageHeader';
@@ -16,10 +16,11 @@ import { UbsTab } from '../components/cadastros/tabs/UbsTab';
 import { AcsTab } from '../components/cadastros/tabs/AcsTab';
 import { NeighborhoodsTab } from '../components/cadastros/tabs/NeighborhoodsTab';
 import { MicroareasTab } from '../components/cadastros/tabs/MicroareasTab';
-import { useMunicipalityId } from '../hooks/useMunicipalityId';
+import { useMunicipalityBootstrap } from '../hooks/useMunicipalityBootstrap';
 import { useAuthStore } from '../store';
 import { canManageAcs, canManageCadastrosSection, isAcsUser } from '../utils/permissions';
 import { prefetchCadastrosData } from '../utils/prefetchAppData';
+import { CadastrosBootstrapping, CadastrosLoadError } from '../components/cadastros/CadastrosLoadError';
 
 function defaultSectionForRole(role?: string): CadastrosSectionId {
   if (role === 'ENFERMEIRO') return 'acs';
@@ -63,14 +64,15 @@ function CadastrosContent({
 }
 
 export function CadastrosPage() {
-  const municipalityId = useMunicipalityId();
+  const { municipalityId, isLoading: bootLoading, error: bootError, retry } =
+    useMunicipalityBootstrap();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (municipalityId) {
-      prefetchCadastrosData(queryClient, municipalityId);
+      void prefetchCadastrosData(queryClient, municipalityId);
     }
   }, [municipalityId, queryClient]);
 
@@ -111,10 +113,23 @@ export function CadastrosPage() {
     setSearchParams(next, { replace: true });
   };
 
+  if (bootLoading && !municipalityId) {
+    return (
+      <CadastrosBootstrapping hint="Conectando ao servidor e carregando o município ativo…" />
+    );
+  }
+
   if (!municipalityId) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 8 }}>
-        <CircularProgress />
+      <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 640, mx: 'auto' }}>
+        <CadastrosLoadError
+          title="Não foi possível carregar o município"
+          message={
+            bootError?.message ??
+            'Verifique sua conexão ou aguarde o servidor acordar (hospedagem gratuita).'
+          }
+          onRetry={retry}
+        />
       </Box>
     );
   }

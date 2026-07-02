@@ -113,6 +113,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     const municipalityId = resolveInitialMunicipalityId(user);
     if (municipalityId) {
       useAppStore.getState().setMunicipalityId(municipalityId);
+    } else if (user.municipalityId) {
+      useAppStore.getState().setMunicipalityId(user.municipalityId);
     }
     set({ user, token });
   },

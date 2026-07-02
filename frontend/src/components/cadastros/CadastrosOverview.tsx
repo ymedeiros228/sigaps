@@ -5,7 +5,8 @@ import { StatCard } from '../ui/StatCard';
 import { municipalitiesApi } from '../../services/api';
 import { useCadastros } from './CadastrosContext';
 import type { CadastrosSectionId } from './cadastrosConfig';
-import { CACHE, queryKeys } from '../../utils/queryKeys';
+import { queryKeys } from '../../utils/queryKeys';
+import { cadastrosQueryDefaults } from '../../utils/cadastrosQuery';
 
 type CadastrosOverviewProps = {
   municipalityId: string;
@@ -36,11 +37,11 @@ export function CadastrosOverview({
 }: CadastrosOverviewProps) {
   const { canManageAcs } = useCadastros();
 
-  const { data: summary, isLoading } = useQuery({
+  const { data: summary, isPending, isError } = useQuery({
     queryKey: queryKeys.cadastrosSummary(municipalityId),
     queryFn: () => municipalitiesApi.cadastrosSummary(municipalityId).then((r) => r.data),
-    staleTime: CACHE.default,
     enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
   });
 
   const ubs = summary?.ubs ?? 0;
@@ -49,7 +50,7 @@ export function CadastrosOverview({
   const microareas = summary?.microareas ?? 0;
   const acsSemMicro = summary?.acsSemMicro ?? 0;
   const acsAtivos = summary?.acsAtivos ?? 0;
-  const showSkeleton = isLoading && !summary;
+  const showSkeleton = isPending && !summary && !isError;
 
   const stats = [
     {
