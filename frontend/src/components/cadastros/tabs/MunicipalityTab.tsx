@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,11 +11,14 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { AccountBalance, CloudUpload } from '@mui/icons-material';
+import { AccountBalance, CloudUpload, Upload } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { municipalitiesApi } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
+import { EsusImportDialog } from '../EsusImportDialog';
+import { canImportStreets } from '../../../utils/permissions';
+import { useAuthStore } from '../../../store';
 import { assetUrl } from '../../../utils/assetUrl';
 
 type MunicipalityForm = {
@@ -27,9 +30,12 @@ type MunicipalityForm = {
 
 export function MunicipalityTab({ municipalityId }: { municipalityId: string }) {
   const theme = useTheme();
+  const user = useAuthStore((s) => s.user);
   const { canManage, reportError, reportSuccess } = useCadastros();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [esusOpen, setEsusOpen] = useState(false);
+  const canImportEsus = canImportStreets(user?.role);
   const {
     register,
     handleSubmit,
@@ -148,6 +154,27 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
         </CardContent>
       </Card>
 
+      {canImportEsus && (
+        <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Integração e-SUS (piloto)
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Importe famílias e habitantes por logradouro a partir de CSV exportado do e-SUS.
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Upload />}
+              onClick={() => setEsusOpen(true)}
+            >
+              Importar CSV e-SUS
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Divider sx={{ mb: 3 }} />
 
       <form onSubmit={handleSubmit((values) => saveMutation.mutate(values))}>
@@ -196,6 +223,13 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
           )}
         </Box>
       </form>
+
+      <EsusImportDialog
+        open={esusOpen}
+        municipalityId={municipalityId}
+        onClose={() => setEsusOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['streets'] })}
+      />
     </Box>
   );
 }

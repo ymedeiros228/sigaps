@@ -28,8 +28,13 @@ export class UbsService {
     return ubs;
   }
 
-  private ubsSnapshot(ubs: { name: string; address?: string | null; phone?: string | null }) {
-    return auditSnapshot(ubs as Record<string, unknown>, ['name', 'address', 'phone']);
+  private ubsSnapshot(ubs: {
+    name: string;
+    address?: string | null;
+    phone?: string | null;
+    cnesCode?: string | null;
+  }) {
+    return auditSnapshot(ubs as Record<string, unknown>, ['name', 'address', 'phone', 'cnesCode']);
   }
 
   async create(dto: CreateUbsDto, userId: string) {

@@ -167,9 +167,50 @@ async function main() {
     console.log(`Ruas OSM já no banco: ${streetCount}`);
   }
 
+  const municipality2 = await prisma.municipality.upsert({
+    where: { name_state: { name: 'Pedreiras', state: 'MA' } },
+    create: {
+      name: 'Pedreiras',
+      state: 'MA',
+      prefecture: 'Prefeitura Municipal de Pedreiras',
+      secretariat: 'Secretaria Municipal de Saúde',
+      latitude: -4.5647,
+      longitude: -44.5969,
+    },
+    update: {},
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'admin@pedreiras.ma.gov.br' },
+    create: {
+      email: 'admin@pedreiras.ma.gov.br',
+      passwordHash,
+      name: 'Admin Pedreiras',
+      role: UserRole.ADMINISTRADOR,
+      municipalityId: municipality2.id,
+    },
+    update: { passwordHash, municipalityId: municipality2.id, role: UserRole.ADMINISTRADOR },
+  });
+
+  await prisma.ubs.upsert({
+    where: { id: '00000000-0000-4000-8000-000000000002' },
+    create: {
+      id: '00000000-0000-4000-8000-000000000002',
+      name: 'UBS Central Pedreiras',
+      address: 'Av. Principal, s/n — Centro',
+      phone: '(99) 3651-0000',
+      latitude: -4.5647,
+      longitude: -44.5969,
+      municipalityId: municipality2.id,
+    },
+    update: {},
+  });
+
   console.log('Seed concluído!');
-  console.log(`Município: ${municipality.name} (${municipality.id})`);
+  console.log(`Município 1: ${municipality.name} (${municipality.id})`);
+  console.log(`Município 2: ${municipality2.name} (${municipality2.id})`);
   console.log('Usuários: jonas@passagemfranca.ma.gov.br (enfermeiro) / admin@passagemfranca.ma.gov.br (admin) — Sigaps@2026');
+  console.log('Pedreiras: admin@pedreiras.ma.gov.br (admin) — Sigaps@2026');
 }
 
 main()

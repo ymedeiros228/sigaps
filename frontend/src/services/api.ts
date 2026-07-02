@@ -154,9 +154,21 @@ export interface Ubs {
   address: string;
   phone?: string;
   coordinator?: string;
+  cnesCode?: string;
   latitude: number;
   longitude: number;
   _count?: { microareas: number };
+}
+
+export interface CnesLookupResult {
+  cnesCode: string;
+  name: string;
+  address: string;
+  municipality: string;
+  uf: string;
+  phone?: string;
+  active: boolean;
+  source: 'api' | 'format-only';
 }
 
 export interface Acs {
@@ -438,6 +450,16 @@ export const adminApi = {
     api.post(`/admin/municipality/${municipalityId}/users/${userId}/reset-password`, {
       password,
     }),
+};
+
+export const integrationsApi = {
+  lookupCnes: (code: string) =>
+    api.get<CnesLookupResult>(`/integrations/cnes/${encodeURIComponent(code)}`),
+  importEsus: (municipalityId: string, csv: string) =>
+    api.post<{ updated: number; total: number; errors: Array<{ row: number; streetRef: string; message: string }> }>(
+      `/integrations/esus/import/${municipalityId}`,
+      { csv },
+    ),
 };
 
 export const osmApi = {

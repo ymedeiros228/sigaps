@@ -20,6 +20,11 @@ export class CreateUbsDto {
   @IsString()
   coordinator?: string;
 
+  @ApiProperty({ required: false, example: '2345678' })
+  @IsOptional()
+  @IsString()
+  cnesCode?: string;
+
   @ApiProperty({ example: -6.1828 })
   @IsNumber()
   latitude: number;

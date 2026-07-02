@@ -1,15 +1,29 @@
 import { useEffect } from 'react';
 import { municipalitiesApi } from '../services/api';
-import { useAppStore, useAuthStore } from '../store';
+import { ACTIVE_MUNICIPALITY_KEY, useAppStore, useAuthStore } from '../store';
 import { waitForApiReady } from '../utils/waitForApi';
 
 export function useMunicipalityId() {
   const municipalityId = useAppStore((s) => s.municipalityId);
   const setMunicipalityId = useAppStore((s) => s.setMunicipalityId);
-  const userMunicipalityId = useAuthStore((s) => s.user?.municipalityId);
+  const user = useAuthStore((s) => s.user);
+  const userMunicipalityId = user?.municipalityId;
 
   useEffect(() => {
     if (municipalityId) return;
+
+    if (user?.role === 'ADMINISTRADOR') {
+      try {
+        const persisted = localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
+        if (persisted) {
+          setMunicipalityId(persisted);
+          return;
+        }
+      } catch {
+        /* storage indisponível */
+      }
+    }
+
     if (userMunicipalityId) {
       setMunicipalityId(userMunicipalityId);
       return;
@@ -36,7 +50,7 @@ export function useMunicipalityId() {
     return () => {
       cancelled = true;
     };
-  }, [municipalityId, userMunicipalityId, setMunicipalityId]);
+  }, [municipalityId, user?.role, userMunicipalityId, setMunicipalityId]);
 
   return municipalityId ?? userMunicipalityId ?? null;
 }

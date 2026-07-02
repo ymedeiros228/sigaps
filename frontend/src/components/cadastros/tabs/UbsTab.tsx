@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
-import { IconButton, TextField, Tooltip } from '@mui/material';
-import { Add, Delete, Edit, LocalHospital } from '@mui/icons-material';
+import { Box, Button, CircularProgress, IconButton, TextField, Tooltip } from '@mui/material';
+import { Add, Delete, Edit, LocalHospital, Search } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { ubsApi, type Ubs } from '../../../services/api';
+import { integrationsApi, ubsApi, type Ubs } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
+import { getApiErrorMessage } from '../../../utils/apiError';
 
 type UbsForm = Omit<Ubs, 'id' | '_count'>;
 
@@ -18,10 +19,13 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Ubs | null>(null);
   const [search, setSearch] = useState('');
+  const [validatingCnes, setValidatingCnes] = useState(false);
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<UbsForm>();
 
@@ -37,7 +41,8 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
       (row) =>
         row.name.toLowerCase().includes(query) ||
         row.address.toLowerCase().includes(query) ||
-        (row.phone ?? '').includes(query),
+        (row.phone ?? '').includes(query) ||
+        (row.cnesCode ?? '').includes(query),
     );
   }, [data, search]);
 
@@ -71,11 +76,37 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         address: '',
         phone: '',
         coordinator: '',
+        cnesCode: '',
         latitude: -6.1828,
         longitude: -43.7869,
       },
     );
     setOpen(true);
+  };
+
+  const handleValidateCnes = async () => {
+    const code = (getValues('cnesCode') ?? '').trim();
+    if (!code) {
+      reportError(new Error('Informe o código CNES antes de validar.'));
+      return;
+    }
+    setValidatingCnes(true);
+    try {
+      const { data: result } = await integrationsApi.lookupCnes(code);
+      setValue('cnesCode', result.cnesCode);
+      if (!getValues('name')?.trim() && result.name) setValue('name', result.name);
+      if (!getValues('address')?.trim() && result.address) setValue('address', result.address);
+      if (!getValues('phone')?.trim() && result.phone) setValue('phone', result.phone);
+      reportSuccess(
+        result.source === 'api'
+          ? 'CNES validado — dados preenchidos a partir do Ministério da Saúde.'
+          : 'Código CNES aceito (consulta online indisponível).',
+      );
+    } catch (err) {
+      reportError(err instanceof Error ? err : new Error(getApiErrorMessage(err, 'Falha ao validar CNES.')));
+    } finally {
+      setValidatingCnes(false);
+    }
   };
 
   return (
@@ -86,7 +117,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         count={data.length}
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Buscar por nome, endereço ou telefone..."
+        searchPlaceholder="Buscar por nome, CNES, endereço ou telefone..."
         onAdd={() => openForm()}
         addLabel="Nova UBS"
         canManage={canManage}
@@ -98,6 +129,12 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         rowKey={(row) => row.id}
         columns={[
           { id: 'name', label: 'Nome', render: (row) => row.name },
+          {
+            id: 'cnes',
+            label: 'CNES',
+            hideOnMobile: true,
+            render: (row) => row.cnesCode ?? '—',
+          },
           {
             id: 'address',
             label: 'Endereço',
@@ -164,6 +201,24 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
         loading={saveMutation.isPending}
       >
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+          <TextField
+            label="Código CNES"
+            {...register('cnesCode')}
+            placeholder="7 dígitos"
+            fullWidth
+            slotProps={{ htmlInput: { maxLength: 7 } }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={validatingCnes ? <CircularProgress size={16} /> : <Search />}
+            onClick={() => void handleValidateCnes()}
+            disabled={validatingCnes}
+            sx={{ mt: 0.5, whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            Validar CNES
+          </Button>
+        </Box>
         <TextField
           label="Nome"
           {...register('name', { required: 'Informe o nome da UBS' })}

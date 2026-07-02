@@ -4,6 +4,24 @@ import { syncApiToken } from '../services/api';
 import { DEV_LOGIN } from '../constants/devAuth';
 import { lineStringBounds, lineStringCentroid, boundsFromLineStrings } from '../utils/geo';
 
+export const ACTIVE_MUNICIPALITY_KEY = 'sigaps_active_municipality';
+
+function readPersistedMunicipalityId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function resolveInitialMunicipalityId(user: User | null): string | null {
+  if (user?.role === 'ADMINISTRADOR') {
+    const persisted = readPersistedMunicipalityId();
+    if (persisted) return persisted;
+  }
+  return user?.municipalityId ?? null;
+}
+
 function readPersistedAuth(): { user: User | null; token: string | null } {
   try {
     const token = localStorage.getItem('sigaps_token');
@@ -92,13 +110,18 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('sigaps_dev_email', user.email);
       localStorage.setItem('sigaps_dev_password', DEV_LOGIN.password);
     }
-    if (user.municipalityId) {
-      useAppStore.getState().setMunicipalityId(user.municipalityId);
+    const municipalityId = resolveInitialMunicipalityId(user);
+    if (municipalityId) {
+      useAppStore.getState().setMunicipalityId(municipalityId);
     }
     set({ user, token });
   },
   logout: () => {
+    const activeMunicipality = readPersistedMunicipalityId();
     localStorage.clear();
+    if (activeMunicipality) {
+      localStorage.setItem(ACTIVE_MUNICIPALITY_KEY, activeMunicipality);
+    }
     syncApiToken(null);
     set({ user: null, token: null });
   },
@@ -108,8 +131,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token && userStr) {
       syncApiToken(token);
       const user = JSON.parse(userStr) as User;
-      if (user.municipalityId) {
-        useAppStore.getState().setMunicipalityId(user.municipalityId);
+      const municipalityId = resolveInitialMunicipalityId(user);
+      if (municipalityId) {
+        useAppStore.getState().setMunicipalityId(municipalityId);
       }
       set({ token, user });
     }
@@ -234,10 +258,17 @@ export const useMapStore = create<MapState>((set, get) => ({
 }));
 
 export const useAppStore = create<AppState>((set) => ({
-  municipalityId: persistedAuth.user?.municipalityId ?? null,
+  municipalityId: resolveInitialMunicipalityId(persistedAuth.user),
   microareas: [],
   darkMode: true,
-  setMunicipalityId: (id) => set({ municipalityId: id }),
+  setMunicipalityId: (id) => {
+    try {
+      localStorage.setItem(ACTIVE_MUNICIPALITY_KEY, id);
+    } catch {
+      /* storage indisponível */
+    }
+    set({ municipalityId: id });
+  },
   setMicroareas: (microareas) => set({ microareas }),
   toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
 }));
