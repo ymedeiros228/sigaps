@@ -53,6 +53,7 @@ interface PaintGuidePanelProps {
   importing: boolean;
   lastAction?: string | null;
   onMicroareaCreated?: (id: string) => void;
+  onMinimized?: () => void;
 }
 
 export function PaintGuidePanel({
@@ -67,6 +68,7 @@ export function PaintGuidePanel({
   importing,
   lastAction,
   onMicroareaCreated,
+  onMinimized,
 }: PaintGuidePanelProps) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
@@ -138,6 +140,7 @@ export function PaintGuidePanel({
     setPaintGuideCollapsed(true);
     setPaintMode(false);
     setEraserMode(false);
+    onMinimized?.();
   };
 
   const handleToggleMicroarea = (microareaId: string) => {
@@ -159,21 +162,25 @@ export function PaintGuidePanel({
         elevation={0}
         sx={{
           position: 'absolute',
-          bottom: { xs: 16, sm: 24 },
+          bottom: { xs: 12, sm: 20 },
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 1001,
-          width: { xs: 'calc(100% - 16px)', sm: 520, md: 600 },
+          width: collapsed
+            ? { xs: 'calc(100% - 24px)', sm: 'auto' }
+            : { xs: 'calc(100% - 16px)', sm: 520, md: 600 },
+          maxWidth: collapsed ? { xs: '100%', sm: 520 } : undefined,
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: collapsed ? undefined : { xs: 'min(52vh, 440px)', sm: 'min(58vh, 480px)' },
           bgcolor: glassBg,
-          borderRadius: 3,
+          borderRadius: collapsed ? 999 : 3,
           overflow: 'hidden',
-          border: paintMode ? `2px solid ${accentColor}` : undefined,
-          boxShadow: paintMode
+          border: paintMode && !collapsed ? `2px solid ${accentColor}` : '1px solid',
+          borderColor: paintMode && !collapsed ? accentColor : alpha(theme.palette.divider, 0.12),
+          boxShadow: paintMode && !collapsed
             ? `0 8px 32px ${alpha(accentColor, 0.25)}`
-            : undefined,
+            : '0 4px 20px rgba(0,0,0,0.2)',
+          transition: 'border-radius 0.2s ease, width 0.2s ease',
         }}
       >
         <Box
@@ -181,28 +188,40 @@ export function PaintGuidePanel({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            px: 2,
-            py: 1.25,
+            px: collapsed ? 1.5 : 2,
+            py: collapsed ? 0.75 : 1.25,
             flexShrink: 0,
-            position: 'sticky',
-            top: 0,
-            zIndex: 2,
-            bgcolor: paintMode
-              ? alpha(accentColor, 0.12)
-              : alpha(theme.palette.primary.main, 0.06),
-            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            bgcolor: collapsed
+              ? alpha(theme.palette.success.main, 0.1)
+              : paintMode
+                ? alpha(accentColor, 0.12)
+                : alpha(theme.palette.primary.main, 0.06),
+            borderBottom: collapsed ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
             cursor: 'pointer',
+            gap: 1,
           }}
           onClick={() => setPaintGuideCollapsed(!collapsed)}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', minWidth: 0 }}>
-            {eraserMode ? <AutoFixOff color="error" /> : <Brush color={paintMode ? 'primary' : 'action'} />}
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {eraserMode ? 'Modo apagar' : paintMode ? 'Pintando' : 'Pintar microáreas'}
+            {collapsed ? (
+              <CheckCircle color="success" fontSize="small" />
+            ) : eraserMode ? (
+              <AutoFixOff color="error" />
+            ) : (
+              <Brush color={paintMode ? 'primary' : 'action'} />
+            )}
+            <Typography variant={collapsed ? 'body2' : 'subtitle1'} sx={{ fontWeight: 700 }}>
+              {collapsed
+                ? 'Mapa guardado'
+                : eraserMode
+                  ? 'Modo apagar'
+                  : paintMode
+                    ? 'Pintando'
+                    : 'Pintar microáreas'}
             </Typography>
             {collapsed && (
-              <Typography variant="caption" color="text.secondary">
-                Toque para abrir · ruas salvas
+              <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                Toque para pintar de novo
               </Typography>
             )}
             {!collapsed && selectedMicroarea && (
@@ -216,6 +235,7 @@ export function PaintGuidePanel({
               <Chip
                 size="small"
                 variant="outlined"
+                color={collapsed ? 'success' : 'default'}
                 label={`${paintedCount} pintada${paintedCount > 1 ? 's' : ''}`}
                 sx={{ fontWeight: 600 }}
               />
@@ -227,6 +247,7 @@ export function PaintGuidePanel({
                 <Button
                   size="small"
                   variant="contained"
+                  color="success"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleMinimize(e);
@@ -247,20 +268,20 @@ export function PaintGuidePanel({
                   else handleMinimize(e);
                 }}
               >
-                {collapsed ? <ExpandMore /> : <UnfoldLess />}
+                {collapsed ? <ExpandLess /> : <UnfoldLess />}
               </IconButton>
             </Tooltip>
           </Box>
         </Box>
 
-        <Collapse in={!collapsed} sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+        {!collapsed && (
+          <>
           <Box
             sx={{
               p: 2,
               pt: 1.5,
               overflowY: 'auto',
-              flex: 1,
-              minHeight: 0,
+              maxHeight: { xs: 'min(48vh, 400px)', sm: 'min(54vh, 440px)' },
             }}
           >
             {microareas.length === 0 ? (
@@ -601,6 +622,7 @@ export function PaintGuidePanel({
             <Button
               fullWidth
               variant="contained"
+              color="success"
               size="medium"
               onClick={() => handleMinimize()}
               sx={{ fontWeight: 800, flex: 1 }}
@@ -622,7 +644,8 @@ export function PaintGuidePanel({
               </Button>
             )}
           </Box>
-        </Collapse>
+          </>
+        )}
       </Paper>
 
       <ConfirmDialog

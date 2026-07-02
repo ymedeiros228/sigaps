@@ -854,6 +854,9 @@ export function SigapsMap() {
         onMicroareaCreated={() => {
           queryClient.invalidateQueries({ queryKey: ['microareas', municipalityId] });
         }}
+        onMinimized={() =>
+          setSnackbar({ message: 'Mapa guardado — ruas salvas. Toque na barra inferior para pintar de novo.', severity: 'success' })
+        }
       />
       )}
 
