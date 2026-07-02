@@ -77,6 +77,8 @@ export function MapToolbar({
   const setShowHeatmap = useMapStore((s) => s.setShowHeatmap);
   const showUbsMarkers = useMapStore((s) => s.showUbsMarkers);
   const setShowUbsMarkers = useMapStore((s) => s.setShowUbsMarkers);
+  const showPlacesMarkers = useMapStore((s) => s.showPlacesMarkers);
+  const setShowPlacesMarkers = useMapStore((s) => s.setShowPlacesMarkers);
   const flyTo = useMapStore((s) => s.flyTo);
   const user = useAuthStore((s) => s.user);
   const canImport = canImportStreets(user?.role);
@@ -229,6 +231,18 @@ export function MapToolbar({
           />
         }
         label="UBS"
+        sx={{ mr: 0, display: { xs: 'none', lg: 'flex' } }}
+      />
+
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={showPlacesMarkers}
+            onChange={(e) => setShowPlacesMarkers(e.target.checked)}
+          />
+        }
+        label="Povoados"
         sx={{ mr: 0, display: { xs: 'none', lg: 'flex' } }}
       />
 

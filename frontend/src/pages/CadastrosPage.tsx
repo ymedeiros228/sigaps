@@ -14,6 +14,7 @@ import { MunicipalityTab } from '../components/cadastros/tabs/MunicipalityTab';
 import { UbsTab } from '../components/cadastros/tabs/UbsTab';
 import { AcsTab } from '../components/cadastros/tabs/AcsTab';
 import { NeighborhoodsTab } from '../components/cadastros/tabs/NeighborhoodsTab';
+import { PlacesTab } from '../components/cadastros/tabs/PlacesTab';
 import { MicroareasTab } from '../components/cadastros/tabs/MicroareasTab';
 import { CadastrosLoadError } from '../components/cadastros/CadastrosLoadError';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
@@ -54,6 +55,8 @@ function CadastrosContent({
       );
     case 'bairros':
       return <NeighborhoodsTab municipalityId={municipalityId} />;
+    case 'povoados':
+      return <PlacesTab municipalityId={municipalityId} />;
     case 'microareas':
       return <MicroareasTab municipalityId={municipalityId} />;
     default:
@@ -132,7 +135,7 @@ export function CadastrosPage() {
 
         <PageHeader
           title="Cadastros"
-          subtitle="Gerencie município, UBS, ACS, bairros e microáreas da APS"
+          subtitle="Gerencie município, UBS, ACS, bairros, povoados e microáreas da APS"
         />
 
         <CadastrosOverview municipalityId={municipalityId} section={section} onSectionChange={handleSectionChange} onAcsAction={handleAcsAction} />

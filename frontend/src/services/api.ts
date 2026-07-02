@@ -217,6 +217,28 @@ export interface Neighborhood {
   _count?: { streets: number };
 }
 
+export type PlaceKind = 'POVOADO' | 'LOCALIDADE' | 'DISTRITO';
+
+export interface Place {
+  id: string;
+  name: string;
+  kind: PlaceKind;
+  latitude: number;
+  longitude: number;
+  osmNodeId?: string | null;
+  notes?: string | null;
+  municipalityId: string;
+}
+
+export interface NominatimResult {
+  placeId: string;
+  name: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+  kind: string;
+}
+
 export interface CadastrosBundle {
   municipality: Municipality;
   summary: CadastrosSummary;
@@ -232,6 +254,7 @@ export interface SearchResult {
   ubs: Array<{ id: string; name: string; address: string; latitude: number; longitude: number }>;
   acs: Array<{ id: string; name: string; phone?: string; microarea?: { id: string; name: string; color: string } }>;
   microareas: Array<{ id: string; name: string; number: number; color: string }>;
+  places: Array<{ id: string; name: string; kind: PlaceKind; latitude: number; longitude: number }>;
 }
 
 export const authApi = {
@@ -390,6 +413,36 @@ export const neighborhoodsApi = {
   update: (id: string, data: { name?: string }) =>
     api.patch(`/neighborhoods/${id}`, data),
   remove: (id: string) => api.delete(`/neighborhoods/${id}`),
+};
+
+export const placesApi = {
+  list: (municipalityId: string) =>
+    api.get<Place[]>(`/places/municipality/${municipalityId}`),
+  create: (data: {
+    name: string;
+    kind?: PlaceKind;
+    latitude: number;
+    longitude: number;
+    municipalityId: string;
+    notes?: string;
+  }) => api.post<Place>('/places', data),
+  update: (
+    id: string,
+    data: Partial<{
+      name: string;
+      kind: PlaceKind;
+      latitude: number;
+      longitude: number;
+      notes: string;
+    }>,
+  ) => api.patch<Place>(`/places/${id}`, data),
+  remove: (id: string) => api.delete(`/places/${id}`),
+  importFromOsm: (municipalityId: string) =>
+    api.post<{ imported: number; updated: number; skipped: number }>(
+      `/places/import-osm/${municipalityId}`,
+    ),
+  searchNominatim: (municipalityId: string, q: string) =>
+    api.get<NominatimResult[]>('/places/nominatim', { params: { municipalityId, q } }),
 };
 
 export const searchApi = {

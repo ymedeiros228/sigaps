@@ -1,7 +1,7 @@
 import { Box, Paper, Typography, alpha, useTheme, IconButton, Collapse, LinearProgress } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useMemo, useState } from 'react';
-import type { Microarea, Street, Ubs } from '../../services/api';
+import type { Microarea, Street, Ubs, Place } from '../../services/api';
 import { useMapStore } from '../../store';
 import { familyHeatColor } from '../../utils/geo';
 
@@ -9,14 +9,22 @@ interface MapLegendProps {
   microareas: Microarea[];
   streets: Street[];
   ubsList?: Ubs[];
+  placesList?: Place[];
   loading?: boolean;
 }
 
-export function MapLegend({ microareas, streets, ubsList = [], loading = false }: MapLegendProps) {
+export function MapLegend({
+  microareas,
+  streets,
+  ubsList = [],
+  placesList = [],
+  loading = false,
+}: MapLegendProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(true);
   const showHeatmap = useMapStore((s) => s.showHeatmap);
   const showUbs = useMapStore((s) => s.showUbsMarkers);
+  const showPlaces = useMapStore((s) => s.showPlacesMarkers);
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
@@ -134,6 +142,24 @@ export function MapLegend({ microareas, streets, ubsList = [], loading = false }
                   />
                   <Typography variant="caption" color="text.secondary">
                     UBS ({ubsList.length})
+                  </Typography>
+                </Box>
+              )}
+              {showPlaces && placesList.length > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 14,
+                      height: 14,
+                      bgcolor: '#6D4C41',
+                      borderRadius: '50%',
+                      border: '2px solid #fff',
+                      boxShadow: 1,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Povoados ({placesList.length})
                   </Typography>
                 </Box>
               )}

@@ -21,6 +21,12 @@ enum EntityStatus {
   INATIVO
 }
 
+enum PlaceKind {
+  POVOADO
+  LOCALIDADE
+  DISTRITO
+}
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
@@ -61,6 +67,7 @@ model Municipality {
   users           User[]
   ubsList         Ubs[]
   neighborhoods   Neighborhood[]
+  places          Place[]
   microareas      Microarea[]
   streets         Street[]
   acsList         Acs[]
@@ -104,6 +111,24 @@ model Neighborhood {
   @@unique([name, municipalityId])
   @@index([municipalityId])
   @@map("neighborhoods")
+}
+
+model Place {
+  id             String    @id @default(uuid())
+  name           String
+  kind           PlaceKind @default(POVOADO)
+  latitude       Float
+  longitude      Float
+  osmNodeId      BigInt?   @unique @map("osm_node_id")
+  notes          String?
+  municipalityId String    @map("municipality_id")
+  municipality   Municipality @relation(fields: [municipalityId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([name, municipalityId])
+  @@index([municipalityId])
+  @@map("places")
 }
 
 model Microarea {

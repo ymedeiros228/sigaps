@@ -4,11 +4,14 @@ import {
   neighborhoodsApi,
   paintZonesApi,
   dashboardApi,
+  placesApi,
+  streetsApi,
 } from '../services/api';
 import { fetchCadastrosBundle } from './fetchCadastrosData';
 import { hydrateCadastrosCache } from './hydrateCadastrosCache';
 import { fetchAllMapStreets } from './fetchAllStreets';
 import { CACHE, queryKeys } from './queryKeys';
+import { VIEWPORT_STREETS_THRESHOLD } from '../hooks/useMapViewportStreets';
 
 /** Prefetch cadastros com bundle + fallback (compatível com API antiga). */
 export function prefetchCadastrosData(queryClient: QueryClient, municipalityId: string) {
@@ -47,14 +50,37 @@ export function prefetchMapData(queryClient: QueryClient, municipalityId: string
       queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
       staleTime: CACHE.neighborhoods,
     }),
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.places(municipalityId),
+      queryFn: () => placesApi.list(municipalityId).then((r) => r.data),
+      staleTime: CACHE.places,
+    }),
   ]);
 
   const loadStreets = () => {
-    void queryClient.prefetchQuery({
-      queryKey: queryKeys.streetsMap(municipalityId),
-      queryFn: () => fetchAllMapStreets(municipalityId),
-      staleTime: CACHE.streets,
-    });
+    void (async () => {
+      try {
+        const probe = await streetsApi.list(municipalityId, {
+          limit: 1,
+          mapOnly: true,
+          page: 1,
+        });
+        const total = probe.data.total;
+        void queryClient.prefetchQuery({
+          queryKey: ['streets-probe', municipalityId],
+          queryFn: () => Promise.resolve({ items: [], total }),
+          staleTime: CACHE.streets,
+        });
+        if (total > VIEWPORT_STREETS_THRESHOLD) return;
+        void queryClient.prefetchQuery({
+          queryKey: queryKeys.streetsMap(municipalityId),
+          queryFn: () => fetchAllMapStreets(municipalityId),
+          staleTime: CACHE.streets,
+        });
+      } catch {
+        /* prefetch opcional */
+      }
+    })();
   };
 
   if (typeof requestIdleCallback !== 'undefined') {

@@ -20,6 +20,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { CadastrosModule } from './modules/cadastros/cadastros.module';
+import { PlacesModule } from './modules/places/places.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -47,6 +48,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     AdminModule,
     IntegrationsModule,
     CadastrosModule,
+    PlacesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

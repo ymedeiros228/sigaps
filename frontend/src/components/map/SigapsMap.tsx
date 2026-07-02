@@ -22,6 +22,7 @@ import {
   paintZonesApi,
   streetsApi,
   ubsApi,
+  placesApi,
   type Street,
 } from '../../services/api';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
@@ -40,6 +41,7 @@ import { DivisionMapClickHandler } from './DivisionMapClickHandler';
 import { MapEmptyState } from './MapEmptyState';
 import { SelectionBar } from './SelectionBar';
 import { UbsMarkersLayer } from './UbsMarkersLayer';
+import { PlacesMarkersLayer } from './PlacesMarkersLayer';
 import { FamilyBulkImportDialog } from './FamilyBulkImportDialog';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
 import { canImportStreets, isAcsUser } from '../../utils/permissions';
@@ -146,6 +148,13 @@ export function SigapsMap() {
     queryFn: () => ubsApi.list(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
     staleTime: CACHE.default,
+  });
+
+  const { data: placesList = [] } = useQuery({
+    queryKey: queryKeys.places(municipalityId!),
+    queryFn: () => placesApi.list(municipalityId!).then((r) => r.data),
+    enabled: !!municipalityId,
+    staleTime: CACHE.places,
   });
 
   useEffect(() => {
@@ -630,6 +639,12 @@ export function SigapsMap() {
         return;
       }
 
+      if (option.kind === 'place' && option.lat != null && option.lng != null) {
+        mapState.flyTo(option.lat, option.lng, 16);
+        setSnackbar({ message: option.label, severity: 'info' });
+        return;
+      }
+
       if (option.kind === 'neighborhood' && municipalityId) {
         try {
           const res = await streetsApi.list(municipalityId, {
@@ -801,6 +816,7 @@ export function SigapsMap() {
         microareas={microareas}
         streets={streets}
         ubsList={ubsList}
+        placesList={placesList}
         loading={streetsFetching && streetCount === 0}
       />
 
@@ -977,6 +993,7 @@ export function SigapsMap() {
             />
           )}
           <UbsMarkersLayer ubsList={ubsList} />
+          <PlacesMarkersLayer places={placesList} />
         </LeafletMap>
 
       {selectedStreet && !paintMode && (

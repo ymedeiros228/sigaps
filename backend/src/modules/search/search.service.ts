@@ -9,12 +9,12 @@ export class SearchService {
   async search(municipalityId: string, query: string) {
     const q = query.trim();
     if (!q || q.length < 2) {
-      return { streets: [], neighborhoods: [], ubs: [], acs: [], microareas: [] };
+      return { streets: [], neighborhoods: [], places: [], ubs: [], acs: [], microareas: [] };
     }
 
     const contains = { contains: q, mode: 'insensitive' as const };
 
-    const [streets, neighborhoods, ubs, acs, microareas] = await Promise.all([
+    const [streets, neighborhoods, places, ubs, acs, microareas] = await Promise.all([
       this.prisma.street.findMany({
         where: {
           ...buildStreetSearchWhere(municipalityId, q),
@@ -35,6 +35,12 @@ export class SearchService {
         where: { municipalityId, name: contains },
         take: 10,
         select: { id: true, name: true, _count: { select: { streets: true } } },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.place.findMany({
+        where: { municipalityId, name: contains },
+        take: 12,
+        select: { id: true, name: true, kind: true, latitude: true, longitude: true },
         orderBy: { name: 'asc' },
       }),
       this.prisma.ubs.findMany({
@@ -62,6 +68,6 @@ export class SearchService {
       }),
     ]);
 
-    return { streets, neighborhoods, ubs, acs, microareas };
+    return { streets, neighborhoods, places, ubs, acs, microareas };
   }
 }

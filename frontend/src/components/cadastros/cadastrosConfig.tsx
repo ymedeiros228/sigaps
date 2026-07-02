@@ -5,9 +5,10 @@ import {
   People,
   LocationCity,
   GridView,
+  HomeWork,
 } from '@mui/icons-material';
 
-export type CadastrosSectionId = 'municipio' | 'ubs' | 'acs' | 'bairros' | 'microareas';
+export type CadastrosSectionId = 'municipio' | 'ubs' | 'acs' | 'bairros' | 'povoados' | 'microareas';
 
 export type CadastrosSection = {
   id: CadastrosSectionId;
@@ -45,6 +46,13 @@ export const CADASTROS_SECTIONS: CadastrosSection[] = [
     shortLabel: 'Bairros',
     description: 'Divisão territorial do município',
     icon: <LocationCity fontSize="small" />,
+  },
+  {
+    id: 'povoados',
+    label: 'Povoados e localidades',
+    shortLabel: 'Povoados',
+    description: 'Complemento ao mapa — lugares fora das ruas OSM',
+    icon: <HomeWork fontSize="small" />,
   },
   {
     id: 'microareas',

@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { importStreetsFromBundledGeoJson } from '../../common/utils/bundled-streets.import';
 import { withDbRetry } from '../../common/utils/prisma-retry.util';
+import { PlacesService } from '../places/places.service';
 import {
   fixLineStringCoordinates,
   isValidBrazilCoord,
@@ -45,9 +46,10 @@ export class OsmImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly placesService: PlacesService,
   ) {}
 
-  async importStreetsForMunicipality(municipalityId: string) {
+  async importStreetsForMunicipality(municipalityId: string, userId?: string) {
     if (OsmImportService.importLocks.has(municipalityId)) {
       const currentCount = await this.prisma.street.count({
         where: { municipalityId, osmId: { not: null } },
@@ -89,11 +91,13 @@ export class OsmImportService {
         this.logger.log(
           `Ruas do pacote local: ${bundled.imported} (${bundled.path})`,
         );
-        return {
+        const result = {
           ...bundled,
           status: 'done' as const,
           osmRelationId: this.resolveOsmRelationId(municipality),
         };
+        await this.importPlacesComplement(municipalityId, userId);
+        return result;
       }
 
       if (existing > 0) {
@@ -107,7 +111,9 @@ export class OsmImportService {
       }
 
       this.logger.log('Pacote local vazio — tentando Overpass (pode demorar)...');
-      return await this.runOverpassImport(municipality);
+      const overpass = await this.runOverpassImport(municipality);
+      await this.importPlacesComplement(municipalityId, userId);
+      return overpass;
     } finally {
       OsmImportService.importLocks.delete(municipalityId);
     }
@@ -316,5 +322,17 @@ export class OsmImportService {
     if (!suburb) return undefined;
     const q = suburb.trim().toLowerCase();
     return neighborhoods.find((n) => n.name.toLowerCase() === q)?.id;
+  }
+
+  private async importPlacesComplement(municipalityId: string, userId?: string) {
+    if (!userId) return;
+    try {
+      const places = await this.placesService.importFromOsm(municipalityId, userId);
+      this.logger.log(
+        `Povoados complementares: ${places.imported} novos, ${places.updated} atualizados`,
+      );
+    } catch (error) {
+      this.logger.warn(`Povoados complementares falharam: ${(error as Error).message}`);
+    }
   }
 }

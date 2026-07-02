@@ -21,7 +21,7 @@ export type StreetSearchOption = {
   id: string;
   label: string;
   group: string;
-  kind: 'street' | 'neighborhood' | 'ubs' | 'acs' | 'microarea';
+  kind: 'street' | 'neighborhood' | 'ubs' | 'acs' | 'microarea' | 'place';
   lat?: number;
   lng?: number;
   microareaId?: string;
@@ -108,6 +108,16 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         kind: 'ubs',
         lat: u.latitude,
         lng: u.longitude,
+      }),
+    );
+    searchData?.places.forEach((p) =>
+      map.set(`p-${p.id}`, {
+        id: p.id,
+        label: p.name,
+        group: 'Povoados',
+        kind: 'place',
+        lat: p.latitude,
+        lng: p.longitude,
       }),
     );
 

@@ -58,6 +58,7 @@ async function bootstrap() {
       '/ubs',
       '/acs',
       '/neighborhoods',
+      '/places',
       '/search',
       '/dashboard',
       '/osm',
