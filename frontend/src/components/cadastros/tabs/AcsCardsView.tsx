@@ -11,9 +11,9 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { Delete, Edit, GridView, Phone } from '@mui/icons-material';
+import { Delete, Edit, GridView } from '@mui/icons-material';
 import type { Acs } from '../../../services/api';
-import { maskCpfDisplay } from '../../../utils/inputMasks';
+import { isInternalAcsCode } from '../../../utils/inputMasks';
 import { assetUrl } from '../../../utils/assetUrl';
 
 interface AcsCardsViewProps {
@@ -108,9 +108,11 @@ export function AcsCardsView({
                   <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.25 }} noWrap>
                     {acs.name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    CPF {maskCpfDisplay(acs.cpf)}
-                  </Typography>
+                  {!isInternalAcsCode(acs.cpf) && acs.cpf && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      CPF cadastrado
+                    </Typography>
+                  )}
                 </Box>
                 {canManage && (
                   <Box sx={{ display: 'flex', gap: 0.25, mt: -0.5 }}>
@@ -129,15 +131,6 @@ export function AcsCardsView({
                   </Box>
                 )}
               </Box>
-
-              {acs.phone && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                  <Phone sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    {acs.phone}
-                  </Typography>
-                </Box>
-              )}
 
               <Divider sx={{ my: 0.25 }} />
 

@@ -16,21 +16,12 @@ import {
   useTheme,
 } from '@mui/material';
 import { CloudUpload, Person } from '@mui/icons-material';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import type { Acs, Microarea } from '../../../services/api';
-import {
-  digitsOnly,
-  formatCpf,
-  formatPhone,
-  isMaskedCpf,
-  isValidCpf,
-} from '../../../utils/inputMasks';
 import { assetUrl } from '../../../utils/assetUrl';
 
 export type AcsFormValues = {
   name: string;
-  cpf: string;
-  phone: string;
   status: string;
   microareaId: string;
 };
@@ -48,8 +39,6 @@ interface AcsFormDialogProps {
 
 const emptyValues: AcsFormValues = {
   name: '',
-  cpf: '',
-  phone: '',
   status: 'ATIVO',
   microareaId: '',
 };
@@ -68,7 +57,6 @@ export function AcsFormDialog({
   const fileRef = useRef<HTMLInputElement>(null);
   const {
     register,
-    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -80,8 +68,6 @@ export function AcsFormDialog({
       editing
         ? {
             name: editing.name,
-            cpf: digitsOnly(editing.cpf),
-            phone: editing.phone ?? '',
             status: editing.status,
             microareaId: editing.microarea?.id ?? '',
           }
@@ -95,16 +81,7 @@ export function AcsFormDialog({
   });
 
   const submit = (andAnother: boolean) =>
-    handleSubmit((values) =>
-      onSave(
-        {
-          ...values,
-          cpf: digitsOnly(values.cpf),
-          phone: digitsOnly(values.phone) || '',
-        },
-        andAnother,
-      ),
-    );
+    handleSubmit((values) => onSave(values, andAnother));
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -113,12 +90,11 @@ export function AcsFormDialog({
       </DialogTitle>
       <form onSubmit={submit(false)}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
-          {!editing && (
-            <Typography variant="body2" color="text.secondary">
-              Preencha os dados do agente. Você pode vincular a microárea agora ou depois, na aba
-              Microáreas.
-            </Typography>
-          )}
+          <Typography variant="body2" color="text.secondary">
+            {editing
+              ? 'Atualize o nome, status ou microárea do agente.'
+              : 'Informe o nome do agente. Você pode vincular a microárea agora ou depois, na aba Microáreas.'}
+          </Typography>
 
           {editing && onPhotoUpload && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -172,52 +148,6 @@ export function AcsFormDialog({
             error={!!errors.name}
             helperText={errors.name?.message}
             fullWidth
-          />
-
-          <Controller
-            name="cpf"
-            control={control}
-            rules={{
-              required: editing && isMaskedCpf(editing.cpf) ? false : 'Informe o CPF',
-              validate: (v) => {
-                if (editing && isMaskedCpf(editing.cpf)) return true;
-                const d = digitsOnly(v);
-                if (d.length !== 11) return 'CPF deve ter 11 dígitos';
-                if (!isValidCpf(d)) return 'CPF inválido';
-                return true;
-              },
-            }}
-            render={({ field }) => (
-              <TextField
-                label="CPF"
-                value={editing && isMaskedCpf(editing.cpf) ? editing.cpf : formatCpf(field.value)}
-                onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 11))}
-                error={!!errors.cpf}
-                helperText={
-                  errors.cpf?.message ??
-                  (editing && isMaskedCpf(editing.cpf)
-                    ? 'CPF mascarado — não editável neste perfil.'
-                    : undefined)
-                }
-                fullWidth
-                disabled={!!editing}
-                placeholder="000.000.000-00"
-              />
-            )}
-          />
-
-          <Controller
-            name="phone"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                label="Telefone / WhatsApp"
-                value={formatPhone(field.value)}
-                onChange={(e) => field.onChange(digitsOnly(e.target.value).slice(0, 11))}
-                fullWidth
-                placeholder="(00) 00000-0000"
-              />
-            )}
           />
 
           <TextField label="Status" select {...register('status')} fullWidth defaultValue="ATIVO">

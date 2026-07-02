@@ -11,6 +11,7 @@ import {
   Collapse,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
 } from '@mui/material';
 import {
   Brush,
@@ -24,8 +25,9 @@ import {
   FormatPaint,
   AutoFixOff,
   DeleteSweep,
+  UnfoldLess,
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import type { Microarea, Street } from '../../services/api';
@@ -71,6 +73,7 @@ export function PaintGuidePanel({
   const canAddMicroarea = canCreateMicroarea(user?.role);
   const [addOpen, setAddOpen] = useState(false);
   const [clearDialog, setClearDialog] = useState<'all' | 'microarea' | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [neighborhoodConfirm, setNeighborhoodConfirm] = useState<{ id: string; name: string; count: number } | null>(null);
   const paintMode = useMapStore((s) => s.paintMode);
   const eraserMode = useMapStore((s) => s.eraserMode);
@@ -121,11 +124,20 @@ export function PaintGuidePanel({
     }
     setEraserMode(false);
     setPaintMode(true);
+    setPaintGuideCollapsed(false);
   };
 
   const handleStartEraser = () => {
     setPaintMode(true);
     setEraserMode(true);
+    setPaintGuideCollapsed(false);
+  };
+
+  const handleMinimize = (e: MouseEvent) => {
+    e.stopPropagation();
+    setPaintGuideCollapsed(true);
+    setPaintMode(false);
+    setEraserMode(false);
   };
 
   return (
@@ -140,7 +152,7 @@ export function PaintGuidePanel({
           transform: 'translateX(-50%)',
           zIndex: 1001,
           width: { xs: 'calc(100% - 16px)', sm: 520, md: 600 },
-          maxHeight: { xs: 'min(62vh, 480px)', sm: 'none' },
+          maxHeight: collapsed ? 'none' : { xs: 'min(58vh, 420px)', sm: 'none' },
           bgcolor: glassBg,
           borderRadius: 3,
           overflow: 'hidden',
@@ -169,6 +181,11 @@ export function PaintGuidePanel({
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {eraserMode ? 'Modo apagar ativo' : paintMode ? 'Modo pintar ativo' : 'Pintar microáreas'}
             </Typography>
+            {collapsed && (
+              <Typography variant="caption" color="text.secondary">
+                Toque para abrir · suas ruas pintadas ficam salvas
+              </Typography>
+            )}
             {paintMode && selectedMicroarea && !eraserMode && (
               <Chip
                 size="small"
@@ -197,21 +214,43 @@ export function PaintGuidePanel({
             )}
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {paintMode && (
-              <Button
+            {!collapsed && paintMode && (
+              <Tooltip title="Para de pintar, mas mantém as ruas já coloridas">
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPaintMode(false);
+                    setEraserMode(false);
+                  }}
+                >
+                  Parar
+                </Button>
+              </Tooltip>
+            )}
+            <Tooltip
+              title={
+                collapsed
+                  ? 'Abrir painel de pintura'
+                  : 'Minimizar painel (não apaga ruas pintadas)'
+              }
+            >
+              <IconButton
                 size="small"
-                color="inherit"
+                aria-label={collapsed ? 'Abrir painel' : 'Minimizar painel'}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setPaintMode(false);
+                  if (collapsed) {
+                    setPaintGuideCollapsed(false);
+                  } else {
+                    handleMinimize(e);
+                  }
                 }}
               >
-                Parar
-              </Button>
-            )}
-            <IconButton size="small">
-              {collapsed ? <ExpandMore /> : <ExpandLess />}
-            </IconButton>
+                {collapsed ? <ExpandMore /> : <UnfoldLess />}
+              </IconButton>
+            </Tooltip>
           </Box>
         </Box>
 
@@ -310,7 +349,6 @@ export function PaintGuidePanel({
                     onClick={() => {
                       setSelectedMicroarea(m.id);
                       setEraserMode(false);
-                      if (streetCount > 0) setPaintMode(true);
                     }}
                     sx={{
                       fontSize: { xs: '0.75rem', sm: '0.875rem' },
@@ -376,7 +414,6 @@ export function PaintGuidePanel({
               onCreated={(ma) => {
                 setSelectedMicroarea(ma.id);
                 setEraserMode(false);
-                if (streetCount > 0) setPaintMode(true);
                 onMicroareaCreated?.(ma.id);
               }}
             />
@@ -474,49 +511,61 @@ export function PaintGuidePanel({
             )}
 
             {paintedCount > 0 && (
-              <Box
-                sx={{
-                  mt: 2.5,
-                  p: 1.5,
-                  borderRadius: 2,
-                  bgcolor: alpha(theme.palette.warning.main, 0.06),
-                  border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                }}
-              >
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>
-                  CORRIGIR PINTURA
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 1.5 }}>
-                  Use o modo <strong>Apagar</strong> para corrigir ruas individuais, ou remova em lote abaixo.
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {selectedMicroarea && selectedMicroareaPaintedCount > 0 && (
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      color="warning"
-                      size="small"
-                      startIcon={<DeleteSweep />}
-                      disabled={clearingPaint}
-                      onClick={() => setClearDialog('microarea')}
-                      sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
-                    >
-                      Limpar {selectedMicroarea.name} ({selectedMicroareaPaintedCount} ruas)
-                    </Button>
-                  )}
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    color="error"
-                    size="small"
-                    startIcon={<DeleteSweep />}
-                    disabled={clearingPaint}
-                    onClick={() => setClearDialog('all')}
-                    sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+              <Box sx={{ mt: 2 }}>
+                <Button
+                  fullWidth
+                  size="small"
+                  color="inherit"
+                  onClick={() => setAdvancedOpen((open) => !open)}
+                  endIcon={advancedOpen ? <ExpandLess /> : <ExpandMore />}
+                  sx={{ justifyContent: 'space-between', fontWeight: 700 }}
+                >
+                  Limpar pinturas em lote (opcional)
+                </Button>
+                <Collapse in={advancedOpen}>
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: alpha(theme.palette.warning.main, 0.06),
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                    }}
                   >
-                    Limpar todas as pinturas ({paintedCount} ruas)
-                  </Button>
-                </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                      Use o modo <strong>Apagar</strong> para corrigir ruas individuais. As opções
+                      abaixo removem várias ruas de uma vez.
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {selectedMicroarea && selectedMicroareaPaintedCount > 0 && (
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          color="warning"
+                          size="small"
+                          startIcon={<DeleteSweep />}
+                          disabled={clearingPaint}
+                          onClick={() => setClearDialog('microarea')}
+                          sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                        >
+                          Limpar {selectedMicroarea.name} ({selectedMicroareaPaintedCount} ruas)
+                        </Button>
+                      )}
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<DeleteSweep />}
+                        disabled={clearingPaint}
+                        onClick={() => setClearDialog('all')}
+                        sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                      >
+                        Limpar todas as pinturas ({paintedCount} ruas)
+                      </Button>
+                    </Box>
+                  </Box>
+                </Collapse>
               </Box>
             )}
 

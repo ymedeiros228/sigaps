@@ -153,7 +153,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   baseLayer: 'satellite',
   highlightedStreetId: null,
   mapFlyTarget: null,
-  paintGuideCollapsed: false,
+  paintGuideCollapsed: true,
   dragPaintIds: new Set(),
   mapPanEnabled: true,
   divisionMode: false,
@@ -166,7 +166,6 @@ export const useMapStore = create<MapState>((set, get) => ({
         set({
           paintMode: enabled,
           selectedMicroareaId: microareas[0].id,
-          paintGuideCollapsed: false,
           mapPanEnabled: false,
         });
         return;
@@ -175,7 +174,6 @@ export const useMapStore = create<MapState>((set, get) => ({
     set({
       paintMode: enabled,
       eraserMode: enabled ? get().eraserMode : false,
-      paintGuideCollapsed: enabled ? false : state.paintGuideCollapsed,
       mapPanEnabled: enabled ? false : true,
     });
   },

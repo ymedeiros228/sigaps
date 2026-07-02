@@ -20,16 +20,21 @@ export function formatPhone(value: string): string {
 }
 
 export function maskCpfDisplay(cpf: string): string {
+  if (isInternalAcsCode(cpf)) return '';
   const d = digitsOnly(cpf);
   if (d.length < 11) return cpf;
   return `***.***.***-${d.slice(-2)}`;
+}
+
+export function isInternalAcsCode(cpf: string | null | undefined): boolean {
+  const d = digitsOnly(cpf ?? '');
+  return d.length === 11 && d.startsWith('000');
 }
 
 export function isMaskedCpf(cpf: string): boolean {
   return cpf.includes('*');
 }
 
-/** Validação básica de CPF (dígitos verificadores). */
 export function isValidCpf(cpf: string): boolean {
   const d = digitsOnly(cpf);
   if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;

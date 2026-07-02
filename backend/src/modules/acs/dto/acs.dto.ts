@@ -7,10 +7,15 @@ export class CreateAcsDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: '12345678901' })
+  @ApiProperty({
+    example: '12345678901',
+    required: false,
+    description: 'Opcional no cadastro manual — código interno é gerado automaticamente',
+  })
+  @IsOptional()
   @IsString()
   @Length(11, 11)
-  cpf: string;
+  cpf?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

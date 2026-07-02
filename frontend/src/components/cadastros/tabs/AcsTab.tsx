@@ -29,7 +29,6 @@ import { AcsBulkImportDialog } from './AcsBulkImportDialog';
 import { AcsCardsView } from './AcsCardsView';
 import { useAuthStore } from '../../../store';
 import { canDeleteAcs } from '../../../utils/permissions';
-import { maskCpfDisplay, isMaskedCpf } from '../../../utils/inputMasks';
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
@@ -100,8 +99,6 @@ export function AcsTab({
     return rows.filter(
       (row) =>
         row.name.toLowerCase().includes(query) ||
-        row.cpf.includes(query) ||
-        (row.phone ?? '').includes(query) ||
         (row.microarea?.name ?? '').toLowerCase().includes(query) ||
         String(row.microarea?.number ?? '').includes(query),
     );
@@ -118,8 +115,6 @@ export function AcsTab({
       const { values } = payload;
       const body = {
         name: values.name,
-        ...(editing && isMaskedCpf(editing.cpf) ? {} : { cpf: values.cpf }),
-        phone: values.phone || undefined,
         status: values.status,
         microareaId: values.microareaId || undefined,
       };
@@ -128,7 +123,7 @@ export function AcsTab({
             ...body,
             microareaId: values.microareaId || null,
           })
-        : acsApi.create({ ...body, cpf: values.cpf, municipalityId });
+        : acsApi.create({ ...body, municipalityId });
     },
     onSuccess: (_data, variables) => {
       invalidateCadastrosCache(queryClient, municipalityId);
@@ -185,7 +180,7 @@ export function AcsTab({
         count={data.length}
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Buscar por nome, CPF, telefone ou microárea..."
+        searchPlaceholder="Buscar por nome ou microárea..."
         onAdd={() => openForm()}
         addLabel="Novo ACS"
         canManage={canManage}
@@ -295,18 +290,6 @@ export function AcsTab({
           rowKey={(row) => row.id}
           columns={[
             { id: 'name', label: 'Nome', render: (row) => row.name },
-            {
-              id: 'cpf',
-              label: 'CPF',
-              hideOnMobile: true,
-              render: (row) => maskCpfDisplay(row.cpf),
-            },
-            {
-              id: 'phone',
-              label: 'Telefone',
-              hideOnMobile: true,
-              render: (row) => row.phone ?? '—',
-            },
             {
               id: 'microarea',
               label: 'Microárea',

@@ -274,6 +274,7 @@ export function SigapsMap() {
         : `${count} ruas vinculadas à ${ma?.name ?? 'microárea'}!`;
       setLastPaintAction(msg);
       setSnackbar({ message: msg, severity: 'success' });
+      useMapStore.getState().setPaintGuideCollapsed(true);
     },
     onError: (err, _vars, context) => {
       if (context?.previous && municipalityId) {

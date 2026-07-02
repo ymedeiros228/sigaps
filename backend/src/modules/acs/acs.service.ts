@@ -9,6 +9,10 @@ import { extname, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
+import {
+  generateInternalAcsCode,
+  isInternalAcsCode,
+} from '../../common/utils/internal-acs-code.util';
 import { maskCpfField } from '../../common/utils/mask-cpf.util';
 import { CreateAcsDto, UpdateAcsDto } from './dto/acs.dto';
 import { BulkAcsImportDto } from './dto/bulk-acs.dto';
@@ -42,7 +46,29 @@ export class AcsService {
   }
 
   private maskAcsRow<T extends { cpf: string }>(row: T, viewerRole?: string): T {
+    if (isInternalAcsCode(row.cpf)) {
+      return { ...row, cpf: '' };
+    }
     return { ...row, cpf: maskCpfField(row.cpf, viewerRole) ?? row.cpf };
+  }
+
+  private async resolveCreateCpf(cpf?: string): Promise<string> {
+    const normalized = cpf?.replace(/\D/g, '').trim();
+    if (normalized && normalized.length === 11) {
+      const existing = await this.prisma.acs.findUnique({ where: { cpf: normalized } });
+      if (existing) {
+        throw new ConflictException('Já existe um ACS com este CPF.');
+      }
+      return normalized;
+    }
+
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const candidate = generateInternalAcsCode();
+      const existing = await this.prisma.acs.findUnique({ where: { cpf: candidate } });
+      if (!existing) return candidate;
+    }
+
+    throw new BadRequestException('Não foi possível gerar identificador interno do ACS.');
   }
 
   private acsAuditFields(acs: {
@@ -105,14 +131,16 @@ export class AcsService {
   }
 
   async create(dto: CreateAcsDto, userId: string, viewerRole?: string) {
-    const { microareaId, municipalityId, ...rest } = dto;
+    const { microareaId, municipalityId, cpf, ...rest } = dto;
     await this.assertMunicipality(municipalityId);
-    const existing = await this.prisma.acs.findUnique({ where: { cpf: rest.cpf } });
-    if (existing) {
-      throw new ConflictException('Já existe um ACS com este CPF.');
-    }
+    const resolvedCpf = await this.resolveCreateCpf(cpf);
     const acs = await this.prisma.acs.create({
-      data: { ...rest, municipalityId, status: rest.status ?? 'ATIVO' },
+      data: {
+        ...rest,
+        cpf: resolvedCpf,
+        municipalityId,
+        status: rest.status ?? 'ATIVO',
+      },
     });
     if (microareaId) await this.assignToMicroarea(acs.id, microareaId);
     const result = await this.findOne(acs.id, viewerRole);

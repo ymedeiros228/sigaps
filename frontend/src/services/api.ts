@@ -348,7 +348,7 @@ export const acsApi = {
     api.get<Acs[]>(`/acs/municipality/${municipalityId}`),
   create: (data: {
     name: string;
-    cpf: string;
+    cpf?: string;
     municipalityId: string;
     phone?: string;
     status?: string;
