@@ -52,7 +52,7 @@ function kindLabel(kind: PlaceKind) {
 }
 
 export function PlacesTab({ municipalityId }: { municipalityId: string }) {
-  const { canManage, reportError, reportSuccess, confirmDelete } = useCadastros();
+  const { canManage, canDeletePlaces, reportError, reportSuccess, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [nominatimOpen, setNominatimOpen] = useState(false);
@@ -259,23 +259,27 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
           />
         }
         actions={
-          canManage
+          canManage || canDeletePlaces
             ? (row) => (
                 <>
-                  <Tooltip title="Editar">
-                    <IconButton size="small" onClick={() => openForm(row)}>
-                      <Edit fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Remover">
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  {canManage && (
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => openForm(row)}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {canDeletePlaces && (
+                    <Tooltip title="Remover">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </>
               )
             : undefined

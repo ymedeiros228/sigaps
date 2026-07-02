@@ -109,7 +109,12 @@ export class AcsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
   @ApiOperation({ summary: 'Excluir ACS' })
   remove(@Param('id') id: string, @Req() req: { user: { id: string } }) {
     return this.acsService.remove(id, req.user.id);

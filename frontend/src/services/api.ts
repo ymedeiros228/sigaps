@@ -354,6 +354,7 @@ export const microareasApi = {
     api.post('/microareas', data),
   update: (id: string, data: Partial<Microarea>) =>
     api.patch(`/microareas/${id}`, data),
+  remove: (id: string) => api.delete(`/microareas/${id}`),
   envelope: (id: string) => api.get(`/microareas/${id}/envelope`),
 };
 

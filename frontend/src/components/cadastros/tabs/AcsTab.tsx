@@ -27,8 +27,6 @@ import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyStat
 import { AcsFormDialog, type AcsFormValues } from './AcsFormDialog';
 import { AcsBulkImportDialog } from './AcsBulkImportDialog';
 import { AcsCardsView } from './AcsCardsView';
-import { useAuthStore } from '../../../store';
-import { canDeleteAcs } from '../../../utils/permissions';
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
@@ -49,10 +47,9 @@ export function AcsTab({
   onActionConsumed,
   onGoToMicroareas,
 }: AcsTabProps) {
-  const { canManageAcs, reportError, reportSuccess, confirmDelete } = useCadastros();
-  const user = useAuthStore((s) => s.user);
+  const { canManageAcs, canDeleteAcs, reportError, reportSuccess, confirmDelete } = useCadastros();
   const canManage = canManageAcs;
-  const canDelete = canDeleteAcs(user?.role);
+  const canDelete = canDeleteAcs;
   const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);

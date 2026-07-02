@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -75,5 +76,17 @@ export class MicroareasController {
     @Req() req: { user: { id: string } },
   ) {
     return this.microareasService.update(id, dto, req.user.id);
+  }
+
+  @Delete(':id')
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
+  @ApiOperation({ summary: 'Excluir microárea' })
+  remove(@Param('id') id: string, @Req() req: { user: { id: string } }) {
+    return this.microareasService.remove(id, req.user.id);
   }
 }

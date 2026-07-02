@@ -93,6 +93,10 @@ export class UbsService {
 
   async remove(id: string, userId: string) {
     const before = await this.findOne(id);
+    await this.prisma.microarea.updateMany({
+      where: { ubsId: id },
+      data: { ubsId: null },
+    });
     await this.prisma.ubs.delete({ where: { id } });
     await this.audit.log({
       userId,

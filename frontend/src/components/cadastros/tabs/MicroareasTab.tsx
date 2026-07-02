@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
 import { Box, Button, Chip, IconButton, TextField, Tooltip, Typography } from '@mui/material';
-import { Add, Edit, GridView, Map as MapIcon, Download } from '@mui/icons-material';
+import { Add, Delete, Edit, GridView, Map as MapIcon, Download } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -46,7 +46,7 @@ function sanitizeLinks(values: MicroareaForm): MicroareaForm {
 }
 
 export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
-  const { canManage, reportError, reportSuccess } = useCadastros();
+  const { canManage, canDeleteMicroareas, reportError, reportSuccess, confirmDelete } = useCadastros();
   const userRole = useAuthStore((s) => s.user?.role);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -124,6 +124,15 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
       setOpen(false);
       reset();
       reportSuccess(editing ? 'Microárea atualizada.' : 'Microárea cadastrada.');
+    },
+    onError: reportError,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => microareasApi.remove(id),
+    onSuccess: () => {
+      invalidateCadastrosCache(queryClient, municipalityId);
+      reportSuccess('Microárea removida.');
     },
     onError: reportError,
   });
@@ -336,13 +345,30 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
           />
         }
         actions={
-          canManage
+          canManage || canDeleteMicroareas
             ? (row) => (
-                <Tooltip title="Editar vínculos e dados">
-                  <IconButton size="small" onClick={() => openForm(row)}>
-                    <Edit fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                <>
+                  {canManage && (
+                    <Tooltip title="Editar vínculos e dados">
+                      <IconButton size="small" onClick={() => openForm(row)}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {canDeleteMicroareas && (
+                    <Tooltip title="Remover">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() =>
+                          confirmDelete(row.name, () => deleteMutation.mutate(row.id))
+                        }
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </>
               )
             : undefined
         }

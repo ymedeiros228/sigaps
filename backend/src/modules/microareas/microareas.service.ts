@@ -237,4 +237,23 @@ export class MicroareasService {
 
     return result;
   }
+
+  async remove(id: string, userId: string) {
+    const before = await this.findOne(id);
+    await this.prisma.street.updateMany({
+      where: { microareaId: id },
+      data: { microareaId: null },
+    });
+    await this.prisma.microarea.delete({ where: { id } });
+
+    await this.audit.log({
+      userId,
+      entityType: 'microarea',
+      entityId: id,
+      action: 'DELETE',
+      beforeData: this.microareaSnapshot(before),
+    });
+
+    return { ok: true };
+  }
 }

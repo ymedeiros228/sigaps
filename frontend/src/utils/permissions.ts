@@ -24,8 +24,21 @@ export function canManageAcs(role?: string): boolean {
   return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
 }
 
+/** Quem cadastra pode remover (ACS, povoados, microáreas). */
 export function canDeleteAcs(role?: string): boolean {
-  return !!role && (role === 'ADMINISTRADOR' || role === 'SECRETARIO_SAUDE');
+  return canManageAcs(role);
+}
+
+export function canDeleteCadastros(role?: string): boolean {
+  return canManageCadastros(role);
+}
+
+export function canDeletePlaces(role?: string): boolean {
+  return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
+}
+
+export function canDeleteMicroareas(role?: string): boolean {
+  return canCreateMicroarea(role);
 }
 
 export function canManageCadastrosSection(role: string | undefined, section: string): boolean {

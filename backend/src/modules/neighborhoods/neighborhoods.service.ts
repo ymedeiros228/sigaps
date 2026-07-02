@@ -60,6 +60,10 @@ export class NeighborhoodsService {
       where: { neighborhoodId: id },
       data: { neighborhoodId: null },
     });
+    await this.prisma.microarea.updateMany({
+      where: { neighborhoodId: id },
+      data: { neighborhoodId: null },
+    });
     await this.prisma.neighborhood.delete({ where: { id } });
     await this.audit.log({
       userId,

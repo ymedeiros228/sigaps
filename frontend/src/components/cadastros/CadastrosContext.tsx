@@ -10,12 +10,16 @@ import {
   Typography,
 } from '@mui/material';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { canManageAcs, canManageCadastros } from '../../utils/permissions';
+import { canManageAcs, canManageCadastros, canDeleteCadastros, canDeleteAcs, canDeletePlaces, canDeleteMicroareas } from '../../utils/permissions';
 import { useAuthStore } from '../../store';
 
 type CadastrosContextValue = {
   canManage: boolean;
   canManageAcs: boolean;
+  canDelete: boolean;
+  canDeleteAcs: boolean;
+  canDeletePlaces: boolean;
+  canDeleteMicroareas: boolean;
   reportError: (error: unknown) => void;
   reportSuccess: (message: string) => void;
   confirmDelete: (label: string, onConfirm: () => void) => void;
@@ -24,6 +28,10 @@ type CadastrosContextValue = {
 const CadastrosContext = createContext<CadastrosContextValue>({
   canManage: false,
   canManageAcs: false,
+  canDelete: false,
+  canDeleteAcs: false,
+  canDeletePlaces: false,
+  canDeleteMicroareas: false,
   reportError: () => {},
   reportSuccess: () => {},
   confirmDelete: () => {},
@@ -37,6 +45,10 @@ export function CadastrosProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const canManage = canManageCadastros(user?.role);
   const manageAcs = canManageAcs(user?.role);
+  const deleteCadastros = canDeleteCadastros(user?.role);
+  const deleteAcs = canDeleteAcs(user?.role);
+  const deletePlaces = canDeletePlaces(user?.role);
+  const deleteMicroareas = canDeleteMicroareas(user?.role);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; onConfirm: () => void } | null>(null);
@@ -46,6 +58,10 @@ export function CadastrosProvider({ children }: { children: ReactNode }) {
       value={{
         canManage,
         canManageAcs: manageAcs,
+        canDelete: deleteCadastros,
+        canDeleteAcs: deleteAcs,
+        canDeletePlaces: deletePlaces,
+        canDeleteMicroareas: deleteMicroareas,
         reportError: (e) => setError(getApiErrorMessage(e)),
         reportSuccess: (message) => setSuccess(message),
         confirmDelete: (label, onConfirm) => setConfirm({ label, onConfirm }),

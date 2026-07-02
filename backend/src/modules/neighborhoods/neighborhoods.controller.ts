@@ -54,7 +54,7 @@ export class NeighborhoodsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
   @ApiOperation({ summary: 'Excluir bairro' })
   remove(@Param('id') id: string, @Req() req: { user: { id: string } }) {
     return this.neighborhoodsService.remove(id, req.user.id);

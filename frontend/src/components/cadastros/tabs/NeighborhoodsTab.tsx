@@ -17,7 +17,7 @@ import { CACHE, queryKeys } from '../../../utils/queryKeys';
 type NeighborhoodForm = { name: string };
 
 export function NeighborhoodsTab({ municipalityId }: { municipalityId: string }) {
-  const { canManage, reportError, reportSuccess, confirmDelete } = useCadastros();
+  const { canManage, canDelete, reportError, reportSuccess, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -129,23 +129,27 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
           />
         }
         actions={
-          canManage
+          canManage || canDelete
             ? (row) => (
                 <>
-                  <Tooltip title="Editar">
-                    <IconButton size="small" onClick={() => openForm(row)}>
-                      <Edit fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Remover">
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  {canManage && (
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => openForm(row)}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {canDelete && (
+                    <Tooltip title="Remover">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => confirmDelete(row.name, () => deleteMutation.mutate(row.id))}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </>
               )
             : undefined
