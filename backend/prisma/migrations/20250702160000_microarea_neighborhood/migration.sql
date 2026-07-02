@@ -1,5 +1,7 @@
 -- Vínculo de microárea com bairro (centralizador territorial no mapa)
-ALTER TABLE "microareas" ADD COLUMN IF NOT EXISTS "neighborhood_id" UUID;
+-- IDs no SIGAPS são TEXT (uuid string), não o tipo nativo UUID do Postgres.
+ALTER TABLE "microareas" DROP COLUMN IF EXISTS "neighborhood_id";
+ALTER TABLE "microareas" ADD COLUMN IF NOT EXISTS "neighborhood_id" TEXT;
 
 DO $$
 BEGIN
