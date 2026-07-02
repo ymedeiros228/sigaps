@@ -23,6 +23,12 @@ export interface OfficialMapPdfInput {
   streets: Street[];
   neighborhoodName?: string;
   ubsList?: Array<{ name: string; address: string }>;
+  includeSignatures?: boolean;
+  homologation?: {
+    at: string;
+    by: string;
+    notes?: string | null;
+  };
 }
 
 type MicroareaRow = {
@@ -109,6 +115,31 @@ function drawCoverImage(
   });
 }
 
+function drawScaleBar(pdf: jsPDF, x: number, y: number, widthMm: number) {
+  const h = 3;
+  const seg = widthMm / 4;
+  pdf.setFillColor(255, 255, 255);
+  pdf.setDrawColor(50);
+  pdf.setLineWidth(0.35);
+  pdf.roundedRect(x - 1, y - 1, widthMm + 2, h + 7, 1, 1, 'FD');
+
+  for (let i = 0; i < 4; i++) {
+    if (i % 2 === 0) pdf.setFillColor(30, 30, 30);
+    else pdf.setFillColor(255, 255, 255);
+    pdf.rect(x + seg * i, y, seg, h, 'F');
+  }
+  pdf.setDrawColor(30);
+  pdf.rect(x, y, widthMm, h, 'S');
+
+  pdf.setFontSize(6);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(40);
+  pdf.text('0', x - 0.5, y + h + 4);
+  pdf.text('125 m', x + seg - 4, y + h + 4);
+  pdf.text('250 m', x + seg * 2 - 4, y + h + 4);
+  pdf.text('500 m', x + seg * 3 - 5, y + h + 4);
+}
+
 function drawCompassRose(pdf: jsPDF, x: number, y: number, size: number) {
   const cx = x + size / 2;
   const cy = y + size / 2;
@@ -137,29 +168,97 @@ function drawCompassRose(pdf: jsPDF, x: number, y: number, size: number) {
   pdf.text('O', x + size - 5.5, cy + 2);
 }
 
-function drawScaleBar(pdf: jsPDF, x: number, y: number, widthMm: number) {
-  const h = 3;
-  const seg = widthMm / 4;
+function drawMapInsetLegend(
+  pdf: jsPDF,
+  x: number,
+  y: number,
+  rows: MicroareaRow[],
+  isA3: boolean,
+) {
+  const maxItems = Math.min(rows.length, isA3 ? 6 : 5);
+  if (maxItems === 0) return;
+  const lineH = isA3 ? 4 : 3.6;
+  const boxH = maxItems * lineH + 6;
+  const boxW = isA3 ? 52 : 46;
+
   pdf.setFillColor(255, 255, 255);
-  pdf.setDrawColor(50);
-  pdf.setLineWidth(0.35);
-  pdf.roundedRect(x - 1, y - 1, widthMm + 2, h + 7, 1, 1, 'FD');
+  pdf.setDrawColor(180);
+  pdf.setLineWidth(0.3);
+  pdf.roundedRect(x, y, boxW, boxH, 1.5, 1.5, 'FD');
 
-  for (let i = 0; i < 4; i++) {
-    if (i % 2 === 0) pdf.setFillColor(30, 30, 30);
-    else pdf.setFillColor(255, 255, 255);
-    pdf.rect(x + seg * i, y, seg, h, 'F');
-  }
-  pdf.setDrawColor(30);
-  pdf.rect(x, y, widthMm, h, 'S');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(isA3 ? 6.5 : 6);
+  pdf.setTextColor(15, 61, 46);
+  pdf.text('LEGENDA', x + 2.5, y + 4);
 
-  pdf.setFontSize(6);
   pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(40);
-  pdf.text('0', x - 0.5, y + h + 4);
-  pdf.text('125 m', x + seg - 4, y + h + 4);
-  pdf.text('250 m', x + seg * 2 - 4, y + h + 4);
-  pdf.text('500 m', x + seg * 3 - 5, y + h + 4);
+  pdf.setFontSize(isA3 ? 6 : 5.5);
+  let ly = y + 7.5;
+  for (let i = 0; i < maxItems; i++) {
+    const { microarea, streetCount } = rows[i];
+    const [r, g, b] = hexToRgb(microarea.color);
+    pdf.setFillColor(r, g, b);
+    pdf.rect(x + 2.5, ly - 2.2, 4, 2.8, 'F');
+    pdf.setTextColor(35, 35, 35);
+    pdf.text(truncate(pdf, `${microarea.name} (${streetCount})`, boxW - 10), x + 8, ly);
+    ly += lineH;
+  }
+}
+
+function drawHomologationStamp(
+  pdf: jsPDF,
+  x: number,
+  y: number,
+  homologation: NonNullable<OfficialMapPdfInput['homologation']>,
+  isA3: boolean,
+) {
+  const w = isA3 ? 58 : 50;
+  const h = isA3 ? 22 : 18;
+  pdf.setDrawColor(22, 120, 66);
+  pdf.setLineWidth(1.2);
+  pdf.roundedRect(x, y, w, h, 2, 2, 'S');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(isA3 ? 11 : 9);
+  pdf.setTextColor(22, 120, 66);
+  pdf.text('HOMOLOGADO', x + 4, y + 8);
+  pdf.setFontSize(isA3 ? 8 : 7);
+  pdf.text('SMS / APS', x + 4, y + 13);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(isA3 ? 6 : 5.5);
+  pdf.setTextColor(60);
+  const dateStr = new Date(homologation.at).toLocaleDateString('pt-BR');
+  pdf.text(dateStr, x + 4, y + 17);
+  if (homologation.by) {
+    pdf.text(truncate(pdf, homologation.by, w - 6), x + 4, y + (isA3 ? 20.5 : 16.5));
+  }
+}
+
+function drawSignatureRow(
+  pdf: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  isA3: boolean,
+) {
+  const colW = (width - 8) / 3;
+  const labels = [
+    'Enfermeiro(a) responsável',
+    'Coordenador(a) APS',
+    'Secretário(a) de Saúde',
+  ];
+  labels.forEach((label, i) => {
+    const lx = x + i * (colW + 4);
+    pdf.setDrawColor(160);
+    pdf.setLineWidth(0.35);
+    pdf.line(lx, y + 10, lx + colW, y + 10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(isA3 ? 7 : 6.5);
+    pdf.setTextColor(50);
+    pdf.text(label, lx + colW / 2, y + 13.5, { align: 'center' });
+    pdf.setFontSize(isA3 ? 6 : 5.5);
+    pdf.setTextColor(130);
+    pdf.text('Assinatura e carimbo', lx + colW / 2, y + 8, { align: 'center' });
+  });
 }
 
 function buildMicroareaRows(microareas: Microarea[], streets: Street[]): MicroareaRow[] {
@@ -287,6 +386,8 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
     streets,
     neighborhoodName,
     ubsList = [],
+    includeSignatures = true,
+    homologation,
   } = input;
 
   const isA3 = format === 'a3';
@@ -295,7 +396,8 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   const pageH = pdf.internal.pageSize.getHeight();
   const margin = isA3 ? 12 : 10;
   const headerH = isA3 ? 28 : 24;
-  const footerH = isA3 ? 16 : 14;
+  const signatureH = includeSignatures ? (isA3 ? 18 : 16) : 0;
+  const footerH = (isA3 ? 16 : 14) + signatureH;
 
   const rows = buildMicroareaRows(microareas, streets);
   const totalFamilies = streets.reduce((sum, s) => sum + (s.familyCount ?? 0), 0);
@@ -383,6 +485,18 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   const compassSize = isA3 ? 18 : 14;
   drawCompassRose(pdf, mapX + mapW - compassSize - 5, mapY + mapH - compassSize - 5, compassSize);
   drawScaleBar(pdf, mapX + 5, mapY + mapH - (isA3 ? 16 : 13), isA3 ? 36 : 30);
+  if (rows.length > 0) {
+    drawMapInsetLegend(pdf, mapX + 5, mapY + 5, rows, isA3);
+  }
+  if (homologation) {
+    drawHomologationStamp(
+      pdf,
+      mapX + mapW - (isA3 ? 64 : 56),
+      mapY + 5,
+      homologation,
+      isA3,
+    );
+  }
 
   // Legenda horizontal (estilo mapa oficial)
   const legendY = mapY + mapH + 3;
@@ -418,14 +532,18 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
 
   // Rodapé
   const footY = pageH - margin - footerH + 3;
+  if (includeSignatures) {
+    drawSignatureRow(pdf, margin, footY - 1, pageW - margin * 2, isA3);
+  }
+  const metaY = footY + (includeSignatures ? signatureH - 2 : 0);
   pdf.setDrawColor(200);
   pdf.setLineWidth(0.35);
-  pdf.line(margin, footY - 2, pageW - margin, footY - 2);
+  pdf.line(margin, metaY - 2, pageW - margin, metaY - 2);
 
   const qrUrl = 'https://sigaps-api.onrender.com';
   const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 120 });
   const qrSize = isA3 ? 14 : 12;
-  pdf.addImage(qrDataUrl, 'PNG', pageW - margin - qrSize, footY - 1, qrSize, qrSize);
+  pdf.addImage(qrDataUrl, 'PNG', pageW - margin - qrSize, metaY - 1, qrSize, qrSize);
 
   pdf.setFontSize(6);
   pdf.setTextColor(60);
@@ -435,15 +553,17 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
     month: 'long',
     year: 'numeric',
   });
-  pdf.text(`Gerado em ${dateStr}`, margin, footY + 4);
-  pdf.text('SIRGAS 2000 / WGS84 · Esri World Imagery / OpenStreetMap', margin, footY + 8);
+  pdf.text(`Gerado em ${dateStr}`, margin, metaY + 4);
+  pdf.text('SIRGAS 2000 / WGS84 · Esri World Imagery / OpenStreetMap', margin, metaY + 8);
   pdf.text(
-    'Documento para homologação pela Secretaria Municipal de Saúde',
+    homologation
+      ? `Homologado em ${new Date(homologation.at).toLocaleDateString('pt-BR')} por ${homologation.by}`
+      : 'Documento para homologação pela Secretaria Municipal de Saúde',
     margin + 78,
-    footY + 4,
+    metaY + 4,
   );
   pdf.setFont('helvetica', 'bold');
-  pdf.text('SIGAPS', pageW - margin - qrSize, footY + qrSize + 3);
+  pdf.text('SIGAPS', pageW - margin - qrSize, metaY + qrSize + 3);
 
   if (ubsList.length > 0) {
     pdf.setFont('helvetica', 'normal');
@@ -453,7 +573,12 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
       .slice(0, 3)
       .map((u) => u.name)
       .join(' · ');
-    pdf.text(`UBS: ${ubsLine}`, margin + 78, footY + 8);
+    pdf.text(`UBS: ${ubsLine}`, margin + 78, metaY + 8);
+  }
+  if (homologation?.notes) {
+    pdf.setFontSize(5.5);
+    pdf.setTextColor(80);
+    pdf.text(truncate(pdf, homologation.notes, pageW - margin * 2 - 40), margin, metaY + 12);
   }
 
   // Anexo com listagem de ruas (páginas seguintes)

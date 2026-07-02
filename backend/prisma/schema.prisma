@@ -50,6 +50,9 @@ model Municipality {
   latitude    Float
   longitude   Float
   osmRelationId Int?   @map("osm_relation_id")
+  mapHomologatedAt     DateTime? @map("map_homologated_at")
+  mapHomologatedBy     String?   @map("map_homologated_by")
+  mapHomologationNotes String?   @map("map_homologation_notes")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

@@ -110,6 +110,20 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+export interface Municipality {
+  id: string;
+  name: string;
+  state: string;
+  prefecture: string;
+  secretariat: string;
+  logoUrl?: string | null;
+  latitude: number;
+  longitude: number;
+  mapHomologatedAt?: string | null;
+  mapHomologatedBy?: string | null;
+  mapHomologationNotes?: string | null;
+}
+
 export interface Street {
   id: string;
   name: string;
@@ -201,10 +215,12 @@ export const authApi = {
 };
 
 export const municipalitiesApi = {
-  list: () => api.get('/municipalities'),
-  get: (id: string) => api.get(`/municipalities/${id}`),
+  list: () => api.get<Municipality[]>('/municipalities'),
+  get: (id: string) => api.get<Municipality>(`/municipalities/${id}`),
   update: (id: string, data: Record<string, unknown>) =>
     api.patch(`/municipalities/${id}`, data),
+  setMapHomologation: (id: string, data: { homologated: boolean; notes?: string }) =>
+    api.patch<Municipality>(`/municipalities/${id}/map-homologation`, data),
   uploadLogo: (id: string, file: File) => {
     const form = new FormData();
     form.append('file', file);

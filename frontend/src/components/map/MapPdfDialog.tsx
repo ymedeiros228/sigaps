@@ -14,6 +14,9 @@ import {
   Typography,
   Box,
   IconButton,
+  FormControlLabel,
+  Checkbox,
+  Chip,
 } from '@mui/material';
 import { Close, Download, PictureAsPdf, Print } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
@@ -28,7 +31,7 @@ import {
 import { useAppStore, useMapStore } from '../../store';
 import { assetUrl } from '../../utils/assetUrl';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
-import { captureLeafletMapImage, waitForMapReady } from '../../utils/mapPdfCapture';
+import { captureLeafletMapImage, waitForMapFlyComplete, waitForMapReady } from '../../utils/mapPdfCapture';
 import {
   generateOfficialMapPdf,
   downloadPdfBlob,
@@ -47,6 +50,7 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
   const municipalityId = useAppStore((s) => s.municipalityId);
   const [format, setFormat] = useState<PdfFormat>('a4');
   const [neighborhoodId, setNeighborhoodId] = useState<string>('');
+  const [includeSignatures, setIncludeSignatures] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -124,13 +128,23 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
         .map((s) => s.geojson!);
       if (paintedGeojsons.length > 0) {
         mapState.focusOnLines(paintedGeojsons, 16);
+        await waitForMapFlyComplete();
       }
 
       container.classList.add('sigaps-pdf-capture');
-      await waitForMapReady(2600);
+      await waitForMapReady(1800);
 
       const { dataUrl, width, height } = await captureLeafletMapImage(leaflet, { scale: 3 });
       container.classList.remove('sigaps-pdf-capture');
+
+      const homologation =
+        municipality.mapHomologatedAt && municipality.mapHomologatedBy
+          ? {
+              at: municipality.mapHomologatedAt,
+              by: municipality.mapHomologatedBy,
+              notes: municipality.mapHomologationNotes,
+            }
+          : undefined;
 
       const blob = await generateOfficialMapPdf({
         format,
@@ -148,6 +162,8 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
         streets: filteredStreets,
         neighborhoodName: neighborhoodName ?? undefined,
         ubsList: ubsList.map((u) => ({ name: u.name, address: u.address })),
+        includeSignatures,
+        homologation,
       });
 
       const suffix = neighborhoodName
@@ -243,6 +259,24 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
             <MenuItem value="a3">A3 horizontal (mapa grande)</MenuItem>
           </Select>
         </FormControl>
+
+        {municipality?.mapHomologatedAt && (
+          <Chip
+            color="success"
+            label={`Homologado SMS — ${new Date(municipality.mapHomologatedAt).toLocaleDateString('pt-BR')}`}
+            sx={{ alignSelf: 'flex-start' }}
+          />
+        )}
+
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={includeSignatures}
+              onChange={(e) => setIncludeSignatures(e.target.checked)}
+            />
+          }
+          label="Incluir campos para assinatura (Enfermeiro, Coordenador APS, Secretário)"
+        />
 
         <FormControl fullWidth>
           <InputLabel>Filtrar por bairro</InputLabel>

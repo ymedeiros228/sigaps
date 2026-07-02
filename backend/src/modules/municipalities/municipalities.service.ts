@@ -2,12 +2,17 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { mkdir, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../common/services/audit.service';
 import { CreateMunicipalityDto } from './dto/municipality.dto';
+import { MapHomologationDto } from './dto/map-homologation.dto';
 import { UpdateMunicipalityDto } from './dto/update-municipality.dto';
 
 @Injectable()
 export class MunicipalitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   findAll() {
     return this.prisma.municipality.findMany({ orderBy: { name: 'asc' } });
@@ -50,5 +55,47 @@ export class MunicipalitiesService {
       where: { id },
       data: { logoUrl },
     });
+  }
+
+  async setMapHomologation(
+    id: string,
+    dto: MapHomologationDto,
+    user: { id: string; name: string },
+  ) {
+    const before = await this.findOne(id);
+    const data = dto.homologated
+      ? {
+          mapHomologatedAt: new Date(),
+          mapHomologatedBy: user.name,
+          mapHomologationNotes: dto.notes?.trim() || null,
+        }
+      : {
+          mapHomologatedAt: null,
+          mapHomologatedBy: null,
+          mapHomologationNotes: null,
+        };
+
+    const updated = await this.prisma.municipality.update({
+      where: { id },
+      data,
+    });
+
+    await this.audit.log({
+      userId: user.id,
+      entityType: 'municipality',
+      entityId: id,
+      action: dto.homologated ? 'MAP_HOMOLOGATED' : 'MAP_HOMOLOGATION_REVOKED',
+      beforeData: {
+        mapHomologatedAt: before.mapHomologatedAt,
+        mapHomologatedBy: before.mapHomologatedBy,
+      },
+      afterData: {
+        mapHomologatedAt: updated.mapHomologatedAt,
+        mapHomologatedBy: updated.mapHomologatedBy,
+        notes: updated.mapHomologationNotes,
+      },
+    });
+
+    return updated;
   }
 }

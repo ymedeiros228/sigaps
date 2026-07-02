@@ -1,3 +1,5 @@
+import { useMapStore } from '../store';
+
 export type MapCaptureResult = {
   dataUrl: string;
   width: number;
@@ -7,6 +9,28 @@ export type MapCaptureResult = {
 /** Aguarda tiles e animações do Leaflet antes da captura. */
 export function waitForMapReady(ms = 2200): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Aguarda animação flyTo do mapa antes da captura. */
+export function waitForMapFlyComplete(maxMs = 4500): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      unsub();
+      resolve();
+    };
+
+    const startSeq = useMapStore.getState().mapFlyTarget?.seq ?? 0;
+    const unsub = useMapStore.subscribe((state) => {
+      const target = state.mapFlyTarget;
+      if (target && target.seq > startSeq) {
+        setTimeout(finish, 1200);
+      }
+    });
+    setTimeout(finish, maxMs);
+  });
 }
 
 export async function captureLeafletMapImage(

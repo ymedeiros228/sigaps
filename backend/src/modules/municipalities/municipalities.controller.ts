@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -15,6 +16,7 @@ import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreateMunicipalityDto } from './dto/municipality.dto';
+import { MapHomologationDto } from './dto/map-homologation.dto';
 import { UpdateMunicipalityDto } from './dto/update-municipality.dto';
 import { MunicipalitiesService } from './municipalities.service';
 
@@ -67,5 +69,16 @@ export class MunicipalitiesController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.municipalitiesService.uploadLogo(id, file);
+  }
+
+  @Patch(':id/map-homologation')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE)
+  @ApiOperation({ summary: 'Homologar ou revogar mapa oficial da SMS' })
+  setMapHomologation(
+    @Param('id') id: string,
+    @Body() dto: MapHomologationDto,
+    @Req() req: { user: { id: string; name: string } },
+  ) {
+    return this.municipalitiesService.setMapHomologation(id, dto, req.user);
   }
 }

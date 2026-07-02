@@ -43,19 +43,21 @@ import {
   Storage,
   Visibility,
   Warning,
+  Verified,
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { UserFormDialog, type UserFormValues } from '../components/admin/UserFormDialog';
+import { AdminHomologationTab } from '../components/admin/AdminHomologationTab';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
 import { adminApi, type AdminUser, type AuditFilters, type AuditLogEntry } from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import { canAccessAdmin, formatAuditAction, formatRoleLabel } from '../utils/permissions';
 
-type AdminTab = 'resumo' | 'backup' | 'usuarios' | 'auditoria';
+type AdminTab = 'resumo' | 'backup' | 'usuarios' | 'auditoria' | 'homologacao';
 
 const ENTITY_FILTER_OPTIONS = [
   { value: '', label: 'Todas entidades' },
@@ -281,6 +283,7 @@ export function AdminPage() {
         <Tab value="backup" label="Backup" icon={<Backup />} iconPosition="start" />
         <Tab value="usuarios" label="Usuários" icon={<People />} iconPosition="start" />
         <Tab value="auditoria" label="Auditoria" icon={<History />} iconPosition="start" />
+        <Tab value="homologacao" label="Homologação" icon={<Verified />} iconPosition="start" />
       </Tabs>
 
       {isLoading && (
@@ -731,6 +734,10 @@ export function AdminPage() {
             </>
           )}
         </Box>
+      )}
+
+      {tab === 'homologacao' && municipalityId && (
+        <AdminHomologationTab municipalityId={municipalityId} />
       )}
 
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="sm" fullWidth>

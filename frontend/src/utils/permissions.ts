@@ -77,6 +77,8 @@ export function formatAuditAction(action: string, entityType: string): string {
     UPDATE: 'Atualizou',
     DELETE: 'Removeu',
     RESET_PASSWORD: 'Redefiniu senha de',
+    MAP_HOMOLOGATED: 'Homologou mapa oficial de',
+    MAP_HOMOLOGATION_REVOKED: 'Revogou homologação do mapa de',
   };
   const entities: Record<string, string> = {
     street: 'rua',

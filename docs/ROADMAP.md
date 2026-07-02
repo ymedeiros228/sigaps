@@ -132,6 +132,11 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 - [x] M3 — Relatório “cobertura por ACS” (API + dashboard + CSV)
 - [x] C4 — Atualizar README, ROADMAP e ANALISE_PROPOSTA
 
+### Sprint 8 — Homologação PDF (A6) — ✅ Concluído
+
+- [x] A6 — Fluxo de homologação SMS (registro admin + carimbo no PDF)
+- [x] PDF — Campos de assinatura, legenda no mapa, captura com flyTo
+
 ---
 
 ## Histórico de fases (referência)
