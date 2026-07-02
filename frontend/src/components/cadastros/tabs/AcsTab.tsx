@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -28,15 +28,28 @@ import { AcsFormDialog, type AcsFormValues } from './AcsFormDialog';
 import { AcsBulkImportDialog } from './AcsBulkImportDialog';
 import { AcsCardsView } from './AcsCardsView';
 import { useAuthStore } from '../../../store';
-import { canDeleteAcs, canManageAcs } from '../../../utils/permissions';
+import { canDeleteAcs } from '../../../utils/permissions';
 import { maskCpfDisplay } from '../../../utils/inputMasks';
 
 type ViewMode = 'cards' | 'table';
+type AcsFilter = 'all' | 'sem-micro';
 
-export function AcsTab({ municipalityId }: { municipalityId: string }) {
-  const { reportError, reportSuccess, confirmDelete } = useCadastros();
+interface AcsTabProps {
+  municipalityId: string;
+  pendingAction?: string | null;
+  onActionConsumed?: () => void;
+  onGoToMicroareas?: () => void;
+}
+
+export function AcsTab({
+  municipalityId,
+  pendingAction,
+  onActionConsumed,
+  onGoToMicroareas,
+}: AcsTabProps) {
+  const { canManageAcs, reportError, reportSuccess, confirmDelete } = useCadastros();
   const user = useAuthStore((s) => s.user);
-  const canManage = canManageAcs(user?.role);
+  const canManage = canManageAcs;
   const canDelete = canDeleteAcs(user?.role);
   const queryClient = useQueryClient();
 
@@ -44,8 +57,20 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Acs | null>(null);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<AcsFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [formSession, setFormSession] = useState(0);
+
+  useEffect(() => {
+    if (!pendingAction) return;
+    if (pendingAction === 'novo') {
+      setEditing(null);
+      setOpen(true);
+    } else if (pendingAction === 'importar') {
+      setImportOpen(true);
+    }
+    onActionConsumed?.();
+  }, [pendingAction, onActionConsumed]);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['acs', municipalityId],
@@ -59,9 +84,13 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
   });
 
   const filtered = useMemo(() => {
+    let rows = data;
+    if (filter === 'sem-micro') {
+      rows = rows.filter((row) => !row.microarea);
+    }
     const query = search.trim().toLowerCase();
-    if (!query) return data;
-    return data.filter(
+    if (!query) return rows;
+    return rows.filter(
       (row) =>
         row.name.toLowerCase().includes(query) ||
         row.cpf.includes(query) ||
@@ -69,7 +98,7 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
         (row.microarea?.name ?? '').toLowerCase().includes(query) ||
         String(row.microarea?.number ?? '').includes(query),
     );
-  }, [data, search]);
+  }, [data, search, filter]);
 
   const stats = useMemo(() => {
     const ativos = data.filter((a) => a.status === 'ATIVO').length;
@@ -129,6 +158,10 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
     confirmDelete(row.name, () => deleteMutation.mutate(row.id));
   };
 
+  const toggleSemMicroFilter = () => {
+    setFilter((f) => (f === 'sem-micro' ? 'all' : 'sem-micro'));
+  };
+
   return (
     <>
       <CadastrosSectionHeader
@@ -179,9 +212,16 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
             <Chip
               label={`${stats.semMicro} sem microárea`}
               size="small"
-              color="warning"
-              variant="outlined"
+              color={filter === 'sem-micro' ? 'warning' : 'default'}
+              variant={filter === 'sem-micro' ? 'filled' : 'outlined'}
+              onClick={toggleSemMicroFilter}
+              sx={{ cursor: 'pointer' }}
             />
+          )}
+          {filter === 'sem-micro' && (
+            <Button size="small" onClick={() => setFilter('all')}>
+              Limpar filtro
+            </Button>
           )}
         </Box>
       )}
@@ -192,14 +232,22 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
         ) : filtered.length === 0 ? (
           <CadastrosEmptyState
             icon={<People sx={{ fontSize: 32 }} />}
-            title={search ? 'Nenhum ACS encontrado' : 'Nenhum ACS cadastrado'}
+            title={
+              filter === 'sem-micro'
+                ? 'Nenhum ACS sem microárea'
+                : search
+                  ? 'Nenhum ACS encontrado'
+                  : 'Nenhum ACS cadastrado'
+            }
             description={
-              search
-                ? 'Tente outro termo de busca ou limpe o filtro.'
-                : 'Cadastre os agentes um a um ou importe os dados que você já tem em planilha.'
+              filter === 'sem-micro'
+                ? 'Todos os agentes já estão vinculados a uma microárea.'
+                : search
+                  ? 'Tente outro termo de busca ou limpe o filtro.'
+                  : 'Cadastre os agentes um a um ou importe os dados que você já tem em planilha.'
             }
             action={
-              canManage && !search ? (
+              canManage && !search && filter === 'all' ? (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
                   <CadastrosEmptyAction label="Cadastrar ACS" onClick={() => openForm()} icon={<Add />} />
                   <CadastrosEmptyAction
@@ -208,6 +256,10 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
                     icon={<Upload />}
                   />
                 </Box>
+              ) : filter === 'sem-micro' ? (
+                <Button size="small" onClick={() => setFilter('all')}>
+                  Ver todos os ACS
+                </Button>
               ) : undefined
             }
           />
@@ -218,6 +270,7 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
             canDelete={canDelete}
             onEdit={openForm}
             onDelete={handleDelete}
+            onGoToMicroareas={onGoToMicroareas}
           />
         )
       ) : (
@@ -269,14 +322,16 @@ export function AcsTab({ municipalityId }: { municipalityId: string }) {
           emptyState={
             <CadastrosEmptyState
               icon={<People sx={{ fontSize: 32 }} />}
-              title={search ? 'Nenhum ACS encontrado' : 'Nenhum ACS cadastrado'}
+              title={search || filter === 'sem-micro' ? 'Nenhum ACS encontrado' : 'Nenhum ACS cadastrado'}
               description={
                 search
                   ? 'Tente outro termo de busca ou limpe o filtro.'
-                  : 'Cadastre os agentes comunitários para vinculá-los às microáreas.'
+                  : filter === 'sem-micro'
+                    ? 'Todos os agentes já estão vinculados.'
+                    : 'Cadastre os agentes comunitários para vinculá-los às microáreas.'
               }
               action={
-                canManage && !search ? (
+                canManage && !search && filter === 'all' ? (
                   <CadastrosEmptyAction label="Cadastrar ACS" onClick={() => openForm()} icon={<Add />} />
                 ) : undefined
               }

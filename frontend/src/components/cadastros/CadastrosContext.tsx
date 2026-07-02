@@ -10,11 +10,12 @@ import {
   Typography,
 } from '@mui/material';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { canManageCadastros } from '../../utils/permissions';
+import { canManageAcs, canManageCadastros } from '../../utils/permissions';
 import { useAuthStore } from '../../store';
 
 type CadastrosContextValue = {
   canManage: boolean;
+  canManageAcs: boolean;
   reportError: (error: unknown) => void;
   reportSuccess: (message: string) => void;
   confirmDelete: (label: string, onConfirm: () => void) => void;
@@ -22,6 +23,7 @@ type CadastrosContextValue = {
 
 const CadastrosContext = createContext<CadastrosContextValue>({
   canManage: false,
+  canManageAcs: false,
   reportError: () => {},
   reportSuccess: () => {},
   confirmDelete: () => {},
@@ -34,6 +36,7 @@ export function useCadastros() {
 export function CadastrosProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const canManage = canManageCadastros(user?.role);
+  const manageAcs = canManageAcs(user?.role);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; onConfirm: () => void } | null>(null);
@@ -42,6 +45,7 @@ export function CadastrosProvider({ children }: { children: ReactNode }) {
     <CadastrosContext.Provider
       value={{
         canManage,
+        canManageAcs: manageAcs,
         reportError: (e) => setError(getApiErrorMessage(e)),
         reportSuccess: (message) => setSuccess(message),
         confirmDelete: (label, onConfirm) => setConfirm({ label, onConfirm }),

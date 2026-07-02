@@ -3,13 +3,15 @@ import {
   Alert,
   Box,
   Button,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  TextField,
   Typography,
 } from '@mui/material';
-import { Upload, Download } from '@mui/icons-material';
+import { ContentPaste, Upload, Download } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { acsApi } from '../../../services/api';
 import { digitsOnly } from '../../../utils/inputMasks';
@@ -17,6 +19,8 @@ import { digitsOnly } from '../../../utils/inputMasks';
 const CSV_TEMPLATE = `nome;cpf;telefone;microarea;status
 Maria Silva;12345678901;98999998888;Microárea 01;ATIVO
 João Santos;98765432100;98988887777;02;ATIVO`;
+
+type ImportError = { row: number; cpf: string; message: string };
 
 function parseCsv(text: string) {
   const lines = text
@@ -72,26 +76,38 @@ export function AcsBulkImportDialog({
   onError,
 }: AcsBulkImportDialogProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pasteText, setPasteText] = useState('');
   const [preview, setPreview] = useState<ReturnType<typeof parseCsv>>([]);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<{
+    created: number;
+    updated: number;
+    errors: ImportError[];
+  } | null>(null);
 
   const importMutation = useMutation({
     mutationFn: () => acsApi.bulkImport(municipalityId, preview),
     onSuccess: (res) => {
       const { created, updated, errors } = res.data;
+      setImportResult({ created, updated, errors });
       let msg = `Importação concluída: ${created} novo(s), ${updated} atualizado(s).`;
       if (errors.length > 0) {
         msg += ` ${errors.length} linha(s) com aviso.`;
       }
       onSuccess(msg);
-      handleClose();
     },
     onError,
   });
 
-  const handleClose = () => {
+  const resetState = () => {
+    setPasteText('');
     setPreview([]);
     setParseError(null);
+    setImportResult(null);
+  };
+
+  const handleClose = () => {
+    resetState();
     onClose();
   };
 
@@ -105,10 +121,19 @@ export function AcsBulkImportDialog({
       }
       setParseError(null);
       setPreview(rows);
+      setImportResult(null);
     } catch {
-      setParseError('Arquivo inválido. Use CSV com colunas nome e CPF.');
+      setParseError('Conteúdo inválido. Use CSV com colunas nome e CPF.');
       setPreview([]);
     }
+  };
+
+  const handlePaste = () => {
+    if (!pasteText.trim()) {
+      setParseError('Cole os dados da planilha no campo acima.');
+      return;
+    }
+    loadText(pasteText);
   };
 
   const downloadTemplate = () => {
@@ -132,8 +157,8 @@ export function AcsBulkImportDialog({
       <DialogTitle sx={{ fontWeight: 800 }}>Importar ACS da planilha</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Cole os dados que você já tem em Excel ou Google Planilhas. Baixe o modelo, preencha e
-          envie o arquivo CSV (separador <strong>;</strong> ou vírgula).
+          Cole os dados do Excel ou Google Planilhas, ou envie um arquivo CSV (separador{' '}
+          <strong>;</strong> ou vírgula).
         </Typography>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -142,13 +167,36 @@ export function AcsBulkImportDialog({
           </Button>
           <Button
             size="small"
-            variant="contained"
+            variant="outlined"
             startIcon={<Upload />}
             onClick={() => fileRef.current?.click()}
           >
-            Escolher arquivo CSV
+            Escolher arquivo
           </Button>
         </Box>
+
+        <TextField
+          label="Colar dados da planilha"
+          placeholder={'nome;cpf;telefone;microarea;status\nMaria Silva;12345678901;...'}
+          multiline
+          minRows={4}
+          maxRows={10}
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+          fullWidth
+          size="small"
+        />
+
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<ContentPaste />}
+          onClick={handlePaste}
+          disabled={!pasteText.trim()}
+          sx={{ alignSelf: 'flex-start' }}
+        >
+          Analisar dados colados
+        </Button>
 
         <input
           ref={fileRef}
@@ -159,7 +207,11 @@ export function AcsBulkImportDialog({
             const file = e.target.files?.[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = () => loadText(String(reader.result ?? ''));
+            reader.onload = () => {
+              const text = String(reader.result ?? '');
+              setPasteText(text);
+              loadText(text);
+            };
             reader.readAsText(file);
             e.target.value = '';
           }}
@@ -167,7 +219,7 @@ export function AcsBulkImportDialog({
 
         {parseError && <Alert severity="warning">{parseError}</Alert>}
 
-        {summary && (
+        {summary && !importResult && (
           <Alert severity="info">
             {summary}
             <Box component="ul" sx={{ m: 0, mt: 1, pl: 2.5, fontSize: '0.85rem' }}>
@@ -186,20 +238,52 @@ export function AcsBulkImportDialog({
           </Alert>
         )}
 
+        <Collapse in={!!importResult}>
+          {importResult && (
+            <Alert severity={importResult.errors.length > 0 ? 'warning' : 'success'}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {importResult.created} novo(s), {importResult.updated} atualizado(s)
+                {importResult.errors.length > 0 && ` · ${importResult.errors.length} com aviso`}
+              </Typography>
+              {importResult.errors.length > 0 && (
+                <Box
+                  component="ul"
+                  sx={{
+                    m: 0,
+                    mt: 1,
+                    pl: 2.5,
+                    fontSize: '0.85rem',
+                    maxHeight: 160,
+                    overflow: 'auto',
+                  }}
+                >
+                  {importResult.errors.map((err) => (
+                    <li key={`${err.row}-${err.cpf}`}>
+                      Linha {err.row} (CPF …{err.cpf.slice(-4)}): {err.message}
+                    </li>
+                  ))}
+                </Box>
+              )}
+            </Alert>
+          )}
+        </Collapse>
+
         <Typography variant="caption" color="text.secondary">
           Colunas: <strong>nome</strong>, <strong>cpf</strong> (11 dígitos), telefone, microarea
           (nome ou número), status (ATIVO/INATIVO). CPF já cadastrado será atualizado.
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleClose}>Cancelar</Button>
-        <Button
-          variant="contained"
-          disabled={preview.length === 0 || importMutation.isPending}
-          onClick={() => importMutation.mutate()}
-        >
-          {importMutation.isPending ? 'Importando…' : `Importar ${preview.length || ''} ACS`}
-        </Button>
+        <Button onClick={handleClose}>{importResult ? 'Fechar' : 'Cancelar'}</Button>
+        {!importResult && (
+          <Button
+            variant="contained"
+            disabled={preview.length === 0 || importMutation.isPending}
+            onClick={() => importMutation.mutate()}
+          >
+            {importMutation.isPending ? 'Importando…' : `Importar ${preview.length || ''} ACS`}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

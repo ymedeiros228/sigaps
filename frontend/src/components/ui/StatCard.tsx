@@ -6,9 +6,10 @@ interface StatCardProps {
   value: number | string;
   icon: ReactNode;
   color: string;
+  subtitle?: string;
 }
 
-export function StatCard({ title, value, icon, color }: StatCardProps) {
+export function StatCard({ title, value, icon, color, subtitle }: StatCardProps) {
   return (
     <Card
       sx={{
@@ -51,6 +52,11 @@ export function StatCard({ title, value, icon, color }: StatCardProps) {
             <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
               {value}
             </Typography>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                {subtitle}
+              </Typography>
+            )}
           </Box>
         </Box>
       </CardContent>

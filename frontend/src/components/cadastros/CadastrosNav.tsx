@@ -17,9 +17,10 @@ import { CADASTROS_SECTIONS, type CadastrosSectionId } from './cadastrosConfig';
 type CadastrosNavProps = {
   section: CadastrosSectionId;
   onChange: (section: CadastrosSectionId) => void;
+  highlightAcs?: boolean;
 };
 
-export function CadastrosNav({ section, onChange }: CadastrosNavProps) {
+export function CadastrosNav({ section, onChange, highlightAcs }: CadastrosNavProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const sectionIndex = CADASTROS_SECTIONS.findIndex((item) => item.id === section);
@@ -67,6 +68,7 @@ export function CadastrosNav({ section, onChange }: CadastrosNavProps) {
       <List disablePadding>
         {CADASTROS_SECTIONS.map((item) => {
           const selected = item.id === section;
+          const emphasize = highlightAcs && item.id === 'acs' && !selected;
           return (
             <ListItemButton
               key={item.id}
@@ -76,6 +78,11 @@ export function CadastrosNav({ section, onChange }: CadastrosNavProps) {
                 py: 1.25,
                 mb: 0.5,
                 alignItems: 'flex-start',
+                ...(emphasize && {
+                  borderLeft: 3,
+                  borderColor: 'success.main',
+                  bgcolor: alpha(theme.palette.success.main, 0.06),
+                }),
                 '&.Mui-selected': {
                   bgcolor: alpha(theme.palette.primary.main, 0.12),
                 },
