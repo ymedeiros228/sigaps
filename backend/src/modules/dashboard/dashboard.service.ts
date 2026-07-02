@@ -1,6 +1,28 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import {
+  getCachedDashboardIndicators,
+  invalidateDashboardIndicators,
+  setCachedDashboardIndicators,
+} from '../../common/utils/dashboard-cache.util';
+
+export { invalidateDashboardIndicators };
+
+export interface OperationalChecklistItem {
+  id: string;
+  label: string;
+  done: boolean;
+  detail: string;
+  priority: 'critical' | 'high' | 'medium';
+}
+
+export interface OperationalChecklist {
+  items: OperationalChecklistItem[];
+  completed: number;
+  total: number;
+  progressPct: number;
+}
 
 export interface AcsCoverageRow {
   acsId: string;
@@ -20,11 +42,6 @@ export interface AcsCoverageRow {
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
-  private readonly indicatorsCache = new Map<
-    string,
-    { expiresAt: number; data: Awaited<ReturnType<DashboardService['computeIndicators']>> }
-  >();
-  private readonly CACHE_TTL_MS = 30_000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -32,17 +49,140 @@ export class DashboardService {
   ) {}
 
   async getIndicators(municipalityId: string) {
-    const cached = this.indicatorsCache.get(municipalityId);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.data;
-    }
+    const cached = getCachedDashboardIndicators<
+      Awaited<ReturnType<DashboardService['computeIndicators']>>
+    >(municipalityId);
+    if (cached) return cached;
 
     const data = await this.computeIndicators(municipalityId);
-    this.indicatorsCache.set(municipalityId, {
-      data,
-      expiresAt: Date.now() + this.CACHE_TTL_MS,
-    });
+    setCachedDashboardIndicators(municipalityId, data);
     return data;
+  }
+
+  async getOperationalChecklist(municipalityId: string): Promise<OperationalChecklist> {
+    const municipality = await this.prisma.municipality.findUnique({
+      where: { id: municipalityId },
+      select: {
+        id: true,
+        mapHomologatedAt: true,
+        esusLastSyncAt: true,
+      },
+    });
+    if (!municipality) throw new NotFoundException('Município não encontrado');
+
+    const [microareas, acsSemMicro, streetStats, ubsCount] = await Promise.all([
+      this.prisma.microarea.count({ where: { municipalityId } }),
+      this.prisma.acs.count({
+        where: { municipalityId, status: 'ATIVO', microarea: null },
+      }),
+      this.prisma.$queryRaw<
+        Array<{
+          total: bigint;
+          assigned: bigint;
+          with_neighborhood: bigint;
+          families: bigint | null;
+        }>
+      >`
+        SELECT
+          COUNT(*)::bigint AS total,
+          COUNT(microarea_id)::bigint AS assigned,
+          COUNT(neighborhood_id)::bigint AS with_neighborhood,
+          COALESCE(SUM(family_count), 0)::bigint AS families
+        FROM streets
+        WHERE municipality_id = ${municipalityId}::uuid
+      `,
+      this.prisma.ubs.count({ where: { municipalityId } }),
+    ]);
+
+    const row = streetStats[0];
+    const streets = Number(row?.total ?? 0);
+    const assigned = Number(row?.assigned ?? 0);
+    const withNeighborhood = Number(row?.with_neighborhood ?? 0);
+    const families = Number(row?.families ?? 0);
+    const coverage = streets > 0 ? Math.round((assigned / streets) * 100) : 0;
+    const neighborhoodPct =
+      streets > 0 ? Math.round((withNeighborhood / streets) * 100) : 0;
+
+    const items: OperationalChecklistItem[] = [
+      {
+        id: 'streets',
+        label: 'Malha viária importada',
+        done: streets > 0,
+        detail: streets > 0 ? `${streets} ruas no mapa` : 'Importe ruas via OSM ou arquivo',
+        priority: 'critical',
+      },
+      {
+        id: 'microareas',
+        label: 'Microáreas cadastradas',
+        done: microareas > 0,
+        detail: microareas > 0 ? `${microareas} microárea(s)` : 'Cadastre em Microáreas',
+        priority: 'critical',
+      },
+      {
+        id: 'ubs',
+        label: 'UBS cadastradas',
+        done: ubsCount > 0,
+        detail: ubsCount > 0 ? `${ubsCount} UBS` : 'Cadastre pelo menos uma UBS',
+        priority: 'high',
+      },
+      {
+        id: 'acs-linked',
+        label: 'ACS vinculados à microárea',
+        done: acsSemMicro === 0,
+        detail:
+          acsSemMicro > 0
+            ? `${acsSemMicro} ACS sem microárea`
+            : 'Todos os ACS ativos vinculados',
+        priority: 'critical',
+      },
+      {
+        id: 'coverage',
+        label: 'Cobertura territorial ≥ 80%',
+        done: coverage >= 80,
+        detail: `${coverage}% das ruas pintadas`,
+        priority: 'high',
+      },
+      {
+        id: 'neighborhoods',
+        label: 'Bairros atribuídos às ruas',
+        done: neighborhoodPct >= 50,
+        detail: `${neighborhoodPct}% das ruas com bairro`,
+        priority: 'medium',
+      },
+      {
+        id: 'families',
+        label: 'Dados de famílias (e-SUS)',
+        done: families > 0,
+        detail: families > 0 ? `${families} famílias registradas` : 'Importe CSV e-SUS',
+        priority: 'high',
+      },
+      {
+        id: 'esus-sync',
+        label: 'Sincronização e-SUS realizada',
+        done: !!municipality.esusLastSyncAt,
+        detail: municipality.esusLastSyncAt
+          ? `Última: ${municipality.esusLastSyncAt.toLocaleString('pt-BR')}`
+          : 'Importe ou sincronize e-SUS',
+        priority: 'medium',
+      },
+      {
+        id: 'homologation',
+        label: 'Mapa homologado pela SMS',
+        done: !!municipality.mapHomologatedAt,
+        detail: municipality.mapHomologatedAt
+          ? `Homologado em ${municipality.mapHomologatedAt.toLocaleDateString('pt-BR')}`
+          : 'Registre em Admin → Homologação',
+        priority: 'high',
+      },
+    ];
+
+    const completed = items.filter((i) => i.done).length;
+    return {
+      items,
+      completed,
+      total: items.length,
+      progressPct: Math.round((completed / items.length) * 100),
+    };
   }
 
   private async computeIndicators(municipalityId: string) {

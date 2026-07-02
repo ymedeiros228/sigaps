@@ -34,6 +34,7 @@ import {
   AdminPanelSettings,
   Backup,
   CloudDownload,
+  Download,
   CloudUpload,
   Edit,
   History,
@@ -86,6 +87,15 @@ function formatAuditData(data?: Record<string, unknown> | null) {
     .join(' · ');
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -111,6 +121,7 @@ export function AdminPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [pendingBackup, setPendingBackup] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [auditExportLoading, setAuditExportLoading] = useState(false);
 
   if (!canAccessAdmin(user?.role)) {
     return <Navigate to="/" replace />;
@@ -647,7 +658,7 @@ export function AdminPage() {
               auditFilters.userId ||
               auditFilters.from ||
               auditFilters.to) && (
-              <Box sx={{ mt: 1.5 }}>
+              <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <Button
                   size="small"
                   onClick={() => {
@@ -659,6 +670,27 @@ export function AdminPage() {
                 </Button>
               </Box>
             )}
+            <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Download />}
+                disabled={auditExportLoading}
+                onClick={async () => {
+                  setAuditExportLoading(true);
+                  try {
+                    const { data: blob } = await adminApi.exportAuditCsv(municipalityId, auditFilters);
+                    downloadBlob(blob as Blob, 'sigaps-auditoria.csv');
+                  } catch {
+                    setMessage({ type: 'error', text: 'Não foi possível exportar a auditoria.' });
+                  } finally {
+                    setAuditExportLoading(false);
+                  }
+                }}
+              >
+                {auditExportLoading ? 'Exportando…' : 'Exportar CSV'}
+              </Button>
+            </Box>
           </Card>
 
           {auditLoading ? (

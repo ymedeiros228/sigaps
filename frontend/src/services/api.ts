@@ -369,6 +369,8 @@ export const searchApi = {
 export const dashboardApi = {
   indicators: (municipalityId: string) =>
     api.get(`/dashboard/${municipalityId}`),
+  checklist: (municipalityId: string) =>
+    api.get<OperationalChecklist>(`/dashboard/municipality/${municipalityId}/checklist`),
   acsCoverage: (municipalityId: string) =>
     api.get<AcsCoverageRow[]>(`/dashboard/municipality/${municipalityId}/acs-coverage`),
   acsCoverageCsv: (municipalityId: string) =>
@@ -376,6 +378,21 @@ export const dashboardApi = {
       responseType: 'blob',
     }),
 };
+
+export interface OperationalChecklistItem {
+  id: string;
+  label: string;
+  done: boolean;
+  detail: string;
+  priority: 'critical' | 'high' | 'medium';
+}
+
+export interface OperationalChecklist {
+  items: OperationalChecklistItem[];
+  completed: number;
+  total: number;
+  progressPct: number;
+}
 
 export interface AcsCoverageRow {
   acsId: string;
@@ -486,6 +503,11 @@ export const adminApi = {
       pages: number;
     }>(`/admin/municipality/${municipalityId}/audit`, {
       params: { page, limit, ...filters },
+    }),
+  exportAuditCsv: (municipalityId: string, filters?: AuditFilters) =>
+    api.get(`/admin/municipality/${municipalityId}/audit/export.csv`, {
+      params: filters,
+      responseType: 'blob',
     }),
   createUser: (
     municipalityId: string,

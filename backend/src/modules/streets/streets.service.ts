@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
 import { applyAcsMicroareaScope, type AuthViewer } from '../../common/utils/acs-scope.util';
+import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { withDbRetry } from '../../common/utils/prisma-retry.util';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
@@ -204,6 +205,7 @@ export class StreetsService {
     });
 
     this.scheduleEnvelopeUpdate(dto.microareaId);
+    invalidateDashboardIndicators(microarea.municipalityId);
 
     return {
       updated: dto.streetIds.length,
@@ -385,7 +387,7 @@ export class StreetsService {
   async unassignFromMicroarea(dto: UnassignStreetsDto, userId: string) {
     const streets = await this.prisma.street.findMany({
       where: { id: { in: dto.streetIds }, microareaId: { not: null } },
-      select: { id: true, microareaId: true },
+      select: { id: true, microareaId: true, municipalityId: true },
     });
 
     if (streets.length === 0) {
@@ -414,6 +416,10 @@ export class StreetsService {
 
     for (const microareaId of affectedMicroareas) {
       this.scheduleEnvelopeUpdate(microareaId);
+    }
+
+    if (streets.length > 0) {
+      invalidateDashboardIndicators(streets[0].municipalityId);
     }
 
     return { cleared: streets.length };
@@ -451,6 +457,8 @@ export class StreetsService {
     for (const microareaId of affectedMicroareas) {
       this.scheduleEnvelopeUpdate(microareaId);
     }
+
+    invalidateDashboardIndicators(municipalityId);
 
     return { cleared: painted.length };
   }

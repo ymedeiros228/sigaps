@@ -44,6 +44,12 @@ export class DashboardController {
     return this.dashboardService.buildAcsCoverageCsv(rows);
   }
 
+  @Get('municipality/:municipalityId/checklist')
+  @ApiOperation({ summary: 'Checklist operacional do município' })
+  getChecklist(@Param('municipalityId') municipalityId: string) {
+    return this.dashboardService.getOperationalChecklist(municipalityId);
+  }
+
   @Get(':municipalityId')
   @ApiOperation({ summary: 'Indicadores em tempo real' })
   getIndicators(@Param('municipalityId') municipalityId: string) {

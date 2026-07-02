@@ -93,4 +93,39 @@ export class AuditService {
       },
     });
   }
+
+  async findForExport(
+    municipalityId: string,
+    filters?: {
+      entityType?: string;
+      action?: string;
+      userId?: string;
+      from?: string;
+      to?: string;
+    },
+    limit = 5000,
+  ) {
+    const where: Prisma.AuditLogWhereInput = { user: { municipalityId } };
+    if (filters?.entityType) where.entityType = filters.entityType;
+    if (filters?.action) where.action = filters.action;
+    if (filters?.userId) where.userId = filters.userId;
+    if (filters?.from || filters?.to) {
+      where.createdAt = {};
+      if (filters.from) where.createdAt.gte = new Date(filters.from);
+      if (filters.to) {
+        const end = new Date(filters.to);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
+
+    return this.prisma.auditLog.findMany({
+      where,
+      take: Math.min(limit, 5000),
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, name: true, role: true, email: true } },
+      },
+    });
+  }
 }

@@ -49,6 +49,7 @@ import {
 import { municipalitiesApi } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { CACHE, queryKeys } from '../utils/queryKeys';
+import { OperationalChecklistCard } from '../components/dashboard/OperationalChecklist';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
@@ -215,6 +216,8 @@ export function DashboardPage() {
           </Box>
         }
       />
+
+      <OperationalChecklistCard municipalityId={municipalityId} />
 
       {isEmpty && (
         <Alert

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { buildStreetSearchWhere } from '../../common/utils/street-search.util';
 
 type EsusRow = {
@@ -69,6 +70,8 @@ export class EsusService {
       data: { esusImportCsv: content, esusLastSyncAt: syncedAt },
     });
 
+    invalidateDashboardIndicators(municipalityId);
+
     return {
       ok: true,
       message: `${result.updated} de ${result.total} ruas atualizadas${
@@ -98,6 +101,8 @@ export class EsusService {
       where: { id: municipalityId },
       data: { esusLastSyncAt: syncedAt },
     });
+
+    invalidateDashboardIndicators(municipalityId);
 
     return {
       ok: true,

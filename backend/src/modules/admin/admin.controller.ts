@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -80,6 +81,32 @@ export class AdminController {
       limit ? parseInt(limit, 10) : 50,
       { entityType, action, userId, from, to },
     );
+  }
+
+  @Get('municipality/:municipalityId/audit/export.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @ApiOperation({ summary: 'Exportar auditoria em CSV (até 5000 registros)' })
+  async exportAuditCsv(
+    @Param('municipalityId') municipalityId: string,
+    @Query('entityType') entityType?: string,
+    @Query('action') action?: string,
+    @Query('userId') userId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    const csv = await this.admin.exportAuditCsv(municipalityId, {
+      entityType,
+      action,
+      userId,
+      from,
+      to,
+    });
+    res?.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sigaps-auditoria-${municipalityId.slice(0, 8)}.csv"`,
+    );
+    return csv;
   }
 
   @Post('municipality/:municipalityId/users')

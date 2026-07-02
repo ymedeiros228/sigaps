@@ -158,6 +158,13 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 - [x] Health `GET /health/postgis` — verifica extensão PostGIS e índice espacial das ruas
 - [x] Correção de resposta da API e-SUS (`ok`, `message`, `lastSyncAt`)
 
+### Sprint 12 — Checklist e governança — ✅ Concluído
+
+- [x] Checklist operacional no dashboard (9 itens: ruas, microáreas, ACS, cobertura, e-SUS, homologação…)
+- [x] `GET /dashboard/municipality/:id/checklist`
+- [x] Exportação CSV da auditoria (`GET /admin/.../audit/export.csv`, até 5000 registros)
+- [x] Invalidação imediata do cache do dashboard após pintura e-SUS
+
 ---
 
 ## Histórico de fases (referência)

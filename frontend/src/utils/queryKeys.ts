@@ -10,6 +10,8 @@ export const queryKeys = {
   streetsFull: (municipalityId: string) => ['streets', municipalityId, 'full'] as const,
   dashboard: (municipalityId: string) => ['dashboard', municipalityId] as const,
   acsCoverage: (municipalityId: string) => ['dashboard', municipalityId, 'acs-coverage'] as const,
+  operationalChecklist: (municipalityId: string) =>
+    ['dashboard', municipalityId, 'checklist'] as const,
   municipality: (municipalityId: string) => ['municipality', municipalityId] as const,
 };
 

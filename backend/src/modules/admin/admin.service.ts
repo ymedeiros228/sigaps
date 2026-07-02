@@ -114,6 +114,47 @@ export class AdminService {
     return this.audit.findPaginated(municipalityId, page, limit, filters);
   }
 
+  async exportAuditCsv(
+    municipalityId: string,
+    filters?: {
+      entityType?: string;
+      action?: string;
+      userId?: string;
+      from?: string;
+      to?: string;
+    },
+  ) {
+    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
+    const items = await this.audit.findForExport(municipalityId, filters);
+
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const header = [
+      'data_hora',
+      'usuario',
+      'email',
+      'perfil',
+      'entidade',
+      'acao',
+      'entity_id',
+    ].join(';');
+
+    const lines = items.map((log) =>
+      [
+        new Date(log.createdAt).toISOString(),
+        log.user.name,
+        log.user.email,
+        log.user.role,
+        log.entityType,
+        log.action,
+        log.entityId,
+      ]
+        .map((v) => escape(String(v ?? '')))
+        .join(';'),
+    );
+
+    return `\uFEFF${header}\n${lines.join('\n')}`;
+  }
+
   private async findUserInMunicipality(municipalityId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, municipalityId },
