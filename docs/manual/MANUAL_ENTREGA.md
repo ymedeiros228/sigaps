@@ -1,42 +1,3 @@
-<div class="cover-page">
-
-# SIGAPS
-
-<div class="cover-subtitle">Sistema Inteligente de Gestão das Microáreas da<br>Atenção Primária à Saúde</div>
-
-<div class="cover-meta">
-
-**MANUAL DE ENTREGA E DOCUMENTAÇÃO TÉCNICA**
-
-| | |
-|---|---|
-| **Cliente / Receptor** | Jonas Almeida Medeiros — Enfermeiro da APS |
-| **Município piloto** | Passagem Franca — Maranhão |
-| **Secretaria** | Secretaria Municipal de Saúde |
-| **Desenvolvedor** | Yuri Medeiros Bandeira |
-| **Versão do sistema** | 1.0.0 — MVP |
-| **Data do documento** | 02 de julho de 2026 |
-| **URL de produção** | https://sigaps-api.onrender.com |
-
-</div>
-
-<div>
-<span class="cover-badge">OpenStreetMap</span>
-<span class="cover-badge">PostGIS</span>
-<span class="cover-badge">NestJS + React</span>
-<span class="cover-badge">PWA</span>
-<span class="cover-badge">LGPD</span>
-</div>
-
-<div class="cover-footer">
-
-Documento confidencial — uso exclusivo da Secretaria Municipal de Saúde de Passagem Franca/MA.<br>
-Este manual descreve todas as funcionalidades entregues, fluxos operacionais e procedimentos de homologação.
-
-</div>
-
-</div>
-
 <div class="toc">
 
 ## Sumário
@@ -51,7 +12,7 @@ Este manual descreve todas as funcionalidades entregues, fluxos operacionais e p
 8. [Povoados e localidades (complemento ao mapa)](#8-povoados-e-localidades)
 9. [Integrações e importações](#9-integrações-e-importações)
 10. [Administração do sistema](#10-administração-do-sistema)
-11. [Fluxo operacional recomendado](#11-fluxo-operacional-recomendado)
+11. [Como usar no dia a dia (Enfermeiro APS)](#11-como-usar-no-dia-a-dia-enfermeiro-aps)
 12. [Segurança, auditoria e LGPD](#12-segurança-auditoria-e-lgpd)
 13. [Arquitetura técnica](#13-arquitetura-técnica)
 14. [Suporte e limitações do ambiente](#14-suporte-e-limitações-do-ambiente)
@@ -169,7 +130,7 @@ O SIGAPS possui cinco perfis de acesso, cada um com permissões específicas:
 O Dashboard é a página inicial do sistema (exceto para ACS, que são direcionados ao mapa). Apresenta uma visão consolidada da situação territorial do município.
 
 ![Dashboard do SIGAPS](screenshots/02-dashboard.png)
-<p class="fig-caption">Figura 2 — Dashboard com indicadores, cobertura territorial e tabela por ACS</p>
+<p class="fig-caption">Figura 2 — Indicadores, cobertura territorial, tabela por ACS e checklist operacional no topo</p>
 
 ## 5.1 Indicadores principais
 
@@ -214,7 +175,13 @@ Lista de 9 itens que acompanham a implantação:
 O módulo **Pintar Mapa** é o coração do SIGAPS. Ocupa quase toda a tela e permite trabalhar diretamente sobre o território real.
 
 ![Mapa interativo do SIGAPS](screenshots/03-mapa.png)
-<p class="fig-caption">Figura 3 — Mapa em modo satélite com microáreas, UBS, povoados e painel de pintura</p>
+<p class="fig-caption">Figura 3 — Mapa em satélite com legenda, UBS, povoados e barra de ferramentas</p>
+
+![Painel de pintura expandido](screenshots/03-mapa-pintura.png)
+<p class="fig-caption">Figura 4 — Mapa com painel de pintura aberto</p>
+
+<img src="screenshots/03-mapa-painel-detalhe.png" class="img-detail" alt="Detalhe do painel de pintura" />
+<p class="fig-caption">Figura 5 — Detalhe: microáreas, modos Pintar/Apagar e botão Guardar</p>
 
 ## 6.1 Barra de ferramentas superior
 
@@ -408,24 +375,59 @@ Quando o checklist operacional estiver completo (cobertura ≥ 80%):
 
 ---
 
-# 11. Fluxo operacional recomendado
+# 11. Como usar no dia a dia (Enfermeiro APS)
 
-Passo a passo para implantação completa em um município:
+Esta seção descreve o **uso prático** do SIGAPS pelo enfermeiro da APS — como **Jonas Almeida Medeiros** utilizará o sistema no cotidiano da secretaria. Não é um roteiro de implantação técnica (isso fica com o administrador), e sim o passo a passo do trabalho territorial.
 
-```
-1. Login como administrador ou coordenador
-2. Cadastros → Município: dados institucionais e logo
-3. Cadastros → UBS: cadastrar unidades (validar CNES)
-4. Cadastros → Microáreas: criar territórios numerados
-5. Mapa → Atualizar ruas (importar OSM)
-6. Cadastros → Bairros + vincular ruas (planilha ou mapa)
-7. Cadastros → Povoados: importar OSM ou buscar no mapa
-8. Cadastros → ACS: cadastrar agentes e vincular microáreas
-9. Mapa → Pintar ruas (clique, pincel, bairro ou zona circular)
-10. Cadastros → Município: importar CSV e-SUS
-11. Dashboard: acompanhar cobertura até ≥ 80%
-12. Admin → Homologação: registrar mapa oficial
-```
+## 11.1 Entrar e ver a situação do município
+
+<div class="flow-step">
+<strong>Passo 1.</strong> Acesse https://sigaps-api.onrender.com e faça login com seu e-mail e senha.<br>
+<strong>Passo 2.</strong> No <strong>Dashboard</strong>, verifique o percentual de <strong>cobertura territorial</strong> e quantos ACS ainda estão sem microárea.<br>
+<strong>Passo 3.</strong> Confira o <strong>Checklist operacional</strong> no topo do Dashboard (Figura 2) para ver o que ainda falta concluir.
+</div>
+
+## 11.2 Pintar ruas no mapa (tarefa principal)
+
+<div class="flow-step">
+<strong>Passo 1.</strong> Menu lateral → <strong>Pintar Mapa</strong>.<br>
+<strong>Passo 2.</strong> Toque no painel inferior <strong>"Pintar microáreas"</strong> para abrir (Figuras 4 e 5).<br>
+<strong>Passo 3.</strong> Selecione a <strong>microárea</strong> desejada (cada uma tem uma cor).<br>
+<strong>Passo 4.</strong> Ative o modo <strong>Pintar</strong> e clique nas ruas do território — ou use <strong>Pintar bairro inteiro</strong> quando as ruas já tiverem bairro cadastrado.<br>
+<strong>Passo 5.</strong> Ao terminar, clique em <strong>Guardar e ver mapa</strong> para minimizar o painel e conferir o resultado.<br>
+<strong>Dica:</strong> Use a <strong>busca</strong> no topo para localizar uma rua pelo nome antes de pintar.
+</div>
+
+## 11.3 Cadastrar ou atualizar ACS
+
+<div class="flow-step">
+<strong>Passo 1.</strong> Menu → <strong>Cadastros</strong> → seção <strong>ACS</strong>.<br>
+<strong>Passo 2.</strong> Clique em <strong>Novo ACS</strong> ou edite um existente.<br>
+<strong>Passo 3.</strong> Preencha nome e vincule à <strong>microárea</strong> correspondente.<br>
+<strong>Passo 4.</strong> Use o filtro <strong>"sem microárea"</strong> para encontrar agentes pendentes de vínculo.
+</div>
+
+## 11.4 Complementar povoados no mapa
+
+Quando um lugar aparece no Google Maps mas não nas ruas do sistema (ex.: Povoado Bacabinha):
+
+<div class="flow-step">
+<strong>Passo 1.</strong> Cadastros → <strong>Povoados</strong> → <strong>Importar OSM</strong> ou <strong>Buscar no mapa</strong>.<br>
+<strong>Passo 2.</strong> No mapa, ative o toggle <strong>Povoados</strong> na barra superior para ver os marcadores marrons.<br>
+<strong>Passo 3.</strong> Use a busca do mapa para localizar o povoado pelo nome.
+</div>
+
+## 11.5 Exportar mapa para reunião ou arquivo
+
+<div class="flow-step">
+<strong>Passo 1.</strong> No mapa, clique em <strong>Arquivos</strong> (menu de exportação).<br>
+<strong>Passo 2.</strong> Escolha <strong>PDF A4</strong> para impressão oficial ou <strong>PNG</strong> para apresentação.<br>
+<strong>Passo 3.</strong> Se o mapa estiver homologado pela SMS, o carimbo aparece automaticamente no PDF.
+</div>
+
+## 11.6 Acompanhar cobertura após pintar
+
+Após cada sessão de pintura, volte ao **Dashboard** e confira se o percentual de cobertura subiu. A meta para homologação é **≥ 80%** das ruas vinculadas a microáreas.
 
 ---
 
