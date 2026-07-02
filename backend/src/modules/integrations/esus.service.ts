@@ -63,9 +63,10 @@ export class EsusService {
     const items = this.parseCsv(content);
     const result = await this.applyImport(municipalityId, items, userId, 'esus-csv');
 
+    const syncedAt = new Date();
     await this.prisma.municipality.update({
       where: { id: municipalityId },
-      data: { esusImportCsv: content, esusLastSyncAt: new Date() },
+      data: { esusImportCsv: content, esusLastSyncAt: syncedAt },
     });
 
     return {
