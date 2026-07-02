@@ -172,62 +172,64 @@ Lista de 9 itens que acompanham a implantação:
 
 # 6. Mapa interativo — pintura territorial
 
-O módulo **Pintar Mapa** é o coração do SIGAPS. Ocupa quase toda a tela e permite trabalhar diretamente sobre o território real.
+O módulo **Pintar Mapa** é o coração do SIGAPS. Sobre o mapa real do município, cada rua recebe a **cor da microárea** a que pertence, facilitando a visualização da cobertura territorial.
 
-![Mapa interativo do SIGAPS](screenshots/03-mapa.png)
-<p class="fig-caption">Figura 3 — Mapa em satélite com legenda, UBS, povoados e barra de ferramentas</p>
+<div class="info-box">
 
-![Painel de pintura expandido](screenshots/03-mapa-pintura.png)
-<p class="fig-caption">Figura 4 — Mapa com painel de pintura aberto</p>
+As capturas desta seção mostram o sistema em uso real em Passagem Franca/MA, com ruas vinculadas às microáreas, marcadores de UBS e povoados ativos — apenas para ilustrar o manual.
 
-<img src="screenshots/03-mapa-painel-detalhe.png" class="img-detail" alt="Detalhe do painel de pintura" />
-<p class="fig-caption">Figura 5 — Detalhe: microáreas, modos Pintar/Apagar e botão Guardar</p>
+</div>
 
-## 6.1 Barra de ferramentas superior
+![Mapa com cobertura por microáreas](screenshots/03-mapa-cobertura.png)
+<p class="fig-caption fig-hero">Figura 3 — Visão geral: ruas coloridas por microárea, legenda, UBS (azul) e povoados (marrom)</p>
+
+<div class="figure-row">
+
+![Painel de pintura](screenshots/03-mapa-pintura.png)
+
+<img src="screenshots/03-mapa-painel-detalhe.png" alt="Detalhe do painel" />
+
+</div>
+<p class="fig-caption">Figuras 4 e 5 — Painel de pintura: escolha da microárea, modos Pintar/Apagar e botão Guardar</p>
+
+## 6.1 O que aparece no mapa
+
+| Elemento | Cor / ícone | Significado |
+|----------|-------------|-------------|
+| **Ruas pintadas** | Verde, laranja, azul, roxo, vermelho… | Vinculadas a uma microárea |
+| **Ruas cinza** | Tracejado | Ainda sem microárea |
+| **UBS** | Marcador azul | Unidade Básica de Saúde |
+| **Povoados** | Marcador marrom | Localidades rurais complementares |
+| **Legenda** | Canto inferior esquerdo | Contagem por microárea e % de cobertura |
+
+## 6.2 Barra de ferramentas
 
 | Ferramenta | Função |
 |------------|--------|
 | **Busca** | Localizar ruas, bairros, UBS, ACS, microáreas e povoados |
-| **Camadas** | Alternar entre Mapa, Satélite e Relevo |
-| **Atualizar ruas** | Reimportar malha viária do OpenStreetMap |
-| **Cobertura %** | Percentual de ruas pintadas |
-| **Toggles** | Microáreas, Famílias (heatmap), UBS, Povoados |
-| **Arquivos** | Importar/exportar GeoJSON, KML, CSV, Shapefile, PDF |
-| **Tela cheia** | Modo fullscreen |
+| **Camadas** | Mapa padrão, Satélite ou Relevo |
+| **Cobertura %** | Percentual de ruas já pintadas |
+| **Toggles** | Envelopes das microáreas, UBS e Povoados |
+| **Arquivos** | Importar/exportar GeoJSON, KML, CSV, PDF |
 | **Centralizar** | Voltar ao centro do município |
 
-## 6.2 Painel "Pintar microáreas"
+## 6.3 Como pintar (passo a passo)
 
-Painel minimizável na parte inferior com:
+1. Abra o painel **Pintar microáreas** (parte inferior da tela)
+2. Escolha a **microárea** desejada (cada uma tem cor própria)
+3. Clique em **PINTAR** e depois nas ruas do mapa
+4. Use **Pintar bairro inteiro** quando as ruas já tiverem bairro cadastrado
+5. Clique em **Guardar** para minimizar o painel e conferir o resultado
 
-- Seleção da **microárea ativa** (cor correspondente)
-- Modos: **Navegar**, **Pintar** (pincel contínuo) e **Borracha**
-- **Pintar bairro inteiro** de uma vez
-- **Desmarcar microárea** e botão **Guardar e ver mapa**
-- Atalho: clique na rua para pintar; **Ctrl+clique** para seleção múltipla
+**Atalhos:** clique simples na rua · **Ctrl+clique** para selecionar várias · **Borracha** para remover vínculo
 
-## 6.3 Painel da rua (StreetPanel)
-
-Ao clicar em uma rua (fora do modo pintura):
-
-- Vincular/desvincular microárea
-- Vincular bairro
-- Sugestão automática de microárea por proximidade
-- Editar famílias, habitantes e imóveis
-
-## 6.4 Divisões de mapa (zonas circulares)
-
-Permite desenhar círculos no mapa com raio ajustável para pintar todas as ruas dentro da área de uma vez. As zonas podem ser salvas e reutilizadas.
-
-## 6.5 Exportações do mapa
+## 6.4 Exportações do mapa
 
 | Formato | Uso |
 |---------|-----|
 | **PDF A4/A3** | Mapa oficial para impressão (com carimbo de homologação) |
-| **PNG / JPEG** | Imagem para apresentações |
-| **GeoJSON** | Interoperabilidade com QGIS |
-| **KML** | Google Earth |
-| **SVG** | Edição vetorial |
+| **PNG / JPEG** | Apresentações e reuniões |
+| **GeoJSON / KML** | QGIS e Google Earth |
 
 ---
 
@@ -238,7 +240,7 @@ A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pel
 ## 7.1 Município
 
 ![Cadastros — Município](screenshots/04-cadastros-municipio.png)
-<p class="fig-caption">Figura 4 — Dados institucionais, logotipo e importação e-SUS</p>
+<p class="fig-caption">Figura 6 — Dados institucionais, logotipo e importação e-SUS</p>
 
 - Nome, UF, prefeitura e secretaria
 - Upload do logotipo municipal (aparece no login e relatórios)
@@ -248,7 +250,7 @@ A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pel
 ## 7.2 Unidades Básicas de Saúde (UBS)
 
 ![Cadastros — UBS](screenshots/05-cadastros-ubs.png)
-<p class="fig-caption">Figura 5 — Cadastro de UBS com validação CNES</p>
+<p class="fig-caption">Figura 7 — Cadastro de UBS com validação CNES</p>
 
 - Nome, endereço, telefone, coordenadas e coordenador
 - **Validação CNES** via API do Ministério da Saúde
@@ -257,7 +259,7 @@ A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pel
 ## 7.3 Agentes Comunitários de Saúde (ACS)
 
 ![Cadastros — ACS](screenshots/06-cadastros-acs.png)
-<p class="fig-caption">Figura 6 — Gestão de ACS com vinculação a microáreas</p>
+<p class="fig-caption">Figura 8 — Gestão de ACS com vinculação a microáreas</p>
 
 - Visualização em cards ou tabela
 - Cadastro manual ou **importação em lote CSV**
@@ -268,7 +270,7 @@ A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pel
 ## 7.4 Bairros
 
 ![Cadastros — Bairros](screenshots/07-cadastros-bairros.png)
-<p class="fig-caption">Figura 7 — Divisão territorial e vinculação de ruas</p>
+<p class="fig-caption">Figura 9 — Divisão territorial e vinculação de ruas</p>
 
 - CRUD de bairros do município
 - **Vincular ruas via planilha CSV** (modelo disponível no sistema)
@@ -277,7 +279,7 @@ A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pel
 ## 7.5 Microáreas
 
 ![Cadastros — Microáreas](screenshots/09-cadastros-microareas.png)
-<p class="fig-caption">Figura 8 — Territórios de cobertura com cores e vínculos</p>
+<p class="fig-caption">Figura 10 — Territórios de cobertura com cores e vínculos</p>
 
 - Número, nome, cor e descrição
 - Vínculos: UBS, ACS e bairro de referência
@@ -291,7 +293,7 @@ A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pel
 Módulo criado para **complementar** o mapa de ruas do OpenStreetMap com lugares que aparecem no Google Maps mas não constam na malha viária — como o **Povoado Bacabinha**.
 
 ![Cadastros — Povoados](screenshots/08-cadastros-povoados.png)
-<p class="fig-caption">Figura 9 — Cadastro de povoados e localidades rurais</p>
+<p class="fig-caption">Figura 11 — Cadastro de povoados e localidades rurais</p>
 
 ## 8.1 Funcionalidades
 
@@ -353,7 +355,7 @@ Cadastros → UBS → informar código CNES → sistema valida e preenche dados 
 Acesso exclusivo do **Administrador** em `/admin`.
 
 ![Administração do SIGAPS](screenshots/10-admin.png)
-<p class="fig-caption">Figura 10 — Painel administrativo com resumo, backup e usuários</p>
+<p class="fig-caption">Figura 12 — Painel administrativo</p>
 
 ## 10.1 Abas disponíveis
 
@@ -391,7 +393,7 @@ Esta seção descreve o **uso prático** do SIGAPS pelo enfermeiro da APS — co
 
 <div class="flow-step">
 <strong>Passo 1.</strong> Menu lateral → <strong>Pintar Mapa</strong>.<br>
-<strong>Passo 2.</strong> Toque no painel inferior <strong>"Pintar microáreas"</strong> para abrir (Figuras 4 e 5).<br>
+<strong>Passo 2.</strong> Toque no painel <strong>"Pintar microáreas"</strong> (Figuras 4 e 5).<br>
 <strong>Passo 3.</strong> Selecione a <strong>microárea</strong> desejada (cada uma tem uma cor).<br>
 <strong>Passo 4.</strong> Ative o modo <strong>Pintar</strong> e clique nas ruas do território — ou use <strong>Pintar bairro inteiro</strong> quando as ruas já tiverem bairro cadastrado.<br>
 <strong>Passo 5.</strong> Ao terminar, clique em <strong>Guardar e ver mapa</strong> para minimizar o painel e conferir o resultado.<br>
@@ -481,7 +483,7 @@ Código-fonte open source (licença MIT): repositório GitHub do projeto SIGAPS.
 # 14. Suporte e limitações do ambiente
 
 ![Página de Ajuda](screenshots/11-ajuda.png)
-<p class="fig-caption">Figura 11 — Orientações sobre o plano gratuito e funcionalidades</p>
+<p class="fig-caption">Figura 13 — Orientações sobre o plano gratuito</p>
 
 ## 14.1 Plano gratuito (Render Free)
 

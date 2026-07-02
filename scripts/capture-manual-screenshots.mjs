@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { prepareManualDemo } from './prepare-manual-demo.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = join(__dirname, '..', 'docs', 'manual', 'screenshots');
@@ -41,62 +42,130 @@ async function cleanUi(page) {
   });
 }
 
-async function login(page) {
-  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded', timeout: 120_000 });
-  await waitApp(page);
-  await cleanUi(page);
-  await page.getByLabel('Email').fill(EMAIL);
-  await page.getByLabel('Senha').fill(PASS);
-  await page.getByRole('button', { name: /Entrar/i }).click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 120_000 });
-  await waitApp(page);
-  await cleanUi(page);
+async function collapsePaintPanel(page) {
+  const minimize = page.getByRole('button', { name: 'Minimizar painel' });
+  if (await minimize.isVisible().catch(() => false)) {
+    await minimize.click();
+    await page.waitForTimeout(500);
+  }
+}
+
+async function hidePaintPanel(page) {
+  await page.evaluate(() => {
+    document.querySelectorAll('.map-float-panel').forEach((el) => {
+      if (el.textContent?.includes('Pintar microáreas')) el.style.display = 'none';
+    });
+  });
+}
+
+async function showPaintPanel(page) {
+  await page.evaluate(() => {
+    document.querySelectorAll('.map-float-panel').forEach((el) => {
+      if (el.textContent?.includes('Pintar microáreas')) el.style.display = '';
+    });
+  });
 }
 
 async function expandPaintPanel(page) {
+  await showPaintPanel(page);
   const openBtn = page.getByRole('button', { name: 'Abrir painel' });
   if (await openBtn.isVisible().catch(() => false)) {
     await openBtn.click();
     await page.waitForTimeout(900);
+  } else {
+    const header = page.getByText('Pintar microáreas', { exact: false }).first();
+    if (await header.isVisible().catch(() => false)) await header.click();
+    await page.waitForTimeout(600);
   }
-  const firstMicro = page.locator('.MuiChip-root').filter({ hasText: /Microárea/i }).first();
-  if (await firstMicro.isVisible().catch(() => false)) {
-    await firstMicro.click();
+}
+
+async function ensureToggle(page, label, on = true) {
+  const row = page.locator('label').filter({ hasText: label }).first();
+  if (!(await row.isVisible().catch(() => false))) return;
+  const input = row.locator('input[type="checkbox"]');
+  const checked = await input.isChecked().catch(() => false);
+  if (checked !== on) await row.click();
+  await page.waitForTimeout(200);
+}
+
+async function openMapLegend(page) {
+  const legend = page.getByText('Legenda', { exact: true }).first();
+  if (await legend.isVisible().catch(() => false)) {
+    const collapseBtn = legend.locator('xpath=ancestor::div[contains(@class,"map-float-panel")]').getByRole('button').first();
+    const panel = legend.locator('xpath=ancestor::div[contains(@class,"map-float-panel")]').first();
+    const text = await panel.innerText().catch(() => '');
+    if (!text.includes('Microárea 01') && !text.includes('Estrada')) {
+      await legend.click();
+    }
     await page.waitForTimeout(400);
   }
 }
 
-async function shotChecklist(page) {
-  try {
-    await page.waitForSelector('text=Checklist operacional', { timeout: 60_000 });
-    const card = page
-      .getByText('Checklist operacional', { exact: true })
-      .locator('xpath=ancestor::div[contains(@class,"MuiCard-root")]')
-      .first();
-    await card.waitFor({ state: 'visible', timeout: 10_000 });
-    await shot(page, '02-dashboard-checklist', { locator: card });
-  } catch (err) {
-    console.warn('  ! checklist não capturado:', err.message);
-  }
+async function hideDivisionsPanel(page) {
+  await page.evaluate(() => {
+    document.querySelectorAll('.map-float-panel').forEach((el) => {
+      if (el.textContent?.includes('Divisões de mapa')) {
+        el.style.display = 'none';
+      }
+    });
+  });
 }
-async function openMapLegend(page) {
-  const legend = page.getByText('Legenda', { exact: true }).first();
-  if (await legend.isVisible().catch(() => false)) {
-    await legend.click();
-    await page.waitForTimeout(400);
+
+async function centerMap(page) {
+  const btn = page.getByRole('button', { name: /Centralizar/i });
+  if (await btn.isVisible().catch(() => false)) {
+    await btn.click();
+    await page.waitForTimeout(1200);
   }
 }
 
 async function scrollToText(page, text) {
   const el = page.getByText(text, { exact: false }).first();
-  if (await el.isVisible()) {
+  if (await el.isVisible().catch(() => false)) {
     await el.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
   }
 }
 
+async function captureMapShots(page) {
+  await page.goto(`${BASE}/mapa`, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+  await waitApp(page);
+  await page.waitForTimeout(3500);
+  await cleanUi(page);
+  await hideDivisionsPanel(page);
+  await ensureToggle(page, 'Microáreas', true);
+  await ensureToggle(page, 'UBS', true);
+  await ensureToggle(page, 'Povoados', true);
+  await centerMap(page);
+  await collapsePaintPanel(page);
+  await openMapLegend(page);
+  await hidePaintPanel(page);
+  await shot(page, '03-mapa-cobertura');
+
+  await showPaintPanel(page);
+  await expandPaintPanel(page);
+  await page.waitForTimeout(600);
+  await shot(page, '03-mapa-pintura');
+  const paintPanel = page.locator('.map-float-panel').filter({ hasText: 'MICROÁREAS' }).first();
+  if (await paintPanel.count() > 0 && await paintPanel.isVisible().catch(() => false)) {
+    await shot(page, '03-mapa-painel-detalhe', { locator: paintPanel });
+  } else {
+    console.warn('  ! painel detalhe não encontrado');
+  }
+
+  await hidePaintPanel(page);
+  await shot(page, '03-mapa');
+}
+
 async function main() {
   console.log('Capturando telas SIGAPS em alta resolução…');
+
+  try {
+    await prepareManualDemo();
+  } catch (err) {
+    console.warn('  Demo do mapa:', err.message);
+  }
+
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
@@ -110,7 +179,6 @@ async function main() {
 
   const page = await context.newPage();
 
-  // Login
   await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded', timeout: 120_000 });
   await waitApp(page);
   await cleanUi(page);
@@ -123,32 +191,13 @@ async function main() {
   await waitApp(page);
   await cleanUi(page);
 
-  // Dashboard — visão geral + checklist
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await waitApp(page);
   await cleanUi(page);
-  await page.waitForSelector('text=Checklist operacional', { timeout: 60_000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1500);
   await shot(page, '02-dashboard');
-  await shotChecklist(page);
 
-  // Mapa — visão geral
-  await page.goto(`${BASE}/mapa`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-  await waitApp(page);
-  await page.waitForTimeout(2500);
-  await cleanUi(page);
-  await openMapLegend(page);
-  await shot(page, '03-mapa');
-
-  // Mapa — painel de pintura expandido
-  await expandPaintPanel(page);
-  await shot(page, '03-mapa-pintura');
-
-  // Painel de pintura isolado (detalhe)
-  const paintPanel = page.locator('.map-float-panel').filter({ hasText: 'Pintar microáreas' }).first();
-  if (await paintPanel.isVisible()) {
-    await shot(page, '03-mapa-painel-detalhe', { locator: paintPanel });
-  }
+  await captureMapShots(page);
 
   const cadastros = [
     ['04-cadastros-municipio', 'municipio', null],

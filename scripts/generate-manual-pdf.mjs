@@ -100,6 +100,20 @@ const css = `
   }
   img.img-detail { max-width: 115mm; }
   .fig-caption { text-align: center; font-size: 9pt; color: #546E7A; font-style: italic; margin: -6px 0 18px; }
+  .fig-caption.fig-hero { font-size: 10pt; font-weight: 600; font-style: normal; color: #37474F; margin-bottom: 22px; }
+  .figure-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 16px 0 6px;
+    page-break-inside: avoid;
+  }
+  .figure-row img {
+    margin: 0;
+    width: 100%;
+    max-width: none;
+    height: auto;
+  }
   .toc { page-break-after: always; }
   .toc ol { padding-left: 20px; }
   .flow-step {
