@@ -52,4 +52,21 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/leaflet') || id.includes('react-leaflet')) {
+            return 'leaflet';
+          }
+          if (id.includes('@mui/icons-material')) return 'mui-icons';
+          if (id.includes('@mui/material') || id.includes('@emotion')) return 'mui-core';
+          if (id.includes('recharts')) return 'charts';
+          if (id.includes('html2canvas') || id.includes('jspdf') || id.includes('qrcode')) {
+            return 'export-tools';
+          }
+        },
+      },
+    },
+  },
 });

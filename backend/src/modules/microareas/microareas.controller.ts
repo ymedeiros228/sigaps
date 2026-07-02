@@ -31,6 +31,12 @@ export class MicroareasController {
     return this.microareasService.findByMunicipality(municipalityId, req.user);
   }
 
+  @Get('municipality/:municipalityId/envelopes')
+  @ApiOperation({ summary: 'Polígonos de todas as microáreas (PostGIS, uma query)' })
+  listEnvelopes(@Param('municipalityId') municipalityId: string) {
+    return this.microareasService.listEnvelopesByMunicipality(municipalityId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalhes da microárea' })
   findOne(@Param('id') id: string, @Req() req: { user: { role: string } }) {

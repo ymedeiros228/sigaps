@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store';
 import { prefetchMapData } from '../utils/prefetchAppData';
-import { startApiKeepAlive, waitForApiReady } from '../utils/waitForApi';
+import { waitForApiReady } from '../utils/waitForApi';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
 import { getDevLoginDefaults, isDevAutoLoginEnabled } from '../constants/devAuth';
 
@@ -45,8 +45,6 @@ export function LoginPage() {
       reset(getDevLoginDefaults());
     }
   }, [reset]);
-
-  useEffect(() => startApiKeepAlive(), []);
 
   const doLogin = async (data: LoginForm) => {
     setError('');

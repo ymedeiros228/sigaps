@@ -81,6 +81,44 @@ export class MicroareasService {
     }
   }
 
+  async listEnvelopesByMunicipality(municipalityId: string) {
+    try {
+      const rows = await this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          name: string;
+          color: string;
+          number: number;
+          geojson: string | null;
+          label_lng: number | null;
+          label_lat: number | null;
+        }>
+      >`
+        SELECT id, name, color, number,
+          ST_AsGeoJSON(envelope_geom)::text AS geojson,
+          ST_X(ST_Centroid(envelope_geom)) AS label_lng,
+          ST_Y(ST_Centroid(envelope_geom)) AS label_lat
+        FROM microareas
+        WHERE municipality_id = ${municipalityId}::uuid
+          AND envelope_geom IS NOT NULL
+        ORDER BY number ASC
+      `;
+      return rows
+        .filter((r) => r.geojson)
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          color: r.color,
+          number: r.number,
+          geometry: JSON.parse(r.geojson!) as GeoJSON.Polygon | GeoJSON.MultiPolygon,
+          labelLat: r.label_lat,
+          labelLng: r.label_lng,
+        }));
+    } catch {
+      return [];
+    }
+  }
+
   private microareaSnapshot(microarea: {
     number: number;
     name: string;

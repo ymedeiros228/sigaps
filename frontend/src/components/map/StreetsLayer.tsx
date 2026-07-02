@@ -85,7 +85,7 @@ export function StreetsLayer({
   }, [onDragPaintEnd]);
 
   const renderStreets = useMemo(() => {
-    if (streets.length < VIEWPORT_CULL_MIN || paintMode) return streets;
+    if (streets.length < VIEWPORT_CULL_MIN) return streets;
     return streets.filter(
       (street) =>
         selectedIds.has(street.id) ||
@@ -94,7 +94,7 @@ export function StreetsLayer({
         !!street.microareaId ||
         lineIntersectsBounds(street.geojson, mapBounds),
     );
-  }, [streets, mapBounds, paintMode, selectedIds, dragPaintIds, highlightedId]);
+  }, [streets, mapBounds, selectedIds, dragPaintIds, highlightedId]);
 
   const features = useMemo(
     () =>
@@ -339,7 +339,7 @@ export function StreetsLayer({
       )}
 
       <GeoJSON
-        key={`streets-hit-${features.length}-${paintMode}-${eraserMode}-${selectedMicroareaId}-${zoom}`}
+        key={`streets-hit-${paintMode}-${eraserMode}-${selectedMicroareaId}`}
         data={fc(features)}
         style={() => ({
           color: 'transparent',

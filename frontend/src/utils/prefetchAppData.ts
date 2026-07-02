@@ -3,23 +3,18 @@ import { microareasApi, neighborhoodsApi, paintZonesApi, dashboardApi } from '..
 import { fetchAllMapStreets } from './fetchAllStreets';
 import { CACHE, queryKeys } from './queryKeys';
 
-export async function prefetchMapData(queryClient: QueryClient, municipalityId: string) {
-  // Carrega em etapas para não saturar o pooler do Supabase no cold start.
-  await queryClient.prefetchQuery({
-    queryKey: queryKeys.microareas(municipalityId),
-    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.microareas,
-  });
-  await queryClient.prefetchQuery({
-    queryKey: queryKeys.streetsMap(municipalityId),
-    queryFn: () => fetchAllMapStreets(municipalityId),
-    staleTime: CACHE.streets,
-  });
+/** Prefetch leve: dashboard e cadastros primeiro; malha de ruas em idle. */
+export function prefetchMapData(queryClient: QueryClient, municipalityId: string) {
   void Promise.all([
     queryClient.prefetchQuery({
       queryKey: queryKeys.dashboard(municipalityId),
       queryFn: () => dashboardApi.indicators(municipalityId).then((r) => r.data),
       staleTime: CACHE.dashboard,
+    }),
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.microareas(municipalityId),
+      queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+      staleTime: CACHE.microareas,
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.paintZones(municipalityId),
@@ -32,6 +27,20 @@ export async function prefetchMapData(queryClient: QueryClient, municipalityId: 
       staleTime: CACHE.neighborhoods,
     }),
   ]);
+
+  const loadStreets = () => {
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.streetsMap(municipalityId),
+      queryFn: () => fetchAllMapStreets(municipalityId),
+      staleTime: CACHE.streets,
+    });
+  };
+
+  if (typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(loadStreets, { timeout: 8000 });
+  } else {
+    setTimeout(loadStreets, 2500);
+  }
 }
 
 /** Invalida dashboard com debounce durante pintura rápida */

@@ -53,18 +53,20 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
 
     const map = new Map<string, StreetSearchOption>();
 
-    streets
-      .filter((s) => streetMatchesQuery(s, q))
-      .slice(0, 20)
-      .forEach((s) => {
-        map.set(s.id, {
-          id: s.id,
-          label: formatStreetLabel(s),
-          group: 'Ruas no mapa',
-          kind: 'street',
-          geojson: s.geojson,
+    if (streets.length <= 500) {
+      streets
+        .filter((s) => streetMatchesQuery(s, q))
+        .slice(0, 20)
+        .forEach((s) => {
+          map.set(s.id, {
+            id: s.id,
+            label: formatStreetLabel(s),
+            group: 'Ruas no mapa',
+            kind: 'street',
+            geojson: s.geojson,
+          });
         });
-      });
+    }
 
     searchData?.streets.forEach((s) => {
       if (!map.has(s.id) && s.geojson) {

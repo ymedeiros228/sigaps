@@ -1,6 +1,8 @@
 /** Chaves estáveis do React Query — evita colisão de cache e refetch desnecessário. */
 export const queryKeys = {
   microareas: (municipalityId: string) => ['microareas', municipalityId] as const,
+  microareaEnvelopes: (municipalityId: string) =>
+    ['microarea-envelopes', municipalityId] as const,
   paintZones: (municipalityId: string) => ['paint-zones', municipalityId] as const,
   neighborhoods: (municipalityId: string) => ['neighborhoods', municipalityId] as const,
   ubs: (municipalityId: string) => ['ubs', municipalityId] as const,

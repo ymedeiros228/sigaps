@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { Microarea, Street } from '../services/api';
 import { formatStreetLabel } from './streetSearch';
@@ -391,6 +391,7 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   } = input;
 
   const isA3 = format === 'a3';
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();

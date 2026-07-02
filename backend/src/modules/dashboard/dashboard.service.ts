@@ -49,8 +49,6 @@ export class DashboardService {
       acsCount,
       microareasList,
       streetStats,
-      assignedStreets,
-      streetsWithNeighborhood,
       recentChanges,
     ] = await Promise.all([
       safe('ubs', () => this.prisma.ubs.count({ where: { municipalityId } }), 0),
@@ -76,34 +74,40 @@ export class DashboardService {
       ),
       safe(
         'streetStats',
-        () =>
-          this.prisma.street.aggregate({
-            where: { municipalityId },
-            _sum: { familyCount: true, inhabitantCount: true },
-            _count: { _all: true },
-          }),
-        { _sum: { familyCount: 0, inhabitantCount: 0 }, _count: { _all: 0 } },
-      ),
-      safe(
-        'assignedStreets',
-        () =>
-          this.prisma.street.count({
-            where: { municipalityId, microareaId: { not: null } },
-          }),
-        0,
-      ),
-      safe(
-        'streetsWithNeighborhood',
-        () =>
-          this.prisma.street.count({
-            where: { municipalityId, neighborhoodId: { not: null } },
-          }),
-        0,
+        async () => {
+          const rows = await this.prisma.$queryRaw<
+            Array<{
+              total: bigint;
+              assigned: bigint;
+              with_neighborhood: bigint;
+              families: bigint | null;
+              inhabitants: bigint | null;
+            }>
+          >`
+            SELECT
+              COUNT(*)::bigint AS total,
+              COUNT(microarea_id)::bigint AS assigned,
+              COUNT(neighborhood_id)::bigint AS with_neighborhood,
+              COALESCE(SUM(family_count), 0)::bigint AS families,
+              COALESCE(SUM(inhabitant_count), 0)::bigint AS inhabitants
+            FROM streets
+            WHERE municipality_id = ${municipalityId}::uuid
+          `;
+          const row = rows[0];
+          return {
+            total: Number(row?.total ?? 0),
+            assigned: Number(row?.assigned ?? 0),
+            withNeighborhood: Number(row?.with_neighborhood ?? 0),
+            families: Number(row?.families ?? 0),
+            inhabitants: Number(row?.inhabitants ?? 0),
+          };
+        },
+        { total: 0, assigned: 0, withNeighborhood: 0, families: 0, inhabitants: 0 },
       ),
       safe('recentChanges', () => this.audit.findRecent(municipalityId, 10), []),
     ]);
 
-    const streetsCount = streetStats._count._all;
+    const streetsCount = streetStats.total;
     const microareasCount = microareasList.length;
 
     return {
@@ -111,13 +115,13 @@ export class DashboardService {
       acs: acsCount,
       microareas: microareasCount,
       streets: streetsCount,
-      families: streetStats._sum.familyCount ?? 0,
-      inhabitants: streetStats._sum.inhabitantCount ?? 0,
+      families: streetStats.families,
+      inhabitants: streetStats.inhabitants,
       coverage:
-        streetsCount > 0 ? Math.round((assignedStreets / streetsCount) * 100) : 0,
-      assignedStreets,
-      streetsWithNeighborhood,
-      streetsWithoutNeighborhood: Math.max(0, streetsCount - streetsWithNeighborhood),
+        streetsCount > 0 ? Math.round((streetStats.assigned / streetsCount) * 100) : 0,
+      assignedStreets: streetStats.assigned,
+      streetsWithNeighborhood: streetStats.withNeighborhood,
+      streetsWithoutNeighborhood: Math.max(0, streetsCount - streetStats.withNeighborhood),
       microareasChart: microareasList.map((m) => ({
         name: m.name,
         color: m.color,

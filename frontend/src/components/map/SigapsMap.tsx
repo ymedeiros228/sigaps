@@ -31,7 +31,7 @@ import { MapToolbar } from './MapToolbar';
 import type { StreetSearchOption } from './StreetSearchBar';
 import { StreetPanel } from './StreetPanel';
 import { MapLegend } from './MapLegend';
-import { MicroareaPolygonsLayer } from './MicroareaPolygonsLayer';
+import { MicroareaEnvelopesLayer } from './MicroareaEnvelopesLayer';
 import { PaintGuidePanel } from './PaintGuidePanel';
 import { MapDivisionsPanel } from './MapDivisionsPanel';
 import { PaintZonesLayer } from './PaintZonesLayer';
@@ -260,6 +260,9 @@ export function SigapsMap() {
     onSuccess: (_data, variables) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.microareaEnvelopes(municipalityId),
+        });
       }
       setConflictMsg(null);
       setConflictOpen(false);
@@ -490,7 +493,9 @@ export function SigapsMap() {
     onSuccess: (res, streetIds) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        void queryClient.refetchQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.microareaEnvelopes(municipalityId),
+        });
       }
       if (selectedStreet && streetIds.includes(selectedStreet.id)) {
         setSelectedStreet({ ...selectedStreet, microareaId: undefined, microarea: undefined });
@@ -698,7 +703,9 @@ export function SigapsMap() {
     onSuccess: (res) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        void queryClient.refetchQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.microareaEnvelopes(municipalityId),
+        });
       }
       setSelectedStreet(null);
       setHighlightedStreet(null);
@@ -925,13 +932,10 @@ export function SigapsMap() {
           />
           <ScaleControl imperial={false} />
           {(paintZones.length > 0 || divisionDraft) && <PaintZonesLayer zones={paintZones} />}
-          <MicroareaPolygonsLayer
-            microareas={microareas}
-            streets={deferredStreets}
-          />
+          <MicroareaEnvelopesLayer municipalityId={municipalityId!} />
           {streets.length > 0 && (
             <StreetsLayer
-              streets={streets}
+              streets={deferredStreets}
               onStreetClick={handleStreetClick}
               onStreetPaint={paintStreet}
               onStreetUnpaint={unpaintStreet}

@@ -283,6 +283,18 @@ export const streetsApi = {
 export const microareasApi = {
   list: (municipalityId: string) =>
     api.get<Microarea[]>(`/microareas/municipality/${municipalityId}`),
+  listEnvelopes: (municipalityId: string) =>
+    api.get<
+      Array<{
+        id: string;
+        name: string;
+        color: string;
+        number: number;
+        geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+        labelLat: number | null;
+        labelLng: number | null;
+      }>
+    >(`/microareas/municipality/${municipalityId}/envelopes`),
   create: (data: Partial<Microarea> & { municipalityId: string; number: number; name: string; color: string }) =>
     api.post('/microareas', data),
   update: (id: string, data: Partial<Microarea>) =>

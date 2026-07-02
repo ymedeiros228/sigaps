@@ -50,7 +50,7 @@ export async function waitForApiReady(
 }
 
 /** Ping periódico enquanto o app está aberto (reduz cold start no Render). */
-export function startApiKeepAlive(intervalMs = 12 * 60 * 1000): () => void {
+export function startApiKeepAlive(intervalMs = 8 * 60 * 1000): () => void {
   if (!isCloudDeployment()) return () => {};
 
   void pingHealth(10_000);

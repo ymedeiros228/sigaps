@@ -165,6 +165,7 @@ model Acs {
   microarea Microarea?
 
   @@index([municipalityId])
+  @@index([municipalityId, status])
   @@map("acs")
 }
 
@@ -190,6 +191,8 @@ model Street {
 
   @@index([municipalityId])
   @@index([microareaId])
+  @@index([neighborhoodId])
+  @@index([municipalityId, microareaId])
   @@index([name])
   @@map("streets")
 }

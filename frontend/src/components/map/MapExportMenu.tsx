@@ -1,5 +1,4 @@
-import type { RefObject } from 'react';
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState, type RefObject } from 'react';
 import {
   Button,
   Menu,
@@ -30,7 +29,9 @@ import { geoApi, type Microarea } from '../../services/api';
 import { streetsToSvg } from '../../utils/mapSvgExport';
 import { useAppStore } from '../../store';
 import { queryKeys } from '../../utils/queryKeys';
-import { MapPdfDialog } from './MapPdfDialog';
+const MapPdfDialog = lazy(() =>
+  import('./MapPdfDialog').then((m) => ({ default: m.MapPdfDialog })),
+);
 
 type ImportFormat = 'geojson' | 'kml' | 'csv';
 
@@ -306,12 +307,16 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
         }}
       />
 
-      <MapPdfDialog
-        open={pdfOpen}
-        onClose={() => setPdfOpen(false)}
-        mapContainerRef={mapContainerRef}
-        microareas={microareas}
-      />
+      {pdfOpen && (
+        <Suspense fallback={null}>
+          <MapPdfDialog
+            open={pdfOpen}
+            onClose={() => setPdfOpen(false)}
+            mapContainerRef={mapContainerRef}
+            microareas={microareas}
+          />
+        </Suspense>
+      )}
 
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Importar {formatLabels[importFormat]}</DialogTitle>

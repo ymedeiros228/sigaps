@@ -1,8 +1,8 @@
 import { streetsApi, type Street } from '../services/api';
 
-const PAGE_SIZE = 2000;
+const PAGE_SIZE = 5000;
 
-/** Carrega todas as páginas de ruas (mapOnly) para municípios com malha grande. */
+/** Carrega todas as páginas de ruas (mapOnly) — páginas extras em paralelo. */
 export async function fetchAllMapStreets(municipalityId: string): Promise<{
   items: Street[];
   total: number;
@@ -17,13 +17,22 @@ export async function fetchAllMapStreets(municipalityId: string): Promise<{
   const items = [...data.items];
 
   const totalPages = (data as { totalPages?: number }).totalPages ?? 1;
-  for (let page = 2; page <= totalPages; page++) {
-    const res = await streetsApi.list(municipalityId, {
-      limit: PAGE_SIZE,
-      mapOnly: true,
-      page,
-      geoPrecision: 4,
-    });
+  if (totalPages <= 1) {
+    return { items, total: data.total };
+  }
+
+  const pageNumbers = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+  const rest = await Promise.all(
+    pageNumbers.map((page) =>
+      streetsApi.list(municipalityId, {
+        limit: PAGE_SIZE,
+        mapOnly: true,
+        page,
+        geoPrecision: 4,
+      }),
+    ),
+  );
+  for (const res of rest) {
     items.push(...res.data.items);
   }
 

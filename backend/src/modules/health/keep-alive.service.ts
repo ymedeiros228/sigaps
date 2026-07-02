@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 
 /** Evita cold start no Render free tier (~15 min de inatividade). */
 @Injectable()
@@ -9,7 +9,7 @@ export class KeepAliveService {
 
   constructor(private readonly config: ConfigService) {}
 
-  @Cron(CronExpression.EVERY_10_MINUTES)
+  @Cron('*/8 * * * *')
   async pingHealth(): Promise<void> {
     const url =
       this.config.get<string>('KEEP_ALIVE_URL')?.trim() ||
