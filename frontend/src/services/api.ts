@@ -371,6 +371,10 @@ export const dashboardApi = {
     api.get(`/dashboard/${municipalityId}`),
   checklist: (municipalityId: string) =>
     api.get<OperationalChecklist>(`/dashboard/municipality/${municipalityId}/checklist`),
+  checklistCsv: (municipalityId: string) =>
+    api.get(`/dashboard/municipality/${municipalityId}/checklist.csv`, {
+      responseType: 'blob',
+    }),
   acsCoverage: (municipalityId: string) =>
     api.get<AcsCoverageRow[]>(`/dashboard/municipality/${municipalityId}/acs-coverage`),
   acsCoverageCsv: (municipalityId: string) =>
@@ -385,6 +389,7 @@ export interface OperationalChecklistItem {
   done: boolean;
   detail: string;
   priority: 'critical' | 'high' | 'medium';
+  actionHref?: string;
 }
 
 export interface OperationalChecklist {
@@ -392,6 +397,7 @@ export interface OperationalChecklist {
   completed: number;
   total: number;
   progressPct: number;
+  readyForHomologation: boolean;
 }
 
 export interface AcsCoverageRow {

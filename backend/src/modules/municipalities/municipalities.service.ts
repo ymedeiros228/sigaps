@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { CreateMunicipalityDto } from './dto/municipality.dto';
 import { MapHomologationDto } from './dto/map-homologation.dto';
 import { UpdateMunicipalityDto } from './dto/update-municipality.dto';
@@ -114,6 +115,8 @@ export class MunicipalitiesService {
         notes: updated.mapHomologationNotes,
       },
     });
+
+    invalidateDashboardIndicators(id);
 
     return updated;
   }

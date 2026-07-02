@@ -47,7 +47,7 @@ import {
   Verified,
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { UserFormDialog, type UserFormValues } from '../components/admin/UserFormDialog';
@@ -111,8 +111,13 @@ export function AdminPage() {
   const municipalityId = useMunicipalityId();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [searchParams] = useSearchParams();
 
-  const [tab, setTab] = useState<AdminTab>('resumo');
+  const initialTab = searchParams.get('tab');
+  const validTabs: AdminTab[] = ['resumo', 'backup', 'usuarios', 'auditoria', 'homologacao'];
+  const [tab, setTab] = useState<AdminTab>(
+    validTabs.includes(initialTab as AdminTab) ? (initialTab as AdminTab) : 'resumo',
+  );
   const [auditPage, setAuditPage] = useState(1);
   const [auditFilters, setAuditFilters] = useState<AuditFilters>({});
   const [auditDetail, setAuditDetail] = useState<AuditLogEntry | null>(null);

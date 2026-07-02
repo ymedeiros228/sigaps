@@ -11,13 +11,16 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  LinearProgress,
   TextField,
   Typography,
 } from '@mui/material';
-import { CheckCircle, PictureAsPdf, Undo } from '@mui/icons-material';
+import { CheckCircle, Description, PictureAsPdf, Undo } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { municipalitiesApi, type Municipality } from '../../services/api';
+import { municipalitiesApi, dashboardApi, type Municipality } from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { downloadHomologationCertificate } from '../../utils/homologationCertificatePdf';
+import { queryKeys } from '../../utils/queryKeys';
 
 type AdminHomologationTabProps = {
   municipalityId: string;
@@ -29,10 +32,17 @@ export function AdminHomologationTab({ municipalityId, onOpenPdf }: AdminHomolog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [certLoading, setCertLoading] = useState(false);
 
   const { data: municipality, isLoading } = useQuery({
     queryKey: ['municipality', municipalityId],
     queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+  });
+
+  const { data: checklist } = useQuery({
+    queryKey: queryKeys.operationalChecklist(municipalityId),
+    queryFn: () => dashboardApi.checklist(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
   });
 
   const homologateMutation = useMutation({
@@ -40,6 +50,7 @@ export function AdminHomologationTab({ municipalityId, onOpenPdf }: AdminHomolog
       municipalitiesApi.setMapHomologation(municipalityId, payload).then((r) => r.data),
     onSuccess: (data: Municipality) => {
       queryClient.setQueryData(['municipality', municipalityId], data);
+      queryClient.invalidateQueries({ queryKey: queryKeys.operationalChecklist(municipalityId) });
       setDialogOpen(false);
       setNotes('');
       setMessage(
@@ -50,6 +61,30 @@ export function AdminHomologationTab({ municipalityId, onOpenPdf }: AdminHomolog
     },
     onError: (err) => setMessage(getApiErrorMessage(err, 'Não foi possível atualizar a homologação.')),
   });
+
+  const handleDownloadCertificate = async () => {
+    if (!municipality?.mapHomologatedAt || !municipality.mapHomologatedBy || !checklist) return;
+    setCertLoading(true);
+    try {
+      await downloadHomologationCertificate({
+        municipality: {
+          name: municipality.name,
+          state: municipality.state,
+          prefecture: municipality.prefecture,
+          secretariat: municipality.secretariat,
+          logoUrl: municipality.logoUrl,
+        },
+        homologation: {
+          at: municipality.mapHomologatedAt,
+          by: municipality.mapHomologatedBy,
+          notes: municipality.mapHomologationNotes,
+        },
+        checklist,
+      });
+    } finally {
+      setCertLoading(false);
+    }
+  };
 
   if (isLoading || !municipality) {
     return (
@@ -67,6 +102,27 @@ export function AdminHomologationTab({ municipalityId, onOpenPdf }: AdminHomolog
         <Alert severity={homologated ? 'success' : 'info'} onClose={() => setMessage(null)}>
           {message}
         </Alert>
+      )}
+
+      {checklist && (
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              Prontidão para homologação
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={checklist.progressPct}
+              sx={{ mb: 1, height: 8, borderRadius: 4 }}
+            />
+            <Typography variant="body2" color="text.secondary">
+              {checklist.completed}/{checklist.total} itens concluídos
+              {checklist.readyForHomologation
+                ? ' — critérios mínimos atendidos.'
+                : ' — conclua itens críticos e cobertura ≥80% antes de homologar.'}
+            </Typography>
+          </CardContent>
+        </Card>
       )}
 
       <Card variant="outlined" sx={{ borderRadius: 3 }}>
@@ -117,15 +173,25 @@ export function AdminHomologationTab({ municipalityId, onOpenPdf }: AdminHomolog
                 Registrar homologação SMS
               </Button>
             ) : (
-              <Button
-                variant="outlined"
-                color="warning"
-                startIcon={<Undo />}
-                onClick={() => homologateMutation.mutate({ homologated: false })}
-                disabled={homologateMutation.isPending}
-              >
-                Revogar homologação
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<Description />}
+                  onClick={() => void handleDownloadCertificate()}
+                  disabled={certLoading || !checklist}
+                >
+                  {certLoading ? 'Gerando…' : 'Termo de homologação (PDF)'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<Undo />}
+                  onClick={() => homologateMutation.mutate({ homologated: false })}
+                  disabled={homologateMutation.isPending}
+                >
+                  Revogar homologação
+                </Button>
+              </>
             )}
             {onOpenPdf && (
               <Button variant="outlined" startIcon={<PictureAsPdf />} onClick={onOpenPdf}>
@@ -136,15 +202,15 @@ export function AdminHomologationTab({ municipalityId, onOpenPdf }: AdminHomolog
         </CardContent>
       </Card>
 
-      <Alert severity="info" sx={{ borderRadius: 2 }}>
-        <strong>Checklist antes de homologar:</strong> ruas pintadas · bairros vinculados · ACS
-        nas microáreas · PDF A3 conferido em reunião da SMS · assinaturas coletadas na via
-        impressa.
-      </Alert>
-
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 800 }}>Confirmar homologação do mapa</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+          {!checklist?.readyForHomologation && (
+            <Alert severity="warning">
+              O checklist ainda não atende todos os critérios mínimos (itens críticos + cobertura
+              ≥80%). Você pode homologar mesmo assim se a SMS já aprovou em reunião.
+            </Alert>
+          )}
           <Typography variant="body2" color="text.secondary">
             Esta ação registra que a SMS aprovou o mapa de microáreas de{' '}
             <strong>{municipality.name}</strong>. O carimbo será incluído automaticamente nos PDFs.

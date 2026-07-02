@@ -15,6 +15,7 @@ export interface OperationalChecklistItem {
   done: boolean;
   detail: string;
   priority: 'critical' | 'high' | 'medium';
+  actionHref?: string;
 }
 
 export interface OperationalChecklist {
@@ -22,7 +23,20 @@ export interface OperationalChecklist {
   completed: number;
   total: number;
   progressPct: number;
+  readyForHomologation: boolean;
 }
+
+const CHECKLIST_LINKS: Record<string, string> = {
+  streets: '/mapa',
+  microareas: '/cadastros?secao=microareas',
+  ubs: '/cadastros?secao=ubs',
+  'acs-linked': '/cadastros?secao=acs',
+  coverage: '/mapa',
+  neighborhoods: '/cadastros?secao=bairros',
+  families: '/cadastros?secao=municipio',
+  'esus-sync': '/cadastros?secao=municipio',
+  homologation: '/admin?tab=homologacao',
+};
 
 export interface AcsCoverageRow {
   acsId: string;
@@ -110,6 +124,7 @@ export class DashboardService {
         done: streets > 0,
         detail: streets > 0 ? `${streets} ruas no mapa` : 'Importe ruas via OSM ou arquivo',
         priority: 'critical',
+        actionHref: CHECKLIST_LINKS.streets,
       },
       {
         id: 'microareas',
@@ -117,6 +132,7 @@ export class DashboardService {
         done: microareas > 0,
         detail: microareas > 0 ? `${microareas} microárea(s)` : 'Cadastre em Microáreas',
         priority: 'critical',
+        actionHref: CHECKLIST_LINKS.microareas,
       },
       {
         id: 'ubs',
@@ -124,6 +140,7 @@ export class DashboardService {
         done: ubsCount > 0,
         detail: ubsCount > 0 ? `${ubsCount} UBS` : 'Cadastre pelo menos uma UBS',
         priority: 'high',
+        actionHref: CHECKLIST_LINKS.ubs,
       },
       {
         id: 'acs-linked',
@@ -134,6 +151,7 @@ export class DashboardService {
             ? `${acsSemMicro} ACS sem microárea`
             : 'Todos os ACS ativos vinculados',
         priority: 'critical',
+        actionHref: CHECKLIST_LINKS['acs-linked'],
       },
       {
         id: 'coverage',
@@ -141,6 +159,7 @@ export class DashboardService {
         done: coverage >= 80,
         detail: `${coverage}% das ruas pintadas`,
         priority: 'high',
+        actionHref: CHECKLIST_LINKS.coverage,
       },
       {
         id: 'neighborhoods',
@@ -148,6 +167,7 @@ export class DashboardService {
         done: neighborhoodPct >= 50,
         detail: `${neighborhoodPct}% das ruas com bairro`,
         priority: 'medium',
+        actionHref: CHECKLIST_LINKS.neighborhoods,
       },
       {
         id: 'families',
@@ -155,6 +175,7 @@ export class DashboardService {
         done: families > 0,
         detail: families > 0 ? `${families} famílias registradas` : 'Importe CSV e-SUS',
         priority: 'high',
+        actionHref: CHECKLIST_LINKS.families,
       },
       {
         id: 'esus-sync',
@@ -164,6 +185,7 @@ export class DashboardService {
           ? `Última: ${municipality.esusLastSyncAt.toLocaleString('pt-BR')}`
           : 'Importe ou sincronize e-SUS',
         priority: 'medium',
+        actionHref: CHECKLIST_LINKS['esus-sync'],
       },
       {
         id: 'homologation',
@@ -173,16 +195,37 @@ export class DashboardService {
           ? `Homologado em ${municipality.mapHomologatedAt.toLocaleDateString('pt-BR')}`
           : 'Registre em Admin → Homologação',
         priority: 'high',
+        actionHref: CHECKLIST_LINKS.homologation,
       },
     ];
 
     const completed = items.filter((i) => i.done).length;
+    const criticalDone = items.filter((i) => i.priority === 'critical').every((i) => i.done);
+    const coverageDone = items.find((i) => i.id === 'coverage')?.done ?? false;
+
     return {
       items,
       completed,
       total: items.length,
       progressPct: Math.round((completed / items.length) * 100),
+      readyForHomologation: criticalDone && coverageDone,
     };
+  }
+
+  buildChecklistCsv(checklist: OperationalChecklist) {
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const header = ['item', 'status', 'prioridade', 'detalhe'].join(';');
+    const lines = checklist.items.map((item) =>
+      [
+        item.label,
+        item.done ? 'concluido' : 'pendente',
+        item.priority,
+        item.detail,
+      ]
+        .map((v) => escape(v))
+        .join(';'),
+    );
+    return `\uFEFF${header}\n${lines.join('\n')}`;
   }
 
   private async computeIndicators(municipalityId: string) {

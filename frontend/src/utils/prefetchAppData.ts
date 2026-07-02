@@ -51,6 +51,7 @@ export function scheduleDashboardInvalidate(queryClient: QueryClient, municipali
   dashboardInvalidateTimer = setTimeout(() => {
     if (municipalityId) {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(municipalityId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.operationalChecklist(municipalityId) });
     } else {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }

@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Card,
   CardContent,
   LinearProgress,
@@ -8,40 +9,78 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { CheckCircle, RadioButtonUnchecked, TaskAlt } from '@mui/icons-material';
+import { CheckCircle, Download, OpenInNew, RadioButtonUnchecked, TaskAlt } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
+import { Link as RouterLink } from 'react-router-dom';
+import { useState } from 'react';
 import { dashboardApi, type OperationalChecklist } from '../../services/api';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 
 export function OperationalChecklistCard({ municipalityId }: { municipalityId: string }) {
+  const [csvLoading, setCsvLoading] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.operationalChecklist(municipalityId),
     queryFn: () => dashboardApi.checklist(municipalityId).then((r) => r.data),
     staleTime: CACHE.dashboard,
   });
 
+  const downloadCsv = async () => {
+    setCsvLoading(true);
+    try {
+      const { data: blob } = await dashboardApi.checklistCsv(municipalityId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sigaps-checklist.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setCsvLoading(false);
+    }
+  };
+
   if (isLoading || !data) return null;
 
-  return <ChecklistContent checklist={data} />;
+  return <ChecklistContent checklist={data} onExportCsv={downloadCsv} csvLoading={csvLoading} />;
 }
 
-function ChecklistContent({ checklist }: { checklist: OperationalChecklist }) {
+function ChecklistContent({
+  checklist,
+  onExportCsv,
+  csvLoading,
+}: {
+  checklist: OperationalChecklist;
+  onExportCsv: () => void;
+  csvLoading: boolean;
+}) {
   const theme = useTheme();
   const pendingCritical = checklist.items.filter((i) => !i.done && i.priority === 'critical');
 
   return (
     <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
           <TaskAlt color="primary" />
           <Typography variant="subtitle1" sx={{ fontWeight: 800, flex: 1 }}>
             Checklist operacional
           </Typography>
+          {checklist.readyForHomologation && (
+            <Chip size="small" color="success" label="Pronto p/ homologação" />
+          )}
           <Chip
             size="small"
             color={checklist.progressPct >= 80 ? 'success' : 'default'}
             label={`${checklist.completed}/${checklist.total}`}
           />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Download />}
+            disabled={csvLoading}
+            onClick={onExportCsv}
+          >
+            CSV
+          </Button>
         </Box>
 
         <LinearProgress
@@ -60,6 +99,8 @@ function ChecklistContent({ checklist }: { checklist: OperationalChecklist }) {
           {checklist.items.map((item) => (
             <Box
               key={item.id}
+              component={item.actionHref && !item.done ? RouterLink : 'div'}
+              to={item.actionHref && !item.done ? item.actionHref : undefined}
               sx={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -67,9 +108,18 @@ function ChecklistContent({ checklist }: { checklist: OperationalChecklist }) {
                 py: 0.75,
                 px: 1,
                 borderRadius: 2,
+                textDecoration: 'none',
+                color: 'inherit',
                 bgcolor: item.done
                   ? alpha(theme.palette.success.main, 0.06)
                   : alpha(theme.palette.warning.main, 0.04),
+                ...(item.actionHref && !item.done
+                  ? {
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                      },
+                    }
+                  : {}),
               }}
             >
               {item.done ? (
@@ -77,7 +127,7 @@ function ChecklistContent({ checklist }: { checklist: OperationalChecklist }) {
               ) : (
                 <RadioButtonUnchecked color="disabled" fontSize="small" sx={{ mt: 0.2 }} />
               )}
-              <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   {item.label}
                 </Typography>
@@ -85,6 +135,9 @@ function ChecklistContent({ checklist }: { checklist: OperationalChecklist }) {
                   {item.detail}
                 </Typography>
               </Box>
+              {item.actionHref && !item.done && (
+                <OpenInNew fontSize="small" color="action" sx={{ mt: 0.3, opacity: 0.6 }} />
+              )}
             </Box>
           ))}
         </Box>

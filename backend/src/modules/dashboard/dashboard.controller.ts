@@ -50,6 +50,21 @@ export class DashboardController {
     return this.dashboardService.getOperationalChecklist(municipalityId);
   }
 
+  @Get('municipality/:municipalityId/checklist.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @ApiOperation({ summary: 'Exportar checklist operacional em CSV' })
+  async getChecklistCsv(
+    @Param('municipalityId') municipalityId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const checklist = await this.dashboardService.getOperationalChecklist(municipalityId);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="sigaps-checklist-${municipalityId.slice(0, 8)}.csv"`,
+    );
+    return this.dashboardService.buildChecklistCsv(checklist);
+  }
+
   @Get(':municipalityId')
   @ApiOperation({ summary: 'Indicadores em tempo real' })
   getIndicators(@Param('municipalityId') municipalityId: string) {

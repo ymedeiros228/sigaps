@@ -165,6 +165,14 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 - [x] Exportação CSV da auditoria (`GET /admin/.../audit/export.csv`, até 5000 registros)
 - [x] Invalidação imediata do cache do dashboard após pintura e-SUS
 
+### Sprint 13 — Homologação e onboarding — ✅ Concluído
+
+- [x] Checklist com links de ação e export CSV
+- [x] Flag `readyForHomologation` (críticos + cobertura ≥80%)
+- [x] Termo de homologação PDF (Admin → Homologação, após registro)
+- [x] Admin homologação integrado ao checklist com aviso de prontidão
+- [x] Seletor multi-município com confirmação e indicador de homologação
+
 ---
 
 ## Histórico de fases (referência)
