@@ -178,6 +178,8 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
               Importe famílias e habitantes por logradouro a partir de CSV exportado do e-SUS.
+              Use &quot;Sincronizar&quot; para reaplicar o último CSV importado (também agendado
+              semanalmente quando <code>AUTO_ESUS_SYNC_ENABLED=true</code> no servidor).
             </Typography>
             {municipality.esusLastSyncAt && (
               <Alert severity="info" sx={{ mb: 1.5, py: 0.25 }}>

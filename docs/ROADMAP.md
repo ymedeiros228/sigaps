@@ -152,6 +152,12 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 - [x] Dashboard — cache em memória de 30s para indicadores do município
 - [x] Mapa — indicador de progresso ao carregar ruas por viewport + dica "Mova o mapa para carregar mais ruas"
 
+### Sprint 11 — Operação e monitoramento — ✅ Concluído
+
+- [x] e-SUS sync agendado semanal (`AUTO_ESUS_SYNC_ENABLED=true`, segundas 04:00)
+- [x] Health `GET /health/postgis` — verifica extensão PostGIS e índice espacial das ruas
+- [x] Correção de resposta da API e-SUS (`ok`, `message`, `lastSyncAt`)
+
 ---
 
 ## Histórico de fases (referência)
