@@ -13,17 +13,17 @@ import {
   Alert,
 } from '@mui/material';
 import { AccountBalance, CloudUpload, Sync, Upload } from '@mui/icons-material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { municipalitiesApi, integrationsApi } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
+import { useCadastrosData } from '../CadastrosDataContext';
 import { EsusImportDialog } from '../EsusImportDialog';
 import { canImportStreets } from '../../../utils/permissions';
 import { useAuthStore } from '../../../store';
 import { assetUrl } from '../../../utils/assetUrl';
 import { queryKeys } from '../../../utils/queryKeys';
-import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
-import { CadastrosLoadError } from '../CadastrosLoadError';
+import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
 
 type MunicipalityForm = {
   name: string;
@@ -47,18 +47,8 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     formState: { errors },
   } = useForm<MunicipalityForm>();
 
-  const {
-    data: municipality,
-    isPending,
-    isError,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: queryKeys.municipality(municipalityId),
-    queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
-    enabled: !!municipalityId,
-    ...cadastrosQueryDefaults,
-  });
+  const { bundle, isLoading } = useCadastrosData();
+  const municipality = bundle?.municipality;
 
   useEffect(() => {
     if (municipality) {
@@ -74,7 +64,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   const saveMutation = useMutation({
     mutationFn: (values: MunicipalityForm) => municipalitiesApi.update(municipalityId, values),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       reportSuccess('Dados do município atualizados.');
     },
     onError: reportError,
@@ -83,7 +73,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   const logoMutation = useMutation({
     mutationFn: (file: File) => municipalitiesApi.uploadLogo(municipalityId, file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       reportSuccess('Logotipo enviado com sucesso.');
     },
     onError: reportError,
@@ -92,7 +82,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   const syncEsusMutation = useMutation({
     mutationFn: () => integrationsApi.syncEsus(municipalityId),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(municipalityId) });
       if (res.data.ok) {
         reportSuccess(res.data.message);
@@ -103,17 +93,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
     onError: reportError,
   });
 
-  if (isError) {
-    return (
-      <CadastrosLoadError
-        title="Erro ao carregar dados do município"
-        message={error instanceof Error ? error.message : 'Tente novamente em instantes.'}
-        onRetry={() => void refetch()}
-      />
-    );
-  }
-
-  if (isPending && !municipality) {
+  if (isLoading && !municipality) {
     return (
       <Box sx={{ maxWidth: 640 }}>
         <Skeleton width="45%" height={32} sx={{ mb: 1 }} />

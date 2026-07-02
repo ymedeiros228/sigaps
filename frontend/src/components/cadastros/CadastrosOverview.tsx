@@ -1,15 +1,11 @@
 import { Box, Button, Grid, Skeleton, Typography } from '@mui/material';
 import { Add, LocalHospital, People, LocationCity, GridView, Upload } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
 import { StatCard } from '../ui/StatCard';
-import { municipalitiesApi } from '../../services/api';
 import { useCadastros } from './CadastrosContext';
+import { useCadastrosData } from './CadastrosDataContext';
 import type { CadastrosSectionId } from './cadastrosConfig';
-import { queryKeys } from '../../utils/queryKeys';
-import { cadastrosQueryDefaults } from '../../utils/cadastrosQuery';
 
 type CadastrosOverviewProps = {
-  municipalityId: string;
   section: CadastrosSectionId;
   onSectionChange: (section: CadastrosSectionId) => void;
   onAcsAction?: (action: 'new' | 'import') => void;
@@ -30,19 +26,13 @@ function StatCardSkeleton() {
 }
 
 export function CadastrosOverview({
-  municipalityId,
   section,
   onSectionChange,
   onAcsAction,
 }: CadastrosOverviewProps) {
   const { canManageAcs } = useCadastros();
-
-  const { data: summary, isPending, isError } = useQuery({
-    queryKey: queryKeys.cadastrosSummary(municipalityId),
-    queryFn: () => municipalitiesApi.cadastrosSummary(municipalityId).then((r) => r.data),
-    enabled: !!municipalityId,
-    ...cadastrosQueryDefaults,
-  });
+  const { bundle, isLoading } = useCadastrosData();
+  const summary = bundle?.summary;
 
   const ubs = summary?.ubs ?? 0;
   const acs = summary?.acs ?? 0;
@@ -50,7 +40,7 @@ export function CadastrosOverview({
   const microareas = summary?.microareas ?? 0;
   const acsSemMicro = summary?.acsSemMicro ?? 0;
   const acsAtivos = summary?.acsAtivos ?? 0;
-  const showSkeleton = isPending && !summary && !isError;
+  const showSkeleton = isLoading && !summary;
 
   const stats = [
     {

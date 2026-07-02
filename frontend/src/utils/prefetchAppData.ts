@@ -1,41 +1,30 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
+  cadastrosApi,
   microareasApi,
-  municipalitiesApi,
   neighborhoodsApi,
   paintZonesApi,
   dashboardApi,
 } from '../services/api';
 import { fetchAllMapStreets } from './fetchAllStreets';
+import { hydrateCadastrosCache } from './hydrateCadastrosCache';
 import { CACHE, queryKeys } from './queryKeys';
-import { waitForApiReady } from './waitForApi';
 
-/** Prefetch leve: município, resumo e microáreas (evita saturar API no cold start). */
-export async function prefetchCadastrosData(queryClient: QueryClient, municipalityId: string) {
+/** Prefetch bundle de cadastros (1 request). */
+export function prefetchCadastrosData(queryClient: QueryClient, municipalityId: string) {
   if (!municipalityId) return;
-
-  await waitForApiReady(6, 2500);
-
   void queryClient.prefetchQuery({
-    queryKey: queryKeys.municipality(municipalityId),
-    queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+    queryKey: queryKeys.cadastrosBundle(municipalityId),
+    queryFn: () =>
+      cadastrosApi.getBundle(municipalityId).then((r) => {
+        hydrateCadastrosCache(queryClient, municipalityId, r.data);
+        return r.data;
+      }),
     staleTime: CACHE.default,
-  });
-
-  void queryClient.prefetchQuery({
-    queryKey: queryKeys.cadastrosSummary(municipalityId),
-    queryFn: () => municipalitiesApi.cadastrosSummary(municipalityId).then((r) => r.data),
-    staleTime: CACHE.default,
-  });
-
-  void queryClient.prefetchQuery({
-    queryKey: queryKeys.microareas(municipalityId),
-    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.microareas,
   });
 }
 
-/** Prefetch leve: dashboard e cadastros primeiro; malha de ruas em idle. */
+/** Prefetch leve: dashboard e mapa; cadastros em bundle separado. */
 export function prefetchMapData(queryClient: QueryClient, municipalityId: string) {
   void Promise.all([
     queryClient.prefetchQuery({

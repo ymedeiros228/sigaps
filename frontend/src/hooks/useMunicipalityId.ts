@@ -1,9 +1,5 @@
 import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { municipalitiesApi } from '../services/api';
 import { ACTIVE_MUNICIPALITY_KEY, useAppStore, useAuthStore } from '../store';
-import { cadastrosQueryDefaults } from '../utils/cadastrosQuery';
-import { waitForApiReady } from '../utils/waitForApi';
 
 function readPersistedMunicipalityId(): string | null {
   try {
@@ -13,64 +9,30 @@ function readPersistedMunicipalityId(): string | null {
   }
 }
 
-function pickMunicipalityId(
-  municipalities: Array<{ id: string }>,
-  isAdmin: boolean,
-  userMunicipalityId: string | null,
-): string | null {
-  if (municipalities.length === 0) return null;
-  const persisted = isAdmin ? readPersistedMunicipalityId() : null;
-  const validPersisted =
-    persisted && municipalities.some((m) => m.id === persisted) ? persisted : null;
-  const fromUser =
-    userMunicipalityId && municipalities.some((m) => m.id === userMunicipalityId)
-      ? userMunicipalityId
-      : null;
-  return validPersisted ?? fromUser ?? municipalities[0]!.id;
-}
-
 export function useMunicipalityId(): string | null {
   const municipalityId = useAppStore((s) => s.municipalityId);
   const setMunicipalityId = useAppStore((s) => s.setMunicipalityId);
   const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.role === 'ADMINISTRADOR';
   const userMunicipalityId = user?.municipalityId ?? null;
 
   useEffect(() => {
     if (municipalityId) return;
-    if (!isAdmin && userMunicipalityId) {
-      setMunicipalityId(userMunicipalityId);
-      return;
+
+    if (user?.role === 'ADMINISTRADOR') {
+      const persisted = readPersistedMunicipalityId();
+      if (persisted) {
+        setMunicipalityId(persisted);
+        return;
+      }
     }
-    const persisted = isAdmin ? readPersistedMunicipalityId() : null;
-    if (persisted) {
-      setMunicipalityId(persisted);
-      return;
-    }
+
     if (userMunicipalityId) {
       setMunicipalityId(userMunicipalityId);
     }
-  }, [municipalityId, isAdmin, userMunicipalityId, setMunicipalityId]);
+  }, [municipalityId, user?.role, userMunicipalityId, setMunicipalityId]);
 
-  const needsList = !!user && !municipalityId;
-
-  const { data: municipalities = [] } = useQuery({
-    queryKey: ['municipalities', 'bootstrap'],
-    queryFn: async () => {
-      await waitForApiReady(8, 2500);
-      return municipalitiesApi.list().then((r) => r.data);
-    },
-    enabled: needsList,
-    ...cadastrosQueryDefaults,
-  });
-
-  useEffect(() => {
-    if (!needsList || municipalities.length === 0) return;
-    const next = pickMunicipalityId(municipalities, !!isAdmin, userMunicipalityId);
-    if (next) setMunicipalityId(next);
-  }, [needsList, municipalities, isAdmin, userMunicipalityId, setMunicipalityId]);
-
-  const persistedAdminId = isAdmin ? readPersistedMunicipalityId() : null;
+  const persistedAdminId =
+    user?.role === 'ADMINISTRADOR' ? readPersistedMunicipalityId() : null;
 
   return municipalityId ?? userMunicipalityId ?? persistedAdminId ?? null;
 }

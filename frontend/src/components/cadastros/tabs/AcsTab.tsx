@@ -18,9 +18,10 @@ import {
   ViewModule,
   TableRows,
 } from '@mui/icons-material';
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { acsApi, microareasApi, type Acs } from '../../../services/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { acsApi, type Acs } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
+import { useCadastrosData } from '../CadastrosDataContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
@@ -30,7 +31,7 @@ import { AcsCardsView } from './AcsCardsView';
 import { useAuthStore } from '../../../store';
 import { canDeleteAcs } from '../../../utils/permissions';
 import { maskCpfDisplay, isMaskedCpf } from '../../../utils/inputMasks';
-import { CACHE, queryKeys } from '../../../utils/queryKeys';
+import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
 
 type ViewMode = 'cards' | 'table';
 type AcsFilter = 'all' | 'sem-micro';
@@ -73,20 +74,9 @@ export function AcsTab({
     onActionConsumed?.();
   }, [pendingAction, onActionConsumed]);
 
-  const { data = [], isLoading } = useQuery({
-    queryKey: queryKeys.acs(municipalityId),
-    queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.default,
-    placeholderData: keepPreviousData,
-    enabled: !!municipalityId,
-  });
-
-  const { data: microareas = [] } = useQuery({
-    queryKey: queryKeys.microareas(municipalityId),
-    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.microareas,
-    enabled: !!municipalityId && canManage,
-  });
+  const { bundle, isLoading } = useCadastrosData();
+  const data = (bundle?.acs ?? []) as Acs[];
+  const microareas = bundle?.microareas ?? [];
 
   const filtered = useMemo(() => {
     let rows = data;
@@ -129,9 +119,7 @@ export function AcsTab({
         : acsApi.create({ ...body, cpf: values.cpf, municipalityId });
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.acs(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       if (variables.andAnother) {
         setEditing(null);
         setFormSession((n) => n + 1);
@@ -148,9 +136,7 @@ export function AcsTab({
   const deleteMutation = useMutation({
     mutationFn: (id: string) => acsApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.acs(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       reportSuccess('ACS removido.');
     },
     onError: reportError,
@@ -159,8 +145,7 @@ export function AcsTab({
   const photoMutation = useMutation({
     mutationFn: ({ id, file }: { id: string; file: File }) => acsApi.uploadPhoto(id, file),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.acs(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       if (editing) setEditing(res.data);
       reportSuccess('Foto do ACS atualizada.');
     },
@@ -399,9 +384,7 @@ export function AcsTab({
         municipalityId={municipalityId}
         onClose={() => setImportOpen(false)}
         onSuccess={(msg) => {
-          queryClient.invalidateQueries({ queryKey: queryKeys.acs(municipalityId) });
-          queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
-          queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+          invalidateCadastrosCache(queryClient, municipalityId);
           reportSuccess(msg);
         }}
         onError={reportError}

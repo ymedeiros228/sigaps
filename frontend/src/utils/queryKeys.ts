@@ -15,6 +15,8 @@ export const queryKeys = {
   municipality: (municipalityId: string) => ['municipality', municipalityId] as const,
   cadastrosSummary: (municipalityId: string) =>
     ['cadastros-summary', municipalityId] as const,
+  cadastrosBundle: (municipalityId: string) =>
+    ['cadastros-bundle', municipalityId] as const,
   acs: (municipalityId: string) => ['acs', municipalityId] as const,
 };
 

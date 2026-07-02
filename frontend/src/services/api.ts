@@ -1,8 +1,10 @@
 import axios from 'axios';
 
+const PRODUCTION_API_URL = 'https://sigaps-api.onrender.com';
+
 const API_URL =
-  import.meta.env.VITE_API_URL ??
-  (import.meta.env.PROD ? '' : 'http://localhost:3000');
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? PRODUCTION_API_URL : 'http://localhost:3000');
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -211,6 +213,15 @@ export interface Neighborhood {
   _count?: { streets: number };
 }
 
+export interface CadastrosBundle {
+  municipality: Municipality;
+  summary: CadastrosSummary;
+  microareas: Microarea[];
+  ubs: Ubs[];
+  acs: Acs[];
+  neighborhoods: Neighborhood[];
+}
+
 export interface SearchResult {
   streets: Array<{ id: string; name: string; streetType?: string; geojson?: GeoJSON.LineString; microarea?: { id: string; name: string; color: string } }>;
   neighborhoods: Array<{ id: string; name: string; _count: { streets: number } }>;
@@ -222,6 +233,11 @@ export interface SearchResult {
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<LoginResponse>('/auth/login', { email, password }),
+};
+
+export const cadastrosApi = {
+  getBundle: (municipalityId: string) =>
+    api.get<CadastrosBundle>(`/cadastros/municipality/${municipalityId}`),
 };
 
 export const municipalitiesApi = {

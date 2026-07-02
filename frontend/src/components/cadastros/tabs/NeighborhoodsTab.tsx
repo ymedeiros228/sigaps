@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
 import { Button, IconButton, TextField, Tooltip } from '@mui/material';
 import { Add, Delete, Edit, LocationCity, Upload } from '@mui/icons-material';
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { neighborhoodsApi, type Neighborhood } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
+import { useCadastrosData } from '../CadastrosDataContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
 import { NeighborhoodBulkAssignDialog } from '../NeighborhoodBulkAssignDialog';
-import { CACHE, queryKeys } from '../../../utils/queryKeys';
+import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
+import { queryKeys } from '../../../utils/queryKeys';
 
 type NeighborhoodForm = { name: string };
 
@@ -28,13 +30,8 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
     formState: { errors },
   } = useForm<NeighborhoodForm>();
 
-  const { data = [], isLoading } = useQuery({
-    queryKey: queryKeys.neighborhoods(municipalityId),
-    queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.neighborhoods,
-    placeholderData: keepPreviousData,
-    enabled: !!municipalityId,
-  });
+  const { bundle, isLoading } = useCadastrosData();
+  const data = (bundle?.neighborhoods ?? []) as Neighborhood[];
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -48,8 +45,7 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
         ? neighborhoodsApi.update(editing.id, values)
         : neighborhoodsApi.create({ ...values, municipalityId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.neighborhoods(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       setOpen(false);
       reset();
       reportSuccess(editing ? 'Bairro atualizado.' : 'Bairro cadastrado.');
@@ -60,8 +56,7 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
   const deleteMutation = useMutation({
     mutationFn: (id: string) => neighborhoodsApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.neighborhoods(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       reportSuccess('Bairro removido.');
     },
     onError: reportError,

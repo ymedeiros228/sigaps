@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, CircularProgress, IconButton, TextField, Tooltip } from '@mui/material';
 import { Add, Delete, Edit, LocalHospital, Search } from '@mui/icons-material';
-import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { integrationsApi, ubsApi, type Ubs } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
+import { useCadastrosData } from '../CadastrosDataContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
 import { getApiErrorMessage } from '../../../utils/apiError';
-import { CACHE, queryKeys } from '../../../utils/queryKeys';
+import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
 
 type UbsForm = Omit<Ubs, 'id' | '_count'>;
 
@@ -30,13 +31,8 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
     formState: { errors },
   } = useForm<UbsForm>();
 
-  const { data = [], isLoading } = useQuery({
-    queryKey: queryKeys.ubs(municipalityId),
-    queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
-    staleTime: CACHE.default,
-    placeholderData: keepPreviousData,
-    enabled: !!municipalityId,
-  });
+  const { bundle, isLoading } = useCadastrosData();
+  const data = (bundle?.ubs ?? []) as Ubs[];
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -54,8 +50,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
     mutationFn: (values: UbsForm) =>
       editing ? ubsApi.update(editing.id, values) : ubsApi.create({ ...values, municipalityId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.ubs(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       setOpen(false);
       setEditing(null);
       reset();
@@ -67,8 +62,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => ubsApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.ubs(municipalityId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.cadastrosSummary(municipalityId) });
+      invalidateCadastrosCache(queryClient, municipalityId);
       reportSuccess('UBS removida.');
     },
     onError: reportError,

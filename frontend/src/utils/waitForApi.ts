@@ -1,10 +1,12 @@
 import { api } from '../services/api';
 import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from './queryRetry';
 
+const PRODUCTION_API_URL = 'https://sigaps-api.onrender.com';
+
 function apiBaseUrl(): string {
   return (
-    import.meta.env.VITE_API_URL ??
-    (import.meta.env.PROD ? '' : 'http://localhost:3000')
+    import.meta.env.VITE_API_URL ||
+    (import.meta.env.PROD ? PRODUCTION_API_URL : 'http://localhost:3000')
   ).replace(/\/$/, '');
 }
 
