@@ -1,0 +1,589 @@
+<div class="cover-page">
+
+# SIGAPS
+
+<div class="cover-subtitle">Sistema Inteligente de Gestão das Microáreas da<br>Atenção Primária à Saúde</div>
+
+<div class="cover-meta">
+
+**MANUAL DE ENTREGA E DOCUMENTAÇÃO TÉCNICA**
+
+| | |
+|---|---|
+| **Cliente / Receptor** | Jonas Almeida Medeiros — Enfermeiro da APS |
+| **Município piloto** | Passagem Franca — Maranhão |
+| **Secretaria** | Secretaria Municipal de Saúde |
+| **Desenvolvedor** | Yuri Medeiros Bandeira |
+| **Versão do sistema** | 1.0.0 — MVP |
+| **Data do documento** | 02 de julho de 2026 |
+| **URL de produção** | https://sigaps-api.onrender.com |
+
+</div>
+
+<div>
+<span class="cover-badge">OpenStreetMap</span>
+<span class="cover-badge">PostGIS</span>
+<span class="cover-badge">NestJS + React</span>
+<span class="cover-badge">PWA</span>
+<span class="cover-badge">LGPD</span>
+</div>
+
+<div class="cover-footer">
+
+Documento confidencial — uso exclusivo da Secretaria Municipal de Saúde de Passagem Franca/MA.<br>
+Este manual descreve todas as funcionalidades entregues, fluxos operacionais e procedimentos de homologação.
+
+</div>
+
+</div>
+
+<div class="toc">
+
+## Sumário
+
+1. [Apresentação e objetivo](#1-apresentação-e-objetivo)
+2. [Escopo da entrega](#2-escopo-da-entrega)
+3. [Acesso ao sistema](#3-acesso-ao-sistema)
+4. [Perfis de usuário e permissões](#4-perfis-de-usuário-e-permissões)
+5. [Dashboard — indicadores em tempo real](#5-dashboard--indicadores-em-tempo-real)
+6. [Mapa interativo — pintura territorial](#6-mapa-interativo--pintura-territorial)
+7. [Cadastros — gestão da APS](#7-cadastros--gestão-da-aps)
+8. [Povoados e localidades (complemento ao mapa)](#8-povoados-e-localidades)
+9. [Integrações e importações](#9-integrações-e-importações)
+10. [Administração do sistema](#10-administração-do-sistema)
+11. [Fluxo operacional recomendado](#11-fluxo-operacional-recomendado)
+12. [Segurança, auditoria e LGPD](#12-segurança-auditoria-e-lgpd)
+13. [Arquitetura técnica](#13-arquitetura-técnica)
+14. [Suporte e limitações do ambiente](#14-suporte-e-limitações-do-ambiente)
+15. [Termo de aceite e assinaturas](#15-termo-de-aceite-e-assinaturas)
+
+</div>
+
+---
+
+# 1. Apresentação e objetivo
+
+## 1.1 Contexto
+
+A **Atenção Primária à Saúde (APS)** no Brasil organiza o território em **microáreas**, cada uma coberta por um **Agente Comunitário de Saúde (ACS)**. O planejamento territorial exige mapas precisos que relacionem ruas, bairros, povoados e equipes — tarefa tradicionalmente feita em planilhas ou desenhos imprecisos.
+
+O **SIGAPS** (*Sistema Inteligente de Gestão das Microáreas da APS*) resolve esse problema com uma plataforma GIS web profissional: o enfermeiro, coordenador ou secretário trabalha diretamente sobre o **mapa real do município**, vinculando ruas oficiais (OpenStreetMap) às microáreas com cores automáticas, indicadores de cobertura e relatórios exportáveis.
+
+## 1.2 Destinatário deste manual
+
+Este documento foi elaborado para **Jonas Almeida Medeiros**, enfermeiro da APS em Passagem Franca/MA, como referência completa do sistema entregue. Contém descrição funcional, capturas de tela da aplicação em produção, fluxos de trabalho e termo de aceite para homologação oficial.
+
+## 1.3 Objetivos do sistema
+
+| Objetivo | Descrição |
+|----------|-----------|
+| **Territorialização** | Vincular cada rua do município a uma microárea no mapa |
+| **Visualização** | Exibir cobertura por cores, gráficos e indicadores |
+| **Cadastro APS** | Gerenciar UBS, ACS, bairros, povoados e microáreas |
+| **Integração** | Importar dados do OSM, e-SUS (CSV) e CNES |
+| **Rastreabilidade** | Registrar todas as alterações em log de auditoria |
+| **Relatórios** | Exportar mapas em PDF, PNG, GeoJSON, KML e CSV |
+
+---
+
+# 2. Escopo da entrega
+
+## 2.1 Módulos entregues
+
+| Módulo | Status | Descrição |
+|--------|--------|-----------|
+| Autenticação JWT | ✅ Entregue | Login seguro com refresh automático |
+| Dashboard | ✅ Entregue | Indicadores, gráficos, checklist operacional |
+| Mapa interativo | ✅ Entregue | Pintura, busca, camadas, exportação |
+| Cadastros | ✅ Entregue | Município, UBS, ACS, Bairros, Povoados, Microáreas |
+| Integrações OSM | ✅ Entregue | Importação de ruas e povoados |
+| Integração e-SUS | ✅ Entregue | Importação CSV de famílias/habitantes |
+| Integração CNES | ✅ Entregue | Validação de UBS no Ministério da Saúde |
+| Administração | ✅ Entregue | Usuários, backup, auditoria, homologação |
+| PWA (celular) | ✅ Entregue | Instalável como aplicativo no smartphone |
+| Modo ACS | ✅ Entregue | Consulta restrita à microárea do agente |
+
+## 2.2 Fora do escopo (evolução futura)
+
+- Sincronização automática bidirecional com e-SUS AB (atualmente via CSV)
+- Aplicativo nativo iOS/Android
+- Módulo de visitas domiciliares em campo
+
+---
+
+# 3. Acesso ao sistema
+
+## 3.1 URL e requisitos
+
+| Item | Valor |
+|------|-------|
+| **Endereço** | https://sigaps-api.onrender.com |
+| **Navegador** | Chrome, Edge ou Firefox (versão atual) |
+| **Internet** | Conexão estável (mapas consomem dados) |
+| **Dispositivo** | Computador, tablet ou celular (PWA) |
+
+## 3.2 Tela de login
+
+A tela de login apresenta a identidade visual do município, campos de e-mail e senha, e aviso sobre o tempo de resposta na hospedagem gratuita (primeiro acesso do dia pode levar até 1 minuto).
+
+![Tela de login do SIGAPS](screenshots/01-login.png)
+<p class="fig-caption">Figura 1 — Tela de login do SIGAPS (Passagem Franca/MA)</p>
+
+## 3.3 Credenciais de demonstração
+
+| Perfil | E-mail | Senha | Uso |
+|--------|--------|-------|-----|
+| Administrador | admin@passagemfranca.ma.gov.br | Sigaps@2026 | Gestão completa |
+| Enfermeiro | jonas@passagemfranca.ma.gov.br | Sigaps@2026 | Operação diária |
+| ACS | acs@passagemfranca.ma.gov.br | Sigaps@2026 | Consulta microárea |
+
+<div class="warning-box">
+
+**Importante:** Altere as senhas padrão após a homologação oficial. O administrador pode redefinir senhas em **Administração → Usuários**.
+
+</div>
+
+---
+
+# 4. Perfis de usuário e permissões
+
+O SIGAPS possui cinco perfis de acesso, cada um com permissões específicas:
+
+| Capacidade | Admin | Sec. Saúde | Coord. APS | Enfermeiro | ACS |
+|------------|:-----:|:----------:|:----------:|:----------:|:---:|
+| Dashboard | ✓ | ✓ | ✓ | ✓ | — |
+| Mapa (consulta) | ✓ | ✓ | ✓ | ✓ | ✓* |
+| Pintar / importar ruas | ✓ | ✓ | ✓ | ✓ | — |
+| Cadastros (editar) | ✓ | ✓ | ✓ | —** | — |
+| Cadastrar ACS | ✓ | ✓ | ✓ | ✓ | — |
+| Administração | ✓ | — | — | — | — |
+| Homologar mapa | ✓ | ✓ | — | — | — |
+
+\* ACS visualiza apenas a microárea vinculada ao seu cadastro.  
+\** Enfermeiro edita somente a seção ACS; demais seções em modo leitura.
+
+---
+
+# 5. Dashboard — indicadores em tempo real
+
+O Dashboard é a página inicial do sistema (exceto para ACS, que são direcionados ao mapa). Apresenta uma visão consolidada da situação territorial do município.
+
+![Dashboard do SIGAPS](screenshots/02-dashboard.png)
+<p class="fig-caption">Figura 2 — Dashboard com indicadores, cobertura territorial e tabela por ACS</p>
+
+## 5.1 Indicadores principais
+
+| Card | O que mostra |
+|------|--------------|
+| **UBS** | Total de Unidades Básicas de Saúde cadastradas |
+| **ACS** | Agentes comunitários ativos |
+| **Microáreas** | Territórios de cobertura definidos |
+| **Ruas** | Vias importadas do OpenStreetMap |
+| **Famílias** | Total de famílias (dados e-SUS) |
+| **Habitantes** | População estimada por rua |
+
+## 5.2 Cobertura territorial
+
+Exibe o percentual de ruas já vinculadas a microáreas. A meta operacional recomendada é **≥ 80%** para homologação do mapa pela Secretaria Municipal de Saúde.
+
+## 5.3 Gráficos e tabelas
+
+- **Gráfico de pizza:** ruas vinculadas vs. pendentes
+- **Gráfico de barras:** distribuição de ruas por microárea (cores correspondentes ao mapa)
+- **Tabela de cobertura por ACS:** ruas pintadas, percentual, famílias e habitantes por agente
+- **Exportação CSV** da tabela de cobertura
+
+## 5.4 Checklist operacional
+
+Lista de 9 itens que acompanham a implantação:
+
+1. Malha viária importada
+2. Microáreas cadastradas
+3. UBS cadastradas
+4. ACS vinculados às microáreas
+5. Cobertura territorial ≥ 80%
+6. Bairros atribuídos às ruas (≥ 50%)
+7. Dados de famílias (e-SUS)
+8. Sincronização e-SUS realizada
+9. Mapa homologado pela SMS
+
+---
+
+# 6. Mapa interativo — pintura territorial
+
+O módulo **Pintar Mapa** é o coração do SIGAPS. Ocupa quase toda a tela e permite trabalhar diretamente sobre o território real.
+
+![Mapa interativo do SIGAPS](screenshots/03-mapa.png)
+<p class="fig-caption">Figura 3 — Mapa em modo satélite com microáreas, UBS, povoados e painel de pintura</p>
+
+## 6.1 Barra de ferramentas superior
+
+| Ferramenta | Função |
+|------------|--------|
+| **Busca** | Localizar ruas, bairros, UBS, ACS, microáreas e povoados |
+| **Camadas** | Alternar entre Mapa, Satélite e Relevo |
+| **Atualizar ruas** | Reimportar malha viária do OpenStreetMap |
+| **Cobertura %** | Percentual de ruas pintadas |
+| **Toggles** | Microáreas, Famílias (heatmap), UBS, Povoados |
+| **Arquivos** | Importar/exportar GeoJSON, KML, CSV, Shapefile, PDF |
+| **Tela cheia** | Modo fullscreen |
+| **Centralizar** | Voltar ao centro do município |
+
+## 6.2 Painel "Pintar microáreas"
+
+Painel minimizável na parte inferior com:
+
+- Seleção da **microárea ativa** (cor correspondente)
+- Modos: **Navegar**, **Pintar** (pincel contínuo) e **Borracha**
+- **Pintar bairro inteiro** de uma vez
+- **Desmarcar microárea** e botão **Guardar e ver mapa**
+- Atalho: clique na rua para pintar; **Ctrl+clique** para seleção múltipla
+
+## 6.3 Painel da rua (StreetPanel)
+
+Ao clicar em uma rua (fora do modo pintura):
+
+- Vincular/desvincular microárea
+- Vincular bairro
+- Sugestão automática de microárea por proximidade
+- Editar famílias, habitantes e imóveis
+
+## 6.4 Divisões de mapa (zonas circulares)
+
+Permite desenhar círculos no mapa com raio ajustável para pintar todas as ruas dentro da área de uma vez. As zonas podem ser salvas e reutilizadas.
+
+## 6.5 Exportações do mapa
+
+| Formato | Uso |
+|---------|-----|
+| **PDF A4/A3** | Mapa oficial para impressão (com carimbo de homologação) |
+| **PNG / JPEG** | Imagem para apresentações |
+| **GeoJSON** | Interoperabilidade com QGIS |
+| **KML** | Google Earth |
+| **SVG** | Edição vetorial |
+
+---
+
+# 7. Cadastros — gestão da APS
+
+A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pelo menu lateral ou URL `/cadastros?secao={seção}`.
+
+## 7.1 Município
+
+![Cadastros — Município](screenshots/04-cadastros-municipio.png)
+<p class="fig-caption">Figura 4 — Dados institucionais, logotipo e importação e-SUS</p>
+
+- Nome, UF, prefeitura e secretaria
+- Upload do logotipo municipal (aparece no login e relatórios)
+- **Importar CSV e-SUS** (famílias e habitantes por rua)
+- **Re-sincronizar** último arquivo importado
+
+## 7.2 Unidades Básicas de Saúde (UBS)
+
+![Cadastros — UBS](screenshots/05-cadastros-ubs.png)
+<p class="fig-caption">Figura 5 — Cadastro de UBS com validação CNES</p>
+
+- Nome, endereço, telefone, coordenadas e coordenador
+- **Validação CNES** via API do Ministério da Saúde
+- Marcador azul no mapa (toggle UBS)
+
+## 7.3 Agentes Comunitários de Saúde (ACS)
+
+![Cadastros — ACS](screenshots/06-cadastros-acs.png)
+<p class="fig-caption">Figura 6 — Gestão de ACS com vinculação a microáreas</p>
+
+- Visualização em cards ou tabela
+- Cadastro manual ou **importação em lote CSV**
+- Vinculação obrigatória à microárea
+- Foto do agente (opcional)
+- Filtro "sem microárea" para pendências
+
+## 7.4 Bairros
+
+![Cadastros — Bairros](screenshots/07-cadastros-bairros.png)
+<p class="fig-caption">Figura 7 — Divisão territorial e vinculação de ruas</p>
+
+- CRUD de bairros do município
+- **Vincular ruas via planilha CSV** (modelo disponível no sistema)
+- Contagem de ruas por bairro
+
+## 7.5 Microáreas
+
+![Cadastros — Microáreas](screenshots/09-cadastros-microareas.png)
+<p class="fig-caption">Figura 8 — Territórios de cobertura com cores e vínculos</p>
+
+- Número, nome, cor e descrição
+- Vínculos: UBS, ACS e bairro de referência
+- Contagem de ruas pintadas
+- Atalhos para pintar no mapa
+
+---
+
+# 8. Povoados e localidades
+
+Módulo criado para **complementar** o mapa de ruas do OpenStreetMap com lugares que aparecem no Google Maps mas não constam na malha viária — como o **Povoado Bacabinha**.
+
+![Cadastros — Povoados](screenshots/08-cadastros-povoados.png)
+<p class="fig-caption">Figura 9 — Cadastro de povoados e localidades rurais</p>
+
+## 8.1 Funcionalidades
+
+| Ação | Descrição |
+|------|-----------|
+| **Importar OSM** | Busca povoados, vilas e localidades no OpenStreetMap |
+| **Buscar no mapa** | Geocodificação via Nominatim (estilo Google Maps) |
+| **Cadastro manual** | Nome, tipo, latitude e longitude |
+| **Marcadores no mapa** | Ícones marrons (toggle "Povoados" na barra do mapa) |
+| **Busca unificada** | Povoados aparecem na barra de pesquisa do mapa |
+
+## 8.2 Tipos de localidade
+
+- **Povoado** — núcleo rural habitado
+- **Localidade** — lugar nomeado sem classificação específica
+- **Distrito** — subdivisão administrativa
+
+<div class="info-box">
+
+O mapeamento de **ruas** existente **não é alterado** por este módulo. Os povoados são pontos complementares exibidos como marcadores no mapa.
+
+</div>
+
+---
+
+# 9. Integrações e importações
+
+## 9.1 OpenStreetMap / Overpass
+
+| O quê | Onde | Como |
+|-------|------|------|
+| Ruas | Mapa → Atualizar ruas | API Overpass (automático) |
+| Povoados | Cadastros → Povoados → Importar OSM | Complemento após import de ruas |
+
+## 9.2 e-SUS (CSV piloto)
+
+1. Exportar planilha do e-SUS com famílias por logradouro
+2. Cadastros → Município → Importar CSV e-SUS
+3. Dados aparecem no mapa (heatmap de famílias) e no Dashboard
+
+## 9.3 CNES (Ministério da Saúde)
+
+Cadastros → UBS → informar código CNES → sistema valida e preenche dados automaticamente.
+
+## 9.4 Formatos geográficos
+
+| Formato | Importar | Exportar |
+|---------|:--------:|:--------:|
+| GeoJSON | ✓ | ✓ |
+| KML | ✓ | ✓ |
+| CSV (ruas) | ✓ | — |
+| Shapefile (.shp) | ✓ | — |
+| PDF / PNG | — | ✓ |
+
+---
+
+# 10. Administração do sistema
+
+Acesso exclusivo do **Administrador** em `/admin`.
+
+![Administração do SIGAPS](screenshots/10-admin.png)
+<p class="fig-caption">Figura 10 — Painel administrativo com resumo, backup e usuários</p>
+
+## 10.1 Abas disponíveis
+
+| Aba | Função |
+|-----|--------|
+| **Resumo** | Contagens do sistema, versão e commit |
+| **Backup** | Exportar/importar JSON; backups automáticos semanais |
+| **Usuários** | Criar, editar, ativar/desativar, redefinir senha |
+| **Auditoria** | Log de todas as ações com filtros e export CSV |
+| **Homologação** | Registrar mapa oficial SMS; certificado PDF |
+
+## 10.2 Homologação do mapa
+
+Quando o checklist operacional estiver completo (cobertura ≥ 80%):
+
+1. Admin → Homologação → Registrar com observações
+2. Carimbo aparece nos PDFs exportados do mapa
+3. Certificado PDF disponível para arquivo oficial
+
+---
+
+# 11. Fluxo operacional recomendado
+
+Passo a passo para implantação completa em um município:
+
+```
+1. Login como administrador ou coordenador
+2. Cadastros → Município: dados institucionais e logo
+3. Cadastros → UBS: cadastrar unidades (validar CNES)
+4. Cadastros → Microáreas: criar territórios numerados
+5. Mapa → Atualizar ruas (importar OSM)
+6. Cadastros → Bairros + vincular ruas (planilha ou mapa)
+7. Cadastros → Povoados: importar OSM ou buscar no mapa
+8. Cadastros → ACS: cadastrar agentes e vincular microáreas
+9. Mapa → Pintar ruas (clique, pincel, bairro ou zona circular)
+10. Cadastros → Município: importar CSV e-SUS
+11. Dashboard: acompanhar cobertura até ≥ 80%
+12. Admin → Homologação: registrar mapa oficial
+```
+
+---
+
+# 12. Segurança, auditoria e LGPD
+
+## 12.1 Autenticação
+
+- JWT com access token (15 min) e refresh token (7 dias)
+- Senhas armazenadas com hash bcrypt
+- Sessão persistida com renovação automática
+
+## 12.2 Auditoria
+
+Todas as ações relevantes são registradas:
+
+- Cadastro, edição e exclusão de entidades
+- Pintura e desvinculação de ruas
+- Importações OSM e e-SUS
+- Homologação/revogação do mapa
+- Reset de senha
+
+Consulta em **Administração → Auditoria** com export CSV.
+
+## 12.3 LGPD — proteção de dados pessoais
+
+- CPF exibido completo apenas para Administrador, Secretário e Coordenador
+- Enfermeiro e ACS visualizam CPF mascarado (***.***.***-XX)
+- Logs de auditoria não armazenam senhas
+
+---
+
+# 13. Arquitetura técnica
+
+| Camada | Tecnologia |
+|--------|------------|
+| **Frontend** | React 19, TypeScript, Vite, Material UI, Leaflet |
+| **Estado** | Zustand + TanStack Query |
+| **Backend** | NestJS, Prisma ORM, Swagger |
+| **Banco** | PostgreSQL + PostGIS (Supabase) |
+| **Mapas** | OpenStreetMap, Esri Satélite, OpenTopoMap |
+| **Geocodificação** | Nominatim, Overpass API |
+| **Hospedagem** | Render (API) + GitHub Actions (CI/CD) |
+| **PWA** | Service Worker + manifest (instalável) |
+
+## 13.1 Repositório
+
+Código-fonte open source (licença MIT): repositório GitHub do projeto SIGAPS.
+
+---
+
+# 14. Suporte e limitações do ambiente
+
+![Página de Ajuda](screenshots/11-ajuda.png)
+<p class="fig-caption">Figura 11 — Orientações sobre o plano gratuito e funcionalidades</p>
+
+## 14.1 Plano gratuito (Render Free)
+
+| Limitação | Impacto | Mitigação |
+|-----------|---------|-----------|
+| Cold start (~1 min) | Primeiro acesso do dia é lento | Aguardar na tela de login |
+| Disco efêmero | Backups automáticos podem ser perdidos | Baixar backup JSON semanalmente |
+| 512 MB RAM | Municípios muito grandes usam carregamento por viewport | Automático acima de 800 ruas |
+
+## 14.2 Contato do desenvolvedor
+
+| | |
+|---|---|
+| **Desenvolvedor** | Yuri Medeiros Bandeira |
+| **Função** | Programador / responsável técnico |
+| **Sistema** | SIGAPS v1.0.0-MVP |
+
+---
+
+<div class="signature-page">
+
+# 15. Termo de aceite e assinaturas
+
+## 15.1 Declaração de entrega
+
+Declaro que o sistema **SIGAPS — Sistema Inteligente de Gestão das Microáreas da APS**, versão **1.0.0-MVP**, foi desenvolvido, implantado em produção e documentado conforme descrito neste manual, atendendo aos requisitos de gestão territorial da Atenção Primária à Saúde do município de **Passagem Franca — Maranhão**.
+
+O sistema encontra-se disponível em **https://sigaps-api.onrender.com** e inclui todos os módulos descritos nas seções 2 a 14 deste documento.
+
+## 15.2 Termo de recebimento
+
+O cliente abaixo identificado declara ter recebido o sistema, revisado as funcionalidades descritas neste manual, testado a aplicação em ambiente de produção e estar ciente das limitações do plano de hospedagem gratuito (seção 14).
+
+---
+
+### CLIENTE / RECEPTOR
+
+| Campo | Informação |
+|-------|------------|
+| **Nome completo** | Jonas Almeida Medeiros |
+| **Função** | Enfermeiro da APS |
+| **Órgão** | Secretaria Municipal de Saúde — Passagem Franca/MA |
+| **Data do recebimento** | _____ / _____ / 2026 |
+
+**Assinatura:**
+
+<div class="signature-line">
+
+**Jonas Almeida Medeiros**  
+Enfermeiro — Atenção Primária à Saúde  
+Secretaria Municipal de Saúde de Passagem Franca/MA
+
+</div>
+
+**Assinatura digital gov.br** *(assinatura eletrônica do Governo Federal)*:
+
+<div class="signature-gov">
+
+Espaço reservado para assinatura com **conta gov.br** (nível prata ou ouro).<br>
+Acesse https://www.gov.br/governodigital e utilize o aplicativo **Assinador SERPRO** ou a extensão de assinatura digital no PDF.
+
+</div>
+
+---
+
+### DESENVOLVEDOR / ENTREGADOR TÉCNICO
+
+| Campo | Informação |
+|-------|------------|
+| **Nome completo** | Yuri Medeiros Bandeira |
+| **Função** | Programador / Desenvolvedor do SIGAPS |
+| **Data da entrega** | 02 de julho de 2026 |
+
+**Assinatura:**
+
+<div class="signature-line">
+
+**Yuri Medeiros Bandeira**  
+Desenvolvedor do SIGAPS  
+Sistema Inteligente de Gestão das Microáreas da APS
+
+</div>
+
+**Assinatura digital gov.br** *(opcional)*:
+
+<div class="signature-gov">
+
+Espaço reservado para assinatura com **conta gov.br** (nível prata ou ouro).
+
+</div>
+
+---
+
+## 15.3 Observações finais
+
+| Item | Detalhe |
+|------|---------|
+| **Validade** | Este termo vale como registro de entrega do MVP |
+| **Homologação** | A homologação oficial do mapa é feita separadamente em Admin → Homologação |
+| **Suporte** | Dúvidas operacionais: consultar seções 5–11 deste manual |
+| **Versão do documento** | 1.0 — 02/07/2026 |
+
+</div>
+
+---
+
+*Fim do documento — SIGAPS Manual de Entrega Oficial v1.0*
