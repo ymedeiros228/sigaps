@@ -37,12 +37,24 @@ async function main() {
 
   const passwordHash = await bcrypt.hash('Sigaps@2026', 10);
 
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'jonas@passagemfranca.ma.gov.br' },
     create: {
       email: 'jonas@passagemfranca.ma.gov.br',
       passwordHash,
       name: 'Jonas Almeida Medeiros',
+      role: UserRole.ENFERMEIRO,
+      municipalityId: municipality.id,
+    },
+    update: { passwordHash, municipalityId: municipality.id, role: UserRole.ENFERMEIRO },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'admin@passagemfranca.ma.gov.br' },
+    create: {
+      email: 'admin@passagemfranca.ma.gov.br',
+      passwordHash,
+      name: 'Administrador SIGAPS',
       role: UserRole.ADMINISTRADOR,
       municipalityId: municipality.id,
     },
@@ -135,7 +147,7 @@ async function main() {
 
   console.log('Seed concluído!');
   console.log(`Município: ${municipality.name} (${municipality.id})`);
-  console.log(`Usuário: ${admin.email} / Sigaps@2026`);
+  console.log('Usuários: jonas@passagemfranca.ma.gov.br (enfermeiro) / admin@passagemfranca.ma.gov.br (admin) — Sigaps@2026');
 }
 
 main()
