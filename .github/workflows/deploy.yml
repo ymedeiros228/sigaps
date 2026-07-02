@@ -112,3 +112,24 @@ jobs:
       - name: Disparar redeploy no Render
         if: steps.hook.outputs.configured == 'true'
         run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+      - name: Aguardar API atualizar
+        if: steps.hook.outputs.configured == 'true'
+        env:
+          API_URL: ${{ secrets.VITE_API_URL }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          BASE="${API_URL:-https://sigaps-api.onrender.com}"
+          BASE="${BASE%/}"
+          echo "Aguardando ${BASE}/health reportar commit ${EXPECTED_COMMIT:0:7}..."
+          for i in $(seq 1 36); do
+            BODY=$(curl -fsS "${BASE}/health" || true)
+            COMMIT=$(echo "$BODY" | sed -n 's/.*"commit":"\([^"]*\)".*/\1/p')
+            if [ -n "$COMMIT" ] && [ "$COMMIT" = "$EXPECTED_COMMIT" ]; then
+              echo "Deploy confirmado: $COMMIT"
+              exit 0
+            fi
+            echo "Tentativa $i/36 — commit atual: ${COMMIT:-desconhecido}"
+            sleep 10
+          done
+          echo "::warning::Render ainda nao reportou o commit esperado apos 6 minutos"

@@ -65,6 +65,8 @@ async function bootstrap() {
       '/audit',
       '/admin',
       '/paint-zones',
+      '/integrations',
+      '/cadastros',
       '/docs',
       '/uploads',
     ];

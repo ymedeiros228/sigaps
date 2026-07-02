@@ -16,6 +16,16 @@ import { queryKeys } from '../../../utils/queryKeys';
 
 type UbsForm = Omit<Ubs, 'id' | '_count'>;
 
+function sanitizeUbsForm(values: UbsForm): UbsForm {
+  const cnes = (values.cnesCode ?? '').replace(/\D/g, '').slice(0, 7);
+  return {
+    ...values,
+    cnesCode: cnes.length === 7 ? cnes : undefined,
+    phone: values.phone?.trim() || undefined,
+    coordinator: values.coordinator?.trim() || undefined,
+  };
+}
+
 export function UbsTab({ municipalityId }: { municipalityId: string }) {
   const { canManage, reportError, reportSuccess, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
@@ -52,8 +62,12 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
   }, [data, search]);
 
   const saveMutation = useMutation({
-    mutationFn: (values: UbsForm) =>
-      editing ? ubsApi.update(editing.id, values) : ubsApi.create({ ...values, municipalityId }),
+    mutationFn: (values: UbsForm) => {
+      const payload = sanitizeUbsForm(values);
+      return editing
+        ? ubsApi.update(editing.id, payload)
+        : ubsApi.create({ ...payload, municipalityId });
+    },
     onSuccess: () => {
       invalidateCadastrosCache(queryClient, municipalityId);
       setOpen(false);

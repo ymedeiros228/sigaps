@@ -36,5 +36,7 @@ COPY --from=backend-builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY backend/prisma ./prisma
 COPY backend/assets ./assets
 COPY --from=frontend-builder /frontend/dist ./public
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 EXPOSE 3000
-CMD ["node", "dist/src/main.js"]
+CMD ["/docker-entrypoint.sh"]

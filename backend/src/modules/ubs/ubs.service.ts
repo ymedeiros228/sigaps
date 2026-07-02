@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
@@ -37,8 +38,22 @@ export class UbsService {
     return auditSnapshot(ubs as Record<string, unknown>, ['name', 'address', 'phone', 'cnesCode']);
   }
 
+  private prepareUbsData(dto: CreateUbsDto): Prisma.UbsUncheckedCreateInput;
+  private prepareUbsData(dto: UpdateUbsDto, isUpdate: true): Prisma.UbsUncheckedUpdateInput;
+  private prepareUbsData(
+    dto: CreateUbsDto | UpdateUbsDto,
+    isUpdate = false,
+  ): Prisma.UbsUncheckedCreateInput | Prisma.UbsUncheckedUpdateInput {
+    const data = { ...dto } as Record<string, unknown>;
+    if ('cnesCode' in dto && !dto.cnesCode) {
+      if (isUpdate) data.cnesCode = null;
+      else delete data.cnesCode;
+    }
+    return data as Prisma.UbsUncheckedCreateInput | Prisma.UbsUncheckedUpdateInput;
+  }
+
   async create(dto: CreateUbsDto, userId: string) {
-    const ubs = await this.prisma.ubs.create({ data: dto });
+    const ubs = await this.prisma.ubs.create({ data: this.prepareUbsData(dto) });
     await this.audit.log({
       userId,
       entityType: 'ubs',
@@ -51,7 +66,7 @@ export class UbsService {
 
   async update(id: string, dto: UpdateUbsDto, userId: string) {
     const before = await this.findOne(id);
-    const ubs = await this.prisma.ubs.update({ where: { id }, data: dto });
+    const ubs = await this.prisma.ubs.update({ where: { id }, data: this.prepareUbsData(dto, true) });
     await this.audit.log({
       userId,
       entityType: 'ubs',
