@@ -93,6 +93,8 @@ model Neighborhood {
 
   streets Street[]
 
+  microareas Microarea[]
+
   @@unique([name, municipalityId])
   @@index([municipalityId])
   @@map("neighborhoods")
@@ -111,6 +113,8 @@ model Microarea {
   municipality   Municipality @relation(fields: [municipalityId], references: [id], onDelete: Cascade)
   acsId          String?      @unique @map("acs_id")
   acs            Acs?         @relation(fields: [acsId], references: [id])
+  neighborhoodId String?      @map("neighborhood_id")
+  neighborhood   Neighborhood? @relation(fields: [neighborhoodId], references: [id])
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
@@ -119,6 +123,7 @@ model Microarea {
 
   @@unique([number, municipalityId])
   @@index([municipalityId])
+  @@index([neighborhoodId])
   @@map("microareas")
 }
 

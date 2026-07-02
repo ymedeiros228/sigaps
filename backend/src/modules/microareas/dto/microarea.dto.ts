@@ -1,4 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { EntityStatus } from '@prisma/client';
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -7,8 +9,13 @@ import {
   IsUUID,
   Matches,
   Min,
+  ValidateIf,
 } from 'class-validator';
-import { EntityStatus } from '@prisma/client';
+
+function emptyToNull({ value }: { value: unknown }) {
+  if (value === '' || value === undefined) return null;
+  return value;
+}
 
 export class CreateMicroareaDto {
   @ApiProperty({ example: 1 })
@@ -36,13 +43,24 @@ export class CreateMicroareaDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Transform(emptyToNull)
+  @ValidateIf((_, v) => v !== null)
   @IsUUID()
-  ubsId?: string;
+  ubsId?: string | null;
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Transform(emptyToNull)
+  @ValidateIf((_, v) => v !== null)
   @IsUUID()
-  acsId?: string;
+  acsId?: string | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(emptyToNull)
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  neighborhoodId?: string | null;
 
   @ApiProperty({ enum: EntityStatus, required: false })
   @IsOptional()

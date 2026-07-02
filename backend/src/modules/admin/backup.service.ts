@@ -211,6 +211,7 @@ export class BackupService {
             status: (row.status as 'ATIVO' | 'INATIVO') ?? 'ATIVO',
             ubsId: (row.ubsId as string) ?? null,
             acsId: (row.acsId as string) ?? null,
+            neighborhoodId: (row.neighborhoodId as string) ?? null,
             municipalityId,
           },
           update: {
@@ -221,6 +222,7 @@ export class BackupService {
             status: (row.status as 'ATIVO' | 'INATIVO') ?? 'ATIVO',
             ubsId: (row.ubsId as string) ?? null,
             acsId: (row.acsId as string) ?? null,
+            neighborhoodId: (row.neighborhoodId as string) ?? null,
           },
         });
         stats.microareas++;

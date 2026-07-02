@@ -137,8 +137,10 @@ export interface Microarea {
   status?: string;
   ubsId?: string;
   acsId?: string;
+  neighborhoodId?: string;
   ubs?: { id: string; name: string };
   acs?: { id: string; name: string; phone?: string };
+  neighborhood?: { id: string; name: string };
   _count?: { streets: number };
 }
 

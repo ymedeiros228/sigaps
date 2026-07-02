@@ -145,6 +145,21 @@ export function SigapsMap() {
   );
   const deferredStreets = useDeferredValue(streets);
 
+  const lastFocusedMicroareaRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedMicroareaId || streets.length === 0) return;
+    if (lastFocusedMicroareaRef.current === selectedMicroareaId) return;
+    const ma = microareasData.find((m) => m.id === selectedMicroareaId);
+    if (!ma?.neighborhoodId) return;
+    const hoodStreets = streets.filter((s) => s.neighborhood?.id === ma.neighborhoodId);
+    if (hoodStreets.length === 0) return;
+    lastFocusedMicroareaRef.current = selectedMicroareaId;
+    useMapStore.getState().focusOnLines(
+      hoodStreets.map((s) => s.geojson),
+      15,
+    );
+  }, [selectedMicroareaId, microareasData, streets]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;

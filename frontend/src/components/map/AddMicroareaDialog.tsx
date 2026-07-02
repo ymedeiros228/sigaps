@@ -8,11 +8,19 @@ import {
   TextField,
   Box,
   CircularProgress,
+  Divider,
 } from '@mui/material';
 import { Add } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { microareasApi, type Microarea } from '../../services/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  acsApi,
+  microareasApi,
+  neighborhoodsApi,
+  ubsApi,
+  type Microarea,
+} from '../../services/api';
+import { MicroareaLinkFields } from '../cadastros/MicroareaLinkFields';
 import { MICROAREA_COLORS } from '../cadastros/cadastrosConfig';
 
 interface AddMicroareaDialogProps {
@@ -23,7 +31,14 @@ interface AddMicroareaDialogProps {
   onCreated: (microarea: Microarea) => void;
 }
 
-type Form = { name: string; color: string; number: number };
+type Form = {
+  name: string;
+  color: string;
+  number: number;
+  ubsId?: string;
+  acsId?: string;
+  neighborhoodId?: string;
+};
 
 export function AddMicroareaDialog({
   open,
@@ -35,12 +50,39 @@ export function AddMicroareaDialog({
   const queryClient = useQueryClient();
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<Form>();
 
+  const { data: microareas = [] } = useQuery({
+    queryKey: ['microareas', municipalityId],
+    queryFn: () => microareasApi.list(municipalityId).then((r) => r.data),
+    enabled: open,
+  });
+
+  const { data: ubsList = [] } = useQuery({
+    queryKey: ['ubs', municipalityId],
+    queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
+    enabled: open,
+  });
+
+  const { data: acsList = [] } = useQuery({
+    queryKey: ['acs', municipalityId],
+    queryFn: () => acsApi.list(municipalityId).then((r) => r.data),
+    enabled: open,
+  });
+
+  const { data: neighborhoods = [] } = useQuery({
+    queryKey: ['neighborhoods', municipalityId],
+    queryFn: () => neighborhoodsApi.list(municipalityId).then((r) => r.data),
+    enabled: open,
+  });
+
   useEffect(() => {
     if (!open) return;
     reset({
       number: existingCount + 1,
       name: `Microárea ${String(existingCount + 1).padStart(2, '0')}`,
       color: MICROAREA_COLORS[existingCount % MICROAREA_COLORS.length],
+      ubsId: '',
+      acsId: '',
+      neighborhoodId: '',
     });
   }, [open, existingCount, reset]);
 
@@ -48,23 +90,32 @@ export function AddMicroareaDialog({
 
   const mutation = useMutation({
     mutationFn: (values: Form) =>
-      microareasApi.create({ ...values, municipalityId }).then((r) => r.data),
+      microareasApi
+        .create({
+          number: values.number,
+          name: values.name,
+          color: values.color,
+          municipalityId,
+          ubsId: values.ubsId || undefined,
+          acsId: values.acsId || undefined,
+          neighborhoodId: values.neighborhoodId || undefined,
+        })
+        .then((r) => r.data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['microareas'] });
+      queryClient.invalidateQueries({ queryKey: ['acs'] });
       onCreated(data);
       onClose();
     },
   });
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Add color="primary" />
         Nova microárea
       </DialogTitle>
-      <form
-        onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      >
+      <form onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           <TextField
             label="Número"
@@ -98,9 +149,21 @@ export function AddMicroareaDialog({
               ))}
             </Box>
           </Box>
+
+          <Divider />
+
+          <MicroareaLinkFields
+            register={register}
+            ubsList={ubsList}
+            acsList={acsList}
+            neighborhoods={neighborhoods}
+            microareas={microareas}
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose} disabled={mutation.isPending}>Cancelar</Button>
+          <Button onClick={onClose} disabled={mutation.isPending}>
+            Cancelar
+          </Button>
           <Button
             type="submit"
             variant="contained"

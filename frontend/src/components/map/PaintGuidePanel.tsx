@@ -176,6 +176,17 @@ export function PaintGuidePanel({
                 sx={{ bgcolor: selectedMicroarea.color, color: '#fff', fontWeight: 700 }}
               />
             )}
+            {selectedMicroarea && (selectedMicroarea.acs || selectedMicroarea.ubs || selectedMicroarea.neighborhood) && (
+              <Typography variant="caption" color="text.secondary" sx={{ width: '100%', mt: -0.5 }}>
+                {[
+                  selectedMicroarea.acs?.name && `ACS: ${selectedMicroarea.acs.name}`,
+                  selectedMicroarea.ubs?.name && `UBS: ${selectedMicroarea.ubs.name}`,
+                  selectedMicroarea.neighborhood?.name && `Bairro: ${selectedMicroarea.neighborhood.name}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Typography>
+            )}
             {paintedCount > 0 && (
               <Chip
                 size="small"

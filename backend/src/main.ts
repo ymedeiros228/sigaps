@@ -63,6 +63,7 @@ async function bootstrap() {
       '/osm',
       '/geo',
       '/audit',
+      '/admin',
       '/paint-zones',
       '/docs',
       '/uploads',
