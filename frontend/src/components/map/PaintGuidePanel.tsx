@@ -250,6 +250,26 @@ export function PaintGuidePanel({
               </Alert>
             ) : (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+                {neighborhoods.length > 0 &&
+                  streets.filter((s) => !s.neighborhood?.id).length > 0 && (
+                    <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {streets.filter((s) => !s.neighborhood?.id).length} rua(s) sem bairro
+                      </Typography>
+                      <Typography variant="caption" component="div">
+                        Vincule em Cadastros → Bairros (planilha CSV) ou selecione ruas no mapa.
+                      </Typography>
+                      <Button
+                        component={RouterLink}
+                        to="/cadastros?secao=bairros"
+                        size="small"
+                        sx={{ mt: 1 }}
+                      >
+                        Ir para Bairros
+                      </Button>
+                    </Alert>
+                  )}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <StepRow
                   number={1}
                   done={!!selectedMicroareaId}
@@ -271,6 +291,7 @@ export function PaintGuidePanel({
                   title="Corrija com o modo apagar"
                   subtitle="Clique nas ruas pintadas para remover o vínculo"
                 />
+              </Box>
               </Box>
             )}
 

@@ -16,6 +16,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   microareasApi,
+  neighborhoodsApi,
   osmApi,
   paintZonesApi,
   streetsApi,
@@ -111,6 +112,13 @@ export function SigapsMap() {
       microareasApi.list(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
     staleTime: CACHE.microareas,
+  });
+
+  const { data: neighborhoods = [] } = useQuery({
+    queryKey: queryKeys.neighborhoods(municipalityId!),
+    queryFn: () => neighborhoodsApi.list(municipalityId!).then((r) => r.data),
+    enabled: !!municipalityId,
+    staleTime: CACHE.neighborhoods,
   });
 
   const { data: paintZones = [] } = useQuery({
@@ -256,6 +264,54 @@ export function SigapsMap() {
         setSnackbar({ message: getApiErrorMessage(err, 'Não foi possível vincular a rua.'), severity: 'warning' });
       }
     },
+  });
+
+  const assignNeighborhoodMutation = useMutation({
+    mutationFn: ({
+      streetIds,
+      neighborhoodId,
+    }: {
+      streetIds: string[];
+      neighborhoodId: string | null;
+    }) => streetsApi.assignNeighborhood(streetIds, neighborhoodId),
+    onSuccess: (_data, variables) => {
+      if (!municipalityId) return;
+      const hood = neighborhoods.find((n) => n.id === variables.neighborhoodId);
+      queryClient.setQueryData(queryKeys.streetsMap(municipalityId), (old: typeof streetsData) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((s) =>
+            variables.streetIds.includes(s.id)
+              ? {
+                  ...s,
+                  neighborhoodId: variables.neighborhoodId ?? undefined,
+                  neighborhood: hood ? { id: hood.id, name: hood.name } : undefined,
+                }
+              : s,
+          ),
+        };
+      });
+      if (selectedStreet && variables.streetIds.includes(selectedStreet.id)) {
+        setSelectedStreet((prev) =>
+          prev
+            ? {
+                ...prev,
+                neighborhoodId: variables.neighborhoodId ?? undefined,
+                neighborhood: hood ? { id: hood.id, name: hood.name } : undefined,
+              }
+            : null,
+        );
+      }
+      scheduleDashboardInvalidate(queryClient, municipalityId);
+      setSnackbar({ message: 'Bairro atualizado na(s) rua(s).', severity: 'success' });
+      clearSelection();
+    },
+    onError: (err) =>
+      setSnackbar({
+        message: getApiErrorMessage(err, 'Não foi possível vincular o bairro.'),
+        severity: 'warning',
+      }),
   });
 
   const importMutation = useMutation({
@@ -433,6 +489,17 @@ export function SigapsMap() {
     if (ids.length === 0) return;
     assignMutation.mutate({ streetIds: ids, microareaId, forceTransfer });
     clearSelection();
+  };
+
+  const handleBulkAssignNeighborhood = (neighborhoodId: string | null) => {
+    const ids =
+      selectedStreetIds.size > 0
+        ? Array.from(selectedStreetIds)
+        : selectedStreet
+          ? [selectedStreet.id]
+          : [];
+    if (ids.length === 0) return;
+    assignNeighborhoodMutation.mutate({ streetIds: ids, neighborhoodId });
   };
 
   const handleLocateStreet = useCallback(
@@ -656,10 +723,13 @@ export function SigapsMap() {
 
       <SelectionBar
         microareas={microareas}
+        neighborhoods={neighborhoods}
         count={selectedStreetIds.size}
         onAssign={(id) => handleBulkAssign(id)}
+        onAssignNeighborhood={handleBulkAssignNeighborhood}
         onUnassign={handleUnassignSelected}
         assigning={assignMutation.isPending}
+        assigningNeighborhood={assignNeighborhoodMutation.isPending}
         unassigning={unassignMutation.isPending}
         hasPaintedSelection={Array.from(selectedStreetIds).some((id) =>
           streets.find((s) => s.id === id)?.microareaId,
@@ -796,17 +866,25 @@ export function SigapsMap() {
         <StreetPanel
           street={selectedStreet}
           microareas={microareas}
+          neighborhoods={neighborhoods}
           onClose={() => {
             setSelectedStreet(null);
             setHighlightedStreet(null);
           }}
           onAssign={handleAssign}
+          onAssignNeighborhood={(neighborhoodId) =>
+            assignNeighborhoodMutation.mutate({
+              streetIds: [selectedStreet.id],
+              neighborhoodId,
+            })
+          }
           onUnassign={() => {
             if (selectedStreet?.microareaId) {
               unassignMutation.mutate([selectedStreet.id]);
             }
           }}
           assigning={assignMutation.isPending}
+          assigningNeighborhood={assignNeighborhoodMutation.isPending}
           unassigning={unassignMutation.isPending}
         />
       )}

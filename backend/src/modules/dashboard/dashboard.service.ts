@@ -35,6 +35,7 @@ export class DashboardService {
       microareasList,
       streetStats,
       assignedStreets,
+      streetsWithNeighborhood,
       recentChanges,
     ] = await Promise.all([
       safe('ubs', () => this.prisma.ubs.count({ where: { municipalityId } }), 0),
@@ -76,6 +77,14 @@ export class DashboardService {
           }),
         0,
       ),
+      safe(
+        'streetsWithNeighborhood',
+        () =>
+          this.prisma.street.count({
+            where: { municipalityId, neighborhoodId: { not: null } },
+          }),
+        0,
+      ),
       safe('recentChanges', () => this.audit.findRecent(municipalityId, 10), []),
     ]);
 
@@ -92,6 +101,8 @@ export class DashboardService {
       coverage:
         streetsCount > 0 ? Math.round((assignedStreets / streetsCount) * 100) : 0,
       assignedStreets,
+      streetsWithNeighborhood,
+      streetsWithoutNeighborhood: Math.max(0, streetsCount - streetsWithNeighborhood),
       microareasChart: microareasList.map((m) => ({
         name: m.name,
         color: m.color,

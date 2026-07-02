@@ -56,6 +56,7 @@ export function formatRoleLabel(role?: string): string {
 export function formatAuditAction(action: string, entityType: string): string {
   const actions: Record<string, string> = {
     ASSIGN_MICROAREA: 'Vinculou rua à microárea',
+    ASSIGN_NEIGHBORHOOD: 'Vinculou rua ao bairro',
     UNASSIGN_MICROAREA: 'Removeu pintura da rua',
     CLEAR_STREET_ASSIGNMENTS: 'Limpou todas as pinturas',
     CREATE: 'Cadastrou',

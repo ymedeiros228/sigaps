@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { IconButton, TextField, Tooltip } from '@mui/material';
-import { Add, Delete, Edit, LocationCity } from '@mui/icons-material';
+import { Button, IconButton, TextField, Tooltip } from '@mui/material';
+import { Add, Delete, Edit, LocationCity, Upload } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { neighborhoodsApi, type Neighborhood } from '../../../services/api';
@@ -9,6 +9,7 @@ import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
+import { NeighborhoodBulkAssignDialog } from '../NeighborhoodBulkAssignDialog';
 
 type NeighborhoodForm = { name: string };
 
@@ -16,6 +17,7 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
   const { canManage, reportError, reportSuccess, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Neighborhood | null>(null);
   const [search, setSearch] = useState('');
   const {
@@ -69,7 +71,7 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
     <>
       <CadastrosSectionHeader
         title="Bairros"
-        description="Organize a divisão territorial usada para agrupar ruas."
+        description="Organize a divisão territorial. Depois vincule as ruas aos bairros via planilha ou no mapa."
         count={data.length}
         search={search}
         onSearchChange={setSearch}
@@ -77,6 +79,18 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
         onAdd={() => openForm()}
         addLabel="Novo Bairro"
         canManage={canManage}
+        extra={
+          canManage && data.length > 0 ? (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Upload />}
+              onClick={() => setImportOpen(true)}
+            >
+              Vincular ruas (CSV)
+            </Button>
+          ) : undefined
+        }
       />
 
       <CadastrosDataTable
@@ -149,6 +163,18 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
           autoFocus
         />
       </CadastrosFormDialog>
+
+      <NeighborhoodBulkAssignDialog
+        open={importOpen}
+        municipalityId={municipalityId}
+        onClose={() => setImportOpen(false)}
+        onSuccess={(msg) => {
+          queryClient.invalidateQueries({ queryKey: ['neighborhoods'] });
+          queryClient.invalidateQueries({ queryKey: ['streets'] });
+          reportSuccess(msg);
+        }}
+        onError={reportError}
+      />
     </>
   );
 }

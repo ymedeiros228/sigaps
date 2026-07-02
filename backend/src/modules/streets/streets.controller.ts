@@ -13,6 +13,8 @@ import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
+import { AssignNeighborhoodDto } from './dto/assign-neighborhood.dto';
+import { BulkNeighborhoodDto } from './dto/bulk-neighborhood.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
 import { StreetsService } from './streets.service';
 
@@ -76,6 +78,40 @@ export class StreetsController {
       dto,
       req.user.id,
       dto.forceTransfer ?? false,
+    );
+  }
+
+  @Post('assign-neighborhood')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Vincular ruas a um bairro' })
+  assignNeighborhood(
+    @Body() dto: AssignNeighborhoodDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.assignToNeighborhood(dto, req.user.id);
+  }
+
+  @Post('bulk-neighborhood')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Vincular ruas a bairros em lote (planilha)' })
+  bulkNeighborhood(
+    @Body() dto: BulkNeighborhoodDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.bulkAssignNeighborhood(
+      dto.municipalityId,
+      dto.items,
+      req.user.id,
     );
   }
 

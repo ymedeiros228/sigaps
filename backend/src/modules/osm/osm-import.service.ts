@@ -31,6 +31,7 @@ type StreetUpsert = {
   name: string;
   streetType: string;
   municipalityId: string;
+  neighborhoodId?: string;
   geojson: { type: 'LineString'; coordinates: number[][] };
 };
 
@@ -160,6 +161,11 @@ export class OsmImportService {
     const toUpsert: StreetUpsert[] = [];
     let skipped = 0;
 
+    const neighborhoods = await this.prisma.neighborhood.findMany({
+      where: { municipalityId: municipality.id },
+      select: { id: true, name: true },
+    });
+
     for (const element of data.elements) {
       if (!element.geometry || element.geometry.length < 2) {
         skipped++;
@@ -186,6 +192,7 @@ export class OsmImportService {
         name,
         streetType: inferStreetType(name, element.tags),
         municipalityId: municipality.id,
+        neighborhoodId: this.resolveNeighborhoodFromTags(element.tags, neighborhoods),
         geojson: { type: 'LineString', coordinates },
       });
     }
@@ -202,6 +209,7 @@ export class OsmImportService {
               name: street.name,
               streetType: street.streetType,
               geojson: street.geojson,
+              ...(street.neighborhoodId ? { neighborhoodId: street.neighborhoodId } : {}),
             },
           }),
         ),
@@ -292,5 +300,21 @@ export class OsmImportService {
       ( way["highway"~"${HIGHWAY_FILTER}"](${bbox.south},${bbox.west},${bbox.north},${bbox.east}); );
       out geom;
     `;
+  }
+
+  private resolveNeighborhoodFromTags(
+    tags: Record<string, string> | undefined,
+    neighborhoods: Array<{ id: string; name: string }>,
+  ): string | undefined {
+    if (!tags || neighborhoods.length === 0) return undefined;
+    const suburb =
+      tags['addr:suburb'] ??
+      tags['addr:neighbourhood'] ??
+      tags['addr:quarter'] ??
+      tags.suburb ??
+      tags.neighbourhood;
+    if (!suburb) return undefined;
+    const q = suburb.trim().toLowerCase();
+    return neighborhoods.find((n) => n.name.toLowerCase() === q)?.id;
   }
 }

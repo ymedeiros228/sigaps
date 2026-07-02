@@ -25,6 +25,11 @@ export class GeoService {
       select: { id: true, name: true, number: true },
     });
 
+    const neighborhoods = await this.prisma.neighborhood.findMany({
+      where: { municipalityId },
+      select: { id: true, name: true },
+    });
+
     let imported = 0;
     let updated = 0;
     let skipped = 0;
@@ -45,6 +50,7 @@ export class GeoService {
           ? String(props.streetType)
           : this.inferStreetType(name);
         const microareaId = this.resolveMicroareaId(props, microareas);
+        const neighborhoodId = this.resolveNeighborhoodId(props, neighborhoods);
         const geojson = { type: 'LineString' as const, coordinates: line.coordinates };
 
         if (dto.updateByName) {
@@ -54,7 +60,12 @@ export class GeoService {
           if (existing) {
             await this.prisma.street.update({
               where: { id: existing.id },
-              data: { geojson, streetType, microareaId: microareaId ?? existing.microareaId },
+              data: {
+                geojson,
+                streetType,
+                microareaId: microareaId ?? existing.microareaId,
+                neighborhoodId: neighborhoodId ?? existing.neighborhoodId,
+              },
             });
             updated++;
             continue;
@@ -67,6 +78,7 @@ export class GeoService {
             streetType,
             municipalityId,
             microareaId,
+            neighborhoodId,
             geojson,
           },
         });
@@ -113,6 +125,8 @@ export class GeoService {
           streetType: row.street_type ?? row.tipo,
           microareaName: row.microarea_name ?? row.microarea,
           microareaNumber: row.microarea_number,
+          neighborhood: row.bairro ?? row.neighborhood ?? row.neighborhood_name,
+          neighborhoodName: row.bairro ?? row.neighborhood ?? row.neighborhood_name,
         },
         geometry: { type: 'LineString', coordinates: coords },
       });
@@ -250,6 +264,24 @@ export class GeoService {
     return undefined;
   }
 
+  private resolveNeighborhoodId(
+    props: Record<string, unknown>,
+    neighborhoods: Array<{ id: string; name: string }>,
+  ): string | undefined {
+    if (typeof props.neighborhoodId === 'string') return props.neighborhoodId;
+    const raw =
+      props.neighborhood ??
+      props.bairro ??
+      props.neighborhoodName ??
+      props.neighborhood_name;
+    if (!raw) return undefined;
+    const q = String(raw).trim().toLowerCase();
+    const exact = neighborhoods.find((n) => n.name.toLowerCase() === q);
+    if (exact) return exact.id;
+    const partial = neighborhoods.find((n) => n.name.toLowerCase().includes(q));
+    return partial?.id;
+  }
+
   private inferStreetType(name: string) {
     const lower = name.toLowerCase();
     if (lower.includes('avenida') || lower.startsWith('av ')) return 'Avenida';
@@ -269,7 +301,7 @@ export class GeoService {
     );
 
     const startIdx = hasHeader ? 1 : 0;
-    const defaultHeaders = ['name', 'street_type', 'lon1', 'lat1', 'lon2', 'lat2', 'microarea_name'];
+    const defaultHeaders = ['name', 'street_type', 'lon1', 'lat1', 'lon2', 'lat2', 'microarea_name', 'bairro'];
     const cols = hasHeader ? headers : defaultHeaders;
 
     const rows: Array<Record<string, string>> = [];

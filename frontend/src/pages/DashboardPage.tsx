@@ -183,6 +183,26 @@ export function DashboardPage() {
         </Alert>
       )}
 
+      {!isEmpty && (data.streetsWithoutNeighborhood ?? 0) > 0 && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Button
+              component={RouterLink}
+              to="/cadastros?secao=bairros"
+              color="inherit"
+              size="small"
+            >
+              Vincular bairros
+            </Button>
+          }
+        >
+          {data.streetsWithoutNeighborhood} rua(s) ainda sem bairro — vincule para usar busca, pintar bairro e
+          centralizar microáreas no mapa.
+        </Alert>
+      )}
+
       <Box
         sx={{
           display: 'grid',

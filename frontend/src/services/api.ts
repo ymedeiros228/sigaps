@@ -214,6 +214,20 @@ export const streetsApi = {
       `/streets/municipality/${municipalityId}/clear-assignments`,
     ),
   suggest: (id: string) => api.get(`/streets/${id}/suggest-microarea`),
+  assignNeighborhood: (streetIds: string[], neighborhoodId: string | null) =>
+    api.post<{ updated: number; neighborhoodId: string | null }>('/streets/assign-neighborhood', {
+      streetIds,
+      neighborhoodId,
+    }),
+  bulkNeighborhood: (
+    municipalityId: string,
+    items: Array<{ streetRef: string; neighborhoodRef: string }>,
+  ) =>
+    api.post<{
+      updated: number;
+      errors: Array<{ row: number; streetRef: string; message: string }>;
+      total: number;
+    }>('/streets/bulk-neighborhood', { municipalityId, items }),
 };
 
 export const microareasApi = {

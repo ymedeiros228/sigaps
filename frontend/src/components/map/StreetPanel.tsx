@@ -12,31 +12,41 @@ import {
   alpha,
   useTheme,
   useMediaQuery,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SignpostIcon from '@mui/icons-material/Signpost';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import AutoFixOffIcon from '@mui/icons-material/AutoFixOff';
 import { useQuery } from '@tanstack/react-query';
-import { streetsApi, type Microarea, type Street } from '../../services/api';
+import { streetsApi, type Microarea, type Neighborhood, type Street } from '../../services/api';
 
 interface StreetPanelProps {
   street: Street;
   microareas: Microarea[];
+  neighborhoods: Neighborhood[];
   onClose: () => void;
   onAssign: (microareaId: string) => void;
+  onAssignNeighborhood: (neighborhoodId: string | null) => void;
   onUnassign: () => void;
   assigning: boolean;
+  assigningNeighborhood: boolean;
   unassigning: boolean;
 }
 
 export function StreetPanel({
   street,
   microareas,
+  neighborhoods,
   onClose,
   onAssign,
+  onAssignNeighborhood,
   onUnassign,
   assigning,
+  assigningNeighborhood,
   unassigning,
 }: StreetPanelProps) {
   const theme = useTheme();
@@ -189,6 +199,37 @@ export function StreetPanel({
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: topSuggestion.color }} />
               Vincular à {topSuggestion.name}
             </Button>
+          </Box>
+        )}
+
+        <Divider sx={{ my: 2 }} />
+
+        {neighborhoods.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              Bairro
+            </Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel>Atribuir bairro</InputLabel>
+              <Select
+                label="Atribuir bairro"
+                value={street.neighborhood?.id ?? ''}
+                disabled={assigningNeighborhood}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onAssignNeighborhood(v === '' ? null : String(v));
+                }}
+              >
+                <MenuItem value="">
+                  <em>Sem bairro</em>
+                </MenuItem>
+                {neighborhoods.map((n) => (
+                  <MenuItem key={n.id} value={n.id}>
+                    {n.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
         )}
 

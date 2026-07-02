@@ -6,27 +6,37 @@ import {
   IconButton,
   alpha,
   useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { Close, Link as LinkIcon, AutoFixOff } from '@mui/icons-material';
-import type { Microarea } from '../../services/api';
+import type { Microarea, Neighborhood } from '../../services/api';
 import { useMapStore } from '../../store';
 
 interface SelectionBarProps {
   microareas: Microarea[];
+  neighborhoods: Neighborhood[];
   count: number;
   onAssign: (microareaId: string) => void;
+  onAssignNeighborhood: (neighborhoodId: string | null) => void;
   onUnassign: () => void;
   assigning: boolean;
+  assigningNeighborhood: boolean;
   unassigning: boolean;
   hasPaintedSelection: boolean;
 }
 
 export function SelectionBar({
   microareas,
+  neighborhoods,
   count,
   onAssign,
+  onAssignNeighborhood,
   onUnassign,
   assigning,
+  assigningNeighborhood,
   unassigning,
   hasPaintedSelection,
 }: SelectionBarProps) {
@@ -52,7 +62,7 @@ export function SelectionBar({
         flexDirection: { xs: 'column', sm: 'row' },
         gap: { xs: 1, sm: 1.5 },
         width: { xs: 'calc(100% - 16px)', sm: 'auto' },
-        maxWidth: { xs: '100%', sm: 640 },
+        maxWidth: { xs: '100%', sm: 720 },
         bgcolor: alpha(theme.palette.info.main, 0.12),
         border: `1px solid ${alpha(theme.palette.info.main, 0.35)}`,
         borderRadius: 3,
@@ -72,7 +82,32 @@ export function SelectionBar({
           <Close fontSize="small" />
         </IconButton>
       </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+        {neighborhoods.length > 0 && (
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Bairro</InputLabel>
+            <Select
+              label="Bairro"
+              defaultValue=""
+              disabled={assigningNeighborhood}
+              onChange={(e) => {
+                const v = e.target.value;
+                onAssignNeighborhood(v === '' ? null : v);
+              }}
+            >
+              <MenuItem value="">
+                <em>Remover bairro</em>
+              </MenuItem>
+              {neighborhoods.map((n) => (
+                <MenuItem key={n.id} value={n.id}>
+                  {n.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+
         {hasPaintedSelection && (
           <Button
             size="small"
@@ -86,8 +121,9 @@ export function SelectionBar({
             Remover pintura
           </Button>
         )}
+
         <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-          Vincular à:
+          Microárea:
         </Typography>
         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flex: 1 }}>
           {microareas.map((m) => (
@@ -110,6 +146,7 @@ export function SelectionBar({
           ))}
         </Box>
       </Box>
+
       <IconButton
         size="small"
         onClick={clearSelection}

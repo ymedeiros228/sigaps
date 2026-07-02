@@ -172,6 +172,124 @@ export class StreetsService {
     };
   }
 
+  async assignToNeighborhood(
+    dto: { streetIds: string[]; neighborhoodId?: string | null },
+    userId: string,
+  ) {
+    const streets = await this.prisma.street.findMany({
+      where: { id: { in: dto.streetIds } },
+      select: { id: true, neighborhoodId: true, municipalityId: true },
+    });
+
+    if (streets.length !== dto.streetIds.length) {
+      throw new NotFoundException('Uma ou mais ruas não foram encontradas');
+    }
+
+    if (dto.neighborhoodId) {
+      const municipalityId = streets[0].municipalityId;
+      const neighborhood = await this.prisma.neighborhood.findFirst({
+        where: { id: dto.neighborhoodId, municipalityId },
+      });
+      if (!neighborhood) {
+        throw new NotFoundException('Bairro não encontrado neste município');
+      }
+    }
+
+    await this.prisma.street.updateMany({
+      where: { id: { in: dto.streetIds } },
+      data: { neighborhoodId: dto.neighborhoodId ?? null },
+    });
+
+    await this.prisma.auditLog.createMany({
+      data: streets.map((street) => ({
+        userId,
+        entityType: 'street',
+        entityId: street.id,
+        action: 'ASSIGN_NEIGHBORHOOD',
+        beforeData: { neighborhoodId: street.neighborhoodId },
+        afterData: { neighborhoodId: dto.neighborhoodId ?? null },
+      })),
+    });
+
+    return { updated: dto.streetIds.length, neighborhoodId: dto.neighborhoodId ?? null };
+  }
+
+  async bulkAssignNeighborhood(
+    municipalityId: string,
+    items: Array<{ streetRef: string; neighborhoodRef: string }>,
+    userId: string,
+  ) {
+    const [streets, neighborhoods] = await Promise.all([
+      this.prisma.street.findMany({
+        where: { municipalityId },
+        select: { id: true, name: true, neighborhoodId: true },
+      }),
+      this.prisma.neighborhood.findMany({
+        where: { municipalityId },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    let updated = 0;
+    const errors: Array<{ row: number; streetRef: string; message: string }> = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const row = i + 1;
+      const neighborhood = neighborhoods.find(
+        (n) => n.name.toLowerCase() === item.neighborhoodRef.trim().toLowerCase(),
+      );
+      if (!neighborhood) {
+        errors.push({
+          row,
+          streetRef: item.streetRef,
+          message: `Bairro "${item.neighborhoodRef}" não encontrado`,
+        });
+        continue;
+      }
+
+      const ref = item.streetRef.trim().toLowerCase();
+      let matched = streets.filter((s) => s.name.toLowerCase() === ref);
+      if (matched.length === 0) {
+        const partial = streets.filter((s) => s.name.toLowerCase().includes(ref));
+        if (partial.length === 1) {
+          matched = partial;
+        } else if (partial.length > 1) {
+          errors.push({
+            row,
+            streetRef: item.streetRef,
+            message: 'Nome de rua ambíguo — refine o nome',
+          });
+          continue;
+        }
+      }
+
+      if (matched.length === 0) {
+        errors.push({ row, streetRef: item.streetRef, message: 'Rua não encontrada' });
+        continue;
+      }
+
+      for (const street of matched) {
+        if (street.neighborhoodId === neighborhood.id) continue;
+        await this.prisma.street.update({
+          where: { id: street.id },
+          data: { neighborhoodId: neighborhood.id },
+        });
+        await this.audit.log({
+          userId,
+          entityType: 'street',
+          entityId: street.id,
+          action: 'ASSIGN_NEIGHBORHOOD',
+          beforeData: { neighborhoodId: street.neighborhoodId },
+          afterData: { neighborhoodId: neighborhood.id },
+        });
+        updated++;
+      }
+    }
+
+    return { updated, errors, total: items.length };
+  }
+
   async unassignFromMicroarea(dto: UnassignStreetsDto, userId: string) {
     const streets = await this.prisma.street.findMany({
       where: { id: { in: dto.streetIds }, microareaId: { not: null } },
