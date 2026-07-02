@@ -1,17 +1,22 @@
 import { Box, Paper, Typography, alpha, useTheme, IconButton, Collapse, LinearProgress } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useMemo, useState } from 'react';
-import type { Microarea, Street } from '../../services/api';
+import type { Microarea, Street, Ubs } from '../../services/api';
+import { useMapStore } from '../../store';
+import { familyHeatColor } from '../../utils/geo';
 
 interface MapLegendProps {
   microareas: Microarea[];
   streets: Street[];
+  ubsList?: Ubs[];
   loading?: boolean;
 }
 
-export function MapLegend({ microareas, streets, loading = false }: MapLegendProps) {
+export function MapLegend({ microareas, streets, ubsList = [], loading = false }: MapLegendProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(true);
+  const showHeatmap = useMapStore((s) => s.showHeatmap);
+  const showUbs = useMapStore((s) => s.showUbsMarkers);
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
@@ -19,14 +24,19 @@ export function MapLegend({ microareas, streets, loading = false }: MapLegendPro
   const stats = useMemo(() => {
     const byMicroarea = new Map<string, number>();
     let painted = 0;
+    let totalFamilies = 0;
+    let maxFamilies = 0;
     for (const s of streets) {
+      const families = s.familyCount ?? 0;
+      totalFamilies += families;
+      if (families > maxFamilies) maxFamilies = families;
       if (s.microareaId) {
         painted++;
         byMicroarea.set(s.microareaId, (byMicroarea.get(s.microareaId) ?? 0) + 1);
       }
     }
     const coverage = streets.length > 0 ? Math.round((painted / streets.length) * 100) : 0;
-    return { byMicroarea, painted, coverage };
+    return { byMicroarea, painted, coverage, totalFamilies, maxFamilies };
   }, [streets]);
 
   if (microareas.length === 0) return null;
@@ -108,6 +118,54 @@ export function MapLegend({ microareas, streets, loading = false }: MapLegendPro
             <Box sx={{ pt: 0.5, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
               <LegendRow color="#c4a35a" dashed label="Estrada de terra" />
               <LegendRow color="#888" dashed label="Sem microárea" />
+              {showUbs && ubsList.length > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 14,
+                      height: 14,
+                      bgcolor: '#1565C0',
+                      borderRadius: '50% 50% 50% 0',
+                      transform: 'rotate(-45deg)',
+                      border: '2px solid #fff',
+                      boxShadow: 1,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    UBS ({ubsList.length})
+                  </Typography>
+                </Box>
+              )}
+              {showHeatmap && (
+                <Box sx={{ mt: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    Mapa de calor — famílias ({stats.totalFamilies} total)
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 0.25, height: 6, borderRadius: 1, overflow: 'hidden' }}>
+                    {[0.1, 0.35, 0.6, 1].map((t) => (
+                      <Box
+                        key={t}
+                        sx={{
+                          flex: 1,
+                          bgcolor: familyHeatColor(
+                            Math.max(1, Math.round(stats.maxFamilies * t)),
+                            Math.max(1, stats.maxFamilies),
+                          ),
+                        }}
+                      />
+                    ))}
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.25 }}>
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
+                      poucas
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
+                      muitas
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
             </Box>
           </Box>
         </Box>

@@ -5,6 +5,7 @@ import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
 import { withDbRetry } from '../../common/utils/prisma-retry.util';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
+import { UpdateStreetDemographicsDto } from './dto/update-street-demographics.dto';
 
 @Injectable()
 export class StreetsService {
@@ -56,6 +57,7 @@ export class StreetsService {
                 geojson: true,
                 familyCount: true,
                 inhabitantCount: true,
+                propertyCount: true,
                 microarea: { select: { id: true, name: true, number: true, color: true } },
                 neighborhood: { select: { id: true, name: true } },
               },
@@ -82,7 +84,7 @@ export class StreetsService {
         ...(mapOnly
           ? {
               osmId: (s as { osmId?: bigint | null }).osmId?.toString() ?? null,
-              propertyCount: 0,
+              propertyCount: (s as { propertyCount?: number }).propertyCount ?? 0,
               familyCount: (s as { familyCount?: number }).familyCount ?? 0,
               inhabitantCount: (s as { inhabitantCount?: number }).inhabitantCount ?? 0,
               updatedAt: new Date(0).toISOString(),
@@ -361,6 +363,135 @@ export class StreetsService {
     }
 
     return { cleared: painted.length };
+  }
+
+  async updateDemographics(
+    id: string,
+    dto: UpdateStreetDemographicsDto,
+    userId: string,
+  ) {
+    const street = await this.prisma.street.findUnique({ where: { id } });
+    if (!street) throw new NotFoundException('Rua não encontrada');
+
+    const data: {
+      familyCount?: number;
+      inhabitantCount?: number;
+      propertyCount?: number;
+      notes?: string;
+    } = {};
+    if (dto.familyCount !== undefined) data.familyCount = dto.familyCount;
+    if (dto.inhabitantCount !== undefined) data.inhabitantCount = dto.inhabitantCount;
+    if (dto.propertyCount !== undefined) data.propertyCount = dto.propertyCount;
+    if (dto.notes !== undefined) data.notes = dto.notes;
+
+    if (Object.keys(data).length === 0) {
+      return { ...street, osmId: street.osmId?.toString() ?? null };
+    }
+
+    const updated = await this.prisma.street.update({
+      where: { id },
+      data,
+    });
+
+    await this.audit.log({
+      userId,
+      entityType: 'street',
+      entityId: id,
+      action: 'UPDATE_DEMOGRAPHICS',
+      beforeData: {
+        familyCount: street.familyCount,
+        inhabitantCount: street.inhabitantCount,
+        propertyCount: street.propertyCount,
+        notes: street.notes,
+      },
+      afterData: data,
+    });
+
+    return { ...updated, osmId: updated.osmId?.toString() ?? null };
+  }
+
+  async bulkUpdateDemographics(
+    municipalityId: string,
+    items: Array<{
+      streetRef: string;
+      familyCount: number;
+      inhabitantCount: number;
+      propertyCount?: number;
+    }>,
+    userId: string,
+  ) {
+    const streets = await this.prisma.street.findMany({
+      where: { municipalityId },
+      select: { id: true, name: true, familyCount: true, inhabitantCount: true, propertyCount: true },
+    });
+
+    let updated = 0;
+    const errors: Array<{ row: number; streetRef: string; message: string }> = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const row = i + 1;
+      const ref = item.streetRef.trim().toLowerCase();
+      let matched = streets.filter((s) => s.name.toLowerCase() === ref);
+      if (matched.length === 0) {
+        const partial = streets.filter((s) => s.name.toLowerCase().includes(ref));
+        if (partial.length === 1) {
+          matched = partial;
+        } else if (partial.length > 1) {
+          errors.push({
+            row,
+            streetRef: item.streetRef,
+            message: 'Nome de rua ambíguo — refine o nome',
+          });
+          continue;
+        }
+      }
+
+      if (matched.length === 0) {
+        errors.push({ row, streetRef: item.streetRef, message: 'Rua não encontrada' });
+        continue;
+      }
+
+      for (const street of matched) {
+        const data: {
+          familyCount: number;
+          inhabitantCount: number;
+          propertyCount?: number;
+        } = {
+          familyCount: item.familyCount,
+          inhabitantCount: item.inhabitantCount,
+        };
+        if (item.propertyCount !== undefined) data.propertyCount = item.propertyCount;
+
+        if (
+          street.familyCount === data.familyCount &&
+          street.inhabitantCount === data.inhabitantCount &&
+          (data.propertyCount === undefined || street.propertyCount === data.propertyCount)
+        ) {
+          continue;
+        }
+
+        await this.prisma.street.update({
+          where: { id: street.id },
+          data,
+        });
+        await this.audit.log({
+          userId,
+          entityType: 'street',
+          entityId: street.id,
+          action: 'UPDATE_DEMOGRAPHICS',
+          beforeData: {
+            familyCount: street.familyCount,
+            inhabitantCount: street.inhabitantCount,
+            propertyCount: street.propertyCount,
+          },
+          afterData: data,
+        });
+        updated++;
+      }
+    }
+
+    return { updated, errors, total: items.length };
   }
 
   async suggestMicroarea(streetId: string) {

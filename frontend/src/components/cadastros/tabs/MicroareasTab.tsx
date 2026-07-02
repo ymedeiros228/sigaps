@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
 import { Box, Button, Chip, IconButton, TextField, Tooltip, Typography } from '@mui/material';
-import { Add, Edit, GridView, Map } from '@mui/icons-material';
+import { Add, Edit, GridView, Map as MapIcon, Download } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -130,6 +130,33 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
     setOpen(true);
   };
 
+  const exportTerritorySpreadsheet = () => {
+    const acsById = new Map(acsList.map((a) => [a.id, a]));
+    const header = 'microarea;numero;acs;cpf_acs;ubs;bairro;ruas_pintadas;status';
+    const lines = data.map((m) => {
+      const acs = m.acsId ? acsById.get(m.acsId) : undefined;
+      return [
+        m.name,
+        m.number,
+        m.acs?.name ?? '',
+        acs?.cpf ?? '',
+        m.ubs?.name ?? '',
+        m.neighborhood?.name ?? '',
+        m._count?.streets ?? 0,
+        m.status ?? 'ATIVO',
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(';');
+    });
+    const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sigaps-acs-microarea-ubs-bairro.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <CadastrosSectionHeader
@@ -143,15 +170,27 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         addLabel="Nova Microárea"
         canManage={canManage}
         extra={
-          <Button
-            component={RouterLink}
-            to="/mapa"
-            size="small"
-            variant="outlined"
-            startIcon={<Map />}
-          >
-            Ir para o mapa
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {data.length > 0 && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={exportTerritorySpreadsheet}
+              >
+                Exportar planilha
+              </Button>
+            )}
+            <Button
+              component={RouterLink}
+              to="/mapa"
+              size="small"
+              variant="outlined"
+              startIcon={<MapIcon />}
+            >
+              Ir para o mapa
+            </Button>
+          </Box>
         }
       />
 

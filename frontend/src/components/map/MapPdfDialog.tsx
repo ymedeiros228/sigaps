@@ -135,7 +135,7 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
         microareas,
         streets: filteredStreets,
         neighborhoodName: neighborhoodName ?? undefined,
-        ubsName: ubsList[0]?.name,
+        ubsList: ubsList.map((u) => ({ name: u.name, address: u.address })),
       });
 
       const suffix = neighborhoodName

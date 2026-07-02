@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -15,7 +16,9 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { AssignNeighborhoodDto } from './dto/assign-neighborhood.dto';
 import { BulkNeighborhoodDto } from './dto/bulk-neighborhood.dto';
+import { BulkDemographicsDto } from './dto/bulk-demographics.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
+import { UpdateStreetDemographicsDto } from './dto/update-street-demographics.dto';
 import { StreetsService } from './streets.service';
 
 @ApiTags('Ruas')
@@ -94,6 +97,41 @@ export class StreetsController {
     @Req() req: { user: { id: string } },
   ) {
     return this.streetsService.assignToNeighborhood(dto, req.user.id);
+  }
+
+  @Patch(':id/demographics')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Atualizar famílias/habitantes de uma rua' })
+  updateDemographics(
+    @Param('id') id: string,
+    @Body() dto: UpdateStreetDemographicsDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.updateDemographics(id, dto, req.user.id);
+  }
+
+  @Post('bulk-demographics')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Importar famílias/habitantes por rua (planilha)' })
+  bulkDemographics(
+    @Body() dto: BulkDemographicsDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.bulkUpdateDemographics(
+      dto.municipalityId,
+      dto.items,
+      req.user.id,
+    );
   }
 
   @Post('bulk-neighborhood')

@@ -39,6 +39,7 @@ interface MapToolbarProps {
   microareas: Microarea[];
   streets: Array<{ id: string; name: string; streetType?: string; geojson: GeoJSON.LineString; microareaId?: string | null }>;
   onSearchSelect: (option: StreetSearchOption) => void;
+  onImportFamilies?: () => void;
 }
 
 const panelSx = {
@@ -60,6 +61,7 @@ export function MapToolbar({
   microareas,
   streets,
   onSearchSelect,
+  onImportFamilies,
 }: MapToolbarProps) {
   const theme = useTheme();
   const municipalityId = useAppStore((s) => s.municipalityId);
@@ -71,6 +73,8 @@ export function MapToolbar({
   const setShowEnvelopes = useMapStore((s) => s.setShowEnvelopes);
   const showHeatmap = useMapStore((s) => s.showHeatmap);
   const setShowHeatmap = useMapStore((s) => s.setShowHeatmap);
+  const showUbsMarkers = useMapStore((s) => s.showUbsMarkers);
+  const setShowUbsMarkers = useMapStore((s) => s.setShowUbsMarkers);
   const flyTo = useMapStore((s) => s.flyTo);
   const user = useAuthStore((s) => s.user);
   const canImport = canImportStreets(user?.role);
@@ -210,7 +214,23 @@ export function MapToolbar({
         sx={{ mr: 0, display: { xs: 'none', md: 'flex' } }}
       />
 
-      <MapExportMenu mapContainerRef={mapContainerRef} microareas={microareas} />
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={showUbsMarkers}
+            onChange={(e) => setShowUbsMarkers(e.target.checked)}
+          />
+        }
+        label="UBS"
+        sx={{ mr: 0, display: { xs: 'none', lg: 'flex' } }}
+      />
+
+      <MapExportMenu
+        mapContainerRef={mapContainerRef}
+        microareas={microareas}
+        onImportFamilies={onImportFamilies}
+      />
 
       <Box sx={{ display: 'flex', gap: 0.5, ml: { md: 'auto' } }}>
         <Tooltip title="Tela cheia">

@@ -26,6 +26,7 @@ interface MapState {
   selectedStreetIds: Set<string>;
   showEnvelopes: boolean;
   showHeatmap: boolean;
+  showUbsMarkers: boolean;
   baseLayer: 'map' | 'satellite' | 'terrain' | 'hybrid';
   highlightedStreetId: string | null;
   mapFlyTarget: {
@@ -47,6 +48,7 @@ interface MapState {
   clearSelection: () => void;
   setShowEnvelopes: (show: boolean) => void;
   setShowHeatmap: (show: boolean) => void;
+  setShowUbsMarkers: (show: boolean) => void;
   setBaseLayer: (layer: MapState['baseLayer']) => void;
   setHighlightedStreet: (id: string | null) => void;
   setPaintGuideCollapsed: (collapsed: boolean) => void;
@@ -121,6 +123,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   selectedStreetIds: new Set(),
   showEnvelopes: true,
   showHeatmap: false,
+  showUbsMarkers: true,
   baseLayer: 'satellite',
   highlightedStreetId: null,
   mapFlyTarget: null,
@@ -167,6 +170,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   clearSelection: () => set({ selectedStreetIds: new Set() }),
   setShowEnvelopes: (show) => set({ showEnvelopes: show }),
   setShowHeatmap: (show) => set({ showHeatmap: show }),
+  setShowUbsMarkers: (show) => set({ showUbsMarkers: show }),
   setBaseLayer: (layer) => set({ baseLayer: layer }),
   setHighlightedStreet: (id) => set({ highlightedStreetId: id }),
   setPaintGuideCollapsed: (collapsed) => set({ paintGuideCollapsed: collapsed }),

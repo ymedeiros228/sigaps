@@ -20,6 +20,7 @@ import {
   osmApi,
   paintZonesApi,
   streetsApi,
+  ubsApi,
   type Street,
 } from '../../services/api';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
@@ -37,6 +38,8 @@ import { PaintZonesLayer } from './PaintZonesLayer';
 import { DivisionMapClickHandler } from './DivisionMapClickHandler';
 import { MapEmptyState } from './MapEmptyState';
 import { SelectionBar } from './SelectionBar';
+import { UbsMarkersLayer } from './UbsMarkersLayer';
+import { FamilyBulkImportDialog } from './FamilyBulkImportDialog';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
 import { canImportStreets } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
@@ -95,6 +98,7 @@ export function SigapsMap() {
   const [conflictMsg, setConflictMsg] = useState<string | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'info' | 'warning' } | null>(null);
+  const [familyImportOpen, setFamilyImportOpen] = useState(false);
   const [lastPaintAction, setLastPaintAction] = useState<string | null>(null);
   const [importFailed, setImportFailed] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
@@ -126,6 +130,13 @@ export function SigapsMap() {
     queryFn: () => paintZonesApi.list(municipalityId!).then((r) => r.data),
     enabled: !!municipalityId,
     staleTime: CACHE.paintZones,
+  });
+
+  const { data: ubsList = [] } = useQuery({
+    queryKey: queryKeys.ubs(municipalityId!),
+    queryFn: () => ubsApi.list(municipalityId!).then((r) => r.data),
+    enabled: !!municipalityId,
+    staleTime: CACHE.default,
   });
 
   useEffect(() => {
@@ -310,6 +321,55 @@ export function SigapsMap() {
     onError: (err) =>
       setSnackbar({
         message: getApiErrorMessage(err, 'Não foi possível vincular o bairro.'),
+        severity: 'warning',
+      }),
+  });
+
+  const updateDemographicsMutation = useMutation({
+    mutationFn: ({
+      streetId,
+      data,
+    }: {
+      streetId: string;
+      data: { familyCount: number; inhabitantCount: number; propertyCount: number };
+    }) => streetsApi.updateDemographics(streetId, data),
+    onSuccess: (res, variables) => {
+      if (!municipalityId) return;
+      const updated = res.data;
+      queryClient.setQueryData(queryKeys.streetsMap(municipalityId), (old: typeof streetsData) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((s) =>
+            s.id === variables.streetId
+              ? {
+                  ...s,
+                  familyCount: updated.familyCount,
+                  inhabitantCount: updated.inhabitantCount,
+                  propertyCount: updated.propertyCount,
+                }
+              : s,
+          ),
+        };
+      });
+      if (selectedStreet?.id === variables.streetId) {
+        setSelectedStreet((prev) =>
+          prev
+            ? {
+                ...prev,
+                familyCount: updated.familyCount,
+                inhabitantCount: updated.inhabitantCount,
+                propertyCount: updated.propertyCount,
+              }
+            : null,
+        );
+      }
+      scheduleDashboardInvalidate(queryClient, municipalityId);
+      setSnackbar({ message: 'Dados de famílias/habitantes salvos.', severity: 'success' });
+    },
+    onError: (err) =>
+      setSnackbar({
+        message: getApiErrorMessage(err, 'Não foi possível salvar os dados.'),
         severity: 'warning',
       }),
   });
@@ -717,9 +777,15 @@ export function SigapsMap() {
         onImport={() => importMutation.mutate()}
         importing={importMutation.isPending}
         selectedCount={selectedStreetIds.size}
+        onImportFamilies={() => setFamilyImportOpen(true)}
       />
 
-      <MapLegend microareas={microareas} streets={streets} loading={streetsFetching && streetCount === 0} />
+      <MapLegend
+        microareas={microareas}
+        streets={streets}
+        ubsList={ubsList}
+        loading={streetsFetching && streetCount === 0}
+      />
 
       <SelectionBar
         microareas={microareas}
@@ -860,6 +926,7 @@ export function SigapsMap() {
               onDragPaintEnd={handleDragPaintEnd}
             />
           )}
+          <UbsMarkersLayer ubsList={ubsList} />
         </LeafletMap>
 
       {selectedStreet && !paintMode && (
@@ -883,11 +950,34 @@ export function SigapsMap() {
               unassignMutation.mutate([selectedStreet.id]);
             }
           }}
+          onUpdateDemographics={(data) =>
+            updateDemographicsMutation.mutate({ streetId: selectedStreet.id, data })
+          }
           assigning={assignMutation.isPending}
           assigningNeighborhood={assignNeighborhoodMutation.isPending}
           unassigning={unassignMutation.isPending}
+          savingDemographics={updateDemographicsMutation.isPending}
         />
       )}
+
+      <FamilyBulkImportDialog
+        open={familyImportOpen}
+        municipalityId={municipalityId!}
+        onClose={() => setFamilyImportOpen(false)}
+        onSuccess={(message) => {
+          if (municipalityId) {
+            queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+            scheduleDashboardInvalidate(queryClient, municipalityId);
+          }
+          setSnackbar({ message, severity: 'success' });
+        }}
+        onError={(err) =>
+          setSnackbar({
+            message: getApiErrorMessage(err, 'Não foi possível importar a planilha.'),
+            severity: 'warning',
+          })
+        }
+      />
 
       <Dialog open={conflictOpen} onClose={() => setConflictOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Rua já vinculada</DialogTitle>

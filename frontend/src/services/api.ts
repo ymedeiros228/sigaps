@@ -228,6 +228,24 @@ export const streetsApi = {
       errors: Array<{ row: number; streetRef: string; message: string }>;
       total: number;
     }>('/streets/bulk-neighborhood', { municipalityId, items }),
+  updateDemographics: (
+    id: string,
+    data: { familyCount?: number; inhabitantCount?: number; propertyCount?: number; notes?: string },
+  ) => api.patch<Street>(`/streets/${id}/demographics`, data),
+  bulkDemographics: (
+    municipalityId: string,
+    items: Array<{
+      streetRef: string;
+      familyCount: number;
+      inhabitantCount: number;
+      propertyCount?: number;
+    }>,
+  ) =>
+    api.post<{
+      updated: number;
+      errors: Array<{ row: number; streetRef: string; message: string }>;
+      total: number;
+    }>('/streets/bulk-demographics', { municipalityId, items }),
 };
 
 export const microareasApi = {

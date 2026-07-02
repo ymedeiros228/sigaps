@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Paper,
@@ -16,11 +16,13 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  TextField,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SignpostIcon from '@mui/icons-material/Signpost';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import AutoFixOffIcon from '@mui/icons-material/AutoFixOff';
+import SaveIcon from '@mui/icons-material/Save';
 import { useQuery } from '@tanstack/react-query';
 import { streetsApi, type Microarea, type Neighborhood, type Street } from '../../services/api';
 
@@ -32,9 +34,15 @@ interface StreetPanelProps {
   onAssign: (microareaId: string) => void;
   onAssignNeighborhood: (neighborhoodId: string | null) => void;
   onUnassign: () => void;
+  onUpdateDemographics: (data: {
+    familyCount: number;
+    inhabitantCount: number;
+    propertyCount: number;
+  }) => void;
   assigning: boolean;
   assigningNeighborhood: boolean;
   unassigning: boolean;
+  savingDemographics: boolean;
 }
 
 export function StreetPanel({
@@ -45,9 +53,11 @@ export function StreetPanel({
   onAssign,
   onAssignNeighborhood,
   onUnassign,
+  onUpdateDemographics,
   assigning,
   assigningNeighborhood,
   unassigning,
+  savingDemographics,
 }: StreetPanelProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -55,6 +65,21 @@ export function StreetPanel({
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.92)
     : alpha('#fff', 0.95);
+
+  const [familyCount, setFamilyCount] = useState(String(street.familyCount ?? 0));
+  const [inhabitantCount, setInhabitantCount] = useState(String(street.inhabitantCount ?? 0));
+  const [propertyCount, setPropertyCount] = useState(String(street.propertyCount ?? 0));
+
+  useEffect(() => {
+    setFamilyCount(String(street.familyCount ?? 0));
+    setInhabitantCount(String(street.inhabitantCount ?? 0));
+    setPropertyCount(String(street.propertyCount ?? 0));
+  }, [street.id, street.familyCount, street.inhabitantCount, street.propertyCount]);
+
+  const demographicsDirty =
+    parseInt(familyCount, 10) !== (street.familyCount ?? 0) ||
+    parseInt(inhabitantCount, 10) !== (street.inhabitantCount ?? 0) ||
+    parseInt(propertyCount, 10) !== (street.propertyCount ?? 0);
 
   const { data: suggestions = [] } = useQuery({
     queryKey: ['suggest-microarea', street.id],
@@ -138,6 +163,57 @@ export function StreetPanel({
             label="Comprimento"
             value={street.lengthMeters ? `${Math.round(street.lengthMeters)} m` : '—'}
           />
+        </Box>
+
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            Famílias e habitantes
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
+            <TextField
+              size="small"
+              label="Famílias"
+              type="number"
+              slotProps={{ htmlInput: { min: 0 } }}
+              value={familyCount}
+              onChange={(e) => setFamilyCount(e.target.value)}
+            />
+            <TextField
+              size="small"
+              label="Habitantes"
+              type="number"
+              slotProps={{ htmlInput: { min: 0 } }}
+              value={inhabitantCount}
+              onChange={(e) => setInhabitantCount(e.target.value)}
+            />
+            <TextField
+              size="small"
+              label="Imóveis"
+              type="number"
+              slotProps={{ htmlInput: { min: 0 } }}
+              value={propertyCount}
+              onChange={(e) => setPropertyCount(e.target.value)}
+            />
+          </Box>
+          {demographicsDirty && (
+            <Button
+              fullWidth
+              size="small"
+              variant="contained"
+              sx={{ mt: 1 }}
+              startIcon={savingDemographics ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
+              disabled={savingDemographics}
+              onClick={() =>
+                onUpdateDemographics({
+                  familyCount: Math.max(0, parseInt(familyCount, 10) || 0),
+                  inhabitantCount: Math.max(0, parseInt(inhabitantCount, 10) || 0),
+                  propertyCount: Math.max(0, parseInt(propertyCount, 10) || 0),
+                })
+              }
+            >
+              {savingDemographics ? 'Salvando…' : 'Salvar dados'}
+            </Button>
+          )}
         </Box>
 
         <InfoRow label="Bairro" value={street.neighborhood?.name ?? '—'} />

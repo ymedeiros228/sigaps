@@ -36,9 +36,10 @@ type ImportFormat = 'geojson' | 'kml' | 'csv';
 interface MapExportMenuProps {
   mapContainerRef: RefObject<HTMLElement | null>;
   microareas: Microarea[];
+  onImportFamilies?: () => void;
 }
 
-export function MapExportMenu({ mapContainerRef, microareas }: MapExportMenuProps) {
+export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }: MapExportMenuProps) {
   const municipalityId = useAppStore((s) => s.municipalityId);
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -201,6 +202,20 @@ export function MapExportMenu({ mapContainerRef, microareas }: MapExportMenuProp
           <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
           <ListItemText primary="Planilha de ruas" secondary="Formato CSV" />
         </MenuItem>
+        {onImportFamilies && (
+          <MenuItem
+            onClick={() => {
+              setAnchorEl(null);
+              onImportFamilies();
+            }}
+          >
+            <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
+            <ListItemText
+              primary="Famílias e habitantes"
+              secondary="CSV: rua;familias;habitantes"
+            />
+          </MenuItem>
+        )}
         <Divider />
         <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
           Exportar / salvar

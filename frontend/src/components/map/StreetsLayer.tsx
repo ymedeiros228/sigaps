@@ -115,15 +115,15 @@ export function StreetsLayer({
 
   const heatFeatures = useMemo(() => {
     if (!showHeatmap) return [];
-    return features.filter((f) => (f.properties as { familyCount: number }).familyCount > 0);
+    return features;
   }, [features, showHeatmap]);
 
   const heatLineStyle = (feature?: GeoJSON.Feature): PathOptions => {
     const count = (feature?.properties as { familyCount?: number })?.familyCount ?? 0;
     return {
       color: familyHeatColor(count, maxFamilyCount),
-      weight: 5 + Math.min(4, count),
-      opacity: 0.85,
+      weight: count > 0 ? 5 + Math.min(4, count) : 3,
+      opacity: count > 0 ? 0.9 : 0.35,
       lineCap: 'round',
       lineJoin: 'round',
     };
@@ -284,15 +284,6 @@ export function StreetsLayer({
           key={`heat-${heatFeatures.length}-${maxFamilyCount}`}
           data={fc(heatFeatures)}
           style={heatLineStyle}
-          interactive={false}
-        />
-      )}
-
-      {painted.length > 0 && showHeatmap && (
-        <GeoJSON
-          key={`painted-over-heat-${painted.length}`}
-          data={fc(painted)}
-          style={paintedLineStyle}
           interactive={false}
         />
       )}
