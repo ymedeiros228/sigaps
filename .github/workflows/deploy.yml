@@ -49,6 +49,7 @@ jobs:
 
       - name: Seed (dados Passagem Franca)
         if: steps.check.outputs.configured == 'true'
+        continue-on-error: true
         run: npx prisma db seed
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
