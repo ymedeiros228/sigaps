@@ -54,20 +54,7 @@ function kindLabel(kind: PlaceKind) {
   return KIND_OPTIONS.find((o) => o.value === kind)?.label ?? kind;
 }
 
-/** Aceita "lat, lng", "lat lng" ou coordenadas copiadas do Google Maps. */
-function parseCoordinatePair(raw: string): { latitude: string; longitude: string } | null {
-  const cleaned = raw.trim().replace(/[;|]/g, ',');
-  const parts = cleaned
-    .split(/[,\s]+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (parts.length < 2) return null;
-  const latitude = Number(parts[0]);
-  const longitude = Number(parts[1]);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
-  return { latitude: String(latitude), longitude: String(longitude) };
-}
+import { parseCoordinatePair } from '../../../utils/parseCoordinates';
 
 export function PlacesTab({ municipalityId }: { municipalityId: string }) {
   const { canManagePlaces, canDeletePlaces, reportError, reportSuccess, confirmDelete } = useCadastros();
@@ -238,8 +225,8 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
       reportError('Coordenadas inválidas. Use o formato: latitude, longitude (ex.: -6.18280, -43.78690).');
       return;
     }
-    setValue('latitude', parsed.latitude, { shouldValidate: true });
-    setValue('longitude', parsed.longitude, { shouldValidate: true });
+    setValue('latitude', String(parsed.latitude), { shouldValidate: true });
+    setValue('longitude', String(parsed.longitude), { shouldValidate: true });
     setCoordsPaste('');
     reportSuccess('Coordenadas aplicadas.');
   };

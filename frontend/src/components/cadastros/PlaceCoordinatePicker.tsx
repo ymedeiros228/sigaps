@@ -60,6 +60,7 @@ type PlaceCoordinatePickerProps = {
   center: { lat: number; lng: number };
   onChange: (lat: number, lng: number) => void;
   height?: number;
+  pickHint?: string;
 };
 
 export function PlaceCoordinatePicker({
@@ -68,6 +69,7 @@ export function PlaceCoordinatePicker({
   center,
   onChange,
   height = 260,
+  pickHint = 'Clique no mapa satélite para marcar o local. Arraste o pino para ajustar a posição.',
 }: PlaceCoordinatePickerProps) {
   const hasPoint =
     latitude != null && longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude);
@@ -75,7 +77,7 @@ export function PlaceCoordinatePicker({
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-        Clique no mapa satélite para marcar o povoado. Arraste o pino para ajustar a posição.
+        {pickHint}
       </Typography>
       <Box
         sx={{

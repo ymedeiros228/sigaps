@@ -30,7 +30,7 @@ export const CADASTROS_SECTIONS: CadastrosSection[] = [
     id: 'ubs',
     label: 'Unidades Básicas de Saúde',
     shortLabel: 'UBS',
-    description: 'Unidades de referência da APS',
+    description: 'UBS de referência — planilha Excel ou marcação no mapa',
     icon: <LocalHospital fontSize="small" />,
   },
   {

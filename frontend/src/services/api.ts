@@ -365,6 +365,24 @@ export const ubsApi = {
     api.post('/ubs', data),
   update: (id: string, data: Partial<Ubs>) => api.patch(`/ubs/${id}`, data),
   remove: (id: string) => api.delete(`/ubs/${id}`),
+  bulkImport: (
+    municipalityId: string,
+    items: Array<{
+      name: string;
+      address?: string;
+      latitude: number;
+      longitude: number;
+      phone?: string;
+      coordinator?: string;
+      cnesCode?: string;
+    }>,
+  ) =>
+    api.post<{
+      created: number;
+      updated: number;
+      errors: Array<{ row: number; name: string; message: string }>;
+      total: number;
+    }>('/ubs/bulk', { municipalityId, items }),
 };
 
 export const acsApi = {

@@ -1,18 +1,21 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, CircularProgress, IconButton, TextField, Tooltip } from '@mui/material';
-import { Add, Delete, Edit, LocalHospital, Search } from '@mui/icons-material';
+import { Box, Button, CircularProgress, IconButton, TextField, Tooltip, Typography } from '@mui/material';
+import { Add, Delete, Edit, LocalHospital, Search, Upload } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { integrationsApi, ubsApi, type Ubs } from '../../../services/api';
+import { integrationsApi, municipalitiesApi, ubsApi, type Ubs } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
 import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
+import { PlaceCoordinatePicker } from '../PlaceCoordinatePicker';
+import { UbsBulkImportDialog } from './UbsBulkImportDialog';
 import { getApiErrorMessage } from '../../../utils/apiError';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
 import { queryKeys } from '../../../utils/queryKeys';
+import { parseCoordinatePair } from '../../../utils/parseCoordinates';
 
 type UbsForm = Omit<Ubs, 'id' | '_count'>;
 
@@ -30,17 +33,48 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
   const { canManage, canDelete, reportError, reportSuccess, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Ubs | null>(null);
   const [search, setSearch] = useState('');
+  const [coordsPaste, setCoordsPaste] = useState('');
   const [validatingCnes, setValidatingCnes] = useState(false);
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    watch,
     getValues,
     formState: { errors },
   } = useForm<UbsForm>();
+
+  const latitudeValue = watch('latitude');
+  const longitudeValue = watch('longitude');
+
+  const { data: municipality } = useQuery({
+    queryKey: queryKeys.municipality(municipalityId),
+    queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
+
+  const mapCenter = useMemo(
+    () => ({
+      lat: municipality?.latitude ?? -6.1828,
+      lng: municipality?.longitude ?? -43.7869,
+    }),
+    [municipality?.latitude, municipality?.longitude],
+  );
+
+  const pickerLatitude = useMemo(() => {
+    const n = Number(latitudeValue);
+    return Number.isFinite(n) ? n : null;
+  }, [latitudeValue]);
+
+  const pickerLongitude = useMemo(() => {
+    const n = Number(longitudeValue);
+    return Number.isFinite(n) ? n : null;
+  }, [longitudeValue]);
 
   const { data = [], isPending: isLoading } = useQuery({
     queryKey: queryKeys.ubs(municipalityId),
@@ -73,6 +107,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
       setOpen(false);
       setEditing(null);
       reset();
+      setCoordsPaste('');
       reportSuccess(editing ? 'UBS atualizada.' : 'UBS cadastrada.');
     },
     onError: reportError,
@@ -89,6 +124,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
 
   const openForm = (item?: Ubs) => {
     setEditing(item ?? null);
+    setCoordsPaste('');
     reset(
       item ?? {
         name: '',
@@ -96,11 +132,28 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         phone: '',
         coordinator: '',
         cnesCode: '',
-        latitude: -6.1828,
-        longitude: -43.7869,
+        latitude: mapCenter.lat,
+        longitude: mapCenter.lng,
       },
     );
     setOpen(true);
+  };
+
+  const handleMapPick = (lat: number, lng: number) => {
+    setValue('latitude', Number(lat.toFixed(6)), { shouldValidate: true });
+    setValue('longitude', Number(lng.toFixed(6)), { shouldValidate: true });
+  };
+
+  const applyPastedCoordinates = () => {
+    const parsed = parseCoordinatePair(coordsPaste);
+    if (!parsed) {
+      reportError('Coordenadas inválidas. Use: latitude, longitude (ex.: -6.18280, -43.78690).');
+      return;
+    }
+    setValue('latitude', parsed.latitude, { shouldValidate: true });
+    setValue('longitude', parsed.longitude, { shouldValidate: true });
+    setCoordsPaste('');
+    reportSuccess('Coordenadas aplicadas.');
   };
 
   const handleValidateCnes = async () => {
@@ -132,7 +185,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
     <>
       <CadastrosSectionHeader
         title="Unidades Básicas de Saúde"
-        description="Cadastre as UBS de referência para vincular às microáreas."
+        description="Cadastre UBS manualmente, importe de planilha Excel com coordenadas ou marque no mapa satélite."
         count={data.length}
         search={search}
         onSearchChange={setSearch}
@@ -140,6 +193,18 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         onAdd={() => openForm()}
         addLabel="Nova UBS"
         canManage={canManage}
+        extra={
+          canManage ? (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Upload />}
+              onClick={() => setImportOpen(true)}
+            >
+              Importar planilha
+            </Button>
+          ) : undefined
+        }
       />
 
       <CadastrosDataTable
@@ -161,6 +226,12 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
             render: (row) => row.address,
           },
           {
+            id: 'coords',
+            label: 'Coordenadas',
+            hideOnMobile: true,
+            render: (row) => `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}`,
+          },
+          {
             id: 'phone',
             label: 'Telefone',
             hideOnMobile: true,
@@ -180,11 +251,18 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
             description={
               search
                 ? 'Tente outro termo de busca ou limpe o filtro.'
-                : 'Comece cadastrando as unidades básicas de saúde do município.'
+                : 'Importe uma planilha Excel com nomes e coordenadas ou cadastre manualmente no mapa.'
             }
             action={
               canManage && !search ? (
-                <CadastrosEmptyAction label="Cadastrar UBS" onClick={() => openForm()} icon={<Add />} />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                  <CadastrosEmptyAction
+                    label="Importar planilha"
+                    onClick={() => setImportOpen(true)}
+                    icon={<Upload />}
+                  />
+                  <CadastrosEmptyAction label="Cadastrar UBS" onClick={() => openForm()} icon={<Add />} />
+                </Box>
               ) : undefined
             }
           />
@@ -223,6 +301,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         onClose={() => setOpen(false)}
         onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
         loading={saveMutation.isPending}
+        maxWidth="md"
       >
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
           <TextField
@@ -258,21 +337,61 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         />
         <TextField label="Telefone" {...register('phone')} fullWidth />
         <TextField label="Coordenador" {...register('coordinator')} fullWidth />
+
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+          Localização no mapa
+        </Typography>
+        <PlaceCoordinatePicker
+          latitude={pickerLatitude}
+          longitude={pickerLongitude}
+          center={mapCenter}
+          onChange={handleMapPick}
+          pickHint="Clique no mapa satélite para marcar a UBS. Arraste o pino para ajustar."
+        />
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+          <TextField
+            label="Colar coordenadas (Google Maps)"
+            value={coordsPaste}
+            onChange={(e) => setCoordsPaste(e.target.value)}
+            placeholder="Ex.: -6.18280, -43.78690"
+            fullWidth
+            size="small"
+          />
+          <Button
+            variant="outlined"
+            onClick={applyPastedCoordinates}
+            disabled={!coordsPaste.trim()}
+            sx={{ mt: 0.25, whiteSpace: 'nowrap' }}
+          >
+            Aplicar
+          </Button>
+        </Box>
         <TextField
           label="Latitude"
           type="number"
-          slotProps={{ htmlInput: { step: 0.0001 } }}
+          slotProps={{ htmlInput: { step: 0.000001 } }}
           {...register('latitude', { valueAsNumber: true, required: true })}
           fullWidth
         />
         <TextField
           label="Longitude"
           type="number"
-          slotProps={{ htmlInput: { step: 0.0001 } }}
+          slotProps={{ htmlInput: { step: 0.000001 } }}
           {...register('longitude', { valueAsNumber: true, required: true })}
           fullWidth
         />
       </CadastrosFormDialog>
+
+      <UbsBulkImportDialog
+        open={importOpen}
+        municipalityId={municipalityId}
+        onClose={() => setImportOpen(false)}
+        onSuccess={(message) => {
+          invalidateCadastrosCache(queryClient, municipalityId);
+          reportSuccess(message);
+        }}
+        onError={reportError}
+      />
     </>
   );
 }

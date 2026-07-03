@@ -14,6 +14,7 @@ import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreateUbsDto, UpdateUbsDto } from './dto/ubs.dto';
+import { BulkUbsImportDto } from './dto/bulk-ubs.dto';
 import { UbsService } from './ubs.service';
 
 @ApiTags('UBS')
@@ -40,6 +41,13 @@ export class UbsController {
   @ApiOperation({ summary: 'Cadastrar UBS' })
   create(@Body() dto: CreateUbsDto, @Req() req: { user: { id: string } }) {
     return this.ubsService.create(dto, req.user.id);
+  }
+
+  @Post('bulk')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
+  @ApiOperation({ summary: 'Importar várias UBS de planilha (nome + coordenadas)' })
+  bulkImport(@Body() dto: BulkUbsImportDto, @Req() req: { user: { id: string } }) {
+    return this.ubsService.bulkImport(dto, req.user.id);
   }
 
   @Patch(':id')
