@@ -96,8 +96,12 @@ export function SigapsMap() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
-    const lat = Number(searchParams.get('lat'));
-    const lng = Number(searchParams.get('lng'));
+    const latRaw = searchParams.get('lat');
+    const lngRaw = searchParams.get('lng');
+    // Sem parâmetros na URL não há para onde voar (Number(null) seria 0,0 — oceano).
+    if (latRaw === null || lngRaw === null) return;
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     const zoom = Number(searchParams.get('zoom')) || 17;
     const tipo = searchParams.get('tipo');
