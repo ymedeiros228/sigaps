@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -17,6 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Add, Delete, Edit, HomeWork, Map, Search, CloudDownload, Upload } from '@mui/icons-material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import {
@@ -159,7 +161,11 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
       invalidatePlaces();
       setOpen(false);
       reset();
-      reportSuccess(editing ? 'Localidade atualizada.' : 'Localidade cadastrada.');
+      reportSuccess(
+        editing
+          ? 'Povoado atualizado — marcador no mapa nas coordenadas informadas.'
+          : 'Povoado cadastrado — marcado automaticamente no mapa.',
+      );
     },
     onError: reportError,
   });
@@ -255,7 +261,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     <>
       <CadastrosSectionHeader
         title="Povoados e localidades"
-        description="Cadastre povoados por planilha (nome + UBS + coordenadas), mapa satélite ou busca automática. O sistema marca cada local no mapa."
+        description="Informe o nome do povoado e as coordenadas — o sistema marca no mapa automaticamente."
         count={data.length}
         search={search}
         onSearchChange={setSearch}
@@ -365,10 +371,17 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             }
           />
         }
-        actions={
-          canManagePlaces || canDeletePlaces
-            ? (row) => (
+        actions={(row) => (
                 <>
+                  <Tooltip title="Ver no mapa">
+                    <IconButton
+                      size="small"
+                      component={RouterLink}
+                      to={`/mapa?lat=${row.latitude}&lng=${row.longitude}&zoom=17&tipo=povoado`}
+                    >
+                      <Map fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   {canManagePlaces && (
                     <Tooltip title="Editar">
                       <IconButton size="small" onClick={() => openForm(row)}>
@@ -388,21 +401,24 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
                     </Tooltip>
                   )}
                 </>
-              )
-            : undefined
-        }
+              )}
       />
 
       <CadastrosFormDialog
         open={open}
-        title={editing ? 'Editar localidade' : 'Nova localidade'}
+        title={editing ? 'Editar povoado' : 'Novo povoado'}
         onClose={() => setOpen(false)}
         onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
         loading={saveMutation.isPending}
         maxWidth="md"
+        submitLabel={editing ? 'Salvar' : 'Cadastrar e marcar no mapa'}
       >
+        <Alert severity="info" sx={{ mb: 0 }}>
+          Informe o <strong>nome do povoado</strong> e a <strong>localização</strong>. Ao salvar, o marcador
+          aparece no mapa nas coordenadas escolhidas.
+        </Alert>
         <TextField
-          label="Nome"
+          label="Nome do povoado"
           {...register('name', { required: 'Informe o nome' })}
           error={!!errors.name}
           helperText={errors.name?.message}

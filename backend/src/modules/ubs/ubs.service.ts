@@ -86,7 +86,13 @@ export class UbsService {
 
   async create(dto: CreateUbsDto, userId: string) {
     await this.assertMunicipality(dto.municipalityId);
-    const ubs = await this.prisma.ubs.create({ data: this.prepareUbsData(dto) });
+    const data = this.prepareUbsData({
+      ...dto,
+      address:
+        dto.address?.trim() ||
+        `Localização: ${dto.latitude.toFixed(5)}, ${dto.longitude.toFixed(5)}`,
+    });
+    const ubs = await this.prisma.ubs.create({ data });
     await this.audit.log({
       userId,
       entityType: 'ubs',

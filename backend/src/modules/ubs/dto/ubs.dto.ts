@@ -13,9 +13,10 @@ export class CreateUbsDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'Rua Principal, 100' })
+  @ApiProperty({ example: 'Rua Principal, 100', required: false })
+  @IsOptional()
   @IsString()
-  address: string;
+  address?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

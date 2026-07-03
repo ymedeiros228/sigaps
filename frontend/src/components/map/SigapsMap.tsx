@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo, useDeferredValue } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TileLayer, ScaleControl, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -114,6 +115,20 @@ export function SigapsMap() {
   const lastAssignIdsRef = useRef<string[]>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const autoImportAttempted = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const lat = Number(searchParams.get('lat'));
+    const lng = Number(searchParams.get('lng'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const zoom = Number(searchParams.get('zoom')) || 17;
+    const tipo = searchParams.get('tipo');
+    const mapState = useMapStore.getState();
+    mapState.flyTo(lat, lng, zoom);
+    if (tipo === 'povoado') mapState.setShowPlacesMarkers(true);
+    else mapState.setShowUbsMarkers(true);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!acsReadOnly || !lockedMicroareaId) return;

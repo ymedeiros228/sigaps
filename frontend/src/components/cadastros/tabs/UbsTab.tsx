@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, CircularProgress, IconButton, TextField, Tooltip, Typography } from '@mui/material';
-import { Add, Delete, Edit, LocalHospital, Search, Upload } from '@mui/icons-material';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  IconButton,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import { Add, Delete, Edit, LocalHospital, Map, Search, Upload } from '@mui/icons-material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { integrationsApi, municipalitiesApi, ubsApi, type Ubs } from '../../../services/api';
@@ -21,8 +31,16 @@ type UbsForm = Omit<Ubs, 'id' | '_count'>;
 
 function sanitizeUbsForm(values: UbsForm): UbsForm {
   const cnes = (values.cnesCode ?? '').replace(/\D/g, '').slice(0, 7);
+  const lat = Number(values.latitude);
+  const lng = Number(values.longitude);
+  const address =
+    values.address?.trim() ||
+    (Number.isFinite(lat) && Number.isFinite(lng)
+      ? `Localização: ${lat.toFixed(5)}, ${lng.toFixed(5)}`
+      : 'Localização não informada');
   return {
     ...values,
+    address,
     cnesCode: cnes.length === 7 ? cnes : undefined,
     phone: values.phone?.trim() || undefined,
     coordinator: values.coordinator?.trim() || undefined,
@@ -108,7 +126,11 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
       setEditing(null);
       reset();
       setCoordsPaste('');
-      reportSuccess(editing ? 'UBS atualizada.' : 'UBS cadastrada.');
+      reportSuccess(
+        editing
+          ? 'UBS atualizada — marcador no mapa nas coordenadas informadas.'
+          : 'UBS cadastrada — marcada automaticamente no mapa.',
+      );
     },
     onError: reportError,
   });
@@ -185,7 +207,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
     <>
       <CadastrosSectionHeader
         title="Unidades Básicas de Saúde"
-        description="Cadastre UBS manualmente, importe de planilha Excel com coordenadas ou marque no mapa satélite."
+        description="Informe o nome e as coordenadas — o sistema marca a UBS no mapa automaticamente."
         count={data.length}
         search={search}
         onSearchChange={setSearch}
@@ -251,7 +273,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
             description={
               search
                 ? 'Tente outro termo de busca ou limpe o filtro.'
-                : 'Importe uma planilha Excel com nomes e coordenadas ou cadastre manualmente no mapa.'
+                : 'Cadastre o nome da UBS e marque no mapa (clique no satélite ou cole coordenadas do Google).'
             }
             action={
               canManage && !search ? (
@@ -267,10 +289,17 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
             }
           />
         }
-        actions={
-          canManage || canDelete
-            ? (row) => (
+        actions={(row) => (
                 <>
+                  <Tooltip title="Ver no mapa">
+                    <IconButton
+                      size="small"
+                      component={RouterLink}
+                      to={`/mapa?lat=${row.latitude}&lng=${row.longitude}&zoom=17&tipo=ubs`}
+                    >
+                      <Map fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   {canManage && (
                     <Tooltip title="Editar">
                       <IconButton size="small" onClick={() => openForm(row)}>
@@ -290,9 +319,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
                     </Tooltip>
                   )}
                 </>
-              )
-            : undefined
-        }
+              )}
       />
 
       <CadastrosFormDialog
@@ -302,51 +329,31 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
         onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
         loading={saveMutation.isPending}
         maxWidth="md"
+        submitLabel={editing ? 'Salvar' : 'Cadastrar e marcar no mapa'}
       >
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-          <TextField
-            label="Código CNES"
-            {...register('cnesCode')}
-            placeholder="7 dígitos"
-            fullWidth
-            slotProps={{ htmlInput: { maxLength: 7 } }}
-          />
-          <Button
-            variant="outlined"
-            startIcon={validatingCnes ? <CircularProgress size={16} /> : <Search />}
-            onClick={() => void handleValidateCnes()}
-            disabled={validatingCnes}
-            sx={{ mt: 0.5, whiteSpace: 'nowrap', flexShrink: 0 }}
-          >
-            Validar CNES
-          </Button>
-        </Box>
+        <Alert severity="info" sx={{ mb: 0 }}>
+          Informe o <strong>nome</strong> e a <strong>localização</strong>. Ao salvar, a UBS aparece no mapa
+          exatamente nas coordenadas escolhidas.
+        </Alert>
+
         <TextField
-          label="Nome"
+          label="Nome da UBS"
           {...register('name', { required: 'Informe o nome da UBS' })}
           error={!!errors.name}
           helperText={errors.name?.message}
           fullWidth
+          autoFocus
         />
-        <TextField
-          label="Endereço"
-          {...register('address', { required: 'Informe o endereço' })}
-          error={!!errors.address}
-          helperText={errors.address?.message}
-          fullWidth
-        />
-        <TextField label="Telefone" {...register('phone')} fullWidth />
-        <TextField label="Coordenador" {...register('coordinator')} fullWidth />
 
         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-          Localização no mapa
+          Onde fica no mapa?
         </Typography>
         <PlaceCoordinatePicker
           latitude={pickerLatitude}
           longitude={pickerLongitude}
           center={mapCenter}
           onChange={handleMapPick}
-          pickHint="Clique no mapa satélite para marcar a UBS. Arraste o pino para ajustar."
+          pickHint="Clique no mapa satélite onde fica a UBS. Arraste o pino para ajustar."
         />
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
           <TextField
@@ -366,20 +373,49 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
             Aplicar
           </Button>
         </Box>
-        <TextField
-          label="Latitude"
-          type="number"
-          slotProps={{ htmlInput: { step: 0.000001 } }}
-          {...register('latitude', { valueAsNumber: true, required: true })}
-          fullWidth
-        />
-        <TextField
-          label="Longitude"
-          type="number"
-          slotProps={{ htmlInput: { step: 0.000001 } }}
-          {...register('longitude', { valueAsNumber: true, required: true })}
-          fullWidth
-        />
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <TextField
+            label="Latitude"
+            type="number"
+            slotProps={{ htmlInput: { step: 0.000001 } }}
+            {...register('latitude', { valueAsNumber: true, required: 'Informe a latitude' })}
+            error={!!errors.latitude}
+            fullWidth
+          />
+          <TextField
+            label="Longitude"
+            type="number"
+            slotProps={{ htmlInput: { step: 0.000001 } }}
+            {...register('longitude', { valueAsNumber: true, required: 'Informe a longitude' })}
+            error={!!errors.longitude}
+            fullWidth
+          />
+        </Box>
+
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          Dados complementares (opcional)
+        </Typography>
+        <TextField label="Endereço" {...register('address')} fullWidth placeholder="Opcional" />
+        <TextField label="Telefone" {...register('phone')} fullWidth />
+        <TextField label="Coordenador" {...register('coordinator')} fullWidth />
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+          <TextField
+            label="Código CNES"
+            {...register('cnesCode')}
+            placeholder="7 dígitos (opcional)"
+            fullWidth
+            slotProps={{ htmlInput: { maxLength: 7 } }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={validatingCnes ? <CircularProgress size={16} /> : <Search />}
+            onClick={() => void handleValidateCnes()}
+            disabled={validatingCnes}
+            sx={{ mt: 0.5, whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            Validar CNES
+          </Button>
+        </Box>
       </CadastrosFormDialog>
 
       <UbsBulkImportDialog
