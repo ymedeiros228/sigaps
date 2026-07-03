@@ -4,10 +4,12 @@ import L from 'leaflet';
 import {
   MAP_LABELS_OVERLAY,
   MAP_TILE_LAYERS,
+  MAP_TILE_OSM_FALLBACK,
   type MapBaseLayerId,
+  type MapTileConfig,
 } from '../../constants/mapTiles';
 
-function createTileLayer(config: (typeof MAP_TILE_LAYERS)[MapBaseLayerId]) {
+function createTileLayer(config: MapTileConfig) {
   const options: L.TileLayerOptions = {
     attribution: config.attribution,
     maxZoom: config.maxZoom ?? 19,
@@ -43,10 +45,12 @@ export function MapTileLayerController({ layerId }: { layerId: MapBaseLayerId })
     let switchedToFallback = false;
 
     const switchToFallback = () => {
-      if (layerId === 'map' || switchedToFallback) return;
+      if (switchedToFallback) return;
       switchedToFallback = true;
       map.removeLayer(primary);
-      const fallback = createTileLayer(MAP_TILE_LAYERS.map);
+      const fallbackConfig =
+        layerId === 'map' ? MAP_TILE_OSM_FALLBACK : MAP_TILE_LAYERS.map;
+      const fallback = createTileLayer(fallbackConfig);
       fallback.setZIndex(0);
       fallback.addTo(map);
       fallbacks.push(fallback);

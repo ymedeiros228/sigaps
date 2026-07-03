@@ -124,7 +124,7 @@ export function MapToolbar({
         sx={{ bgcolor: alpha(theme.palette.action.hover, 0.5) }}
       >
         <ToggleButton value="map">
-          <Tooltip title="Mapa de ruas (recomendado)"><MapIcon fontSize="small" /></Tooltip>
+          <Tooltip title="Mapa de ruas OpenStreetMap"><MapIcon fontSize="small" /></Tooltip>
         </ToggleButton>
         <ToggleButton value="satellite">
           <Tooltip title="Satélite — se o fundo ficar preto, volte em Mapa"><Satellite fontSize="small" /></Tooltip>

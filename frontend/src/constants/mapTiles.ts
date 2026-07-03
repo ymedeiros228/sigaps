@@ -11,15 +11,15 @@ export type MapTileConfig = {
   detectRetina?: boolean;
 };
 
-/** Carto Voyager — CDN estável para mapa de ruas. */
+/** OpenStreetMap — ruas e nomes bem legíveis para pintar microáreas. */
 export const MAP_TILE_LAYERS: Record<MapBaseLayerId, MapTileConfig> = {
   map: {
     name: 'Mapa',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 20,
-    subdomains: 'abcd',
-    detectRetina: true,
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 19,
+    subdomains: ['a', 'b', 'c'],
+    detectRetina: false,
   },
   satellite: {
     name: 'Satélite',
@@ -40,15 +40,22 @@ export const MAP_TILE_LAYERS: Record<MapBaseLayerId, MapTileConfig> = {
   hybrid: {
     name: 'Híbrido',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; Esri + CARTO',
+    attribution: '&copy; Esri + OSM',
     maxZoom: 19,
     maxNativeZoom: 17,
     detectRetina: false,
   },
 };
 
-/** Se satélite falhar, tenta mapa de ruas. */
-export const MAP_TILE_FALLBACK_CHAIN: MapBaseLayerId[] = ['map'];
+/** Reserva se o OSM não carregar (rede lenta ou bloqueio temporário). */
+export const MAP_TILE_OSM_FALLBACK: MapTileConfig = {
+  name: 'Mapa (reserva)',
+  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  maxZoom: 20,
+  subdomains: 'abcd',
+  detectRetina: false,
+};
 
 export const MAP_LABELS_OVERLAY = {
   url: 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
