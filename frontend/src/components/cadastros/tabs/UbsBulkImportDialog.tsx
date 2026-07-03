@@ -161,6 +161,16 @@ export function UbsBulkImportDialog({
           <Button
             size="small"
             variant="outlined"
+            startIcon={<Download />}
+            component="a"
+            href="/templates/banco_localizacoes_coordenadas.xlsx"
+            download="banco_localizacoes_coordenadas.xlsx"
+          >
+            Exemplo Passagem Franca
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
             startIcon={<Upload />}
             onClick={() => fileRef.current?.click()}
           >
@@ -279,9 +289,10 @@ export function UbsBulkImportDialog({
         </Collapse>
 
         <Typography variant="caption" color="text.secondary">
-          Colunas: <strong>nome</strong>, <strong>latitude</strong>, <strong>longitude</strong> (ou{' '}
-          <strong>coordenadas</strong> no formato -6.18, -43.78), endereco, telefone, coordenador, cnes.
-          UBS já cadastrada (mesmo CNES ou nome) será atualizada com as novas coordenadas.
+          Colunas aceitas: <strong>nome</strong> ou <strong>nome do local</strong>, <strong>latitude</strong>,{' '}
+          <strong>longitude</strong> (ou <strong>coordenadas</strong> no formato -6.18, -43.78), endereco,
+          telefone, coordenador, cnes. UBS já cadastrada (mesmo CNES ou nome) será atualizada com as novas
+          coordenadas e marcada no mapa.
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

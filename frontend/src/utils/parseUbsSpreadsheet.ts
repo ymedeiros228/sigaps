@@ -78,8 +78,8 @@ export function parseUbsRowsFromObjects(rows: Record<string, unknown>[]): UbsImp
   const headers = Object.keys(rows[0]).map(normHeader);
   const originalKeys = Object.keys(rows[0]);
 
-  const nameIdx = pickColumn(headers, ['nome', 'name', 'unidade', 'ubs']);
-  const addressIdx = pickColumn(headers, ['endereco', 'address', 'logradouro']);
+  const nameIdx = pickColumn(headers, ['nome', 'name', 'unidade', 'ubs', 'local']);
+  const addressIdx = pickColumn(headers, ['endereco', 'address', 'logradouro', 'observacao', 'origem']);
   const latIdx = pickColumn(headers, ['latitude', 'lat']);
   const lngIdx = pickColumn(headers, ['longitude', 'lng', 'lon', 'long']);
   const coordsIdx = pickColumn(headers, ['coordenada', 'coordenadas', 'coordinates', 'coords']);
@@ -117,8 +117,8 @@ export function parseUbsCsvText(text: string): UbsImportRow[] {
   const sep = lines[0].includes('\t') ? '\t' : lines[0].includes(';') ? ';' : ',';
   const headers = lines[0].split(sep).map((cell) => normHeader(cell.trim()));
 
-  const nameIdx = pickColumn(headers, ['nome', 'name', 'unidade', 'ubs']);
-  const addressIdx = pickColumn(headers, ['endereco', 'address', 'logradouro']);
+  const nameIdx = pickColumn(headers, ['nome', 'name', 'unidade', 'ubs', 'local']);
+  const addressIdx = pickColumn(headers, ['endereco', 'address', 'logradouro', 'observacao', 'origem']);
   const latIdx = pickColumn(headers, ['latitude', 'lat']);
   const lngIdx = pickColumn(headers, ['longitude', 'lng', 'lon', 'long']);
   const coordsIdx = pickColumn(headers, ['coordenada', 'coordenadas', 'coordinates', 'coords']);
