@@ -25,7 +25,7 @@ const coverHtml = `
       <tr><td class="lbl">Órgão</td><td>Secretaria Municipal de Saúde — Passagem Franca/MA</td></tr>
       <tr><td class="lbl">Desenvolvedor</td><td>Yuri Medeiros Bandeira — Programador / Responsável técnico</td></tr>
       <tr><td class="lbl">Versão do sistema</td><td>1.0.0 — MVP</td></tr>
-      <tr><td class="lbl">Data da entrega</td><td>02 de julho de 2026</td></tr>
+      <tr><td class="lbl">Data da entrega</td><td>03 de julho de 2026</td></tr>
       <tr><td class="lbl">Ambiente de produção</td><td>https://sigaps-api.onrender.com</td></tr>
       <tr><td class="lbl">Repositório</td><td>https://github.com/ymedeiros228/sigaps</td></tr>
     </table>
@@ -48,7 +48,7 @@ const backCoverHtml = `
     <table class="back-table">
       <tr><td>Desenvolvedor</td><td>Yuri Medeiros Bandeira</td></tr>
       <tr><td>Cliente</td><td>Jonas Almeida Medeiros</td></tr>
-      <tr><td>Data</td><td>02/07/2026</td></tr>
+      <tr><td>Data</td><td>03/07/2026</td></tr>
       <tr><td>Repositório</td><td>github.com/ymedeiros228/sigaps</td></tr>
     </table>
     <p class="back-note">Licença MIT — Código-fonte aberto</p>
@@ -217,7 +217,7 @@ await page.pdf({
   margin: { top: '0', bottom: '14mm', left: '0', right: '0' },
   displayHeaderFooter: true,
   headerTemplate: '<div></div>',
-  footerTemplate: `<div style="width:100%;font-size:7.5pt;color:#90a4ae;padding:0 17mm;display:flex;justify-content:space-between;font-family:Segoe UI,Arial,sans-serif;"><span>SIGAPS — Manual de Entrega e Aceite · Passagem Franca/MA · 02/07/2026</span><span>Pág. <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
+  footerTemplate: `<div style="width:100%;font-size:7.5pt;color:#90a4ae;padding:0 17mm;display:flex;justify-content:space-between;font-family:Segoe UI,Arial,sans-serif;"><span>SIGAPS — Manual de Entrega e Aceite · Passagem Franca/MA · 03/07/2026</span><span>Pág. <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`,
 });
 await browser.close();
 console.log(`PDF gerado: ${output}`);

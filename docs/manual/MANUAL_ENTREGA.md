@@ -507,7 +507,7 @@ Código-fonte open source (licença MIT): [github.com/ymedeiros228/sigaps](https
 |---|---|
 | **Desenvolvedor** | Yuri Medeiros Bandeira |
 | **Função** | Programador / responsável técnico |
-| **Data da entrega** | 02 de julho de 2026 |
+| **Data da entrega** | 03 de julho de 2026 |
 | **Repositório** | https://github.com/ymedeiros228/sigaps |
 | **Sistema** | SIGAPS v1.0.0-MVP |
 
@@ -544,7 +544,7 @@ O cliente abaixo identificado declara ter recebido o sistema, revisado as funcio
 | **Nome completo** | Jonas Almeida Medeiros |
 | **Função** | Enfermeiro da APS |
 | **Órgão** | Secretaria Municipal de Saúde — Passagem Franca/MA |
-| **Data do recebimento** | _____ / _____ / 2026 |
+| **Data do recebimento** | 03 / 07 / 2026 |
 
 **Assinatura:**
 
@@ -578,7 +578,7 @@ Acesse https://www.gov.br/governodigital e utilize o aplicativo **Assinador SERP
 | **Nome completo** | Yuri Medeiros Bandeira |
 | **Função** | Programador / Desenvolvedor do SIGAPS |
 | **Repositório** | https://github.com/ymedeiros228/sigaps |
-| **Data da entrega** | 02 de julho de 2026 |
+| **Data da entrega** | 03 de julho de 2026 |
 
 **Assinatura:**
 
@@ -609,7 +609,7 @@ Espaço reservado para assinatura com **conta gov.br** (nível prata ou ouro).
 | **Validade** | Este termo vale como registro de entrega do MVP |
 | **Homologação** | A homologação oficial do mapa é feita separadamente em Admin → Homologação |
 | **Suporte** | Dúvidas operacionais: consultar seções 5–11 deste manual |
-| **Versão do documento** | 1.0 — 02/07/2026 |
+| **Versão do documento** | 1.0 — 03/07/2026 |
 
 </div>
 
