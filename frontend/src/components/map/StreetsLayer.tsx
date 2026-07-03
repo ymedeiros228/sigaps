@@ -120,12 +120,14 @@ export function StreetsLayer({
     [renderStreets, highlightedId, selectedIds, dragPaintIds, zoom],
   );
 
-  const { painted } = useMemo(() => {
+  const { painted, unpainted } = useMemo(() => {
     const p: typeof features = [];
+    const u: typeof features = [];
     for (const f of features) {
       if (f.properties.hasMicroarea || f.properties.dragPending) p.push(f);
+      else u.push(f);
     }
-    return { painted: p };
+    return { painted: p, unpainted: u };
   }, [features]);
 
   const maxFamilyCount = useMemo(
@@ -169,8 +171,8 @@ export function StreetsLayer({
 
   const paintedHaloStyle = (): PathOptions => ({
     color: '#ffffff',
-    weight: 12,
-    opacity: 0.95,
+    weight: 13,
+    opacity: 0.98,
     lineCap: 'round',
     lineJoin: 'round',
   });
@@ -186,8 +188,21 @@ export function StreetsLayer({
     const emphasis = props?.highlighted || props?.selected || props?.dragPending;
     return {
       color,
-      weight: emphasis ? 9 : 7,
+      weight: emphasis ? 10 : 8,
       opacity: 1,
+      lineCap: 'round',
+      lineJoin: 'round',
+    };
+  };
+
+  /** Ruas do sistema ainda sem microárea — visíveis sobre o OSM para orientar a pintura. */
+  const systemStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
+    const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
+    return {
+      color: isDirt ? '#a67c00' : '#546e7a',
+      weight: isDirt ? 5 : 4,
+      opacity: isDirt ? 0.75 : 0.6,
+      dashArray: isDirt ? '4 7' : undefined,
       lineCap: 'round',
       lineJoin: 'round',
     };
@@ -236,7 +251,7 @@ export function StreetsLayer({
       !paintMode &&
       !showEnvelopes &&
       props.hasMicroarea &&
-      zoom >= 16 &&
+      zoom >= 15 &&
       streets.length <= 500;
 
     if (showFixedName) {
@@ -308,6 +323,15 @@ export function StreetsLayer({
           key={`heat-${heatFeatures.length}-${maxFamilyCount}`}
           data={fc(heatFeatures)}
           style={heatLineStyle}
+          interactive={false}
+        />
+      )}
+
+      {unpainted.length > 0 && !showHeatmap && !paintMode && (
+        <GeoJSON
+          key={`system-streets-${unpainted.length}`}
+          data={fc(unpainted)}
+          style={systemStreetStyle}
           interactive={false}
         />
       )}

@@ -30,6 +30,11 @@ export function MapTileLayerController({ layerId }: { layerId: MapBaseLayerId })
     primary.setZIndex(0);
     primary.addTo(map);
 
+    const container = map.getContainer();
+    const isSatellite = layerId === 'satellite' || layerId === 'hybrid';
+    container.classList.toggle('sigaps-map-base-satellite', isSatellite);
+    container.classList.toggle('sigaps-map-base-streets', !isSatellite);
+
     let labels: L.TileLayer | null = null;
     if (layerId === 'hybrid') {
       labels = L.tileLayer(MAP_LABELS_OVERLAY.url, {
@@ -73,6 +78,7 @@ export function MapTileLayerController({ layerId }: { layerId: MapBaseLayerId })
       map.removeLayer(primary);
       fallbacks.forEach((layer) => map.removeLayer(layer));
       if (labels) map.removeLayer(labels);
+      container.classList.remove('sigaps-map-base-satellite', 'sigaps-map-base-streets');
     };
   }, [map, layerId]);
 

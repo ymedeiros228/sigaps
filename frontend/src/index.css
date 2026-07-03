@@ -18,6 +18,14 @@ body {
   background: #e8edf2;
 }
 
+.leaflet-container.sigaps-map-base-streets {
+  background: #e8edf2;
+}
+
+.leaflet-container.sigaps-map-base-satellite {
+  background: #1a2332;
+}
+
 .sigaps-leaflet-map.leaflet-container {
   height: 100% !important;
   width: 100% !important;
@@ -112,15 +120,15 @@ body {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  color: #fff !important;
+  color: #1a237e !important;
   font-weight: 700 !important;
   font-size: 11px !important;
   text-shadow:
-    -1px -1px 0 #000,
-    1px -1px 0 #000,
-    -1px 1px 0 #000,
-    1px 1px 0 #000,
-    0 0 6px rgba(0, 0, 0, 0.9);
+    -1px -1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px 1px 0 #fff,
+    0 0 4px rgba(255, 255, 255, 0.95);
   white-space: nowrap;
   pointer-events: none;
 }
