@@ -556,14 +556,9 @@ Secretaria Municipal de Saúde de Passagem Franca/MA
 
 </div>
 
-**Assinatura digital gov.br** *(assinatura eletrônica do Governo Federal)*:
+**Assinatura digital gov.br:**
 
-<div class="signature-gov">
-
-Espaço reservado para assinatura com **conta gov.br** (nível prata ou ouro).<br>
-Acesse https://www.gov.br/governodigital e utilize o aplicativo **Assinador SERPRO** ou a extensão de assinatura digital no PDF.
-
-</div>
+<div class="signature-blank"></div>
 
 </div>
 
@@ -590,13 +585,9 @@ Sistema Inteligente de Gestão das Microáreas da APS
 
 </div>
 
-**Assinatura digital gov.br** *(opcional)*:
+**Assinatura digital gov.br:**
 
-<div class="signature-gov">
-
-Espaço reservado para assinatura com **conta gov.br** (nível prata ou ouro).
-
-</div>
+<div class="signature-blank"></div>
 
 </div>
 

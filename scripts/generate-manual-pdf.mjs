@@ -224,10 +224,7 @@ const css = `
     border-top: 2px solid #263238; margin-top: 52px; padding-top: 9px; width: 88%;
     font-size: 10pt;
   }
-  .signature-gov {
-    border: 2px dashed #1565C0; border-radius: 8px; padding: 16px; margin-top: 12px;
-    min-height: 68px; background: #f8fbff; text-align: center; color: #546E7A; font-size: 8.8pt;
-  }
+  .signature-blank { min-height: 80px; margin-top: 10px; }
   hr { border: none; border-top: 1px solid #e0e0e0; margin: 18px 0; }
   ul, ol { padding-left: 22px; }
   li { margin-bottom: 4px; }
