@@ -15,7 +15,23 @@ const PASS = process.env.SIGAPS_PASS || 'Sigaps@2026';
 
 mkdirSync(OUT, { recursive: true });
 
+async function waitLogos(page) {
+  await page
+    .waitForFunction(
+      () => {
+        const imgs = [...document.querySelectorAll('img')].filter(
+          (img) => img.offsetWidth > 0 || img.offsetHeight > 0,
+        );
+        return imgs.length === 0 || imgs.every((img) => img.complete && img.naturalWidth > 0);
+      },
+      { timeout: 20_000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(400);
+}
+
 async function shot(page, name, opts = {}) {
+  await waitLogos(page);
   const path = join(OUT, `${name}.png`);
   if (opts.locator) {
     await opts.locator.screenshot({ path, animations: 'disabled' });

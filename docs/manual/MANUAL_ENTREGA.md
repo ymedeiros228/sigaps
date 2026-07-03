@@ -499,6 +499,8 @@ Código-fonte open source (licença MIT): repositório GitHub do projeto SIGAPS.
 |---|---|
 | **Desenvolvedor** | Yuri Medeiros Bandeira |
 | **Função** | Programador / responsável técnico |
+| **Data da entrega** | 02 de julho de 2026 |
+| **Repositório** | https://github.com/ymedeiros228/sigaps |
 | **Sistema** | SIGAPS v1.0.0-MVP |
 
 ---
@@ -555,6 +557,7 @@ Acesse https://www.gov.br/governodigital e utilize o aplicativo **Assinador SERP
 |-------|------------|
 | **Nome completo** | Yuri Medeiros Bandeira |
 | **Função** | Programador / Desenvolvedor do SIGAPS |
+| **Repositório** | https://github.com/ymedeiros228/sigaps |
 | **Data da entrega** | 02 de julho de 2026 |
 
 **Assinatura:**

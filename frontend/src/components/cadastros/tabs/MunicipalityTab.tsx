@@ -20,7 +20,7 @@ import { useCadastros } from '../CadastrosContext';
 import { EsusImportDialog } from '../EsusImportDialog';
 import { canImportStreets } from '../../../utils/permissions';
 import { useAuthStore } from '../../../store';
-import { assetUrl } from '../../../utils/assetUrl';
+import { MunicipalityLogo } from '../../common/MunicipalityLogo';
 import { queryKeys } from '../../../utils/queryKeys';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
@@ -170,11 +170,12 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
             }}
           >
             {municipality.logoUrl ? (
-              <Box
-                component="img"
-                src={assetUrl(municipality.logoUrl) ?? ''}
+              <MunicipalityLogo
+                logoUrl={municipality.logoUrl}
                 alt="Logo do município"
-                sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                boxProps={{
+                  sx: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' },
+                }}
               />
             ) : (
               <AccountBalance sx={{ fontSize: 40, color: 'text.secondary' }} />

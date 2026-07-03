@@ -31,14 +31,14 @@ import { useMemo, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, useAppStore } from '../../store';
-import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME } from '../../constants/branding';
-import { canAccessAdmin, formatRoleLabel, isAcsUser } from '../../utils/permissions';
+import { MUNICIPALITY_NAME } from '../../constants/branding';
+import { MunicipalityLogo } from '../common/MunicipalityLogo';
 import { InstallPrompt } from '../common/InstallPrompt';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
+import { canAccessAdmin, formatRoleLabel, isAcsUser } from '../../utils/permissions';
 import { municipalitiesApi } from '../../services/api';
-import { assetUrl } from '../../utils/assetUrl';
-import { prefetchCadastrosData } from '../../utils/prefetchAppData';
 import { queryKeys } from '../../utils/queryKeys';
+import { prefetchCadastrosData } from '../../utils/prefetchAppData';
 
 const DRAWER_WIDTH = 260;
 
@@ -88,7 +88,6 @@ export function AppLayout() {
     return items;
   }, [isAdmin, isAcs]);
 
-  const logoSrc = assetUrl(municipality?.logoUrl) ?? MUNICIPALITY_LOGO;
   const displayName = municipality?.name ?? MUNICIPALITY_NAME;
   const displayState = municipality?.state ? `${municipality.state}` : 'MA';
 
@@ -110,17 +109,18 @@ export function AppLayout() {
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Box sx={{ px: 2.5, py: 2.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box
-            component="img"
-            src={logoSrc}
+          <MunicipalityLogo
+            logoUrl={municipality?.logoUrl}
             alt={`Prefeitura de ${displayName}`}
-            sx={{
-              width: 40,
-              height: 40,
-              objectFit: 'contain',
-              bgcolor: '#fff',
-              borderRadius: 1.5,
-              p: 0.5,
+            boxProps={{
+              sx: {
+                width: 40,
+                height: 40,
+                objectFit: 'contain',
+                bgcolor: '#fff',
+                borderRadius: 1.5,
+                p: 0.5,
+              },
             }}
           />
           <Box>
