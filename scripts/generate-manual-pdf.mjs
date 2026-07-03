@@ -1,14 +1,27 @@
 import { chromium } from 'playwright';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { marked } from 'marked';
 
+const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const manualDir = join(root, 'docs', 'manual');
 const input = join(manualDir, 'MANUAL_ENTREGA.md');
 const output = join(manualDir, 'SIGAPS_Manual_Entrega_Oficial.pdf');
+const SITE_URL = 'https://sigaps-api.onrender.com';
+
+const qrPath = join(manualDir, 'assets', 'qrcode-site.png');
+mkdirSync(join(manualDir, 'assets'), { recursive: true });
+const QRCode = require(join(root, 'frontend', 'node_modules', 'qrcode'));
+await QRCode.toFile(qrPath, SITE_URL, {
+  width: 360,
+  margin: 1,
+  color: { dark: '#0b2e4a', light: '#ffffff' },
+});
+const qrFileUrl = `file:///${qrPath.replace(/\\/g, '/')}`;
 
 const coverHtml = `
 <section class="cover-sheet">
@@ -53,6 +66,11 @@ const backCoverHtml = `
       <tr><td class="lbl">Produção</td><td class="val">sigaps-api.onrender.com</td></tr>
       <tr><td class="lbl">Repositório</td><td class="val">github.com/ymedeiros228/sigaps</td></tr>
     </table>
+    <div class="back-qr">
+      <img src="${qrFileUrl}" alt="QR Code do SIGAPS" />
+      <p class="back-qr-label">Acesse o sistema</p>
+      <p class="back-qr-url">sigaps-api.onrender.com</p>
+    </div>
     <p class="back-note">Licença MIT — Código-fonte aberto</p>
   </div>
 </section>
@@ -127,7 +145,16 @@ const css = `
   .back-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.15); background: transparent !important; color: #fff !important; }
   .back-table .lbl { font-weight: 700; color: #a5d6a7 !important; width: 38%; white-space: nowrap; }
   .back-table .val { color: #fff !important; }
-  .back-note { font-size: 8.5pt; opacity: 0.7; margin-top: 16px; }
+  .back-qr { margin: 22px auto 10px; text-align: center; page-break-inside: avoid; }
+  .back-qr img {
+    display: block; width: 38mm; height: 38mm; margin: 0 auto;
+    border: none; border-radius: 8px; box-shadow: none;
+    background: #fff; padding: 5px;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .back-qr-label { font-size: 10.5pt; font-weight: 700; margin: 10px 0 3px; color: #fff; }
+  .back-qr-url { font-size: 9.5pt; opacity: 0.88; margin: 0; color: #a5d6a7; letter-spacing: 0.3px; }
+  .back-note { font-size: 8.5pt; opacity: 0.7; margin-top: 18px; }
 
   .doc-body { padding: 18mm 17mm 22mm; font-size: 10.5pt; line-height: 1.62; text-align: justify; }
   h1 {
