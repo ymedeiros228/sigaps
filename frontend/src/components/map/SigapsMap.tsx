@@ -269,6 +269,10 @@ export function SigapsMap() {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.microareaEnvelopes(municipalityId),
         });
+        void queryClient.refetchQueries({
+          queryKey: queryKeys.microareaEnvelopes(municipalityId),
+          type: 'active',
+        });
       }
       setConflictMsg(null);
       setConflictOpen(false);
@@ -503,6 +507,10 @@ export function SigapsMap() {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.microareaEnvelopes(municipalityId),
         });
+        void queryClient.refetchQueries({
+          queryKey: queryKeys.microareaEnvelopes(municipalityId),
+          type: 'active',
+        });
       }
       if (selectedStreet && streetIds.includes(selectedStreet.id)) {
         setSelectedStreet({ ...selectedStreet, microareaId: undefined, microarea: undefined });
@@ -718,6 +726,10 @@ export function SigapsMap() {
         scheduleDashboardInvalidate(queryClient, municipalityId);
         void queryClient.invalidateQueries({
           queryKey: queryKeys.microareaEnvelopes(municipalityId),
+        });
+        void queryClient.refetchQueries({
+          queryKey: queryKeys.microareaEnvelopes(municipalityId),
+          type: 'active',
         });
       }
       setSelectedStreet(null);

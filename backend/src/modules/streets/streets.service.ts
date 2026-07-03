@@ -187,6 +187,12 @@ export class StreetsService {
     }
 
     const beforeById = new Map(streets.map((s) => [s.id, s.microareaId]));
+    const affectedMicroareas = new Set<string>([dto.microareaId]);
+    for (const previousMicroareaId of beforeById.values()) {
+      if (previousMicroareaId && previousMicroareaId !== dto.microareaId) {
+        affectedMicroareas.add(previousMicroareaId);
+      }
+    }
 
     await this.prisma.street.updateMany({
       where: { id: { in: dto.streetIds } },
@@ -204,7 +210,7 @@ export class StreetsService {
       })),
     });
 
-    this.scheduleEnvelopeUpdate(dto.microareaId);
+    await this.updateAffectedEnvelopes(affectedMicroareas);
     invalidateDashboardIndicators(microarea.municipalityId);
 
     return {
@@ -414,9 +420,7 @@ export class StreetsService {
       })),
     });
 
-    for (const microareaId of affectedMicroareas) {
-      this.scheduleEnvelopeUpdate(microareaId);
-    }
+    await this.updateAffectedEnvelopes(affectedMicroareas);
 
     if (streets.length > 0) {
       invalidateDashboardIndicators(streets[0].municipalityId);
@@ -454,9 +458,7 @@ export class StreetsService {
       },
     });
 
-    for (const microareaId of affectedMicroareas) {
-      this.scheduleEnvelopeUpdate(microareaId);
-    }
+    await this.updateAffectedEnvelopes(affectedMicroareas);
 
     invalidateDashboardIndicators(municipalityId);
 
@@ -748,10 +750,10 @@ export class StreetsService {
     };
   }
 
-  private scheduleEnvelopeUpdate(microareaId: string) {
-    setImmediate(() => {
-      void this.updateMicroareaEnvelope(microareaId);
-    });
+  private async updateAffectedEnvelopes(microareaIds: Iterable<string>) {
+    const ids = [...new Set(Array.from(microareaIds).filter(Boolean))];
+    if (ids.length === 0) return;
+    await Promise.all(ids.map((microareaId) => this.updateMicroareaEnvelope(microareaId)));
   }
 
   private async updateMicroareaEnvelope(microareaId: string) {
