@@ -135,6 +135,27 @@ async function centerMap(page) {
   }
 }
 
+async function ensureStreetMapLayer(page) {
+  const mapBtn = page.locator('[role="group"] button').first();
+  if (await mapBtn.isVisible().catch(() => false)) {
+    await mapBtn.click();
+    await page.waitForTimeout(800);
+  }
+}
+
+async function waitMapTiles(page) {
+  await page
+    .waitForFunction(
+      () => {
+        const tiles = [...document.querySelectorAll('.leaflet-tile-pane img')];
+        return tiles.length > 0 && tiles.some((img) => img.complete && img.naturalWidth > 0);
+      },
+      { timeout: 45_000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(1800);
+}
+
 async function scrollToText(page, text) {
   const el = page.getByText(text, { exact: false }).first();
   if (await el.isVisible().catch(() => false)) {
@@ -148,11 +169,13 @@ async function captureMapShots(page) {
   await waitApp(page);
   await page.waitForTimeout(3500);
   await cleanUi(page);
+  await ensureStreetMapLayer(page);
   await hideDivisionsPanel(page);
   await ensureToggle(page, 'Microáreas', true);
   await ensureToggle(page, 'UBS', true);
   await ensureToggle(page, 'Povoados', true);
   await centerMap(page);
+  await waitMapTiles(page);
   await collapsePaintPanel(page);
   await openMapLegend(page);
   await hidePaintPanel(page);
@@ -210,7 +233,11 @@ async function main() {
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   await waitApp(page);
   await cleanUi(page);
-  await page.waitForTimeout(1500);
+  await page
+    .waitForResponse((r) => r.url().includes('/checklist') && r.status() === 200, { timeout: 90_000 })
+    .catch(() => {});
+  await page.getByText('Checklist operacional').first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(2000);
   await shot(page, '02-dashboard');
 
   await captureMapShots(page);

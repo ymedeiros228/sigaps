@@ -20,6 +20,12 @@
 
 </div>
 
+<div class="contract-banner">
+
+**Este documento constitui o Manual Técnico e o Contrato de Entrega e Aceite** entre o desenvolvedor **Yuri Medeiros Bandeira** e o cliente **Jonas Almeida Medeiros**, referente ao sistema SIGAPS implantado em produção para a Secretaria Municipal de Saúde de Passagem Franca/MA.
+
+</div>
+
 ---
 
 # 1. Apresentação e objetivo
@@ -130,7 +136,7 @@ O SIGAPS possui cinco perfis de acesso, cada um com permissões específicas:
 O Dashboard é a página inicial do sistema (exceto para ACS, que são direcionados ao mapa). Apresenta uma visão consolidada da situação territorial do município.
 
 ![Dashboard do SIGAPS](screenshots/02-dashboard.png)
-<p class="fig-caption">Figura 2 — Indicadores, cobertura territorial, tabela por ACS e checklist operacional no topo</p>
+<p class="fig-caption">Figura 2 — Checklist operacional, indicadores, cobertura territorial e tabela por ACS</p>
 
 ## 5.1 Indicadores principais
 
@@ -181,7 +187,7 @@ As capturas desta seção mostram o sistema em uso real em Passagem Franca/MA, c
 </div>
 
 ![Mapa com cobertura por microáreas](screenshots/03-mapa-cobertura.png)
-<p class="fig-caption fig-hero">Figura 3 — Visão geral: ruas coloridas por microárea, legenda, UBS (azul) e povoados (marrom)</p>
+<p class="fig-caption fig-hero">Figura 3 — Mapa OpenStreetMap com ruas coloridas por microárea, UBS (azul) e povoados (marrom)</p>
 
 <div class="figure-row">
 
@@ -196,9 +202,9 @@ As capturas desta seção mostram o sistema em uso real em Passagem Franca/MA, c
 
 | Elemento | Cor / ícone | Significado |
 |----------|-------------|-------------|
-| **Ruas pintadas** | Verde, laranja, azul, roxo, vermelho… | Vinculadas a uma microárea |
-| **Ruas cinza** | Tracejado | Ainda sem microárea |
-| **UBS** | Marcador azul | Unidade Básica de Saúde |
+| **Ruas pintadas** | Verde, laranja, azul, roxo, vermelho… | Vinculadas a uma microárea (com contorno branco para destaque) |
+| **Ruas cinza** | Linha contínua ou tracejada | Ainda sem microárea — visíveis sobre o mapa de ruas |
+| **UBS** | Marcador azul | Unidade Básica de Saúde (9 unidades cadastradas) |
 | **Povoados** | Marcador marrom | Localidades rurais complementares |
 | **Legenda** | Canto inferior esquerdo | Contagem por microárea e % de cobertura |
 
@@ -207,7 +213,7 @@ As capturas desta seção mostram o sistema em uso real em Passagem Franca/MA, c
 | Ferramenta | Função |
 |------------|--------|
 | **Busca** | Localizar ruas, bairros, UBS, ACS, microáreas e povoados |
-| **Camadas** | Mapa padrão, Satélite ou Relevo |
+| **Camadas** | Mapa de ruas (OpenStreetMap), Satélite ou Relevo |
 | **Cobertura %** | Percentual de ruas já pintadas |
 | **Toggles** | Envelopes das microáreas, UBS e Povoados |
 | **Arquivos** | Importar/exportar GeoJSON, KML, CSV, PDF |
@@ -250,11 +256,13 @@ A seção **Cadastros** centraliza todos os dados estruturais da APS. Acesso pel
 ## 7.2 Unidades Básicas de Saúde (UBS)
 
 ![Cadastros — UBS](screenshots/05-cadastros-ubs.png)
-<p class="fig-caption">Figura 7 — Cadastro de UBS com validação CNES</p>
+<p class="fig-caption">Figura 7 — Cadastro de UBS com validação CNES (9 unidades: 5 urbanas e 4 rurais)</p>
 
 - Nome, endereço, telefone, coordenadas e coordenador
 - **Validação CNES** via API do Ministério da Saúde
 - Marcador azul no mapa (toggle UBS)
+- Unidades urbanas: Mutirão, Centro, Aeroporto, Faveira e Cohab
+- Unidades rurais: Alto Alegre, Bacabinha, Nazaré e Povoado Gato
 
 ## 7.3 Agentes Comunitários de Saúde (ACS)
 
@@ -469,14 +477,14 @@ Consulta em **Administração → Auditoria** com export CSV.
 | **Estado** | Zustand + TanStack Query |
 | **Backend** | NestJS, Prisma ORM, Swagger |
 | **Banco** | PostgreSQL + PostGIS (Supabase) |
-| **Mapas** | OpenStreetMap, Esri Satélite, OpenTopoMap |
+| **Mapas** | OpenStreetMap (padrão), Esri Satélite, OpenTopoMap |
 | **Geocodificação** | Nominatim, Overpass API |
 | **Hospedagem** | Render (API) + GitHub Actions (CI/CD) |
 | **PWA** | Service Worker + manifest (instalável) |
 
 ## 13.1 Repositório
 
-Código-fonte open source (licença MIT): repositório GitHub do projeto SIGAPS.
+Código-fonte open source (licença MIT): [github.com/ymedeiros228/sigaps](https://github.com/ymedeiros228/sigaps)
 
 ---
 
@@ -509,6 +517,12 @@ Código-fonte open source (licença MIT): repositório GitHub do projeto SIGAPS.
 
 # 15. Termo de aceite e assinaturas
 
+<div class="contract-banner">
+
+**CONTRATO DE ENTREGA E ACEITE DO SISTEMA SIGAPS** — Documento oficial que formaliza a entrega técnica do MVP v1.0.0 e o recebimento pelo cliente abaixo identificado.
+
+</div>
+
 ## 15.1 Declaração de entrega
 
 Declaro que o sistema **SIGAPS — Sistema Inteligente de Gestão das Microáreas da APS**, versão **1.0.0-MVP**, foi desenvolvido, implantado em produção e documentado conforme descrito neste manual, atendendo aos requisitos de gestão territorial da Atenção Primária à Saúde do município de **Passagem Franca — Maranhão**.
@@ -520,6 +534,8 @@ O sistema encontra-se disponível em **https://sigaps-api.onrender.com** e inclu
 O cliente abaixo identificado declara ter recebido o sistema, revisado as funcionalidades descritas neste manual, testado a aplicação em ambiente de produção e estar ciente das limitações do plano de hospedagem gratuito (seção 14).
 
 ---
+
+<div class="signature-block">
 
 ### CLIENTE / RECEPTOR
 
@@ -549,7 +565,11 @@ Acesse https://www.gov.br/governodigital e utilize o aplicativo **Assinador SERP
 
 </div>
 
+</div>
+
 ---
+
+<div class="signature-block">
 
 ### DESENVOLVEDOR / ENTREGADOR TÉCNICO
 
@@ -575,6 +595,8 @@ Sistema Inteligente de Gestão das Microáreas da APS
 <div class="signature-gov">
 
 Espaço reservado para assinatura com **conta gov.br** (nível prata ou ouro).
+
+</div>
 
 </div>
 
