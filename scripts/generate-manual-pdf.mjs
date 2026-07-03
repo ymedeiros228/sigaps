@@ -16,12 +16,14 @@ const SITE_URL = 'https://sigaps-api.onrender.com';
 const qrPath = join(manualDir, 'assets', 'qrcode-site.png');
 mkdirSync(join(manualDir, 'assets'), { recursive: true });
 const QRCode = require(join(root, 'frontend', 'node_modules', 'qrcode'));
-await QRCode.toFile(qrPath, SITE_URL, {
-  width: 360,
+const qrBuffer = await QRCode.toBuffer(SITE_URL, {
+  type: 'png',
+  width: 400,
   margin: 1,
   color: { dark: '#0b2e4a', light: '#ffffff' },
 });
-const qrFileUrl = `file:///${qrPath.replace(/\\/g, '/')}`;
+writeFileSync(qrPath, qrBuffer);
+const qrDataUrl = `data:image/png;base64,${qrBuffer.toString('base64')}`;
 
 const coverHtml = `
 <section class="cover-sheet">
@@ -67,7 +69,7 @@ const backCoverHtml = `
       <tr><td class="lbl">Repositório</td><td class="val">github.com/ymedeiros228/sigaps</td></tr>
     </table>
     <div class="back-qr">
-      <img src="${qrFileUrl}" alt="QR Code do SIGAPS" />
+      <img src="${qrDataUrl}" alt="QR Code do SIGAPS" class="back-qr-img" />
       <p class="back-qr-label">Acesse o sistema</p>
       <p class="back-qr-url">sigaps-api.onrender.com</p>
     </div>
@@ -146,11 +148,17 @@ const css = `
   .back-table .lbl { font-weight: 700; color: #a5d6a7 !important; width: 38%; white-space: nowrap; }
   .back-table .val { color: #fff !important; }
   .back-qr { margin: 22px auto 10px; text-align: center; page-break-inside: avoid; }
-  .back-qr img {
-    display: block; width: 38mm; height: 38mm; margin: 0 auto;
-    border: none; border-radius: 8px; box-shadow: none;
-    background: #fff; padding: 5px;
-    border: 2px solid rgba(255,255,255,0.3);
+  .back-cover .back-qr-img {
+    display: block !important;
+    width: 42mm !important;
+    height: 42mm !important;
+    max-width: 42mm !important;
+    margin: 0 auto !important;
+    padding: 4mm !important;
+    background: #fff !important;
+    border: 2px solid rgba(255,255,255,0.35) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
   }
   .back-qr-label { font-size: 10.5pt; font-weight: 700; margin: 10px 0 3px; color: #fff; }
   .back-qr-url { font-size: 9.5pt; opacity: 0.88; margin: 0; color: #a5d6a7; letter-spacing: 0.3px; }
@@ -168,12 +176,12 @@ const css = `
   .doc-body th, .doc-body td { border: 1px solid #cfd8dc; padding: 7px 9px; text-align: left; vertical-align: top; }
   .doc-body th { background: #E3F2FD; color: #1565C0; font-weight: 700; }
   .doc-body tr:nth-child(even) td { background: #fafafa; }
-  img {
+  .doc-body img {
     display: block; width: 100%; max-width: 176mm; height: auto; margin: 12px auto;
     border: 1px solid #d5dde4; border-radius: 5px; box-shadow: 0 2px 14px rgba(0,0,0,0.09);
     page-break-inside: avoid;
   }
-  img.img-detail { max-width: 115mm; }
+  .doc-body img.img-detail { max-width: 115mm; }
   .fig-caption { text-align: center; font-size: 8.8pt; color: #546E7A; font-style: italic; margin: -4px 0 16px; line-height: 1.45; }
   .fig-caption.fig-hero { font-size: 9.8pt; font-weight: 600; font-style: normal; color: #37474F; margin-bottom: 20px; }
   .figure-row {
@@ -241,6 +249,13 @@ writeFileSync(join(manualDir, '_build.html'), html, 'utf8');
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 await page.goto(`file:///${join(manualDir, '_build.html').replace(/\\/g, '/')}`, { waitUntil: 'networkidle' });
+await page.waitForFunction(
+  () => {
+    const img = document.querySelector('.back-qr-img');
+    return img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0;
+  },
+  { timeout: 15_000 },
+);
 await page.pdf({
   path: output,
   format: 'A4',
