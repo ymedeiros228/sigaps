@@ -53,7 +53,7 @@ import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea } from '../../utils/streetsCache';
 import { LeafletMap } from './LeafletMap';
-import { MapBaseTileLayer } from './MapBaseTileLayer';
+import { MapTileLayerController } from './MapTileLayerController';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
 
@@ -957,9 +957,10 @@ export function SigapsMap() {
       )}
 
       <LeafletMap
+          className="sigaps-leaflet-map"
           center={[PASSAGEM_FRANCA.lat, PASSAGEM_FRANCA.lng]}
           zoom={PASSAGEM_FRANCA.zoom}
-          style={{ height: '100%', width: '100%' }}
+          style={{ height: '100%', width: '100%', minHeight: 320 }}
           zoomControl={false}
           doubleClickZoom={false}
           boxZoom={false}
@@ -970,7 +971,7 @@ export function SigapsMap() {
           <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />
           <MapCenterController />
-          <MapBaseTileLayer layerId={baseLayer} />
+          <MapTileLayerController layerId={baseLayer} />
           <ScaleControl imperial={false} />
           {(paintZones.length > 0 || divisionDraft) && <PaintZonesLayer zones={paintZones} />}
           <MicroareaEnvelopesLayer municipalityId={municipalityId!} />

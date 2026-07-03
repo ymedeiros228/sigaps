@@ -1,11 +1,9 @@
 import { useEffect } from 'react';
-import { Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Box, Typography } from '@mui/material';
 import { LeafletMap } from '../map/LeafletMap';
-import { MAP_TILE_LAYERS } from '../../constants/mapTiles';
-
-const SATELLITE_TILE = MAP_TILE_LAYERS.satellite;
+import { MapTileLayerController } from '../map/MapTileLayerController';
 
 const pickerIcon = L.divIcon({
   className: 'place-picker-marker',
@@ -93,13 +91,7 @@ export function PlaceCoordinatePicker({
           scrollWheelZoom
           zoomControl
         >
-          <TileLayer
-            url={SATELLITE_TILE.url}
-            attribution={SATELLITE_TILE.attribution}
-            maxZoom={SATELLITE_TILE.maxZoom}
-            maxNativeZoom={SATELLITE_TILE.maxNativeZoom}
-            detectRetina={SATELLITE_TILE.detectRetina}
-          />
+          <MapTileLayerController layerId="satellite" />
           <MapClickHandler onPick={onChange} />
           <MapViewController latitude={latitude} longitude={longitude} center={center} />
           {hasPoint && (

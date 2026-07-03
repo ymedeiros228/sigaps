@@ -15,7 +15,17 @@ body {
 
 .leaflet-container {
   font-family: inherit;
-  background: #0B0F14;
+  background: #1a2332;
+}
+
+.sigaps-leaflet-map.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  z-index: 0;
+}
+
+.leaflet-tile-pane {
+  opacity: 1 !important;
 }
 
 .leaflet-control-zoom a {

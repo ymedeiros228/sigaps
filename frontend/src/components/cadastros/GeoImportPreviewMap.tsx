@@ -1,11 +1,9 @@
 import { useEffect } from 'react';
-import { Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Box, Typography } from '@mui/material';
 import { LeafletMap } from '../map/LeafletMap';
-import { MAP_TILE_LAYERS } from '../../constants/mapTiles';
-
-const SATELLITE_TILE = MAP_TILE_LAYERS.satellite;
+import { MapTileLayerController } from '../map/MapTileLayerController';
 
 export type GeoImportPoint = {
   name: string;
@@ -88,13 +86,7 @@ export function GeoImportPreviewMap({
           scrollWheelZoom
           zoomControl
         >
-          <TileLayer
-            url={SATELLITE_TILE.url}
-            attribution={SATELLITE_TILE.attribution}
-            maxZoom={SATELLITE_TILE.maxZoom}
-            maxNativeZoom={SATELLITE_TILE.maxNativeZoom}
-            detectRetina={SATELLITE_TILE.detectRetina}
-          />
+          <MapTileLayerController layerId="satellite" />
           <FitPreviewBounds points={points} />
           {points.map((point, index) => {
             const color = point.markerColor ?? defaultMarkerColor;

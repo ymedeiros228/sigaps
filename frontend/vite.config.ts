@@ -41,26 +41,8 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/([a-c]\.)?tile\.openstreetmap\.org\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'osm-tiles',
-              expiration: { maxEntries: 512, maxAgeSeconds: 7 * 24 * 60 * 60 },
-              networkTimeoutSeconds: 8,
-            },
-          },
-          {
-            urlPattern: /^https:\/\/server\.arcgisonline\.com\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'esri-tiles',
-              expiration: { maxEntries: 512, maxAgeSeconds: 7 * 24 * 60 * 60 },
-              networkTimeoutSeconds: 8,
-            },
-          },
-        ],
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
