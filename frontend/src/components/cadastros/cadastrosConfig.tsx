@@ -51,7 +51,7 @@ export const CADASTROS_SECTIONS: CadastrosSection[] = [
     id: 'povoados',
     label: 'Povoados e localidades',
     shortLabel: 'Povoados',
-    description: 'Complemento ao mapa — lugares fora das ruas OSM',
+    description: 'Povoados no mapa — busca, satélite ou coordenadas manuais',
     icon: <HomeWork fontSize="small" />,
   },
   {

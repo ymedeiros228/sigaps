@@ -16,10 +16,11 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Delete, Edit, HomeWork, Map, Search, CloudDownload } from '@mui/icons-material';
+import { Add, Delete, Edit, HomeWork, Map, Search, CloudDownload } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import {
+  municipalitiesApi,
   placesApi,
   type Place,
   type PlaceKind,
@@ -30,6 +31,7 @@ import { CadastrosSectionHeader } from '../CadastrosSectionHeader';
 import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
+import { PlaceCoordinatePicker } from '../PlaceCoordinatePicker';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
@@ -82,10 +84,39 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<PlaceForm>({
     defaultValues: { kind: 'POVOADO', notes: '' },
   });
+
+  const latitudeValue = watch('latitude');
+  const longitudeValue = watch('longitude');
+
+  const { data: municipality } = useQuery({
+    queryKey: queryKeys.municipality(municipalityId),
+    queryFn: () => municipalitiesApi.get(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
+
+  const mapCenter = useMemo(
+    () => ({
+      lat: municipality?.latitude ?? -6.1828,
+      lng: municipality?.longitude ?? -43.7869,
+    }),
+    [municipality?.latitude, municipality?.longitude],
+  );
+
+  const pickerLatitude = useMemo(() => {
+    const n = Number(latitudeValue);
+    return latitudeValue && Number.isFinite(n) ? n : null;
+  }, [latitudeValue]);
+
+  const pickerLongitude = useMemo(() => {
+    const n = Number(longitudeValue);
+    return longitudeValue && Number.isFinite(n) ? n : null;
+  }, [longitudeValue]);
 
   const { data = [], isPending: isLoading } = useQuery({
     queryKey: queryKeys.places(municipalityId),
@@ -213,11 +244,16 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     reportSuccess('Coordenadas aplicadas.');
   };
 
+  const handleMapPick = (lat: number, lng: number) => {
+    setValue('latitude', lat.toFixed(6), { shouldValidate: true });
+    setValue('longitude', lng.toFixed(6), { shouldValidate: true });
+  };
+
   return (
     <>
       <CadastrosSectionHeader
         title="Povoados e localidades"
-        description="Complementa o mapa com povoados que não aparecem nas ruas do OpenStreetMap. O mapeamento de ruas continua igual."
+        description="Complementa o mapa com povoados que não aparecem nas ruas. Use busca automática, marque no mapa satélite ou cole coordenadas do Google Maps."
         count={data.length}
         search={search}
         onSearchChange={setSearch}
@@ -292,11 +328,18 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             }
             action={
               canManagePlaces && !search ? (
-                <CadastrosEmptyAction
-                  label="Importar do OpenStreetMap"
-                  onClick={() => importOsmMutation.mutate()}
-                  icon={<CloudDownload />}
-                />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                  <CadastrosEmptyAction
+                    label="Cadastrar com coordenadas"
+                    onClick={() => openForm()}
+                    icon={<Add />}
+                  />
+                  <CadastrosEmptyAction
+                    label="Importar do OpenStreetMap"
+                    onClick={() => importOsmMutation.mutate()}
+                    icon={<CloudDownload />}
+                  />
+                </Box>
               ) : undefined
             }
           />
@@ -335,7 +378,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
         onClose={() => setOpen(false)}
         onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
         loading={saveMutation.isPending}
-        maxWidth="sm"
+        maxWidth="md"
       >
         <TextField
           label="Nome"
@@ -358,12 +401,17 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             </MenuItem>
           ))}
         </TextField>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
           Coordenadas geográficas
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-          Se a busca automática não encontrar o lugar, copie latitude e longitude do Google Maps (clique com o
-          botão direito no mapa → copiar coordenadas) e cole abaixo.
+        <PlaceCoordinatePicker
+          latitude={pickerLatitude}
+          longitude={pickerLongitude}
+          center={mapCenter}
+          onChange={handleMapPick}
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, mb: 1 }}>
+          Ou copie do Google Maps (botão direito no mapa → copiar coordenadas):
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
           <TextField
@@ -425,7 +473,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
         <DialogTitle sx={{ fontWeight: 700 }}>Buscar no mapa mundial</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Encontre povoados e localidades (como no Google Maps) e adicione ao SIGAPS.
+            Encontre povoados automaticamente ou cadastre manualmente no mapa satélite quando não aparecer na busca.
           </Typography>
           <TextField
             label="Nome do lugar"
@@ -458,7 +506,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
               >
               <ListItemText
                 primary={item.name}
-                secondary={item.displayName}
+                secondary={`${item.displayName} · ${item.latitude.toFixed(5)}, ${item.longitude.toFixed(5)}`}
                 slotProps={{ primary: { sx: { fontWeight: 600 } } }}
               />
                 <Map fontSize="small" color="action" />

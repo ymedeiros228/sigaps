@@ -70,7 +70,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | M5 | Export KML/SVG | [x] |
 | M6 | Backup automatizado agendado | [x] |
 | M7 | Performance para > 2000 ruas | [x] |
-| M8 | Povoados — coordenadas manuais e escolha no mapa | [ ] |
+| M8 | Povoados — coordenadas manuais e escolha no mapa | [x] |
 
 ### 🟢 Baixo / futuro
 
@@ -174,18 +174,19 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 - [x] Admin homologação integrado ao checklist com aviso de prontidão
 - [x] Seletor multi-município com confirmação e indicador de homologação
 
-### Sprint 14 — Povoados e coordenadas geográficas — 🟡 Em andamento
+### Sprint 14 — Povoados e coordenadas geográficas — ✅ Concluído
 
 **Problema:** lugares como Bacabinha aparecem no Google Maps, mas a busca no SIGAPS (Nominatim/OSM) nem sempre encontra. Sem coordenadas corretas o marcador não aparece no mapa.
 
 | Item | Descrição | Status |
 |------|-----------|--------|
-| P1 | Cadastro manual com latitude/longitude (já existe no formulário) | [x] |
+| P1 | Cadastro manual com latitude/longitude | [x] |
 | P2 | Atalho “Cadastrar com coordenadas” quando a busca não retorna resultados | [x] |
 | P3 | Colar coordenadas do Google Maps (`lat, lng` em um campo) | [x] |
-| P4 | Escolher ponto no mapa satélite (clique para marcar o povoado) | [ ] |
+| P4 | Escolher ponto no mapa satélite (clique + arrastar pino) | [x] |
 | P5 | Enfermeiro pode cadastrar povoados (permissão alinhada ao backend) | [x] |
-| P6 | Atualizar manual PDF com fluxo de povoado manual | [ ] |
+| P6 | Busca Nominatim com viés regional (viewbox do município) | [x] |
+| P7 | Atualizar manual PDF com fluxo de povoado manual | [ ] |
 
 **Critério de aceite:** qualquer povoado do município pode ser cadastrado em menos de 2 minutos, mesmo sem resultado na busca automática.
 

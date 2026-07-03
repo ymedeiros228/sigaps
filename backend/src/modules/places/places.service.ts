@@ -105,7 +105,7 @@ export class PlacesService {
   async searchNominatim(municipalityId: string, query: string) {
     const municipality = await this.prisma.municipality.findUnique({
       where: { id: municipalityId },
-      select: { name: true, state: true },
+      select: { name: true, state: true, latitude: true, longitude: true },
     });
     if (!municipality) throw new NotFoundException('Município não encontrado.');
 
@@ -113,6 +113,8 @@ export class PlacesService {
       nominatimUrl: this.config.get<string>('NOMINATIM_URL'),
       municipalityName: municipality.name,
       state: municipality.state,
+      latitude: municipality.latitude,
+      longitude: municipality.longitude,
       limit: 10,
     });
   }
