@@ -8,10 +8,15 @@ export class BulkAcsItemDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: '12345678901' })
+  @ApiProperty({
+    example: '12345678901',
+    required: false,
+    description: 'Opcional na importação em lote; se ausente, o sistema gera código interno',
+  })
+  @IsOptional()
   @IsString()
   @Length(11, 11)
-  cpf: string;
+  cpf?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

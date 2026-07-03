@@ -404,13 +404,13 @@ export const acsApi = {
     municipalityId: string,
     items: Array<{
       name: string;
-      cpf: string;
+      cpf?: string;
       phone?: string;
       microareaRef?: string;
       status?: string;
     }>,
   ) =>
-    api.post<{ created: number; updated: number; errors: Array<{ row: number; cpf: string; message: string }>; total: number }>(
+    api.post<{ created: number; updated: number; errors: Array<{ row: number; ref: string; message: string }>; total: number }>(
       '/acs/bulk',
       { municipalityId, items },
     ),

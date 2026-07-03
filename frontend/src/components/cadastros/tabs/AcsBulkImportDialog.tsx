@@ -14,51 +14,17 @@ import {
 import { ContentPaste, Upload, Download } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { acsApi } from '../../../services/api';
-import { digitsOnly } from '../../../utils/inputMasks';
+import {
+  parseAcsCsvText,
+  parseAcsExcelFile,
+  type AcsImportRow,
+} from '../../../utils/parseAcsSpreadsheet';
 
-const CSV_TEMPLATE = `nome;cpf;telefone;microarea;status
-Maria Silva;12345678901;98999998888;Microárea 01;ATIVO
-João Santos;98765432100;98988887777;02;ATIVO`;
+const CSV_TEMPLATE = `UBS;Contato;Nome do ACS;Microarea;CPF;Status;Observacao
+UBS Centro;(99) 98421-7828;Maria Silva;01;;ATIVO;
+UBS Aeroporto;(99) 98505-5597;João Santos;02;12345678901;ATIVO;`;
 
-type ImportError = { row: number; cpf: string; message: string };
-
-function parseCsv(text: string) {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith('#'));
-
-  if (lines.length === 0) return [];
-
-  const sep = lines[0].includes(';') ? ';' : ',';
-  const header = lines[0].toLowerCase().split(sep).map((h) => h.trim());
-
-  const col = (names: string[]) => header.findIndex((h) => names.some((n) => h.includes(n)));
-
-  const nameIdx = col(['nome', 'name']);
-  const cpfIdx = col(['cpf']);
-  const phoneIdx = col(['telefone', 'phone', 'celular']);
-  const microIdx = col(['microarea', 'microárea', 'micro']);
-  const statusIdx = col(['status', 'situacao']);
-
-  const dataLines = nameIdx >= 0 || cpfIdx >= 0 ? lines.slice(1) : lines;
-
-  return dataLines
-    .map((line) => {
-      const parts = line.split(sep).map((p) => p.trim().replace(/^"|"$/g, ''));
-      const name = parts[nameIdx >= 0 ? nameIdx : 0];
-      const cpf = digitsOnly(parts[cpfIdx >= 0 ? cpfIdx : 1]);
-      if (!name || cpf.length !== 11) return null;
-      return {
-        name,
-        cpf,
-        phone: phoneIdx >= 0 ? parts[phoneIdx] : undefined,
-        microareaRef: microIdx >= 0 ? parts[microIdx] : undefined,
-        status: statusIdx >= 0 ? parts[statusIdx]?.toUpperCase() : 'ATIVO',
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null);
-}
+type ImportError = { row: number; ref: string; message: string };
 
 interface AcsBulkImportDialogProps {
   open: boolean;
@@ -77,7 +43,7 @@ export function AcsBulkImportDialog({
 }: AcsBulkImportDialogProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
-  const [preview, setPreview] = useState<ReturnType<typeof parseCsv>>([]);
+  const [preview, setPreview] = useState<AcsImportRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<{
     created: number;
@@ -111,19 +77,22 @@ export function AcsBulkImportDialog({
     onClose();
   };
 
+  const loadRows = (rows: AcsImportRow[]) => {
+    if (rows.length === 0) {
+      setParseError('Nenhuma linha válida encontrada. Use a planilha modelo ou confira os cabeçalhos.');
+      setPreview([]);
+      return;
+    }
+    setParseError(null);
+    setPreview(rows);
+    setImportResult(null);
+  };
+
   const loadText = (text: string) => {
     try {
-      const rows = parseCsv(text);
-      if (rows.length === 0) {
-        setParseError('Nenhuma linha válida encontrada. Use o modelo CSV.');
-        setPreview([]);
-        return;
-      }
-      setParseError(null);
-      setPreview(rows);
-      setImportResult(null);
+      loadRows(parseAcsCsvText(text));
     } catch {
-      setParseError('Conteúdo inválido. Use CSV com colunas nome e CPF.');
+      setParseError('Conteúdo inválido. Use CSV/Excel com colunas de nome, microárea e contato/telefone.');
       setPreview([]);
     }
   };
@@ -149,7 +118,8 @@ export function AcsBulkImportDialog({
   const summary = useMemo(() => {
     if (preview.length === 0) return null;
     const withMicro = preview.filter((r) => r.microareaRef).length;
-    return `${preview.length} agente(s) · ${withMicro} com microárea indicada`;
+    const withoutCpf = preview.filter((r) => !r.cpf).length;
+    return `${preview.length} agente(s) · ${withMicro} com microárea indicada · ${withoutCpf} sem CPF`;
   }, [preview]);
 
   return (
@@ -157,8 +127,8 @@ export function AcsBulkImportDialog({
       <DialogTitle sx={{ fontWeight: 800 }}>Importar ACS da planilha</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Cole os dados do Excel ou Google Planilhas, ou envie um arquivo CSV (separador{' '}
-          <strong>;</strong> ou vírgula).
+          Cole os dados do Excel ou Google Planilhas, ou envie um arquivo CSV/Excel. O CPF
+          pode ficar em branco que o sistema gera um código interno.
         </Typography>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -177,7 +147,7 @@ export function AcsBulkImportDialog({
 
         <TextField
           label="Colar dados da planilha"
-          placeholder={'nome;cpf;telefone;microarea;status\nMaria Silva;12345678901;...'}
+          placeholder={'UBS;Contato;Nome do ACS;Microarea;CPF;Status\nUBS Centro;(99) 98421-7828;Maria Silva;01;;ATIVO'}
           multiline
           minRows={4}
           maxRows={10}
@@ -201,18 +171,30 @@ export function AcsBulkImportDialog({
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,.txt,text/csv"
+          accept=".csv,.txt,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           hidden
-          onChange={(e) => {
+          onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-              const text = String(reader.result ?? '');
-              setPasteText(text);
-              loadText(text);
-            };
-            reader.readAsText(file);
+            try {
+              const lower = file.name.toLowerCase();
+              if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+                const rows = await parseAcsExcelFile(file);
+                setPasteText('');
+                loadRows(rows);
+              } else {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const text = String(reader.result ?? '');
+                  setPasteText(text);
+                  loadText(text);
+                };
+                reader.readAsText(file);
+              }
+            } catch {
+              setParseError('Não foi possível ler o arquivo. Use CSV, XLS ou XLSX.');
+              setPreview([]);
+            }
             e.target.value = '';
           }}
         />
@@ -224,8 +206,9 @@ export function AcsBulkImportDialog({
             {summary}
             <Box component="ul" sx={{ m: 0, mt: 1, pl: 2.5, fontSize: '0.85rem' }}>
               {preview.slice(0, 5).map((r) => (
-                <li key={r.cpf}>
-                  {r.name} — CPF {r.cpf.slice(0, 3)}…
+                <li key={`${r.name}-${r.microareaRef ?? 'sem-micro'}-${r.cpf ?? 'sem-cpf'}`}>
+                  {r.name}
+                  {r.cpf ? ` — CPF ${r.cpf.slice(0, 3)}…` : ' — sem CPF'}
                   {r.microareaRef ? ` · ${r.microareaRef}` : ''}
                 </li>
               ))}
@@ -258,8 +241,8 @@ export function AcsBulkImportDialog({
                   }}
                 >
                   {importResult.errors.map((err) => (
-                    <li key={`${err.row}-${err.cpf}`}>
-                      Linha {err.row} (CPF …{err.cpf.slice(-4)}): {err.message}
+                    <li key={`${err.row}-${err.ref}`}>
+                      Linha {err.row} ({err.ref || 'sem identificador'}): {err.message}
                     </li>
                   ))}
                 </Box>
@@ -269,8 +252,10 @@ export function AcsBulkImportDialog({
         </Collapse>
 
         <Typography variant="caption" color="text.secondary">
-          Colunas: <strong>nome</strong>, <strong>cpf</strong> (11 dígitos), telefone, microarea
-          (nome ou número), status (ATIVO/INATIVO). CPF já cadastrado será atualizado.
+          Colunas aceitas: <strong>Nome do ACS</strong>/<strong>nome</strong>,{' '}
+          <strong>Contato</strong>/<strong>telefone</strong>, <strong>Microarea</strong>,{' '}
+          <strong>CPF</strong> e <strong>Status</strong>. Se o CPF ficar vazio, o sistema gera
+          um identificador interno e ainda importa normalmente.
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

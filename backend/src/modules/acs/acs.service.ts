@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { mkdir, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
+import { EntityStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
@@ -41,7 +42,7 @@ export class AcsService {
       where: { id },
       include: { microarea: true },
     });
-    if (!acs) throw new NotFoundException('ACS não encontrado');
+    if (!acs) throw new NotFoundException('ACS nao encontrado');
     return this.maskAcsRow(acs, viewerRole);
   }
 
@@ -57,7 +58,7 @@ export class AcsService {
     if (normalized && normalized.length === 11) {
       const existing = await this.prisma.acs.findUnique({ where: { cpf: normalized } });
       if (existing) {
-        throw new ConflictException('Já existe um ACS com este CPF.');
+        throw new ConflictException('Ja existe um ACS com este CPF.');
       }
       return normalized;
     }
@@ -68,7 +69,7 @@ export class AcsService {
       if (!existing) return candidate;
     }
 
-    throw new BadRequestException('Não foi possível gerar identificador interno do ACS.');
+    throw new BadRequestException('Nao foi possivel gerar identificador interno do ACS.');
   }
 
   private acsAuditFields(acs: {
@@ -96,7 +97,7 @@ export class AcsService {
       const microarea = await this.prisma.microarea.findUnique({
         where: { id: microareaId },
       });
-      if (!microarea) throw new NotFoundException('Microárea não encontrada');
+      if (!microarea) throw new NotFoundException('Microarea nao encontrada');
       await this.prisma.microarea.update({
         where: { id: microareaId },
         data: { acsId },
@@ -125,7 +126,7 @@ export class AcsService {
     });
     if (!exists) {
       throw new BadRequestException(
-        'Município inválido ou não encontrado. Recarregue a página ou selecione o município no menu lateral.',
+        'Municipio invalido ou nao encontrado. Recarregue a pagina ou selecione o municipio no menu lateral.',
       );
     }
   }
@@ -158,13 +159,13 @@ export class AcsService {
 
   async update(id: string, dto: UpdateAcsDto, userId: string, viewerRole?: string) {
     const beforeRaw = await this.prisma.acs.findUnique({ where: { id } });
-    if (!beforeRaw) throw new NotFoundException('ACS não encontrado');
+    if (!beforeRaw) throw new NotFoundException('ACS nao encontrado');
     const { microareaId, municipalityId: _m, cpf: _c, ...data } = dto;
     if (dto.cpf) {
       const dup = await this.prisma.acs.findFirst({
         where: { cpf: dto.cpf, NOT: { id } },
       });
-      if (dup) throw new ConflictException('Já existe outro ACS com este CPF.');
+      if (dup) throw new ConflictException('Ja existe outro ACS com este CPF.');
     }
     await this.prisma.acs.update({ where: { id }, data });
     if (microareaId !== undefined) {
@@ -191,7 +192,7 @@ export class AcsService {
     const allowed = ['.png', '.jpg', '.jpeg', '.webp'];
     const ext = extname(file.originalname).toLowerCase() || '.jpg';
     if (!allowed.includes(ext)) {
-      throw new BadRequestException('Formato de imagem não suportado. Use PNG, JPG ou WEBP.');
+      throw new BadRequestException('Formato de imagem nao suportado. Use PNG, JPG ou WEBP.');
     }
 
     const uploadDir = join(process.cwd(), 'uploads', 'acs');
@@ -229,31 +230,66 @@ export class AcsService {
 
     let created = 0;
     let updated = 0;
-    const errors: Array<{ row: number; cpf: string; message: string }> = [];
+    const errors: Array<{ row: number; ref: string; message: string }> = [];
 
     for (let i = 0; i < dto.items.length; i++) {
       const item = dto.items[i];
       const row = i + 1;
+      const ref = maskCpfField(item.cpf, viewerRole) ?? item.name;
       try {
         const microareaId = this.resolveMicroareaRef(item.microareaRef, microareas);
         if (item.microareaRef && !microareaId) {
           errors.push({
             row,
-            cpf: maskCpfField(item.cpf, viewerRole) ?? item.cpf,
-            message: `Microárea "${item.microareaRef}" não encontrada`,
+            ref,
+            message: `Microarea "${item.microareaRef}" nao encontrada`,
           });
           continue;
         }
 
-        const existing = await this.prisma.acs.findUnique({ where: { cpf: item.cpf } });
+        const normalizedCpf = item.cpf?.replace(/\D/g, '').trim() || undefined;
+        let existing = normalizedCpf
+          ? await this.prisma.acs.findUnique({ where: { cpf: normalizedCpf } })
+          : null;
+
+        if (!existing) {
+          existing = await this.prisma.acs.findFirst({
+            where: {
+              municipalityId: dto.municipalityId,
+              name: { equals: item.name.trim(), mode: 'insensitive' as const },
+            },
+          });
+        }
+
         if (existing) {
+          const data: {
+            name: string;
+            phone?: string;
+            status: EntityStatus;
+            cpf?: string;
+          } = {
+            name: item.name,
+            phone: item.phone,
+            status: item.status ?? existing.status,
+          };
+
+          if (
+            normalizedCpf &&
+            existing.cpf !== normalizedCpf &&
+            isInternalAcsCode(existing.cpf)
+          ) {
+            const duplicateCpf = await this.prisma.acs.findFirst({
+              where: { cpf: normalizedCpf, NOT: { id: existing.id } },
+              select: { id: true },
+            });
+            if (!duplicateCpf) {
+              data.cpf = normalizedCpf;
+            }
+          }
+
           await this.prisma.acs.update({
             where: { id: existing.id },
-            data: {
-              name: item.name,
-              phone: item.phone,
-              status: item.status ?? existing.status,
-            },
+            data,
           });
           if (microareaId) await this.assignToMicroarea(existing.id, microareaId);
           await this.audit.log({
@@ -263,17 +299,18 @@ export class AcsService {
             action: 'UPDATE',
             afterData: auditSnapshot({
               name: item.name,
-              cpf: item.cpf,
+              cpf: data.cpf ?? existing.cpf,
               phone: item.phone,
               status: item.status ?? existing.status,
             }),
           });
           updated++;
         } else {
+          const resolvedCpf = await this.resolveCreateCpf(normalizedCpf);
           const acs = await this.prisma.acs.create({
             data: {
               name: item.name,
-              cpf: item.cpf,
+              cpf: resolvedCpf,
               phone: item.phone,
               status: item.status ?? 'ATIVO',
               municipalityId: dto.municipalityId,
@@ -287,7 +324,7 @@ export class AcsService {
             action: 'CREATE',
             afterData: auditSnapshot({
               name: item.name,
-              cpf: item.cpf,
+              cpf: resolvedCpf,
               phone: item.phone,
               status: item.status ?? 'ATIVO',
             }),
@@ -297,7 +334,7 @@ export class AcsService {
       } catch (error) {
         errors.push({
           row,
-          cpf: maskCpfField(item.cpf, viewerRole) ?? item.cpf,
+          ref,
           message: (error as Error).message || 'Erro ao importar linha',
         });
       }
@@ -315,7 +352,7 @@ export class AcsService {
 
   async remove(id: string, userId: string) {
     const beforeRaw = await this.prisma.acs.findUnique({ where: { id } });
-    if (!beforeRaw) throw new NotFoundException('ACS não encontrado');
+    if (!beforeRaw) throw new NotFoundException('ACS nao encontrado');
     await this.prisma.microarea.updateMany({
       where: { acsId: id },
       data: { acsId: null },

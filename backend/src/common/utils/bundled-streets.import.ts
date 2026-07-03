@@ -51,10 +51,7 @@ export async function importStreetsFromBundledGeoJson(
   const raw = readFileSync(path, 'utf8');
   const geojson = JSON.parse(raw) as GeoJSON.FeatureCollection;
   const features = (geojson.features ?? []).filter(
-    (f): f is StreetFeature =>
-      f.type === 'Feature' &&
-      f.geometry?.type === 'LineString' &&
-      !!f.properties?.name?.trim(),
+    (f): f is StreetFeature => f.type === 'Feature' && f.geometry?.type === 'LineString',
   );
 
   const toUpsert: Array<{
@@ -68,9 +65,20 @@ export async function importStreetsFromBundledGeoJson(
   let skipped = 0;
 
   for (const feature of features) {
-    const name = feature.properties.name!.trim();
     const osmIdRaw = feature.properties.osmId;
     if (!osmIdRaw) {
+      skipped++;
+      continue;
+    }
+
+    const name = resolveOsmStreetName(
+      {
+        ...(feature.properties.name ? { name: feature.properties.name } : {}),
+        ...(feature.properties.highway ? { highway: feature.properties.highway } : {}),
+      },
+      osmIdRaw,
+    );
+    if (!name) {
       skipped++;
       continue;
     }

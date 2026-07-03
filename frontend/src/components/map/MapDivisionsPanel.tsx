@@ -160,7 +160,8 @@ export function MapDivisionsPanel({
       <Collapse in={panelOpen}>
         <Box sx={{ p: 1.5, pt: 1 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-            Crie áreas circulares no mapa e vincule ruas à microárea escolhida.
+            Crie áreas circulares no mapa e vincule ruas à microárea escolhida. Ideal para
+            estradas de terra e trechos mais difíceis de pintar rua por rua.
           </Typography>
 
           {!divisionMode ? (
@@ -187,7 +188,8 @@ export function MapDivisionsPanel({
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
               <Alert severity="info" sx={{ py: 0.25, borderRadius: 2 }}>
-                Clique no mapa para posicionar o centro da divisão.
+                Clique no mapa para posicionar o centro da divisão. Use esta opção quando a
+                pintura manual ficar difícil.
               </Alert>
               <TextField
                 size="small"

@@ -77,6 +77,7 @@ export function PaintGuidePanel({
   const [clearDialog, setClearDialog] = useState<'all' | 'microarea' | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [neighborhoodConfirm, setNeighborhoodConfirm] = useState<{ id: string; name: string; count: number } | null>(null);
+  const [dirtRoadConfirm, setDirtRoadConfirm] = useState<{ count: number } | null>(null);
   const paintMode = useMapStore((s) => s.paintMode);
   const eraserMode = useMapStore((s) => s.eraserMode);
   const setPaintMode = useMapStore((s) => s.setPaintMode);
@@ -93,6 +94,13 @@ export function PaintGuidePanel({
   const selectedMicroareaPaintedCount = selectedMicroareaId
     ? streets.filter((s) => s.microareaId === selectedMicroareaId).length
     : 0;
+  const unpaintedDirtRoadIds = streets
+    .filter(
+      (s) =>
+        !s.microareaId &&
+        (s.streetType ?? '').toLowerCase().includes('terra'),
+    )
+    .map((s) => s.id);
 
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.94)
@@ -497,6 +505,26 @@ export function PaintGuidePanel({
               </Box>
             )}
 
+            {paintMode && canPaint && unpaintedDirtRoadIds.length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
+                  ESTRADAS DE TERRA
+                </Typography>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => setDirtRoadConfirm({ count: unpaintedDirtRoadIds.length })}
+                >
+                  Marcar estradas de terra ({unpaintedDirtRoadIds.length})
+                </Button>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                  Marca em lote as estradas de terra carregadas no mapa para a microárea selecionada.
+                </Typography>
+              </Box>
+            )}
+
             {paintMode && (
               <>
                 <Alert
@@ -666,6 +694,22 @@ export function PaintGuidePanel({
             .map((s) => s.id);
           onPaintStreets(ids);
           setNeighborhoodConfirm(null);
+        }}
+      />
+      <ConfirmDialog
+        open={!!dirtRoadConfirm}
+        title="Marcar estradas de terra?"
+        message={
+          dirtRoadConfirm
+            ? `Isso vincula ${dirtRoadConfirm.count} estrada(s) de terra carregadas no mapa à microárea ${selectedMicroarea?.name ?? 'selecionada'}. Deseja continuar?`
+            : ''
+        }
+        confirmLabel="Marcar estradas"
+        confirmColor="warning"
+        onClose={() => setDirtRoadConfirm(null)}
+        onConfirm={() => {
+          onPaintStreets(unpaintedDirtRoadIds);
+          setDirtRoadConfirm(null);
         }}
       />
 
