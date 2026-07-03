@@ -34,6 +34,16 @@ interface StreetSearchBarProps {
   onSelect: (option: StreetSearchOption) => void;
 }
 
+const GROUP_LIMITS = {
+  ubs: 6,
+  place: 6,
+  neighborhood: 4,
+  microarea: 4,
+  acs: 4,
+  localStreet: 10,
+  remoteStreet: 10,
+};
+
 export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSearchBarProps) {
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
@@ -51,14 +61,27 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
     const q = debounced.trim();
     if (q.length < 2) return [];
 
-    const map = new Map<string, StreetSearchOption>();
+    const localStreetOptions: StreetSearchOption[] = [];
+    const remoteStreetOptions: StreetSearchOption[] = [];
+    const neighborhoodOptions: StreetSearchOption[] = [];
+    const microareaOptions: StreetSearchOption[] = [];
+    const acsOptions: StreetSearchOption[] = [];
+    const ubsOptions: StreetSearchOption[] = [];
+    const placeOptions: StreetSearchOption[] = [];
+    const seen = new Set<string>();
+
+    const pushUnique = (list: StreetSearchOption[], key: string, option: StreetSearchOption) => {
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push(option);
+    };
 
     if (streets.length <= 500) {
       streets
         .filter((s) => streetMatchesQuery(s, q))
-        .slice(0, 20)
+        .slice(0, GROUP_LIMITS.localStreet)
         .forEach((s) => {
-          map.set(s.id, {
+          pushUnique(localStreetOptions, `street-${s.id}`, {
             id: s.id,
             label: formatStreetLabel(s),
             group: 'Ruas no mapa',
@@ -69,8 +92,8 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
     }
 
     searchData?.streets.forEach((s) => {
-      if (!map.has(s.id) && s.geojson) {
-        map.set(s.id, {
+      if (s.geojson && remoteStreetOptions.length < GROUP_LIMITS.remoteStreet) {
+        pushUnique(remoteStreetOptions, `street-${s.id}`, {
           id: s.id,
           label: formatStreetLabel(s),
           group: 'Todas as ruas',
@@ -80,19 +103,24 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
       }
     });
 
-    searchData?.neighborhoods.forEach((n) =>
-      map.set(`n-${n.id}`, { id: n.id, label: n.name, group: 'Bairros', kind: 'neighborhood' }),
+    searchData?.neighborhoods.slice(0, GROUP_LIMITS.neighborhood).forEach((n) =>
+      pushUnique(neighborhoodOptions, `neighborhood-${n.id}`, {
+        id: n.id,
+        label: n.name,
+        group: 'Bairros',
+        kind: 'neighborhood',
+      }),
     );
-    searchData?.microareas.forEach((m) =>
-      map.set(`m-${m.id}`, {
+    searchData?.microareas.slice(0, GROUP_LIMITS.microarea).forEach((m) =>
+      pushUnique(microareaOptions, `microarea-${m.id}`, {
         id: m.id,
         label: m.name,
         group: 'Microáreas',
         kind: 'microarea',
       }),
     );
-    searchData?.acs.forEach((a) =>
-      map.set(`a-${a.id}`, {
+    searchData?.acs.slice(0, GROUP_LIMITS.acs).forEach((a) =>
+      pushUnique(acsOptions, `acs-${a.id}`, {
         id: a.id,
         label: a.name,
         group: a.microarea ? `ACS — ${a.microarea.name}` : 'ACS',
@@ -100,8 +128,8 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         microareaId: a.microarea?.id,
       }),
     );
-    searchData?.ubs.forEach((u) =>
-      map.set(`u-${u.id}`, {
+    searchData?.ubs.slice(0, GROUP_LIMITS.ubs).forEach((u) =>
+      pushUnique(ubsOptions, `ubs-${u.id}`, {
         id: u.id,
         label: u.name,
         group: 'UBS',
@@ -110,8 +138,8 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         lng: u.longitude,
       }),
     );
-    searchData?.places.forEach((p) =>
-      map.set(`p-${p.id}`, {
+    searchData?.places.slice(0, GROUP_LIMITS.place).forEach((p) =>
+      pushUnique(placeOptions, `place-${p.id}`, {
         id: p.id,
         label: p.name,
         group: 'Povoados',
@@ -121,7 +149,15 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
       }),
     );
 
-    return Array.from(map.values()).slice(0, 25);
+    return [
+      ...ubsOptions,
+      ...placeOptions,
+      ...neighborhoodOptions,
+      ...microareaOptions,
+      ...acsOptions,
+      ...localStreetOptions,
+      ...remoteStreetOptions,
+    ];
   }, [debounced, streets, searchData]);
 
   const pick = (opt: StreetSearchOption) => {
@@ -153,7 +189,7 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 200)}
         onKeyDown={handleKeyDown}
-        placeholder="Buscar rua, bairro, UBS, ACS..."
+        placeholder="Buscar rua, UBS, povoado, ACS..."
         slotProps={{
           input: {
             startAdornment: (
@@ -203,7 +239,7 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
             </Box>
           ) : options.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-              Nenhuma rua encontrada. Tente só o nome (ex: &quot;Siqueira&quot;).
+              Nenhum resultado encontrado. Tente buscar só pelo nome.
             </Typography>
           ) : (
             <List dense disablePadding>
