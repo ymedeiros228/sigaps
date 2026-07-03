@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo, useDeferredValue } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TileLayer, ScaleControl, ZoomControl } from 'react-leaflet';
+import { ScaleControl, ZoomControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   Box,
@@ -53,31 +53,9 @@ import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea } from '../../utils/streetsCache';
 import { LeafletMap } from './LeafletMap';
+import { MapBaseTileLayer } from './MapBaseTileLayer';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
-
-const TILE_LAYERS = {
-  map: {
-    name: 'Mapa',
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap',
-  },
-  satellite: {
-    name: 'Satélite',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; Esri',
-  },
-  terrain: {
-    name: 'Relevo',
-    url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenTopoMap',
-  },
-  hybrid: {
-    name: 'Híbrido',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; Esri + OSM',
-  },
-};
 
 export function SigapsMap() {
   const queryClient = useQueryClient();
@@ -631,7 +609,7 @@ export function SigapsMap() {
         useMapStore.getState().focusOnLine(geom, 18);
       } else {
         const center = lineStringCentroid(fixed);
-        if (center) useMapStore.getState().flyTo(center.lat, center.lng, 18);
+        if (center) useMapStore.getState().flyTo(center.lat, center.lng, 17);
       }
     },
     [streets, setHighlightedStreet, clearSelection],
@@ -791,7 +769,6 @@ export function SigapsMap() {
     }
   }, [refetchStreets, canImport, importMutation]);
 
-  const tile = TILE_LAYERS[baseLayer];
   const importing = importMutation.isPending;
   const showEmptyOverlay =
     !importing &&
@@ -986,18 +963,14 @@ export function SigapsMap() {
           zoomControl={false}
           doubleClickZoom={false}
           boxZoom={false}
-          preferCanvas
+          maxZoom={19}
         >
           <MapInteractionController />
           {useViewport && <MapBoundsReporter onBounds={onBounds} />}
           <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />
           <MapCenterController />
-          <TileLayer
-            key={baseLayer}
-            url={tile.url}
-            attribution={tile.attribution}
-          />
+          <MapBaseTileLayer layerId={baseLayer} />
           <ScaleControl imperial={false} />
           {(paintZones.length > 0 || divisionDraft) && <PaintZonesLayer zones={paintZones} />}
           <MicroareaEnvelopesLayer municipalityId={municipalityId!} />

@@ -153,7 +153,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   showHeatmap: false,
   showUbsMarkers: true,
   showPlacesMarkers: true,
-  baseLayer: 'satellite',
+  baseLayer: 'map',
   highlightedStreetId: null,
   mapFlyTarget: null,
   paintGuideCollapsed: true,

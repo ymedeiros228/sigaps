@@ -43,11 +43,21 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/tile\.openstreetmap\.org\/.*/i,
-            handler: 'CacheFirst',
+            urlPattern: /^https:\/\/([a-c]\.)?tile\.openstreetmap\.org\/.*/i,
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'osm-tiles',
-              expiration: { maxEntries: 256, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              expiration: { maxEntries: 512, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              networkTimeoutSeconds: 8,
+            },
+          },
+          {
+            urlPattern: /^https:\/\/server\.arcgisonline\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'esri-tiles',
+              expiration: { maxEntries: 512, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              networkTimeoutSeconds: 8,
             },
           },
         ],

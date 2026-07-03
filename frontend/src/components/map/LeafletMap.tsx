@@ -6,19 +6,12 @@ type LeafletMapProps = MapContainerProps & {
   children: ReactNode;
 };
 
-/**
- * Monta o Leaflet só no cliente e desmonta no cleanup — evita tela branca com React StrictMode.
- */
+/** Monta o Leaflet só no cliente (evita SSR). */
 export function LeafletMap({ children, ...mapProps }: LeafletMapProps) {
   const [mounted, setMounted] = useState(false);
-  const [mapKey, setMapKey] = useState(0);
 
   useEffect(() => {
     setMounted(true);
-    return () => {
-      setMounted(false);
-      setMapKey((k) => k + 1);
-    };
   }, []);
 
   if (!mounted) {
@@ -44,7 +37,7 @@ export function LeafletMap({ children, ...mapProps }: LeafletMapProps) {
   }
 
   return (
-    <MapContainer key={mapKey} {...mapProps}>
+    <MapContainer {...mapProps}>
       {children}
     </MapContainer>
   );

@@ -3,11 +3,9 @@ import { Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Box, Typography } from '@mui/material';
 import { LeafletMap } from '../map/LeafletMap';
+import { MAP_TILE_LAYERS } from '../../constants/mapTiles';
 
-const SATELLITE_TILE = {
-  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  attribution: '&copy; Esri',
-};
+const SATELLITE_TILE = MAP_TILE_LAYERS.satellite;
 
 const pickerIcon = L.divIcon({
   className: 'place-picker-marker',
@@ -95,7 +93,13 @@ export function PlaceCoordinatePicker({
           scrollWheelZoom
           zoomControl
         >
-          <TileLayer url={SATELLITE_TILE.url} attribution={SATELLITE_TILE.attribution} />
+          <TileLayer
+            url={SATELLITE_TILE.url}
+            attribution={SATELLITE_TILE.attribution}
+            maxZoom={SATELLITE_TILE.maxZoom}
+            maxNativeZoom={SATELLITE_TILE.maxNativeZoom}
+            detectRetina={SATELLITE_TILE.detectRetina}
+          />
           <MapClickHandler onPick={onChange} />
           <MapViewController latitude={latitude} longitude={longitude} center={center} />
           {hasPoint && (
