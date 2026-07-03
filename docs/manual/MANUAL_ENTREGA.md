@@ -548,6 +548,8 @@ O cliente abaixo identificado declara ter recebido o sistema, revisado as funcio
 
 **Assinatura:**
 
+<div class="signature-blank"></div>
+
 <div class="signature-line">
 
 **Jonas Almeida Medeiros**  
@@ -555,10 +557,6 @@ Enfermeiro — Atenção Primária à Saúde
 Secretaria Municipal de Saúde de Passagem Franca/MA
 
 </div>
-
-**Assinatura digital gov.br:**
-
-<div class="signature-blank"></div>
 
 </div>
 
@@ -577,6 +575,8 @@ Secretaria Municipal de Saúde de Passagem Franca/MA
 
 **Assinatura:**
 
+<div class="signature-blank"></div>
+
 <div class="signature-line">
 
 **Yuri Medeiros Bandeira**  
@@ -584,10 +584,6 @@ Desenvolvedor do SIGAPS
 Sistema Inteligente de Gestão das Microáreas da APS
 
 </div>
-
-**Assinatura digital gov.br:**
-
-<div class="signature-blank"></div>
 
 </div>
 

@@ -221,10 +221,10 @@ const css = `
   .signature-block { margin: 28px 0; page-break-inside: avoid; }
   .signature-block h3 { margin-top: 0; color: #1565C0; font-size: 12pt; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px; }
   .signature-line {
-    border-top: 2px solid #263238; margin-top: 52px; padding-top: 9px; width: 88%;
+    border-top: 2px solid #263238; margin-top: 0; padding-top: 9px; width: 88%;
     font-size: 10pt;
   }
-  .signature-blank { min-height: 80px; margin-top: 10px; }
+  .signature-blank { min-height: 100px; margin: 8px 0 0; }
   hr { border: none; border-top: 1px solid #e0e0e0; margin: 18px 0; }
   ul, ol { padding-left: 22px; }
   li { margin-bottom: 4px; }
