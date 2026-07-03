@@ -15,26 +15,26 @@ const coverHtml = `
   <div class="cover-accent"></div>
   <div class="cover-badge">DOCUMENTO OFICIAL DE ENTREGA</div>
   <div class="cover-inner">
-    <p class="cover-org">Secretaria Municipal de Saúde</p>
-    <p class="cover-city">Município de Passagem Franca — Maranhão</p>
+    <p class="cover-org">Entrega ao cliente</p>
+    <p class="cover-city">Jonas Almeida Medeiros · Enfermeiro APS · Passagem Franca/MA</p>
     <h1 class="cover-title">SIGAPS</h1>
     <p class="cover-subtitle">Sistema Inteligente de Gestão das Microáreas da<br>Atenção Primária à Saúde</p>
     <div class="cover-doc-label">MANUAL TÉCNICO · CONTRATO DE ENTREGA E ACEITE</div>
     <table class="cover-table">
-      <tr><td class="lbl">Cliente / Receptor</td><td>Jonas Almeida Medeiros — Enfermeiro da APS</td></tr>
-      <tr><td class="lbl">Órgão</td><td>Secretaria Municipal de Saúde — Passagem Franca/MA</td></tr>
-      <tr><td class="lbl">Desenvolvedor</td><td>Yuri Medeiros Bandeira — Programador / Responsável técnico</td></tr>
-      <tr><td class="lbl">Versão do sistema</td><td>1.0.0 — MVP</td></tr>
-      <tr><td class="lbl">Data da entrega</td><td>03 de julho de 2026</td></tr>
-      <tr><td class="lbl">Ambiente de produção</td><td>https://sigaps-api.onrender.com</td></tr>
-      <tr><td class="lbl">Repositório</td><td>https://github.com/ymedeiros228/sigaps</td></tr>
+      <tr><td class="lbl">Cliente / Receptor</td><td class="val">Jonas Almeida Medeiros — Enfermeiro da APS</td></tr>
+      <tr><td class="lbl">Município</td><td class="val">Passagem Franca — Maranhão</td></tr>
+      <tr><td class="lbl">Desenvolvedor</td><td class="val">Yuri Medeiros Bandeira — Programador / Responsável técnico</td></tr>
+      <tr><td class="lbl">Versão do sistema</td><td class="val">1.0.0 — MVP</td></tr>
+      <tr><td class="lbl">Data da entrega</td><td class="val">03 de julho de 2026</td></tr>
+      <tr><td class="lbl">Ambiente de produção</td><td class="val">sigaps-api.onrender.com</td></tr>
+      <tr><td class="lbl">Repositório</td><td class="val">github.com/ymedeiros228/sigaps</td></tr>
     </table>
     <div class="cover-tags">
       <span>OpenStreetMap</span><span>PostGIS</span><span>NestJS</span><span>React</span><span>PWA</span><span>LGPD</span>
     </div>
   </div>
   <div class="cover-bottom">
-    Documento confidencial — Uso exclusivo da Secretaria Municipal de Saúde de Passagem Franca/MA
+    Manual de entrega do sistema SIGAPS — Cliente: Jonas Almeida Medeiros · Enfermeiro APS · Passagem Franca/MA
   </div>
 </section>
 `;
@@ -46,10 +46,12 @@ const backCoverHtml = `
     <p class="back-title">SIGAPS v1.0.0-MVP</p>
     <p class="back-text">Sistema implantado em produção e documentado conforme requisitos de gestão territorial da APS.</p>
     <table class="back-table">
-      <tr><td>Desenvolvedor</td><td>Yuri Medeiros Bandeira</td></tr>
-      <tr><td>Cliente</td><td>Jonas Almeida Medeiros</td></tr>
-      <tr><td>Data</td><td>03/07/2026</td></tr>
-      <tr><td>Repositório</td><td>github.com/ymedeiros228/sigaps</td></tr>
+      <tr><td class="lbl">Desenvolvedor</td><td class="val">Yuri Medeiros Bandeira</td></tr>
+      <tr><td class="lbl">Cliente</td><td class="val">Jonas Almeida Medeiros — Enfermeiro APS</td></tr>
+      <tr><td class="lbl">Município</td><td class="val">Passagem Franca — Maranhão</td></tr>
+      <tr><td class="lbl">Data da entrega</td><td class="val">03 de julho de 2026</td></tr>
+      <tr><td class="lbl">Produção</td><td class="val">sigaps-api.onrender.com</td></tr>
+      <tr><td class="lbl">Repositório</td><td class="val">github.com/ymedeiros228/sigaps</td></tr>
     </table>
     <p class="back-note">Licença MIT — Código-fonte aberto</p>
   </div>
@@ -95,8 +97,9 @@ const css = `
     width: 100%; max-width: 168mm; border-collapse: collapse;
     font-size: 9.5pt; text-align: left; margin-bottom: 18px;
   }
-  .cover-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.14); vertical-align: top; }
-  .cover-table .lbl { width: 36%; font-weight: 700; color: #a5d6a7; white-space: nowrap; }
+  .cover-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.14); vertical-align: top; background: transparent !important; color: #fff !important; }
+  .cover-table .lbl { width: 36%; font-weight: 700; color: #a5d6a7 !important; white-space: nowrap; }
+  .cover-table .val { color: #fff !important; }
   .cover-tags { margin-top: auto; display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
   .cover-tags span {
     font-size: 8pt; padding: 4px 11px; border-radius: 20px;
@@ -121,8 +124,9 @@ const css = `
   .back-title { font-size: 22pt; font-weight: 800; letter-spacing: 3px; margin: 0 0 12px; }
   .back-text { font-size: 10.5pt; line-height: 1.6; opacity: 0.9; margin-bottom: 24px; }
   .back-table { width: 100%; font-size: 9.5pt; border-collapse: collapse; margin: 0 auto 20px; text-align: left; }
-  .back-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.15); }
-  .back-table td:first-child { font-weight: 700; color: #a5d6a7; width: 38%; }
+  .back-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.15); background: transparent !important; color: #fff !important; }
+  .back-table .lbl { font-weight: 700; color: #a5d6a7 !important; width: 38%; white-space: nowrap; }
+  .back-table .val { color: #fff !important; }
   .back-note { font-size: 8.5pt; opacity: 0.7; margin-top: 16px; }
 
   .doc-body { padding: 18mm 17mm 22mm; font-size: 10.5pt; line-height: 1.62; text-align: justify; }
@@ -133,10 +137,10 @@ const css = `
   h1:first-of-type { page-break-before: avoid; }
   h2 { color: #1976D2; font-size: 13.5pt; margin-top: 22px; border-left: 4px solid #4CAF50; padding-left: 11px; }
   h3 { color: #37474F; font-size: 11.5pt; margin-top: 16px; }
-  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 9.5pt; page-break-inside: avoid; }
-  th, td { border: 1px solid #cfd8dc; padding: 7px 9px; text-align: left; vertical-align: top; }
-  th { background: #E3F2FD; color: #1565C0; font-weight: 700; }
-  tr:nth-child(even) td { background: #fafafa; }
+  .doc-body table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 9.5pt; page-break-inside: avoid; }
+  .doc-body th, .doc-body td { border: 1px solid #cfd8dc; padding: 7px 9px; text-align: left; vertical-align: top; }
+  .doc-body th { background: #E3F2FD; color: #1565C0; font-weight: 700; }
+  .doc-body tr:nth-child(even) td { background: #fafafa; }
   img {
     display: block; width: 100%; max-width: 176mm; height: auto; margin: 12px auto;
     border: 1px solid #d5dde4; border-radius: 5px; box-shadow: 0 2px 14px rgba(0,0,0,0.09);

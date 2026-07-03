@@ -22,7 +22,7 @@
 
 <div class="contract-banner">
 
-**Este documento constitui o Manual Técnico e o Contrato de Entrega e Aceite** entre o desenvolvedor **Yuri Medeiros Bandeira** e o cliente **Jonas Almeida Medeiros**, referente ao sistema SIGAPS implantado em produção para a Secretaria Municipal de Saúde de Passagem Franca/MA.
+**Este documento constitui o Manual Técnico e o Contrato de Entrega e Aceite** entre o desenvolvedor **Yuri Medeiros Bandeira** e o cliente **Jonas Almeida Medeiros** (Enfermeiro da APS), referente ao sistema SIGAPS implantado em produção no município de Passagem Franca/MA.
 
 </div>
 
