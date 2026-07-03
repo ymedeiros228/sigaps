@@ -29,6 +29,7 @@ import { parseCoordinatePair } from '../../../utils/parseCoordinates';
 
 type UbsForm = Omit<Ubs, 'id' | '_count'>;
 
+/** Monta o payload apenas com campos aceitos pela API (evita enviar id/createdAt/_count). */
 function sanitizeUbsForm(values: UbsForm): UbsForm {
   const cnes = (values.cnesCode ?? '').replace(/\D/g, '').slice(0, 7);
   const lat = Number(values.latitude);
@@ -39,8 +40,10 @@ function sanitizeUbsForm(values: UbsForm): UbsForm {
       ? `Localização: ${lat.toFixed(5)}, ${lng.toFixed(5)}`
       : 'Localização não informada');
   return {
-    ...values,
+    name: values.name.trim(),
     address,
+    latitude: lat,
+    longitude: lng,
     cnesCode: cnes.length === 7 ? cnes : undefined,
     phone: values.phone?.trim() || undefined,
     coordinator: values.coordinator?.trim() || undefined,
@@ -148,15 +151,25 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
     setEditing(item ?? null);
     setCoordsPaste('');
     reset(
-      item ?? {
-        name: '',
-        address: '',
-        phone: '',
-        coordinator: '',
-        cnesCode: '',
-        latitude: mapCenter.lat,
-        longitude: mapCenter.lng,
-      },
+      item
+        ? {
+            name: item.name,
+            address: item.address ?? '',
+            phone: item.phone ?? '',
+            coordinator: item.coordinator ?? '',
+            cnesCode: item.cnesCode ?? '',
+            latitude: item.latitude,
+            longitude: item.longitude,
+          }
+        : {
+            name: '',
+            address: '',
+            phone: '',
+            coordinator: '',
+            cnesCode: '',
+            latitude: mapCenter.lat,
+            longitude: mapCenter.lng,
+          },
     );
     setOpen(true);
   };

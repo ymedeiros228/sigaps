@@ -69,7 +69,8 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
 
   const openForm = (item?: Neighborhood) => {
     setEditing(item ?? null);
-    reset(item ?? { name: '' });
+    // Só o campo do formulário — enviar o objeto inteiro (id, _count) faz a API rejeitar.
+    reset({ name: item?.name ?? '' });
     setOpen(true);
   };
 
