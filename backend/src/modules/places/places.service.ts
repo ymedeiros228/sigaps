@@ -11,6 +11,7 @@ import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { searchNominatim } from '../../common/utils/nominatim.util';
 import { CreatePlaceDto, UpdatePlaceDto } from './dto/place.dto';
+import { BulkPlaceImportDto } from './dto/bulk-place.dto';
 
 type OsmPlaceNode = {
   type: string;
@@ -100,6 +101,121 @@ export class PlacesService {
       beforeData: auditSnapshot(before as Record<string, unknown>, ['name', 'kind', 'latitude', 'longitude']),
     });
     return { ok: true };
+  }
+
+  private normalizePlaceName(name: string) {
+    return name.trim().toLowerCase();
+  }
+
+  private buildPlaceNotes(ubsRef?: string, notes?: string) {
+    const parts: string[] = [];
+    if (ubsRef?.trim()) parts.push(`UBS de referência: ${ubsRef.trim()}`);
+    if (notes?.trim()) parts.push(notes.trim());
+    return parts.length > 0 ? parts.join('\n') : null;
+  }
+
+  async bulkImport(dto: BulkPlaceImportDto, userId: string) {
+    const municipality = await this.prisma.municipality.findUnique({
+      where: { id: dto.municipalityId },
+      select: { id: true },
+    });
+    if (!municipality) throw new NotFoundException('Município não encontrado.');
+
+    const existing = await this.prisma.place.findMany({
+      where: { municipalityId: dto.municipalityId },
+      select: { id: true, name: true },
+    });
+    const byName = new Map(existing.map((row) => [this.normalizePlaceName(row.name), row]));
+
+    let created = 0;
+    let updated = 0;
+    const errors: Array<{ row: number; name: string; message: string }> = [];
+
+    for (let i = 0; i < dto.items.length; i++) {
+      const item = dto.items[i];
+      const row = i + 1;
+      const name = item.name?.trim();
+      if (!name) {
+        errors.push({ row, name: '—', message: 'Nome do povoado é obrigatório.' });
+        continue;
+      }
+
+      if (
+        item.latitude < -90 ||
+        item.latitude > 90 ||
+        item.longitude < -180 ||
+        item.longitude > 180
+      ) {
+        errors.push({ row, name, message: 'Latitude ou longitude inválida.' });
+        continue;
+      }
+
+      const notes = this.buildPlaceNotes(item.ubsRef, item.notes);
+      const payload = {
+        name,
+        kind: item.kind ?? PlaceKind.POVOADO,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        notes,
+      };
+
+      const match = byName.get(this.normalizePlaceName(name));
+
+      try {
+        if (match) {
+          const place = await this.prisma.place.update({
+            where: { id: match.id },
+            data: payload,
+          });
+          await this.audit.log({
+            userId,
+            entityType: 'place',
+            entityId: match.id,
+            action: 'UPDATE',
+            afterData: auditSnapshot(place as Record<string, unknown>, [
+              'name',
+              'kind',
+              'latitude',
+              'longitude',
+            ]),
+          });
+          updated++;
+        } else {
+          const place = await this.prisma.place.create({
+            data: { ...payload, municipalityId: dto.municipalityId },
+          });
+          await this.audit.log({
+            userId,
+            entityType: 'place',
+            entityId: place.id,
+            action: 'CREATE',
+            afterData: auditSnapshot(place as Record<string, unknown>, [
+              'name',
+              'kind',
+              'latitude',
+              'longitude',
+            ]),
+          });
+          byName.set(this.normalizePlaceName(place.name), { id: place.id, name: place.name });
+          created++;
+        }
+      } catch (error) {
+        errors.push({
+          row,
+          name,
+          message: (error as Error).message || 'Erro ao importar linha',
+        });
+      }
+    }
+
+    if (created === 0 && updated === 0 && errors.length === dto.items.length) {
+      throw new BadRequestException({
+        message: 'Nenhum povoado foi importado. Verifique o arquivo.',
+        errors,
+      });
+    }
+
+    return { created, updated, errors, total: dto.items.length };
   }
 
   async searchNominatim(municipalityId: string, query: string) {

@@ -16,12 +16,13 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Add, Delete, Edit, HomeWork, Map, Search, CloudDownload } from '@mui/icons-material';
+import { Add, Delete, Edit, HomeWork, Map, Search, CloudDownload, Upload } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import {
   municipalitiesApi,
   placesApi,
+  ubsApi,
   type Place,
   type PlaceKind,
   type NominatimResult,
@@ -32,15 +33,19 @@ import { CadastrosDataTable } from '../CadastrosDataTable';
 import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyState';
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
 import { PlaceCoordinatePicker } from '../PlaceCoordinatePicker';
+import { PlacesBulkImportDialog } from './PlacesBulkImportDialog';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
+import { parseCoordinatePair } from '../../../utils/parseCoordinates';
+import { mergePlaceNotes, splitPlaceNotes } from '../../../utils/parsePlacesSpreadsheet';
 
 type PlaceForm = {
   name: string;
   kind: PlaceKind;
   latitude: string;
   longitude: string;
+  ubsRef: string;
   notes: string;
 };
 
@@ -54,12 +59,11 @@ function kindLabel(kind: PlaceKind) {
   return KIND_OPTIONS.find((o) => o.value === kind)?.label ?? kind;
 }
 
-import { parseCoordinatePair } from '../../../utils/parseCoordinates';
-
 export function PlacesTab({ municipalityId }: { municipalityId: string }) {
   const { canManagePlaces, canDeletePlaces, reportError, reportSuccess, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [nominatimOpen, setNominatimOpen] = useState(false);
   const [nominatimQuery, setNominatimQuery] = useState('');
   const debouncedNominatim = useDebouncedValue(nominatimQuery, 400);
@@ -74,7 +78,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     watch,
     formState: { errors },
   } = useForm<PlaceForm>({
-    defaultValues: { kind: 'POVOADO', notes: '' },
+    defaultValues: { kind: 'POVOADO', notes: '', ubsRef: '' },
   });
 
   const latitudeValue = watch('latitude');
@@ -113,6 +117,13 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     staleTime: CACHE.places,
   });
 
+  const { data: ubsList = [] } = useQuery({
+    queryKey: queryKeys.ubs(municipalityId),
+    queryFn: () => ubsApi.list(municipalityId).then((r) => r.data),
+    enabled: !!municipalityId,
+    ...cadastrosQueryDefaults,
+  });
+
   const { data: nominatimResults = [], isFetching: nominatimLoading } = useQuery({
     queryKey: ['places-nominatim', municipalityId, debouncedNominatim],
     queryFn: () => placesApi.searchNominatim(municipalityId, debouncedNominatim).then((r) => r.data),
@@ -132,12 +143,13 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
 
   const saveMutation = useMutation({
     mutationFn: (values: PlaceForm) => {
+      const mergedNotes = mergePlaceNotes(values.ubsRef, values.notes);
       const payload = {
         name: values.name.trim(),
         kind: values.kind,
         latitude: Number(values.latitude),
         longitude: Number(values.longitude),
-        notes: values.notes.trim() || undefined,
+        notes: mergedNotes || undefined,
       };
       return editing
         ? placesApi.update(editing.id, payload)
@@ -193,6 +205,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
   const openForm = (item?: Place, preset?: { name?: string }) => {
     setEditing(item ?? null);
     setCoordsPaste('');
+    const split = item ? splitPlaceNotes(item.notes) : { ubsRef: '', notes: '' };
     reset(
       item
         ? {
@@ -200,13 +213,15 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             kind: item.kind,
             latitude: String(item.latitude),
             longitude: String(item.longitude),
-            notes: item.notes ?? '',
+            ubsRef: split.ubsRef,
+            notes: split.notes,
           }
         : {
             name: preset?.name ?? '',
             kind: 'POVOADO',
             latitude: '',
             longitude: '',
+            ubsRef: '',
             notes: '',
           },
     );
@@ -240,7 +255,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     <>
       <CadastrosSectionHeader
         title="Povoados e localidades"
-        description="Complementa o mapa com povoados que não aparecem nas ruas. Use busca automática, marque no mapa satélite ou cole coordenadas do Google Maps."
+        description="Cadastre povoados por planilha (nome + UBS + coordenadas), mapa satélite ou busca automática. O sistema marca cada local no mapa."
         count={data.length}
         search={search}
         onSearchChange={setSearch}
@@ -251,6 +266,14 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
         extra={
           canManagePlaces ? (
             <>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Upload />}
+                onClick={() => setImportOpen(true)}
+              >
+                Importar planilha
+              </Button>
               <Button
                 size="small"
                 variant="outlined"
@@ -293,6 +316,12 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             render: (row) => `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}`,
           },
           {
+            id: 'ubs',
+            label: 'UBS',
+            hideOnMobile: true,
+            render: (row) => splitPlaceNotes(row.notes).ubsRef || '—',
+          },
+          {
             id: 'source',
             label: 'Origem',
             align: 'center',
@@ -311,11 +340,16 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             description={
               search
                 ? 'Tente outro termo ou importe do OpenStreetMap.'
-                : 'Importe do OSM ou cadastre manualmente lugares como Bacabinha que aparecem no Google mas não nas ruas.'
+                : 'Importe planilha Excel com povoado, UBS e coordenadas — o sistema marca cada local no mapa.'
             }
             action={
               canManagePlaces && !search ? (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                  <CadastrosEmptyAction
+                    label="Importar planilha"
+                    onClick={() => setImportOpen(true)}
+                    icon={<Upload />}
+                  />
                   <CadastrosEmptyAction
                     label="Cadastrar com coordenadas"
                     onClick={() => openForm()}
@@ -447,6 +481,21 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
           sx={{ mt: 2 }}
         />
         <TextField
+          select
+          label="UBS de referência"
+          {...register('ubsRef')}
+          fullWidth
+          sx={{ mt: 2 }}
+          helperText="Opcional — vincula o povoado à UBS que atende a comunidade"
+        >
+          <MenuItem value="">Nenhuma</MenuItem>
+          {ubsList.map((ubs) => (
+            <MenuItem key={ubs.id} value={ubs.name}>
+              {ubs.name}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
           label="Observações (opcional)"
           {...register('notes')}
           fullWidth
@@ -524,6 +573,17 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
           </Button>
         </DialogContent>
       </Dialog>
+
+      <PlacesBulkImportDialog
+        open={importOpen}
+        municipalityId={municipalityId}
+        onClose={() => setImportOpen(false)}
+        onSuccess={(message) => {
+          invalidatePlaces();
+          reportSuccess(message);
+        }}
+        onError={reportError}
+      />
     </>
   );
 }

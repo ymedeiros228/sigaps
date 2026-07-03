@@ -15,6 +15,7 @@ import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CreatePlaceDto, UpdatePlaceDto } from './dto/place.dto';
+import { BulkPlaceImportDto } from './dto/bulk-place.dto';
 import { PlacesService } from './places.service';
 
 @ApiTags('Povoados')
@@ -60,6 +61,18 @@ export class PlacesController {
   @ApiOperation({ summary: 'Cadastrar povoado/localidade' })
   create(@Body() dto: CreatePlaceDto, @Req() req: { user: { id: string } }) {
     return this.placesService.create(dto, req.user.id);
+  }
+
+  @Post('bulk')
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
+  @ApiOperation({ summary: 'Importar povoados de planilha (nome + coordenadas + UBS)' })
+  bulkImport(@Body() dto: BulkPlaceImportDto, @Req() req: { user: { id: string } }) {
+    return this.placesService.bulkImport(dto, req.user.id);
   }
 
   @Patch(':id')

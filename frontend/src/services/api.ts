@@ -462,6 +462,23 @@ export const placesApi = {
     ),
   searchNominatim: (municipalityId: string, q: string) =>
     api.get<NominatimResult[]>('/places/nominatim', { params: { municipalityId, q } }),
+  bulkImport: (
+    municipalityId: string,
+    items: Array<{
+      name: string;
+      latitude: number;
+      longitude: number;
+      kind?: PlaceKind;
+      ubsRef?: string;
+      notes?: string;
+    }>,
+  ) =>
+    api.post<{
+      created: number;
+      updated: number;
+      errors: Array<{ row: number; name: string; message: string }>;
+      total: number;
+    }>('/places/bulk', { municipalityId, items }),
 };
 
 export const searchApi = {
