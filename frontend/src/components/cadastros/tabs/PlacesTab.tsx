@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Box,
   Button,
   Chip,
   Dialog,
@@ -51,8 +52,23 @@ function kindLabel(kind: PlaceKind) {
   return KIND_OPTIONS.find((o) => o.value === kind)?.label ?? kind;
 }
 
+/** Aceita "lat, lng", "lat lng" ou coordenadas copiadas do Google Maps. */
+function parseCoordinatePair(raw: string): { latitude: string; longitude: string } | null {
+  const cleaned = raw.trim().replace(/[;|]/g, ',');
+  const parts = cleaned
+    .split(/[,\s]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+  const latitude = Number(parts[0]);
+  const longitude = Number(parts[1]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  return { latitude: String(latitude), longitude: String(longitude) };
+}
+
 export function PlacesTab({ municipalityId }: { municipalityId: string }) {
-  const { canManage, canDeletePlaces, reportError, reportSuccess, confirmDelete } = useCadastros();
+  const { canManagePlaces, canDeletePlaces, reportError, reportSuccess, confirmDelete } = useCadastros();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [nominatimOpen, setNominatimOpen] = useState(false);
@@ -60,10 +76,12 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
   const debouncedNominatim = useDebouncedValue(nominatimQuery, 400);
   const [editing, setEditing] = useState<Place | null>(null);
   const [search, setSearch] = useState('');
+  const [coordsPaste, setCoordsPaste] = useState('');
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<PlaceForm>({
     defaultValues: { kind: 'POVOADO', notes: '' },
@@ -154,8 +172,9 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     onError: reportError,
   });
 
-  const openForm = (item?: Place) => {
+  const openForm = (item?: Place, preset?: { name?: string }) => {
     setEditing(item ?? null);
+    setCoordsPaste('');
     reset(
       item
         ? {
@@ -165,9 +184,33 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             longitude: String(item.longitude),
             notes: item.notes ?? '',
           }
-        : { name: '', kind: 'POVOADO', latitude: '', longitude: '', notes: '' },
+        : {
+            name: preset?.name ?? '',
+            kind: 'POVOADO',
+            latitude: '',
+            longitude: '',
+            notes: '',
+          },
     );
     setOpen(true);
+  };
+
+  const openManualFromSearch = () => {
+    const name = nominatimQuery.trim();
+    setNominatimOpen(false);
+    openForm(undefined, { name });
+  };
+
+  const applyPastedCoordinates = () => {
+    const parsed = parseCoordinatePair(coordsPaste);
+    if (!parsed) {
+      reportError('Coordenadas inválidas. Use o formato: latitude, longitude (ex.: -6.18280, -43.78690).');
+      return;
+    }
+    setValue('latitude', parsed.latitude, { shouldValidate: true });
+    setValue('longitude', parsed.longitude, { shouldValidate: true });
+    setCoordsPaste('');
+    reportSuccess('Coordenadas aplicadas.');
   };
 
   return (
@@ -181,9 +224,9 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
         searchPlaceholder="Buscar povoado..."
         onAdd={() => openForm()}
         addLabel="Novo povoado"
-        canManage={canManage}
+        canManage={canManagePlaces}
         extra={
-          canManage ? (
+          canManagePlaces ? (
             <>
               <Button
                 size="small"
@@ -248,7 +291,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
                 : 'Importe do OSM ou cadastre manualmente lugares como Bacabinha que aparecem no Google mas não nas ruas.'
             }
             action={
-              canManage && !search ? (
+              canManagePlaces && !search ? (
                 <CadastrosEmptyAction
                   label="Importar do OpenStreetMap"
                   onClick={() => importOsmMutation.mutate()}
@@ -259,10 +302,10 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
           />
         }
         actions={
-          canManage || canDeletePlaces
+          canManagePlaces || canDeletePlaces
             ? (row) => (
                 <>
-                  {canManage && (
+                  {canManagePlaces && (
                     <Tooltip title="Editar">
                       <IconButton size="small" onClick={() => openForm(row)}>
                         <Edit fontSize="small" />
@@ -315,6 +358,31 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
             </MenuItem>
           ))}
         </TextField>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+          Coordenadas geográficas
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+          Se a busca automática não encontrar o lugar, copie latitude e longitude do Google Maps (clique com o
+          botão direito no mapa → copiar coordenadas) e cole abaixo.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+          <TextField
+            label="Colar coordenadas (Google Maps)"
+            value={coordsPaste}
+            onChange={(e) => setCoordsPaste(e.target.value)}
+            placeholder="Ex.: -6.18280, -43.78690"
+            fullWidth
+            size="small"
+          />
+          <Button
+            variant="outlined"
+            onClick={applyPastedCoordinates}
+            disabled={!coordsPaste.trim()}
+            sx={{ mt: 0.25, whiteSpace: 'nowrap' }}
+          >
+            Aplicar
+          </Button>
+        </Box>
         <TextField
           label="Latitude"
           {...register('latitude', {
@@ -400,9 +468,21 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
           {debouncedNominatim.trim().length >= 3 &&
             !nominatimLoading &&
             nominatimResults.length === 0 && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Nenhum resultado. Tente incluir o nome do município.
-              </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Nenhum resultado na busca automática. Cadastre manualmente com as coordenadas do Google Maps.
+                </Typography>
+                {canManagePlaces && (
+                  <Button
+                    variant="contained"
+                    startIcon={<Map />}
+                    onClick={openManualFromSearch}
+                    sx={{ mt: 1.5 }}
+                  >
+                    Cadastrar com coordenadas
+                  </Button>
+                )}
+              </Box>
             )}
           <Button onClick={() => setNominatimOpen(false)} sx={{ mt: 2 }}>
             Fechar

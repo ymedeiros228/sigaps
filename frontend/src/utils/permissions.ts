@@ -41,8 +41,13 @@ export function canDeleteMicroareas(role?: string): boolean {
   return canCreateMicroarea(role);
 }
 
+export function canManagePlaces(role?: string): boolean {
+  return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
+}
+
 export function canManageCadastrosSection(role: string | undefined, section: string): boolean {
   if (section === 'acs') return canManageAcs(role);
+  if (section === 'povoados') return canManagePlaces(role);
   return canManageCadastros(role);
 }
 

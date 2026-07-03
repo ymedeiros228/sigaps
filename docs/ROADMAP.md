@@ -18,7 +18,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | Área | Status | Destaques |
 |------|--------|-----------|
 | **Mapa e pintura** | ✅ Forte | OSM, pincel, borracha, conflito 1 rua = 1 microárea, zonas circulares, PDF, busca unificada |
-| **Cadastros** | ✅ Forte | UBS, bairros, ACS (manual + CSV + foto), microáreas com vínculo ACS/UBS/bairro |
+| **Cadastros** | ✅ Forte | UBS, bairros, ACS (manual + CSV + foto), microáreas com vínculo ACS/UBS/bairro, povoados (OSM + Nominatim + manual) |
 | **Dashboard** | ✅ Forte | Cards, gráficos, cobertura %, relatório por ACS, histórico de alterações |
 | **Administração** | ✅ Forte | CRUD usuários, backup manual/automático, auditoria paginada |
 | **Infra** | ✅ Forte | JWT, PostGIS, deploy Render, multi-município na UI |
@@ -70,6 +70,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | M5 | Export KML/SVG | [x] |
 | M6 | Backup automatizado agendado | [x] |
 | M7 | Performance para > 2000 ruas | [x] |
+| M8 | Povoados — coordenadas manuais e escolha no mapa | [ ] |
 
 ### 🟢 Baixo / futuro
 
@@ -173,6 +174,21 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 - [x] Admin homologação integrado ao checklist com aviso de prontidão
 - [x] Seletor multi-município com confirmação e indicador de homologação
 
+### Sprint 14 — Povoados e coordenadas geográficas — 🟡 Em andamento
+
+**Problema:** lugares como Bacabinha aparecem no Google Maps, mas a busca no SIGAPS (Nominatim/OSM) nem sempre encontra. Sem coordenadas corretas o marcador não aparece no mapa.
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| P1 | Cadastro manual com latitude/longitude (já existe no formulário) | [x] |
+| P2 | Atalho “Cadastrar com coordenadas” quando a busca não retorna resultados | [x] |
+| P3 | Colar coordenadas do Google Maps (`lat, lng` em um campo) | [x] |
+| P4 | Escolher ponto no mapa satélite (clique para marcar o povoado) | [ ] |
+| P5 | Enfermeiro pode cadastrar povoados (permissão alinhada ao backend) | [x] |
+| P6 | Atualizar manual PDF com fluxo de povoado manual | [ ] |
+
+**Critério de aceite:** qualquer povoado do município pode ser cadastrado em menos de 2 minutos, mesmo sem resultado na busca automática.
+
 ---
 
 ## Histórico de fases (referência)
@@ -210,6 +226,7 @@ PWA instalável, cache de geometrias para ACS em campo.
 |---------------------|---------|
 | **Homologação PDF** | Aceite formal do mapa oficial na SMS |
 | **Popular dados reais** | Famílias via e-SUS piloto + pintura territorial |
+| **Povoados com coordenadas** | Complementar território quando OSM/Nominatim não acham o lugar |
 | **Segundo município** | Validar escala multi-tenant em produção |
 
 O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O próximo salto é **homologação do PDF** e **integração e-SUS completa**.

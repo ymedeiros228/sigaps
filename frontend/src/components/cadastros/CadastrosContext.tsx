@@ -10,12 +10,13 @@ import {
   Typography,
 } from '@mui/material';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { canManageAcs, canManageCadastros, canDeleteCadastros, canDeleteAcs, canDeletePlaces, canDeleteMicroareas } from '../../utils/permissions';
+import { canManageAcs, canManageCadastros, canManagePlaces, canDeleteCadastros, canDeleteAcs, canDeletePlaces, canDeleteMicroareas } from '../../utils/permissions';
 import { useAuthStore } from '../../store';
 
 type CadastrosContextValue = {
   canManage: boolean;
   canManageAcs: boolean;
+  canManagePlaces: boolean;
   canDelete: boolean;
   canDeleteAcs: boolean;
   canDeletePlaces: boolean;
@@ -28,6 +29,7 @@ type CadastrosContextValue = {
 const CadastrosContext = createContext<CadastrosContextValue>({
   canManage: false,
   canManageAcs: false,
+  canManagePlaces: false,
   canDelete: false,
   canDeleteAcs: false,
   canDeletePlaces: false,
@@ -45,6 +47,7 @@ export function CadastrosProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const canManage = canManageCadastros(user?.role);
   const manageAcs = canManageAcs(user?.role);
+  const managePlaces = canManagePlaces(user?.role);
   const deleteCadastros = canDeleteCadastros(user?.role);
   const deleteAcs = canDeleteAcs(user?.role);
   const deletePlaces = canDeletePlaces(user?.role);
@@ -58,6 +61,7 @@ export function CadastrosProvider({ children }: { children: ReactNode }) {
       value={{
         canManage,
         canManageAcs: manageAcs,
+        canManagePlaces: managePlaces,
         canDelete: deleteCadastros,
         canDeleteAcs: deleteAcs,
         canDeletePlaces: deletePlaces,
