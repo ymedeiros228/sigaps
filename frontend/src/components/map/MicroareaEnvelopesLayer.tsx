@@ -56,10 +56,24 @@ export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLa
   const visibleEnvelopes = useMemo(() => {
     if (microareas.length === 0) return envelopes;
     const visibleIds = new Set(
-      microareas.filter((microarea) => !isSeedPlaceholderMicroarea(microarea)).map((m) => m.id),
+      microareas
+        .filter(
+          (microarea) =>
+            !isSeedPlaceholderMicroarea(microarea) &&
+            (microarea._count?.streets ?? 0) > 0,
+        )
+        .map((m) => m.id),
     );
     return envelopes.filter((envelope) => visibleIds.has(envelope.id));
   }, [envelopes, microareas]);
+
+  const envelopeVersion = useMemo(
+    () =>
+      visibleEnvelopes
+        .map((envelope) => `${envelope.id}:${envelope.color}`)
+        .join('|'),
+    [visibleEnvelopes],
+  );
 
   const features = useMemo(
     () =>
@@ -93,7 +107,7 @@ export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLa
   return (
     <>
       <GeoJSON
-        key={`envelopes-${features.length}-${paintMode}`}
+        key={`envelopes-${envelopeVersion}-${paintMode}`}
         data={{ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection}
         style={style}
         interactive={false}

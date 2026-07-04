@@ -96,14 +96,17 @@ export class MicroareasService {
           label_lat: number | null;
         }>
       >`
-        SELECT id, name, color, number,
-          ST_AsGeoJSON(envelope_geom)::text AS geojson,
-          ST_X(ST_Centroid(envelope_geom)) AS label_lng,
-          ST_Y(ST_Centroid(envelope_geom)) AS label_lat
-        FROM microareas
-        WHERE municipality_id = ${municipalityId}::uuid
-          AND envelope_geom IS NOT NULL
-        ORDER BY number ASC
+        SELECT m.id, m.name, m.color, m.number,
+          ST_AsGeoJSON(m.envelope_geom)::text AS geojson,
+          ST_X(ST_Centroid(m.envelope_geom)) AS label_lng,
+          ST_Y(ST_Centroid(m.envelope_geom)) AS label_lat
+        FROM microareas m
+        WHERE m.municipality_id = ${municipalityId}::uuid
+          AND m.envelope_geom IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM streets s WHERE s.microarea_id = m.id
+          )
+        ORDER BY m.number ASC
       `;
       return rows
         .filter((r) => r.geojson)

@@ -118,6 +118,12 @@ export function SigapsMap() {
     setPaintMode(false);
   }, [acsReadOnly, lockedMicroareaId, setSelectedMicroarea, setPaintMode]);
 
+  useEffect(() => {
+    if (paintMode) return;
+    useMapStore.getState().setDivisionDraft(null);
+    useMapStore.getState().setDivisionMode(false);
+  }, [paintMode]);
+
   const { data: microareasData = [] } = useQuery({
     queryKey: queryKeys.microareas(municipalityId!),
     queryFn: () =>
@@ -177,6 +183,18 @@ export function SigapsMap() {
     [streetsData?.items],
   );
   const deferredStreets = useDeferredValue(streets);
+  const mapStreets = paintMode ? streets : deferredStreets;
+
+  const refreshMapPaintState = useCallback(() => {
+    if (!municipalityId) return;
+    void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
+    void queryClient.refetchQueries({
+      queryKey: queryKeys.microareaEnvelopes(municipalityId),
+      type: 'active',
+    });
+  }, [municipalityId, queryClient]);
 
   const lastFocusedMicroareaRef = useRef<string | null>(null);
   useEffect(() => {
@@ -266,13 +284,7 @@ export function SigapsMap() {
     onSuccess: (_data, variables) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.microareaEnvelopes(municipalityId),
-        });
-        void queryClient.refetchQueries({
-          queryKey: queryKeys.microareaEnvelopes(municipalityId),
-          type: 'active',
-        });
+        refreshMapPaintState();
       }
       setConflictMsg(null);
       setConflictOpen(false);
@@ -506,13 +518,7 @@ export function SigapsMap() {
     onSuccess: (res, streetIds) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.microareaEnvelopes(municipalityId),
-        });
-        void queryClient.refetchQueries({
-          queryKey: queryKeys.microareaEnvelopes(municipalityId),
-          type: 'active',
-        });
+        refreshMapPaintState();
       }
       if (selectedStreet && streetIds.includes(selectedStreet.id)) {
         setSelectedStreet({ ...selectedStreet, microareaId: undefined, microarea: undefined });
@@ -731,13 +737,7 @@ export function SigapsMap() {
     onSuccess: (res) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.microareaEnvelopes(municipalityId),
-        });
-        void queryClient.refetchQueries({
-          queryKey: queryKeys.microareaEnvelopes(municipalityId),
-          type: 'active',
-        });
+        refreshMapPaintState();
       }
       setSelectedStreet(null);
       setHighlightedStreet(null);
@@ -756,6 +756,26 @@ export function SigapsMap() {
         severity: 'warning',
       });
     },
+  });
+
+  const clearPaintZonesMutation = useMutation({
+    mutationFn: () => paintZonesApi.clearAll(municipalityId!),
+    onSuccess: (res) => {
+      if (municipalityId) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.paintZones(municipalityId) });
+      }
+      useMapStore.getState().setDivisionDraft(null);
+      useMapStore.getState().setDivisionMode(false);
+      setSnackbar({
+        message: `${res.data.count} círculo(s) removido(s) do mapa.`,
+        severity: 'success',
+      });
+    },
+    onError: (err) =>
+      setSnackbar({
+        message: getApiErrorMessage(err, 'Não foi possível remover os círculos do mapa.'),
+        severity: 'warning',
+      }),
   });
 
   const handleUnassignSelected = useCallback(() => {
@@ -863,6 +883,9 @@ export function SigapsMap() {
         }}
         onClearAllPaint={() => clearPaintMutation.mutate()}
         onClearMicroareaPaint={handleUnassignMicroarea}
+        paintZoneCount={paintZones.length}
+        onClearPaintZones={() => clearPaintZonesMutation.mutate()}
+        clearingPaintZones={clearPaintZonesMutation.isPending}
         clearingPaint={clearPaintMutation.isPending || unassignMutation.isPending}
         importing={importMutation.isPending}
         lastAction={lastPaintAction}
@@ -1000,7 +1023,7 @@ export function SigapsMap() {
           <MicroareaEnvelopesLayer municipalityId={municipalityId!} />
           {streets.length > 0 && (
             <StreetsLayer
-              streets={deferredStreets}
+              streets={mapStreets}
               onStreetClick={handleStreetClick}
               onStreetPaint={paintStreet}
               onStreetUnpaint={unpaintStreet}

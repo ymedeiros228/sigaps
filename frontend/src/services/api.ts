@@ -776,4 +776,6 @@ export const paintZonesApi = {
     },
   ) => api.post<PaintZone>(`/paint-zones/municipality/${municipalityId}/circle`, data),
   remove: (id: string) => api.delete<{ removed: boolean }>(`/paint-zones/${id}`),
+  clearAll: (municipalityId: string) =>
+    api.delete<{ count: number }>(`/paint-zones/municipality/${municipalityId}`),
 };

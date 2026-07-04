@@ -49,6 +49,9 @@ interface PaintGuidePanelProps {
   onPaintStreets: (streetIds: string[]) => void;
   onClearAllPaint: () => void;
   onClearMicroareaPaint: (microareaId: string) => void;
+  paintZoneCount?: number;
+  onClearPaintZones?: () => void;
+  clearingPaintZones?: boolean;
   clearingPaint: boolean;
   importing: boolean;
   lastAction?: string | null;
@@ -64,6 +67,9 @@ export function PaintGuidePanel({
   onPaintStreets,
   onClearAllPaint,
   onClearMicroareaPaint,
+  paintZoneCount = 0,
+  onClearPaintZones,
+  clearingPaintZones = false,
   clearingPaint,
   importing,
   lastAction,
@@ -608,6 +614,20 @@ export function PaintGuidePanel({
                       >
                         Limpar todas as pinturas ({paintedCount} ruas)
                       </Button>
+                      {paintZoneCount > 0 && onClearPaintZones && (
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          color="warning"
+                          size="small"
+                          startIcon={<DeleteSweep />}
+                          disabled={clearingPaintZones}
+                          onClick={onClearPaintZones}
+                          sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                        >
+                          Remover círculos do mapa ({paintZoneCount})
+                        </Button>
+                      )}
                     </Box>
                   </Box>
                 </Collapse>

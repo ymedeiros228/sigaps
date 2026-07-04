@@ -75,10 +75,8 @@ export function StreetsLayer({
 
   useEffect(() => {
     const handleMouseUp = () => {
-      if (dragActionRef.current) {
-        dragActionRef.current = null;
-        onDragPaintEnd();
-      }
+      dragActionRef.current = null;
+      onDragPaintEnd();
     };
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
@@ -142,6 +140,23 @@ export function StreetsLayer({
             props.dragPending ? '1' : '0',
             props.selected ? '1' : '0',
             props.highlighted ? '1' : '0',
+          ].join(':');
+        })
+        .join('|'),
+    [features],
+  );
+
+  const paintVisualVersion = useMemo(
+    () =>
+      features
+        .filter((feature) => feature.properties.hasMicroarea || feature.properties.dragPending)
+        .map((feature) => {
+          const props = feature.properties;
+          return [
+            props.id,
+            props.color,
+            props.hasMicroarea ? '1' : '0',
+            props.dragPending ? '1' : '0',
           ].join(':');
         })
         .join('|'),
@@ -292,6 +307,14 @@ export function StreetsLayer({
     }
 
     if (paintMode) {
+      const applyDragAction = () => {
+        if (dragActionRef.current === 'unpaint') {
+          if (hasMicroarea) onStreetUnpaint(street);
+        } else if (selectedMicroareaId) {
+          onStreetPaint(street);
+        }
+      };
+
       layer.on('mouseover', () => {
         if (eraserMode && !hasMicroarea) return;
         setHoveredId(props.id);
@@ -302,13 +325,7 @@ export function StreetsLayer({
               ? 'sigaps-street-eraser-hover'
               : 'sigaps-street-hover',
           );
-        if (dragActionRef.current) {
-          if (dragActionRef.current === 'unpaint') {
-            if (hasMicroarea) onStreetUnpaint(street);
-          } else if (selectedMicroareaId) {
-            onStreetPaint(street);
-          }
-        }
+        if (dragActionRef.current) applyDragAction();
       });
       layer.on('mouseout', () => {
         setHoveredId(null);
@@ -356,7 +373,7 @@ export function StreetsLayer({
 
       {unpainted.length > 0 && !showHeatmap && !paintMode && (
         <GeoJSON
-          key={`system-streets-${unpainted.length}`}
+          key={`system-streets-${unpainted.length}-${paintVisualVersion.length}`}
           data={fc(unpainted)}
           style={systemStreetStyle}
           interactive={false}
@@ -366,13 +383,13 @@ export function StreetsLayer({
       {painted.length > 0 && !showHeatmap && (
         <>
           <GeoJSON
-            key={`painted-halo-${painted.length}`}
+            key={`painted-halo-${paintVisualVersion}`}
             data={fc(painted)}
             style={paintedHaloStyle}
             interactive={false}
           />
           <GeoJSON
-            key={`painted-line-${painted.length}-${paintMode}`}
+            key={`painted-line-${paintVisualVersion}-${paintMode}-${eraserMode}`}
             data={fc(painted)}
             style={paintedLineStyle}
             interactive={false}

@@ -34,6 +34,18 @@ export class PaintZonesController {
     return this.paintZonesService.createCircle(municipalityId, dto);
   }
 
+  @Delete('municipality/:municipalityId')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Remover todas as divisões de mapa do município' })
+  clearAll(@Param('municipalityId') municipalityId: string) {
+    return this.paintZonesService.clearByMunicipality(municipalityId);
+  }
+
   @Delete(':id')
   @Roles(
     UserRole.ENFERMEIRO,

@@ -458,7 +458,7 @@ export class StreetsService {
       },
     });
 
-    await this.updateAffectedEnvelopes(affectedMicroareas);
+    await this.rebuildMunicipalityEnvelopes(municipalityId);
 
     invalidateDashboardIndicators(municipalityId);
 
@@ -754,6 +754,14 @@ export class StreetsService {
     const ids = [...new Set(Array.from(microareaIds).filter(Boolean))];
     if (ids.length === 0) return;
     await Promise.all(ids.map((microareaId) => this.updateMicroareaEnvelope(microareaId)));
+  }
+
+  private async rebuildMunicipalityEnvelopes(municipalityId: string) {
+    const microareas = await this.prisma.microarea.findMany({
+      where: { municipalityId },
+      select: { id: true },
+    });
+    await this.updateAffectedEnvelopes(microareas.map((m) => m.id));
   }
 
   private async updateMicroareaEnvelope(microareaId: string) {

@@ -46,8 +46,9 @@ export class PaintZonesService {
     });
   }
 
-  clearByMunicipality(municipalityId: string) {
-    return this.prisma.microareaPaintZone.deleteMany({ where: { municipalityId } });
+  async clearByMunicipality(municipalityId: string) {
+    const result = await this.prisma.microareaPaintZone.deleteMany({ where: { municipalityId } });
+    return { count: result.count };
   }
 
   async remove(id: string) {
