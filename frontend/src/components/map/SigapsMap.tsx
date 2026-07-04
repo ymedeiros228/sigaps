@@ -177,13 +177,15 @@ export function SigapsMap() {
   const deferredStreets = useDeferredValue(streets);
   const mapStreets = paintMode ? streets : deferredStreets;
 
-  const refreshMapPaintState = useCallback(() => {
+  const refreshMapPaintState = useCallback((options?: { rebuildEnvelopes?: boolean }) => {
     if (!municipalityId) return;
     void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
     void queryClient.invalidateQueries({ queryKey: ['streets-viewport', municipalityId] });
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
-    void microareasApi.rebuildEnvelopes(municipalityId).catch(() => undefined);
+    if (options?.rebuildEnvelopes) {
+      void microareasApi.rebuildEnvelopes(municipalityId).catch(() => undefined);
+    }
     void queryClient.refetchQueries({
       queryKey: queryKeys.streetsMap(municipalityId),
       type: 'active',
@@ -295,7 +297,7 @@ export function SigapsMap() {
     onSuccess: (_data, variables) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState();
+        refreshMapPaintState({ rebuildEnvelopes: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       setConflictMsg(null);
@@ -515,7 +517,7 @@ export function SigapsMap() {
       clearDragPaintIds();
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState();
+        refreshMapPaintState({ rebuildEnvelopes: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       if (selectedStreet && streetIds.includes(selectedStreet.id)) {
@@ -531,7 +533,7 @@ export function SigapsMap() {
           message: 'Nenhuma pintura foi removida. Atualizando mapa…',
           severity: 'info',
         });
-        refreshMapPaintState();
+        refreshMapPaintState({ rebuildEnvelopes: true });
       }
     },
     onError: (err, streetIds, context) => {
@@ -753,7 +755,7 @@ export function SigapsMap() {
     onSuccess: (res) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState();
+        refreshMapPaintState({ rebuildEnvelopes: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       setSelectedStreet(null);
@@ -824,7 +826,7 @@ export function SigapsMap() {
       clearDragPaintIds();
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState();
+        refreshMapPaintState({ rebuildEnvelopes: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       if (res.data.cleared > 0) {
