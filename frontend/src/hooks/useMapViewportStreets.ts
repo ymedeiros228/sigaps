@@ -24,11 +24,13 @@ function boundsKey(bounds: LatLngBounds): string {
 
 function mergeViewportStreets(existing: Street[] | undefined, incoming: Street[]): Street[] {
   const byId = new Map<string, Street>();
-  for (const street of existing ?? []) {
-    if (street.microareaId) byId.set(street.id, street);
-  }
   for (const street of incoming) {
     byId.set(street.id, street);
+  }
+  for (const street of existing ?? []) {
+    if (street.microareaId && !byId.has(street.id)) {
+      byId.set(street.id, street);
+    }
   }
   return [...byId.values()];
 }

@@ -11,6 +11,8 @@ interface MapLegendProps {
   ubsList?: Ubs[];
   placesList?: Place[];
   loading?: boolean;
+  paintMode?: boolean;
+  onClearMicroarea?: (microareaId: string) => void;
 }
 
 export function MapLegend({
@@ -19,6 +21,8 @@ export function MapLegend({
   ubsList = [],
   placesList = [],
   loading = false,
+  paintMode = false,
+  onClearMicroarea,
 }: MapLegendProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(true);
@@ -102,8 +106,32 @@ export function MapLegend({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             {microareas.map((m) => {
               const count = stats.byMicroarea.get(m.id) ?? 0;
+              const canClear = paintMode && count > 0 && !!onClearMicroarea;
               return (
-                <Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  key={m.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    borderRadius: 1,
+                    px: canClear ? 0.5 : 0,
+                    py: canClear ? 0.25 : 0,
+                    cursor: canClear ? 'pointer' : 'default',
+                    '&:hover': canClear
+                      ? { bgcolor: alpha(theme.palette.error.main, 0.08) }
+                      : undefined,
+                  }}
+                  onClick={
+                    canClear
+                      ? (event) => {
+                          event.stopPropagation();
+                          onClearMicroarea?.(m.id);
+                        }
+                      : undefined
+                  }
+                  title={canClear ? `Clique para despintar ${m.name}` : undefined}
+                >
                   <Box
                     sx={{
                       width: 22,
@@ -117,7 +145,11 @@ export function MapLegend({
                   <Typography variant="caption" sx={{ fontWeight: 600, flex: 1 }} noWrap>
                     {m.name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                  <Typography
+                    variant="caption"
+                    color={canClear ? 'error.main' : 'text.secondary'}
+                    sx={{ fontWeight: 700 }}
+                  >
                     {count}
                   </Typography>
                 </Box>

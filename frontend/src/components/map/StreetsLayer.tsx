@@ -10,6 +10,7 @@ import { familyHeatColor } from '../../utils/geo';
 import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetViewport';
 
 const HIT_WEIGHT = 32;
+const ERASER_HIT_WEIGHT = 56;
 const VIEWPORT_CULL_MIN = 600;
 
 interface StreetsLayerProps {
@@ -411,7 +412,7 @@ export function StreetsLayer({
         data={fc(features)}
         style={() => ({
           color: 'transparent',
-          weight: HIT_WEIGHT,
+          weight: eraserMode ? ERASER_HIT_WEIGHT : HIT_WEIGHT,
           opacity: 0.001,
           lineCap: 'round',
           lineJoin: 'round',
