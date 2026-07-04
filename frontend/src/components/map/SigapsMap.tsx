@@ -480,16 +480,18 @@ export function SigapsMap() {
   const paintStreet = useCallback((street: Street) => {
     if (!paintMode || eraserMode || !selectedMicroareaId) return;
     if (pendingPaintRef.current.has(street.id)) return;
+    pendingUnpaintRef.current.delete(street.id);
     pendingPaintRef.current.add(street.id);
     addDragPaintId(street.id);
   }, [paintMode, eraserMode, selectedMicroareaId, addDragPaintId]);
 
   const unpaintStreet = useCallback((street: Street) => {
-    if (!paintMode || !eraserMode || !street.microareaId) return;
+    if (!paintMode || !street.microareaId) return;
     if (pendingUnpaintRef.current.has(street.id)) return;
+    pendingPaintRef.current.delete(street.id);
     pendingUnpaintRef.current.add(street.id);
     addDragPaintId(street.id);
-  }, [paintMode, eraserMode, addDragPaintId]);
+  }, [paintMode, addDragPaintId]);
 
   const unassignMutation = useMutation({
     mutationFn: (streetIds: string[]) => streetsApi.unassign(streetIds),
@@ -534,24 +536,29 @@ export function SigapsMap() {
   });
 
   const handleDragPaintEnd = useCallback(() => {
-    const dragIds = clearDragPaintIds();
+    clearDragPaintIds();
+    const unpaintIds = Array.from(pendingUnpaintRef.current);
+    const paintIds = Array.from(pendingPaintRef.current).filter(
+      (id) => !pendingUnpaintRef.current.has(id),
+    );
+    pendingUnpaintRef.current.clear();
+    pendingPaintRef.current.clear();
+
     if (eraserMode) {
-      const allIds = new Set([...dragIds, ...pendingUnpaintRef.current]);
-      pendingUnpaintRef.current.clear();
-      if (allIds.size === 0) return;
-      unassignMutation.mutate(Array.from(allIds));
+      if (unpaintIds.length === 0) return;
+      unassignMutation.mutate(unpaintIds);
       return;
     }
 
-    const allIds = new Set([...dragIds, ...pendingPaintRef.current]);
-    pendingPaintRef.current.clear();
+    if (unpaintIds.length > 0) {
+      unassignMutation.mutate(unpaintIds);
+    }
 
-    if (!selectedMicroareaId || allIds.size === 0) return;
+    if (!selectedMicroareaId || paintIds.length === 0) return;
 
-    const streetIds = Array.from(allIds);
-    lastAssignIdsRef.current = streetIds;
+    lastAssignIdsRef.current = paintIds;
     assignMutation.mutate({
-      streetIds,
+      streetIds: paintIds,
       microareaId: selectedMicroareaId,
     });
   }, [clearDragPaintIds, selectedMicroareaId, assignMutation, eraserMode, unassignMutation]);

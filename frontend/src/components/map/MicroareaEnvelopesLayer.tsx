@@ -3,12 +3,21 @@ import { GeoJSON, Marker } from 'react-leaflet';
 import { useQuery } from '@tanstack/react-query';
 import type { PathOptions } from 'leaflet';
 import L from 'leaflet';
-import { microareasApi } from '../../services/api';
-import { useMapStore } from '../../store';
+import { microareasApi, type Microarea } from '../../services/api';
+import { useAppStore, useMapStore } from '../../store';
 import { queryKeys } from '../../utils/queryKeys';
 
 interface MicroareaEnvelopesLayerProps {
   municipalityId: string;
+}
+
+function isSeedPlaceholderMicroarea(microarea: Microarea) {
+  return (
+    /^Microárea territorial \d+ - Passagem Franca$/i.test(microarea.description?.trim() ?? '') &&
+    !microarea.ubsId &&
+    !microarea.acsId &&
+    !microarea.neighborhoodId
+  );
 }
 
 function createLabelIcon(name: string, color: string) {
@@ -35,6 +44,7 @@ function createLabelIcon(name: string, color: string) {
 export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLayerProps) {
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
   const paintMode = useMapStore((s) => s.paintMode);
+  const microareas = useAppStore((s) => s.microareas);
 
   const { data: envelopes = [] } = useQuery({
     queryKey: queryKeys.microareaEnvelopes(municipalityId),
@@ -43,9 +53,17 @@ export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLa
     staleTime: 120_000,
   });
 
+  const visibleEnvelopes = useMemo(() => {
+    if (microareas.length === 0) return envelopes;
+    const visibleIds = new Set(
+      microareas.filter((microarea) => !isSeedPlaceholderMicroarea(microarea)).map((m) => m.id),
+    );
+    return envelopes.filter((envelope) => visibleIds.has(envelope.id));
+  }, [envelopes, microareas]);
+
   const features = useMemo(
     () =>
-      envelopes.map((e) => ({
+      visibleEnvelopes.map((e) => ({
         type: 'Feature' as const,
         properties: {
           name: e.name,
@@ -54,7 +72,7 @@ export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLa
         },
         geometry: e.geometry,
       })),
-    [envelopes],
+    [visibleEnvelopes],
   );
 
   if (!showEnvelopes || features.length === 0) return null;
@@ -81,7 +99,7 @@ export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLa
         interactive={false}
       />
       {!paintMode &&
-        envelopes.map((e) => {
+        visibleEnvelopes.map((e) => {
           if (e.labelLat == null || e.labelLng == null) return null;
           return (
             <Marker

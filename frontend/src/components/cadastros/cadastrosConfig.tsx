@@ -63,7 +63,20 @@ export const CADASTROS_SECTIONS: CadastrosSection[] = [
   },
 ];
 
-export const MICROAREA_COLORS = ['#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#F44336', '#009688'];
+export const MICROAREA_COLORS = [
+  '#4CAF50',
+  '#FF9800',
+  '#2196F3',
+  '#9C27B0',
+  '#F44336',
+  '#009688',
+  '#3F51B5',
+  '#E91E63',
+  '#795548',
+  '#00BCD4',
+  '#8BC34A',
+  '#FFC107',
+];
 
 export function isCadastrosSectionId(value: string | null): value is CadastrosSectionId {
   return CADASTROS_SECTIONS.some((section) => section.id === value);

@@ -44,7 +44,7 @@ export function StreetsLayer({
   const activeColor = eraserMode
     ? '#EF5350'
     : microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
-  const isPaintingDragRef = useRef(false);
+  const dragActionRef = useRef<'paint' | 'unpaint' | null>(null);
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [mapBounds, setMapBounds] = useState(map.getBounds());
@@ -75,8 +75,8 @@ export function StreetsLayer({
 
   useEffect(() => {
     const handleMouseUp = () => {
-      if (isPaintingDragRef.current) {
-        isPaintingDragRef.current = false;
+      if (dragActionRef.current) {
+        dragActionRef.current = null;
         onDragPaintEnd();
       }
     };
@@ -230,6 +230,8 @@ export function StreetsLayer({
     };
     const street = streetsById.get(props.id);
     if (!street) return;
+    const togglesToUnpaint =
+      !eraserMode && !!selectedMicroareaId && street.microareaId === selectedMicroareaId;
 
     const path = layer as L.Path;
     const label = formatStreetLabel({ name: props.name, streetType: props.streetType });
@@ -238,7 +240,9 @@ export function StreetsLayer({
         ? props.hasMicroarea
           ? `Apagar: ${label}`
           : `${label} — não pintada`
-        : `Pintar: ${label}`
+        : togglesToUnpaint
+          ? `Despintar: ${label}`
+          : `Pintar: ${label}`
       : props.microareaName
         ? `${label} — ${props.microareaName}`
         : street.familyCount > 0
@@ -272,9 +276,15 @@ export function StreetsLayer({
       layer.on('mouseover', () => {
         if (eraserMode && !props.hasMicroarea) return;
         setHoveredId(props.id);
-        path.getElement()?.classList.add(eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover');
-        if (isPaintingDragRef.current) {
-          if (eraserMode) {
+        path
+          .getElement()
+          ?.classList.add(
+            eraserMode || togglesToUnpaint
+              ? 'sigaps-street-eraser-hover'
+              : 'sigaps-street-hover',
+          );
+        if (dragActionRef.current) {
+          if (dragActionRef.current === 'unpaint') {
             if (props.hasMicroarea) onStreetUnpaint(street);
           } else if (selectedMicroareaId) {
             onStreetPaint(street);
@@ -289,22 +299,20 @@ export function StreetsLayer({
         stopMapEvent(e);
         if (eraserMode) {
           if (!props.hasMicroarea) return;
-          isPaintingDragRef.current = true;
+          dragActionRef.current = 'unpaint';
           onStreetUnpaint(street);
           return;
         }
         if (!selectedMicroareaId) return;
-        isPaintingDragRef.current = true;
-        onStreetPaint(street);
-      });
-      layer.on('click', (e: L.LeafletMouseEvent) => {
-        stopMapEvent(e);
-        if (eraserMode) {
-          if (props.hasMicroarea) onStreetUnpaint(street);
+        if (togglesToUnpaint) {
+          dragActionRef.current = 'unpaint';
+          onStreetUnpaint(street);
           return;
         }
-        if (selectedMicroareaId) onStreetPaint(street);
+        dragActionRef.current = 'paint';
+        onStreetPaint(street);
       });
+      layer.on('click', stopMapEvent);
       return;
     }
 
