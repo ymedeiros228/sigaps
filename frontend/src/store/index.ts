@@ -6,12 +6,32 @@ import { lineStringBounds, lineStringCentroid, boundsFromLineStrings } from '../
 
 export const ACTIVE_MUNICIPALITY_KEY = 'sigaps_active_municipality';
 
-function readPersistedMunicipalityId(): string | null {
+function safeStorageGet(key: string): string | null {
   try {
-    return localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
+}
+
+function safeStorageSet(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* storage indisponível */
+  }
+}
+
+function safeStorageRemove(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* storage indisponível */
+  }
+}
+
+function readPersistedMunicipalityId(): string | null {
+  return safeStorageGet(ACTIVE_MUNICIPALITY_KEY);
 }
 
 function resolveInitialMunicipalityId(user: User | null): string | null {
@@ -24,15 +44,21 @@ function resolveInitialMunicipalityId(user: User | null): string | null {
 
 function readPersistedAuth(): { user: User | null; token: string | null } {
   try {
-    const token = localStorage.getItem('sigaps_token');
-    const userStr = localStorage.getItem('sigaps_user');
+    const token = safeStorageGet('sigaps_token');
+    const userStr = safeStorageGet('sigaps_user');
     if (token && userStr) {
       return { token, user: JSON.parse(userStr) as User };
     }
   } catch {
-    /* sessão inválida */
+    clearPersistedSession();
   }
   return { user: null, token: null };
+}
+
+function clearPersistedSession() {
+  safeStorageRemove('sigaps_token');
+  safeStorageRemove('sigaps_refresh');
+  safeStorageRemove('sigaps_user');
 }
 
 const persistedAuth = readPersistedAuth();
@@ -104,13 +130,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: persistedAuth.user,
   token: persistedAuth.token,
   setAuth: (user, token, refreshToken) => {
-    localStorage.setItem('sigaps_token', token);
-    localStorage.setItem('sigaps_refresh', refreshToken);
-    localStorage.setItem('sigaps_user', JSON.stringify(user));
+    safeStorageSet('sigaps_token', token);
+    safeStorageSet('sigaps_refresh', refreshToken);
+    safeStorageSet('sigaps_user', JSON.stringify(user));
     syncApiToken(token);
     if (import.meta.env.DEV) {
-      localStorage.setItem('sigaps_dev_email', user.email);
-      localStorage.setItem('sigaps_dev_password', DEV_LOGIN.password);
+      safeStorageSet('sigaps_dev_email', user.email);
+      safeStorageSet('sigaps_dev_password', DEV_LOGIN.password);
     }
     const municipalityId = resolveInitialMunicipalityId(user);
     if (municipalityId) {
@@ -122,24 +148,30 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   logout: () => {
     const activeMunicipality = readPersistedMunicipalityId();
-    localStorage.clear();
+    clearPersistedSession();
     if (activeMunicipality) {
-      localStorage.setItem(ACTIVE_MUNICIPALITY_KEY, activeMunicipality);
+      safeStorageSet(ACTIVE_MUNICIPALITY_KEY, activeMunicipality);
     }
     syncApiToken(null);
     set({ user: null, token: null });
   },
   hydrate: () => {
-    const token = localStorage.getItem('sigaps_token');
-    const userStr = localStorage.getItem('sigaps_user');
-    if (token && userStr) {
-      syncApiToken(token);
-      const user = JSON.parse(userStr) as User;
-      const municipalityId = resolveInitialMunicipalityId(user);
-      if (municipalityId) {
-        useAppStore.getState().setMunicipalityId(municipalityId);
+    try {
+      const token = safeStorageGet('sigaps_token');
+      const userStr = safeStorageGet('sigaps_user');
+      if (token && userStr) {
+        syncApiToken(token);
+        const user = JSON.parse(userStr) as User;
+        const municipalityId = resolveInitialMunicipalityId(user);
+        if (municipalityId) {
+          useAppStore.getState().setMunicipalityId(municipalityId);
+        }
+        set({ token, user });
       }
-      set({ token, user });
+    } catch {
+      clearPersistedSession();
+      syncApiToken(null);
+      set({ token: null, user: null });
     }
   },
 }));
@@ -266,11 +298,7 @@ export const useAppStore = create<AppState>((set) => ({
   microareas: [],
   darkMode: true,
   setMunicipalityId: (id) => {
-    try {
-      localStorage.setItem(ACTIVE_MUNICIPALITY_KEY, id);
-    } catch {
-      /* storage indisponível */
-    }
+    safeStorageSet(ACTIVE_MUNICIPALITY_KEY, id);
     set({ municipalityId: id });
   },
   setMicroareas: (microareas) => set({ microareas }),

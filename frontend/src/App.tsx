@@ -166,7 +166,9 @@ export default function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <BrowserRouter>
-          <AppRoutes />
+          <ErrorBoundary title="Erro ao abrir o aplicativo">
+            <AppRoutes />
+          </ErrorBoundary>
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
