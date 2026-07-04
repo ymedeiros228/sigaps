@@ -37,7 +37,43 @@ export class PlacesService {
     return this.prisma.place.findMany({
       where: { municipalityId },
       orderBy: { name: 'asc' },
+      include: {
+        microarea: { select: { id: true, name: true, number: true, color: true } },
+      },
     });
+  }
+
+  async assignMicroarea(id: string, microareaId: string | null, userId: string) {
+    const place = await this.findOne(id);
+
+    if (microareaId) {
+      const microarea = await this.prisma.microarea.findFirst({
+        where: { id: microareaId, municipalityId: place.municipalityId },
+        select: { id: true },
+      });
+      if (!microarea) {
+        throw new NotFoundException('Microárea não encontrada neste município.');
+      }
+    }
+
+    const updated = await this.prisma.place.update({
+      where: { id },
+      data: { microareaId },
+      include: {
+        microarea: { select: { id: true, name: true, number: true, color: true } },
+      },
+    });
+
+    await this.audit.log({
+      userId,
+      entityType: 'place',
+      entityId: id,
+      action: microareaId ? 'ASSIGN_MICROAREA' : 'UNASSIGN_MICROAREA',
+      beforeData: { microareaId: place.microareaId ?? null },
+      afterData: { microareaId },
+    });
+
+    return updated;
   }
 
   async findOne(id: string) {

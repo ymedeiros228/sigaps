@@ -240,6 +240,8 @@ export interface Place {
   osmNodeId?: string | null;
   notes?: string | null;
   municipalityId: string;
+  microareaId?: string | null;
+  microarea?: { id: string; name: string; number: number; color: string } | null;
 }
 
 export interface NominatimResult {
@@ -488,6 +490,8 @@ export const placesApi = {
     }>,
   ) => api.patch<Place>(`/places/${id}`, data),
   remove: (id: string) => api.delete(`/places/${id}`),
+  assignMicroarea: (id: string, microareaId: string | null) =>
+    api.patch<Place>(`/places/${id}/microarea`, { microareaId }),
   importFromOsm: (municipalityId: string) =>
     api.post<{ imported: number; updated: number; skipped: number }>(
       `/places/import-osm/${municipalityId}`,

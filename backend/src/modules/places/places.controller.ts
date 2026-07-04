@@ -75,6 +75,17 @@ export class PlacesController {
     return this.placesService.bulkImport(dto, req.user.id);
   }
 
+  @Patch(':id/microarea')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS, UserRole.ENFERMEIRO)
+  @ApiOperation({ summary: 'Vincular/desvincular povoado a uma microárea' })
+  assignMicroarea(
+    @Param('id') id: string,
+    @Body() body: { microareaId: string | null },
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.placesService.assignMicroarea(id, body.microareaId ?? null, req.user.id);
+  }
+
   @Patch(':id')
   @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS, UserRole.ENFERMEIRO)
   @ApiOperation({ summary: 'Atualizar povoado' })

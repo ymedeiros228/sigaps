@@ -121,6 +121,8 @@ model Place {
   longitude      Float
   osmNodeId      BigInt?   @unique @map("osm_node_id")
   notes          String?
+  microareaId    String?   @map("microarea_id")
+  microarea      Microarea? @relation(fields: [microareaId], references: [id], onDelete: SetNull)
   municipalityId String    @map("municipality_id")
   municipality   Municipality @relation(fields: [municipalityId], references: [id], onDelete: Cascade)
   createdAt      DateTime  @default(now()) @map("created_at")
@@ -128,6 +130,7 @@ model Place {
 
   @@unique([name, municipalityId])
   @@index([municipalityId])
+  @@index([microareaId])
   @@map("places")
 }
 
@@ -151,6 +154,7 @@ model Microarea {
 
   streets Street[]
   paintZones MicroareaPaintZone[]
+  places Place[]
 
   @@unique([number, municipalityId])
   @@index([municipalityId])

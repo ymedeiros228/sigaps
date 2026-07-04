@@ -16,7 +16,7 @@ import {
   LinearProgress,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { microareasApi, neighborhoodsApi, osmApi, paintZonesApi, streetsApi, ubsApi, placesApi, type Street } from '../../services/api';
+import { microareasApi, neighborhoodsApi, osmApi, paintZonesApi, streetsApi, ubsApi, placesApi, type Place, type Street } from '../../services/api';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
 import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { StreetsLayer, MapCenterController } from './StreetsLayer';
@@ -549,6 +549,46 @@ export function SigapsMap() {
       });
     },
   });
+
+  const placeMicroareaMutation = useMutation({
+    mutationFn: ({ place, microareaId }: { place: Place; microareaId: string | null }) =>
+      placesApi.assignMicroarea(place.id, microareaId),
+    onSuccess: (_res, { place, microareaId }) => {
+      if (municipalityId) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.places(municipalityId) });
+      }
+      const microarea = microareaId ? getMicroarea(microareaId) : null;
+      const msg = microareaId
+        ? `${place.name} vinculado à ${microarea?.name ?? 'microárea'}.`
+        : `Pintura removida de ${place.name}.`;
+      setLastPaintAction(msg);
+      setSnackbar({ message: msg, severity: 'success' });
+    },
+    onError: (err) => {
+      setSnackbar({
+        message: getApiErrorMessage(err, 'Não foi possível vincular o povoado à microárea.'),
+        severity: 'warning',
+      });
+    },
+  });
+
+  const handlePaintPlace = useCallback((place: Place) => {
+    if (!paintMode || eraserMode) return;
+    if (!selectedMicroareaId) {
+      setSnackbar({
+        message: 'Escolha uma microárea na legenda antes de pintar o povoado.',
+        severity: 'info',
+      });
+      return;
+    }
+    if (place.microareaId === selectedMicroareaId) return;
+    placeMicroareaMutation.mutate({ place, microareaId: selectedMicroareaId });
+  }, [paintMode, eraserMode, selectedMicroareaId, placeMicroareaMutation]);
+
+  const handleUnpaintPlace = useCallback((place: Place) => {
+    if (!paintMode || !place.microareaId) return;
+    placeMicroareaMutation.mutate({ place, microareaId: null });
+  }, [paintMode, placeMicroareaMutation]);
 
   const paintStreet = useCallback((street: Street) => {
     if (!paintMode || eraserMode || !selectedMicroareaId) return;
@@ -1093,7 +1133,11 @@ export function SigapsMap() {
             />
           )}
           <UbsMarkersLayer ubsList={ubsList} />
-          <PlacesMarkersLayer places={placesList} />
+          <PlacesMarkersLayer
+            places={placesList}
+            onPaintPlace={handlePaintPlace}
+            onUnpaintPlace={handleUnpaintPlace}
+          />
         </LeafletMap>
 
       {selectedStreet && !paintMode && (
