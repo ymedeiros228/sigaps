@@ -130,6 +130,24 @@ export function StreetsLayer({
     return { painted: p, unpainted: u };
   }, [features]);
 
+  const interactionVersion = useMemo(
+    () =>
+      features
+        .map((feature) => {
+          const props = feature.properties;
+          return [
+            props.id,
+            props.microareaName ?? '',
+            props.hasMicroarea ? '1' : '0',
+            props.dragPending ? '1' : '0',
+            props.selected ? '1' : '0',
+            props.highlighted ? '1' : '0',
+          ].join(':');
+        })
+        .join('|'),
+    [features],
+  );
+
   const maxFamilyCount = useMemo(
     () => Math.max(1, ...streets.map((s) => s.familyCount ?? 0)),
     [streets],
@@ -230,6 +248,7 @@ export function StreetsLayer({
     };
     const street = streetsById.get(props.id);
     if (!street) return;
+    const hasMicroarea = !!street.microareaId;
     const togglesToUnpaint =
       !eraserMode && !!selectedMicroareaId && street.microareaId === selectedMicroareaId;
 
@@ -237,14 +256,14 @@ export function StreetsLayer({
     const label = formatStreetLabel({ name: props.name, streetType: props.streetType });
     const tooltipText = paintMode
       ? eraserMode
-        ? props.hasMicroarea
+        ? hasMicroarea
           ? `Apagar: ${label}`
           : `${label} — não pintada`
         : togglesToUnpaint
           ? `Despintar: ${label}`
           : `Pintar: ${label}`
-      : props.microareaName
-        ? `${label} — ${props.microareaName}`
+      : street.microarea?.name
+        ? `${label} — ${street.microarea.name}`
         : street.familyCount > 0
           ? `${label} — ${street.familyCount} família(s)`
           : label;
@@ -254,7 +273,7 @@ export function StreetsLayer({
     const showFixedName =
       !paintMode &&
       !showEnvelopes &&
-      props.hasMicroarea &&
+      hasMicroarea &&
       zoom >= 15 &&
       streets.length <= 500;
 
@@ -274,7 +293,7 @@ export function StreetsLayer({
 
     if (paintMode) {
       layer.on('mouseover', () => {
-        if (eraserMode && !props.hasMicroarea) return;
+        if (eraserMode && !hasMicroarea) return;
         setHoveredId(props.id);
         path
           .getElement()
@@ -285,7 +304,7 @@ export function StreetsLayer({
           );
         if (dragActionRef.current) {
           if (dragActionRef.current === 'unpaint') {
-            if (props.hasMicroarea) onStreetUnpaint(street);
+            if (hasMicroarea) onStreetUnpaint(street);
           } else if (selectedMicroareaId) {
             onStreetPaint(street);
           }
@@ -298,7 +317,7 @@ export function StreetsLayer({
       layer.on('mousedown', (e: L.LeafletMouseEvent) => {
         stopMapEvent(e);
         if (eraserMode) {
-          if (!props.hasMicroarea) return;
+          if (!hasMicroarea) return;
           dragActionRef.current = 'unpaint';
           onStreetUnpaint(street);
           return;
@@ -371,7 +390,7 @@ export function StreetsLayer({
       )}
 
       <GeoJSON
-        key={`streets-hit-${paintMode}-${eraserMode}-${selectedMicroareaId}`}
+        key={`streets-hit-${paintMode}-${eraserMode}-${selectedMicroareaId}-${interactionVersion}`}
         data={fc(features)}
         style={() => ({
           color: 'transparent',
