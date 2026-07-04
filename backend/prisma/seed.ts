@@ -61,7 +61,7 @@ async function main() {
     update: { passwordHash, municipalityId: municipality.id, role: UserRole.ADMINISTRADOR },
   });
 
-  const colors = ['#4CAF50', '#FF9800', '#2196F3', '#9C27B0', '#F44336'];
+  const colors = ['#E6194B', '#4363D8', '#3CB44B', '#FFE119', '#911EB4'];
   const microareas = [];
   for (let i = 1; i <= 5; i++) {
     const ma = await prisma.microarea.upsert({

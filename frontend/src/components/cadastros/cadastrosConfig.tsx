@@ -63,19 +63,24 @@ export const CADASTROS_SECTIONS: CadastrosSection[] = [
   },
 ];
 
+/**
+ * Paleta de alto contraste — cores vizinhas na sequência são propositalmente
+ * muito diferentes entre si (matiz e luminosidade) para facilitar a leitura
+ * do mapa. Evita tons próximos como dois verdes ou amarelo/laranja seguidos.
+ */
 export const MICROAREA_COLORS = [
-  '#4CAF50',
-  '#FF9800',
-  '#2196F3',
-  '#9C27B0',
-  '#F44336',
-  '#009688',
-  '#3F51B5',
-  '#E91E63',
-  '#795548',
-  '#00BCD4',
-  '#8BC34A',
-  '#FFC107',
+  '#E6194B', // vermelho
+  '#4363D8', // azul
+  '#3CB44B', // verde
+  '#FFE119', // amarelo
+  '#911EB4', // roxo
+  '#F58231', // laranja
+  '#42D4F4', // ciano claro
+  '#F032E6', // magenta
+  '#9A6324', // marrom
+  '#000075', // azul-marinho
+  '#808000', // oliva
+  '#469990', // verde-petróleo escuro
 ];
 
 export function isCadastrosSectionId(value: string | null): value is CadastrosSectionId {
