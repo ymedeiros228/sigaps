@@ -15,14 +15,14 @@ const updateSW = registerSW({
   onOfflineReady() {
     console.info('[SIGAPS] modo offline pronto')
   },
-  onRegisteredSW(_swUrl, registration) {
+  onRegisteredSW(_swUrl: string, registration?: ServiceWorkerRegistration) {
     if (!registration) return
 
     window.setInterval(() => {
       void registration.update()
     }, swUpdateIntervalMs)
   },
-  onRegisterError(error) {
+  onRegisterError(error: unknown) {
     console.error('[SIGAPS] erro ao registrar PWA', error)
   },
 })
