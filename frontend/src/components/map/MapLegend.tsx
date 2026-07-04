@@ -196,22 +196,44 @@ export function MapLegend({
                 </Box>
               )}
               {showPlaces && placesList.length > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box
-                    sx={{
-                      width: 14,
-                      height: 14,
-                      bgcolor: '#6D4C41',
-                      borderRadius: '50%',
-                      border: '2px solid #fff',
-                      boxShadow: 1,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Povoados ({placesList.length})
-                  </Typography>
-                </Box>
+                <>
+                  {placesList.some((p) => p.kind === 'POVOADO' || p.kind === 'DISTRITO') && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 14,
+                          height: 14,
+                          bgcolor: '#6D4C41',
+                          borderRadius: '50%',
+                          border: '2px solid #fff',
+                          boxShadow: 1,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        Povoados ({placesList.filter((p) => p.kind !== 'LOCALIDADE').length})
+                      </Typography>
+                    </Box>
+                  )}
+                  {placesList.some((p) => p.kind === 'LOCALIDADE') && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 14,
+                          height: 14,
+                          bgcolor: '#546E7A',
+                          borderRadius: '50%',
+                          border: '2px solid #fff',
+                          boxShadow: 1,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        Fazendas/localidades ({placesList.filter((p) => p.kind === 'LOCALIDADE').length})
+                      </Typography>
+                    </Box>
+                  )}
+                </>
               )}
               {showHeatmap && (
                 <Box sx={{ mt: 0.5 }}>
