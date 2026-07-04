@@ -8,6 +8,7 @@ import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { maskCpfField } from '../../common/utils/mask-cpf.util';
 import { applyAcsMicroareaScope, type AuthViewer } from '../../common/utils/acs-scope.util';
+import { AcsService } from '../acs/acs.service';
 import { CreateMicroareaDto, UpdateMicroareaDto } from './dto/microarea.dto';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class MicroareasService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly acsService: AcsService,
   ) {}
 
   async findByMunicipality(municipalityId: string, viewer?: AuthViewer) {
@@ -184,6 +186,14 @@ export class MicroareasService {
     });
 
     if (acsId) await this.ensureAcsExclusive(microarea.id, acsId);
+    if (acsId) {
+      await this.acsService.syncStreetCoverageForAcs({
+        acsId,
+        municipalityId,
+        microareaId: microarea.id,
+        userId,
+      });
+    }
     const result = await this.findOne(microarea.id);
 
     await this.audit.log({
@@ -223,6 +233,16 @@ export class MicroareasService {
           dto.neighborhoodId !== undefined ? (dto.neighborhoodId ?? null) : undefined,
       },
     });
+    if (acsId) {
+      await this.acsService.syncStreetCoverageForAcs({
+        acsId,
+        municipalityId,
+        microareaId: id,
+        userId,
+        transferFromMicroareaIds:
+          before.acsId && before.acsId === acsId ? [id] : [],
+      });
+    }
 
     const result = await this.findOne(id);
 

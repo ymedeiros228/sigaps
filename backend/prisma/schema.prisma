@@ -181,6 +181,7 @@ model Acs {
   cpf            String       @unique
   phone          String?
   photoUrl       String?      @map("photo_url")
+  streetCoverageText String?  @map("street_coverage_text")
   status         EntityStatus @default(ATIVO)
   userId         String?      @unique @map("user_id")
   user           User?        @relation(fields: [userId], references: [id])

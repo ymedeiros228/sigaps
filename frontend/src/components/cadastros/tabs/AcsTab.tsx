@@ -114,6 +114,7 @@ export function AcsTab({
         name: values.name,
         status: values.status,
         microareaId: values.microareaId || undefined,
+        streetCoverageText: values.streetCoverageText.trim(),
       };
       return editing
         ? acsApi.update(editing.id, {
@@ -123,15 +124,33 @@ export function AcsTab({
         : acsApi.create({ ...body, municipalityId });
     },
     onSuccess: (_data, variables) => {
+      const summary = _data.data?.streetCoverageSummary;
       invalidateCadastrosCache(queryClient, municipalityId);
       if (variables.andAnother) {
         setEditing(null);
         setFormSession((n) => n + 1);
-        reportSuccess('ACS cadastrado. Preencha o próximo.');
+        reportSuccess(
+          summary?.paintedCount
+            ? `ACS cadastrado. ${summary.paintedCount} rua(s) pintada(s). Preencha o próximo.`
+            : 'ACS cadastrado. Preencha o próximo.',
+        );
       } else {
         setOpen(false);
         setEditing(null);
-        reportSuccess(editing ? 'ACS atualizado.' : 'ACS cadastrado.');
+        const base = editing ? 'ACS atualizado.' : 'ACS cadastrado.';
+        if (summary?.paintedCount || summary?.unmatchedRefs?.length || summary?.ambiguousRefs?.length) {
+          reportSuccess(
+            `${base} ${
+              summary.paintedCount ? `${summary.paintedCount} rua(s) pintada(s). ` : ''
+            }${
+              summary.unmatchedRefs?.length || summary.ambiguousRefs?.length || summary.conflictRefs?.length
+                ? 'Confira possíveis pendências na lista de ruas.'
+                : ''
+            }`.trim(),
+          );
+        } else {
+          reportSuccess(base);
+        }
       }
     },
     onError: reportError,

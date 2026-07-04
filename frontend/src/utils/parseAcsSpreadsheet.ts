@@ -5,6 +5,7 @@ export type AcsImportRow = {
   cpf?: string;
   phone?: string;
   microareaRef?: string;
+  streetCoverageText?: string;
   status?: string;
 };
 
@@ -31,6 +32,7 @@ function rowFromValues(values: {
   cpf?: unknown;
   phone?: unknown;
   microareaRef?: unknown;
+  streetCoverageText?: unknown;
   status?: unknown;
 }): AcsImportRow | null {
   const name = String(values.name ?? '').trim();
@@ -41,12 +43,14 @@ function rowFromValues(values: {
 
   const phone = String(values.phone ?? '').trim();
   const microareaRef = String(values.microareaRef ?? '').trim();
+  const streetCoverageText = String(values.streetCoverageText ?? '').trim();
 
   return {
     name,
     cpf: cpf || undefined,
     phone: phone || undefined,
     microareaRef: microareaRef || undefined,
+    streetCoverageText: streetCoverageText || undefined,
     status: normalizeStatus(values.status),
   };
 }
@@ -67,6 +71,21 @@ export function parseAcsRowsFromObjects(rows: Record<string, unknown>[]): AcsImp
   const cpfIdx = pickColumn(headers, ['cpf']);
   const phoneIdx = pickColumn(headers, ['telefone', 'phone', 'celular', 'contato']);
   const microIdx = pickColumn(headers, ['microarea', 'micro area', 'microarea', 'mic area', 'micarea']);
+  const streetsIdx = pickColumn(headers, [
+    'ruas atendidas',
+    'lista de ruas',
+    'ruas',
+    'rua',
+    'trechos',
+    'logradouros',
+    'cobertura',
+    'ruas que atua',
+    'ruas que o acs atua',
+    'ruas onde atua',
+    'territorio',
+    'area',
+    'territorio de ruas',
+  ]);
   const statusIdx = pickColumn(headers, ['status', 'situacao']);
 
   const get = (row: Record<string, unknown>, idx: number) =>
@@ -79,6 +98,7 @@ export function parseAcsRowsFromObjects(rows: Record<string, unknown>[]): AcsImp
         cpf: cpfIdx >= 0 ? get(row, cpfIdx) : undefined,
         phone: phoneIdx >= 0 ? get(row, phoneIdx) : undefined,
         microareaRef: microIdx >= 0 ? get(row, microIdx) : undefined,
+        streetCoverageText: streetsIdx >= 0 ? get(row, streetsIdx) : undefined,
         status: statusIdx >= 0 ? get(row, statusIdx) : undefined,
       }),
     )
@@ -106,6 +126,21 @@ export function parseAcsCsvText(text: string): AcsImportRow[] {
   const cpfIdx = pickColumn(headers, ['cpf']);
   const phoneIdx = pickColumn(headers, ['telefone', 'phone', 'celular', 'contato']);
   const microIdx = pickColumn(headers, ['microarea', 'micro area', 'mic area', 'micarea']);
+  const streetsIdx = pickColumn(headers, [
+    'ruas atendidas',
+    'lista de ruas',
+    'ruas',
+    'rua',
+    'trechos',
+    'logradouros',
+    'cobertura',
+    'ruas que atua',
+    'ruas que o acs atua',
+    'ruas onde atua',
+    'territorio',
+    'area',
+    'territorio de ruas',
+  ]);
   const statusIdx = pickColumn(headers, ['status', 'situacao']);
 
   const dataLines = nameIdx >= 0 || cpfIdx >= 0 ? lines.slice(1) : lines;
@@ -118,6 +153,7 @@ export function parseAcsCsvText(text: string): AcsImportRow[] {
         cpf: cpfIdx >= 0 ? parts[cpfIdx] : undefined,
         phone: phoneIdx >= 0 ? parts[phoneIdx] : undefined,
         microareaRef: microIdx >= 0 ? parts[microIdx] : undefined,
+        streetCoverageText: streetsIdx >= 0 ? parts[streetsIdx] : undefined,
         status: statusIdx >= 0 ? parts[statusIdx] : undefined,
       });
     })

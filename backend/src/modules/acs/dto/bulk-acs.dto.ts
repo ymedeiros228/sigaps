@@ -28,6 +28,15 @@ export class BulkAcsItemDto {
   @IsString()
   microareaRef?: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'Lista de ruas/trechos atendidos pelo ACS',
+    example: 'Rua do Sol; Travessa da Paz; Avenida Central',
+  })
+  @IsOptional()
+  @IsString()
+  streetCoverageText?: string;
+
   @ApiProperty({ enum: EntityStatus, required: false })
   @IsOptional()
   @IsEnum(EntityStatus)

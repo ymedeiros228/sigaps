@@ -10,6 +10,7 @@ import { EntityStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
+import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import {
   generateInternalAcsCode,
   isInternalAcsCode,
@@ -17,6 +18,31 @@ import {
 import { maskCpfField } from '../../common/utils/mask-cpf.util';
 import { CreateAcsDto, UpdateAcsDto } from './dto/acs.dto';
 import { BulkAcsImportDto } from './dto/bulk-acs.dto';
+import {
+  buildStreetCoverageVariants,
+  buildStreetSearchKeys,
+  splitStreetCoverageText,
+} from './acs-street-coverage.util';
+
+type StreetCoverageCatalogEntry = {
+  id: string;
+  name: string;
+  streetType?: string | null;
+  microareaId?: string | null;
+  searchKeys: string[];
+};
+
+type StreetCoverageSyncResult = {
+  totalRefs: number;
+  matchedRefs: number;
+  paintedCount: number;
+  alreadyAssignedCount: number;
+  transferredCount: number;
+  unmatchedRefs: string[];
+  ambiguousRefs: string[];
+  conflictRefs: string[];
+  skippedWithoutMicroarea: boolean;
+};
 
 @Injectable()
 export class AcsService {
@@ -78,6 +104,7 @@ export class AcsService {
     phone?: string | null;
     status: string;
     photoUrl?: string | null;
+    streetCoverageText?: string | null;
   }) {
     return auditSnapshot(acs as Record<string, unknown>, [
       'name',
@@ -85,7 +112,213 @@ export class AcsService {
       'phone',
       'status',
       'photoUrl',
+      'streetCoverageText',
     ]);
+  }
+
+  private buildStreetCoverageCatalog(
+    streets: Array<{ id: string; name: string; streetType?: string | null; microareaId?: string | null }>,
+  ) {
+    return streets.map((street) => ({
+      ...street,
+      searchKeys: buildStreetSearchKeys(street),
+    }));
+  }
+
+  private matchStreetCoverageRef(ref: string, catalog: StreetCoverageCatalogEntry[]) {
+    const refVariants = buildStreetCoverageVariants(ref);
+    const exact = new Map<string, StreetCoverageCatalogEntry>();
+    for (const entry of catalog) {
+      if (refVariants.some((variant) => entry.searchKeys.includes(variant))) {
+        exact.set(entry.id, entry);
+      }
+    }
+    if (exact.size === 1) {
+      return { status: 'matched' as const, street: [...exact.values()][0] };
+    }
+    if (exact.size > 1) {
+      return { status: 'ambiguous' as const };
+    }
+
+    const partial = new Map<string, StreetCoverageCatalogEntry>();
+    for (const entry of catalog) {
+      if (
+        refVariants.some(
+          (variant) =>
+            variant.length >= 4 &&
+            entry.searchKeys.some((key) => key.includes(variant) || variant.includes(key)),
+        )
+      ) {
+        partial.set(entry.id, entry);
+      }
+    }
+    if (partial.size === 1) {
+      return { status: 'matched' as const, street: [...partial.values()][0] };
+    }
+    if (partial.size > 1) {
+      return { status: 'ambiguous' as const };
+    }
+    return { status: 'unmatched' as const };
+  }
+
+  private formatStreetCoverageWarnings(summary: StreetCoverageSyncResult) {
+    const warnings: string[] = [];
+    if (summary.skippedWithoutMicroarea && summary.totalRefs > 0) {
+      warnings.push('Lista de ruas recebida, mas o ACS ainda está sem microárea vinculada.');
+    }
+    if (summary.unmatchedRefs.length > 0) {
+      warnings.push(`Ruas não encontradas: ${summary.unmatchedRefs.slice(0, 5).join(', ')}`);
+    }
+    if (summary.ambiguousRefs.length > 0) {
+      warnings.push(`Ruas ambíguas: ${summary.ambiguousRefs.slice(0, 5).join(', ')}`);
+    }
+    if (summary.conflictRefs.length > 0) {
+      warnings.push(
+        `Ruas já pintadas em outra microárea: ${summary.conflictRefs.slice(0, 5).join(', ')}`,
+      );
+    }
+    return warnings;
+  }
+
+  private async getCurrentMicroareaIdForAcs(acsId: string) {
+    const current = await this.prisma.microarea.findFirst({
+      where: { acsId },
+      select: { id: true },
+    });
+    return current?.id ?? null;
+  }
+
+  async syncStreetCoverageForAcs(params: {
+    acsId: string;
+    municipalityId: string;
+    userId: string;
+    microareaId?: string | null;
+    streetCoverageText?: string | null;
+    transferFromMicroareaIds?: string[];
+  }): Promise<StreetCoverageSyncResult | null> {
+    const streetCoverageText =
+      params.streetCoverageText !== undefined
+        ? params.streetCoverageText
+        : (
+            await this.prisma.acs.findUnique({
+              where: { id: params.acsId },
+              select: { streetCoverageText: true },
+            })
+          )?.streetCoverageText;
+    const refs = splitStreetCoverageText(streetCoverageText);
+    if (refs.length === 0) return null;
+
+    const microareaId =
+      params.microareaId !== undefined
+        ? params.microareaId
+        : await this.getCurrentMicroareaIdForAcs(params.acsId);
+    if (!microareaId) {
+      return {
+        totalRefs: refs.length,
+        matchedRefs: 0,
+        paintedCount: 0,
+        alreadyAssignedCount: 0,
+        transferredCount: 0,
+        unmatchedRefs: [],
+        ambiguousRefs: [],
+        conflictRefs: [],
+        skippedWithoutMicroarea: true,
+      };
+    }
+
+    const streets = await this.prisma.street.findMany({
+      where: { municipalityId: params.municipalityId },
+      select: { id: true, name: true, streetType: true, microareaId: true },
+    });
+    const catalog = this.buildStreetCoverageCatalog(streets);
+    const matched = new Map<string, { ref: string; street: StreetCoverageCatalogEntry }>();
+    const ambiguousRefs: string[] = [];
+    const unmatchedRefs: string[] = [];
+    let matchedRefs = 0;
+
+    for (const ref of refs) {
+      const result = this.matchStreetCoverageRef(ref, catalog);
+      if (result.status === 'matched') {
+        matchedRefs++;
+        if (!matched.has(result.street.id)) {
+          matched.set(result.street.id, { ref, street: result.street });
+        }
+        continue;
+      }
+      if (result.status === 'ambiguous') {
+        ambiguousRefs.push(ref);
+        continue;
+      }
+      unmatchedRefs.push(ref);
+    }
+
+    const transferFromIds = new Set((params.transferFromMicroareaIds ?? []).filter(Boolean));
+    const toAssign: Array<{ ref: string; street: StreetCoverageCatalogEntry }> = [];
+    const conflictRefs: string[] = [];
+    let alreadyAssignedCount = 0;
+    let transferredCount = 0;
+
+    for (const match of matched.values()) {
+      if (!match.street.microareaId) {
+        toAssign.push(match);
+        continue;
+      }
+      if (match.street.microareaId === microareaId) {
+        alreadyAssignedCount++;
+        continue;
+      }
+      if (transferFromIds.has(match.street.microareaId)) {
+        transferredCount++;
+        toAssign.push(match);
+        continue;
+      }
+      conflictRefs.push(match.ref);
+    }
+
+    const affectedMicroareas = new Set<string>([microareaId]);
+    const changed = toAssign.filter((item) => item.street.microareaId !== microareaId);
+    for (const item of changed) {
+      if (item.street.microareaId) {
+        affectedMicroareas.add(item.street.microareaId);
+      }
+    }
+
+    if (changed.length > 0) {
+      await this.prisma.street.updateMany({
+        where: { id: { in: changed.map((item) => item.street.id) } },
+        data: { microareaId },
+      });
+      await this.prisma.auditLog.createMany({
+        data: changed.map((item) => ({
+          userId: params.userId,
+          entityType: 'street',
+          entityId: item.street.id,
+          action: 'ASSIGN_MICROAREA',
+          beforeData: { microareaId: item.street.microareaId ?? null, source: 'acs-street-coverage' },
+          afterData: { microareaId, source: 'acs-street-coverage', acsId: params.acsId },
+        })),
+      });
+      for (const affectedId of affectedMicroareas) {
+        try {
+          await this.prisma.$executeRaw`SELECT update_microarea_envelope(${affectedId}::uuid)`;
+        } catch {
+          /* PostGIS opcional */
+        }
+      }
+      invalidateDashboardIndicators(params.municipalityId);
+    }
+
+    return {
+      totalRefs: refs.length,
+      matchedRefs,
+      paintedCount: changed.length,
+      alreadyAssignedCount,
+      transferredCount,
+      unmatchedRefs,
+      ambiguousRefs,
+      conflictRefs,
+      skippedWithoutMicroarea: false,
+    };
   }
 
   private async assignToMicroarea(acsId: string, microareaId?: string | null) {
@@ -141,9 +374,17 @@ export class AcsService {
         cpf: resolvedCpf,
         municipalityId,
         status: rest.status ?? 'ATIVO',
+        streetCoverageText: rest.streetCoverageText?.trim() || null,
       },
     });
     if (microareaId) await this.assignToMicroarea(acs.id, microareaId);
+    const streetCoverageSummary = await this.syncStreetCoverageForAcs({
+      acsId: acs.id,
+      municipalityId,
+      microareaId,
+      streetCoverageText: rest.streetCoverageText,
+      userId,
+    });
     const result = await this.findOne(acs.id, viewerRole);
 
     await this.audit.log({
@@ -154,23 +395,47 @@ export class AcsService {
       afterData: this.acsAuditFields(acs),
     });
 
-    return result;
+    return { ...result, streetCoverageSummary };
   }
 
   async update(id: string, dto: UpdateAcsDto, userId: string, viewerRole?: string) {
     const beforeRaw = await this.prisma.acs.findUnique({ where: { id } });
     if (!beforeRaw) throw new NotFoundException('ACS nao encontrado');
+    const beforeMicroareaId = await this.getCurrentMicroareaIdForAcs(id);
     const { microareaId, municipalityId: _m, cpf: _c, ...data } = dto;
+    const normalizedStreetCoverageText = dto.streetCoverageText?.trim();
     if (dto.cpf) {
       const dup = await this.prisma.acs.findFirst({
         where: { cpf: dto.cpf, NOT: { id } },
       });
       if (dup) throw new ConflictException('Ja existe outro ACS com este CPF.');
     }
-    await this.prisma.acs.update({ where: { id }, data });
+    await this.prisma.acs.update({
+      where: { id },
+      data: {
+        ...data,
+        ...(dto.streetCoverageText !== undefined
+          ? { streetCoverageText: normalizedStreetCoverageText || null }
+          : {}),
+      },
+    });
     if (microareaId !== undefined) {
       await this.assignToMicroarea(id, microareaId || null);
     }
+    const currentMicroareaId =
+      microareaId !== undefined ? (microareaId || null) : await this.getCurrentMicroareaIdForAcs(id);
+    const streetCoverageSummary = await this.syncStreetCoverageForAcs({
+      acsId: id,
+      municipalityId: beforeRaw.municipalityId,
+      microareaId: currentMicroareaId,
+      streetCoverageText:
+        dto.streetCoverageText !== undefined
+          ? normalizedStreetCoverageText
+          : beforeRaw.streetCoverageText,
+      userId,
+      transferFromMicroareaIds:
+        beforeMicroareaId && beforeMicroareaId !== currentMicroareaId ? [beforeMicroareaId] : [],
+    });
     const afterRaw = await this.prisma.acs.findUnique({ where: { id } });
     const result = await this.findOne(id, viewerRole);
 
@@ -183,7 +448,7 @@ export class AcsService {
       afterData: afterRaw ? this.acsAuditFields(afterRaw) : undefined,
     });
 
-    return result;
+    return { ...result, streetCoverageSummary };
   }
 
   async uploadPhoto(id: string, file: Express.Multer.File, userId: string, viewerRole?: string) {
@@ -231,6 +496,13 @@ export class AcsService {
     let created = 0;
     let updated = 0;
     const errors: Array<{ row: number; ref: string; message: string }> = [];
+    const streetAutomation = {
+      painted: 0,
+      unmatched: 0,
+      ambiguous: 0,
+      conflicts: 0,
+      skippedWithoutMicroarea: 0,
+    };
 
     for (let i = 0; i < dto.items.length; i++) {
       const item = dto.items[i];
@@ -262,15 +534,19 @@ export class AcsService {
         }
 
         if (existing) {
+          const previousMicroareaId = await this.getCurrentMicroareaIdForAcs(existing.id);
           const data: {
             name: string;
             phone?: string;
             status: EntityStatus;
             cpf?: string;
+            streetCoverageText?: string;
           } = {
             name: item.name,
             phone: item.phone,
             status: item.status ?? existing.status,
+            streetCoverageText:
+              item.streetCoverageText?.trim() || existing.streetCoverageText || undefined,
           };
 
           if (
@@ -292,6 +568,29 @@ export class AcsService {
             data,
           });
           if (microareaId) await this.assignToMicroarea(existing.id, microareaId);
+          const streetCoverageSummary = await this.syncStreetCoverageForAcs({
+            acsId: existing.id,
+            municipalityId: dto.municipalityId,
+            microareaId,
+            streetCoverageText: data.streetCoverageText,
+            userId,
+            transferFromMicroareaIds:
+              previousMicroareaId && previousMicroareaId !== microareaId
+                ? [previousMicroareaId]
+                : [],
+          });
+          if (streetCoverageSummary) {
+            streetAutomation.painted += streetCoverageSummary.paintedCount;
+            streetAutomation.unmatched += streetCoverageSummary.unmatchedRefs.length;
+            streetAutomation.ambiguous += streetCoverageSummary.ambiguousRefs.length;
+            streetAutomation.conflicts += streetCoverageSummary.conflictRefs.length;
+            if (streetCoverageSummary.skippedWithoutMicroarea) {
+              streetAutomation.skippedWithoutMicroarea += 1;
+            }
+            for (const warning of this.formatStreetCoverageWarnings(streetCoverageSummary)) {
+              errors.push({ row, ref, message: warning });
+            }
+          }
           await this.audit.log({
             userId,
             entityType: 'acs',
@@ -302,6 +601,7 @@ export class AcsService {
               cpf: data.cpf ?? existing.cpf,
               phone: item.phone,
               status: item.status ?? existing.status,
+              streetCoverageText: data.streetCoverageText ?? existing.streetCoverageText,
             }),
           });
           updated++;
@@ -314,9 +614,29 @@ export class AcsService {
               phone: item.phone,
               status: item.status ?? 'ATIVO',
               municipalityId: dto.municipalityId,
+              streetCoverageText: item.streetCoverageText?.trim() || null,
             },
           });
           if (microareaId) await this.assignToMicroarea(acs.id, microareaId);
+          const streetCoverageSummary = await this.syncStreetCoverageForAcs({
+            acsId: acs.id,
+            municipalityId: dto.municipalityId,
+            microareaId,
+            streetCoverageText: item.streetCoverageText,
+            userId,
+          });
+          if (streetCoverageSummary) {
+            streetAutomation.painted += streetCoverageSummary.paintedCount;
+            streetAutomation.unmatched += streetCoverageSummary.unmatchedRefs.length;
+            streetAutomation.ambiguous += streetCoverageSummary.ambiguousRefs.length;
+            streetAutomation.conflicts += streetCoverageSummary.conflictRefs.length;
+            if (streetCoverageSummary.skippedWithoutMicroarea) {
+              streetAutomation.skippedWithoutMicroarea += 1;
+            }
+            for (const warning of this.formatStreetCoverageWarnings(streetCoverageSummary)) {
+              errors.push({ row, ref, message: warning });
+            }
+          }
           await this.audit.log({
             userId,
             entityType: 'acs',
@@ -327,6 +647,7 @@ export class AcsService {
               cpf: resolvedCpf,
               phone: item.phone,
               status: item.status ?? 'ATIVO',
+              streetCoverageText: item.streetCoverageText?.trim() || null,
             }),
           });
           created++;
@@ -347,7 +668,7 @@ export class AcsService {
       });
     }
 
-    return { created, updated, errors, total: dto.items.length };
+    return { created, updated, errors, total: dto.items.length, streetAutomation };
   }
 
   async remove(id: string, userId: string) {

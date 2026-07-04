@@ -207,8 +207,20 @@ export interface Acs {
   cpf: string;
   phone?: string;
   photoUrl?: string;
+  streetCoverageText?: string;
   status: string;
   microarea?: { id: string; name: string; number: number; color: string };
+  streetCoverageSummary?: {
+    totalRefs: number;
+    matchedRefs: number;
+    paintedCount: number;
+    alreadyAssignedCount: number;
+    transferredCount: number;
+    unmatchedRefs: string[];
+    ambiguousRefs: string[];
+    conflictRefs: string[];
+    skippedWithoutMicroarea: boolean;
+  } | null;
 }
 
 export interface Neighborhood {
@@ -393,6 +405,7 @@ export const acsApi = {
     cpf?: string;
     municipalityId: string;
     phone?: string;
+    streetCoverageText?: string;
     status?: string;
     microareaId?: string;
   }) => api.post('/acs', data),
@@ -407,10 +420,23 @@ export const acsApi = {
       cpf?: string;
       phone?: string;
       microareaRef?: string;
+      streetCoverageText?: string;
       status?: string;
     }>,
   ) =>
-    api.post<{ created: number; updated: number; errors: Array<{ row: number; ref: string; message: string }>; total: number }>(
+    api.post<{
+      created: number;
+      updated: number;
+      errors: Array<{ row: number; ref: string; message: string }>;
+      total: number;
+      streetAutomation?: {
+        painted: number;
+        unmatched: number;
+        ambiguous: number;
+        conflicts: number;
+        skippedWithoutMicroarea: number;
+      };
+    }>(
       '/acs/bulk',
       { municipalityId, items },
     ),

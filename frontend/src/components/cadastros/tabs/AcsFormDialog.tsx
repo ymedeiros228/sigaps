@@ -24,6 +24,7 @@ export type AcsFormValues = {
   name: string;
   status: string;
   microareaId: string;
+  streetCoverageText: string;
 };
 
 interface AcsFormDialogProps {
@@ -41,6 +42,7 @@ const emptyValues: AcsFormValues = {
   name: '',
   status: 'ATIVO',
   microareaId: '',
+  streetCoverageText: '',
 };
 
 export function AcsFormDialog({
@@ -70,6 +72,7 @@ export function AcsFormDialog({
             name: editing.name,
             status: editing.status,
             microareaId: editing.microarea?.id ?? '',
+            streetCoverageText: editing.streetCoverageText ?? '',
           }
         : emptyValues,
     );
@@ -176,6 +179,15 @@ export function AcsFormDialog({
               </MenuItem>
             ))}
           </TextField>
+
+          <TextField
+            label="Ruas / trechos atendidos"
+            {...register('streetCoverageText')}
+            fullWidth
+            multiline
+            minRows={3}
+            helperText="Opcional — use uma rua por linha ou separe por ponto e vírgula. Com microárea vinculada, o sistema tenta pintar automaticamente."
+          />
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 2.5, flexWrap: 'wrap', gap: 1 }}>

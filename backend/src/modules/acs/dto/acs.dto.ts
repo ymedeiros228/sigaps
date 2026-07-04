@@ -27,6 +27,15 @@ export class CreateAcsDto {
   @IsString()
   photoUrl?: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'Lista livre de ruas/trechos atendidos pelo ACS',
+    example: 'Rua do Sol; Travessa da Paz; Avenida Central',
+  })
+  @IsOptional()
+  @IsString()
+  streetCoverageText?: string;
+
   @ApiProperty()
   @IsUUID()
   municipalityId: string;

@@ -20,9 +20,9 @@ import {
   type AcsImportRow,
 } from '../../../utils/parseAcsSpreadsheet';
 
-const CSV_TEMPLATE = `UBS;Contato;Nome do ACS;Microarea;CPF;Status;Observacao
-UBS Centro;(99) 98421-7828;Maria Silva;01;;ATIVO;
-UBS Aeroporto;(99) 98505-5597;João Santos;02;12345678901;ATIVO;`;
+const CSV_TEMPLATE = `UBS;Contato;Nome do ACS;Microarea;Ruas atendidas;CPF;Status;Observacao
+UBS Centro;(99) 98421-7828;Maria Silva;01;Rua do Sol;;ATIVO;
+UBS Aeroporto;(99) 98505-5597;João Santos;02;Avenida Central | Travessa da Paz;12345678901;ATIVO;`;
 
 type ImportError = { row: number; ref: string; message: string };
 
@@ -54,11 +54,14 @@ export function AcsBulkImportDialog({
   const importMutation = useMutation({
     mutationFn: () => acsApi.bulkImport(municipalityId, preview),
     onSuccess: (res) => {
-      const { created, updated, errors } = res.data;
+      const { created, updated, errors, streetAutomation } = res.data;
       setImportResult({ created, updated, errors });
       let msg = `Importação concluída: ${created} novo(s), ${updated} atualizado(s).`;
       if (errors.length > 0) {
         msg += ` ${errors.length} linha(s) com aviso.`;
+      }
+      if (streetAutomation?.painted) {
+        msg += ` ${streetAutomation.painted} rua(s) pintada(s) automaticamente.`;
       }
       onSuccess(msg);
     },
@@ -119,7 +122,8 @@ export function AcsBulkImportDialog({
     if (preview.length === 0) return null;
     const withMicro = preview.filter((r) => r.microareaRef).length;
     const withoutCpf = preview.filter((r) => !r.cpf).length;
-    return `${preview.length} agente(s) · ${withMicro} com microárea indicada · ${withoutCpf} sem CPF`;
+    const withStreets = preview.filter((r) => r.streetCoverageText).length;
+    return `${preview.length} agente(s) · ${withMicro} com microárea indicada · ${withStreets} com ruas · ${withoutCpf} sem CPF`;
   }, [preview]);
 
   return (
@@ -128,7 +132,9 @@ export function AcsBulkImportDialog({
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Cole os dados do Excel ou Google Planilhas, ou envie um arquivo CSV/Excel. O CPF
-          pode ficar em branco que o sistema gera um código interno.
+          pode ficar em branco que o sistema gera um código interno. Se a planilha trouxer
+          ruas/trechos atendidos, o sistema tenta pintar automaticamente. Em CSV, use
+          <strong> | </strong> para separar várias ruas na mesma célula.
         </Typography>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -147,7 +153,7 @@ export function AcsBulkImportDialog({
 
         <TextField
           label="Colar dados da planilha"
-          placeholder={'UBS;Contato;Nome do ACS;Microarea;CPF;Status\nUBS Centro;(99) 98421-7828;Maria Silva;01;;ATIVO'}
+          placeholder={'UBS;Contato;Nome do ACS;Microarea;Ruas atendidas;CPF;Status\nUBS Centro;(99) 98421-7828;Maria Silva;01;Rua do Sol;;ATIVO'}
           multiline
           minRows={4}
           maxRows={10}
@@ -210,6 +216,7 @@ export function AcsBulkImportDialog({
                   {r.name}
                   {r.cpf ? ` — CPF ${r.cpf.slice(0, 3)}…` : ' — sem CPF'}
                   {r.microareaRef ? ` · ${r.microareaRef}` : ''}
+                  {r.streetCoverageText ? ' · com ruas' : ''}
                 </li>
               ))}
               {preview.length > 5 && (
@@ -254,8 +261,9 @@ export function AcsBulkImportDialog({
         <Typography variant="caption" color="text.secondary">
           Colunas aceitas: <strong>Nome do ACS</strong>/<strong>nome</strong>,{' '}
           <strong>Contato</strong>/<strong>telefone</strong>, <strong>Microarea</strong>,{' '}
-          <strong>CPF</strong> e <strong>Status</strong>. Se o CPF ficar vazio, o sistema gera
-          um identificador interno e ainda importa normalmente.
+          <strong>Ruas atendidas</strong>/<strong>ruas</strong>, <strong>CPF</strong> e{' '}
+          <strong>Status</strong>. Se o CPF ficar vazio, o sistema gera um identificador interno
+          e ainda importa normalmente.
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
