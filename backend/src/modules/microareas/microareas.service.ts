@@ -124,6 +124,40 @@ export class MicroareasService {
     }
   }
 
+  async rebuildEnvelopes(municipalityId: string) {
+    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
+
+    const microareas = await this.prisma.microarea.findMany({
+      where: { municipalityId },
+      select: { id: true },
+    });
+
+    for (const microarea of microareas) {
+      try {
+        await this.prisma.$executeRaw`
+          SELECT update_microarea_envelope(${microarea.id}::uuid)
+        `;
+      } catch {
+        /* PostGIS opcional */
+      }
+    }
+
+    try {
+      await this.prisma.$executeRaw`
+        UPDATE microareas
+        SET envelope_geom = NULL
+        WHERE municipality_id = ${municipalityId}::uuid
+          AND NOT EXISTS (
+            SELECT 1 FROM streets s WHERE s.microarea_id = microareas.id
+          )
+      `;
+    } catch {
+      /* ignora se coluna/função ausente */
+    }
+
+    return { rebuilt: microareas.length };
+  }
+
   private microareaSnapshot(microarea: {
     number: number;
     name: string;

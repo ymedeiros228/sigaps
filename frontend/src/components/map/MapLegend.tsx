@@ -34,8 +34,8 @@ export function MapLegend({
     : alpha('#fff', 0.92);
 
   const stats = useMemo(() => {
-    const byMicroarea = new Map<string, number>();
-    let painted = 0;
+    const byMicroareaViewport = new Map<string, number>();
+    let paintedViewport = 0;
     let totalFamilies = 0;
     let maxFamilies = 0;
     for (const s of streets) {
@@ -43,13 +43,28 @@ export function MapLegend({
       totalFamilies += families;
       if (families > maxFamilies) maxFamilies = families;
       if (s.microareaId) {
-        painted++;
-        byMicroarea.set(s.microareaId, (byMicroarea.get(s.microareaId) ?? 0) + 1);
+        paintedViewport++;
+        byMicroareaViewport.set(
+          s.microareaId,
+          (byMicroareaViewport.get(s.microareaId) ?? 0) + 1,
+        );
       }
     }
-    const coverage = streets.length > 0 ? Math.round((painted / streets.length) * 100) : 0;
-    return { byMicroarea, painted, coverage, totalFamilies, maxFamilies };
-  }, [streets]);
+    const paintedTotal = microareas.reduce(
+      (sum, microarea) => sum + (microarea._count?.streets ?? 0),
+      0,
+    );
+    const coverage =
+      streets.length > 0 ? Math.round((paintedViewport / streets.length) * 100) : 0;
+    return {
+      byMicroareaViewport,
+      paintedViewport,
+      paintedTotal,
+      coverage,
+      totalFamilies,
+      maxFamilies,
+    };
+  }, [streets, microareas]);
 
   if (microareas.length === 0) return null;
 
@@ -85,7 +100,9 @@ export function MapLegend({
             Legenda
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {loading ? 'Carregando…' : `${stats.painted}/${streets.length} ruas · ${stats.coverage}%`}
+            {loading
+              ? 'Carregando…'
+              : `${stats.paintedTotal} pintada(s) no município · ${stats.paintedViewport}/${streets.length} na tela`}
           </Typography>
         </Box>
         <IconButton size="small">{open ? <ExpandLess /> : <ExpandMore />}</IconButton>
@@ -105,7 +122,7 @@ export function MapLegend({
           />
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             {microareas.map((m) => {
-              const count = stats.byMicroarea.get(m.id) ?? 0;
+              const count = m._count?.streets ?? stats.byMicroareaViewport.get(m.id) ?? 0;
               const canClear = paintMode && count > 0 && !!onClearMicroarea;
               return (
                 <Box

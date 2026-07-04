@@ -22,17 +22,8 @@ function boundsKey(bounds: LatLngBounds): string {
   ].join(',');
 }
 
-function mergeViewportStreets(existing: Street[] | undefined, incoming: Street[]): Street[] {
-  const byId = new Map<string, Street>();
-  for (const street of incoming) {
-    byId.set(street.id, street);
-  }
-  for (const street of existing ?? []) {
-    if (street.microareaId && !byId.has(street.id)) {
-      byId.set(street.id, street);
-    }
-  }
-  return [...byId.values()];
+function mergeViewportStreets(_existing: Street[] | undefined, incoming: Street[]): Street[] {
+  return incoming;
 }
 
 async function fetchViewportStreets(
@@ -125,7 +116,7 @@ export function useMapViewportStreets(municipalityId: string | null) {
     queryKey: ['streets-viewport', municipalityId, boundsStable],
     queryFn: () => fetchViewportStreets(municipalityId!, debouncedBounds!),
     enabled: !!municipalityId && useViewport && !!debouncedBounds,
-    staleTime: 30_000,
+    staleTime: 5_000,
     gcTime: 5 * 60_000,
     retry: (count, err) => shouldRetryCloudQuery(count, err),
     retryDelay: cloudQueryRetryDelay,

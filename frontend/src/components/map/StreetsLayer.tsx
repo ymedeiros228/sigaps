@@ -119,14 +119,16 @@ export function StreetsLayer({
     [renderStreets, highlightedId, selectedIds, dragPaintIds, zoom],
   );
 
-  const { painted, unpainted } = useMemo(() => {
+  const { painted, unpainted, dragPreview } = useMemo(() => {
     const p: typeof features = [];
     const u: typeof features = [];
+    const d: typeof features = [];
     for (const f of features) {
-      if (f.properties.hasMicroarea || f.properties.dragPending) p.push(f);
+      if (f.properties.hasMicroarea) p.push(f);
+      else if (f.properties.dragPending) d.push(f);
       else u.push(f);
     }
-    return { painted: p, unpainted: u };
+    return { painted: p, unpainted: u, dragPreview: d };
   }, [features]);
 
   const interactionVersion = useMemo(
@@ -377,6 +379,15 @@ export function StreetsLayer({
           key={`system-streets-${unpainted.length}-${paintVisualVersion.length}`}
           data={fc(unpainted)}
           style={systemStreetStyle}
+          interactive={false}
+        />
+      )}
+
+      {dragPreview.length > 0 && paintMode && !showHeatmap && (
+        <GeoJSON
+          key={`drag-preview-${paintVisualVersion}-${activeColor}`}
+          data={fc(dragPreview)}
+          style={unassignedStyle}
           interactive={false}
         />
       )}

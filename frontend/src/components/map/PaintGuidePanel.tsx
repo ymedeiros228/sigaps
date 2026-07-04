@@ -96,9 +96,10 @@ export function PaintGuidePanel({
   const setPaintGuideCollapsed = useMapStore((s) => s.setPaintGuideCollapsed);
 
   const selectedMicroarea = microareas.find((m) => m.id === selectedMicroareaId);
-  const paintedCount = streets.filter((s) => s.microareaId).length;
+  const paintedCount = microareas.reduce((sum, m) => sum + (m._count?.streets ?? 0), 0);
   const selectedMicroareaPaintedCount = selectedMicroareaId
-    ? streets.filter((s) => s.microareaId === selectedMicroareaId).length
+    ? (microareas.find((m) => m.id === selectedMicroareaId)?._count?.streets ??
+      streets.filter((s) => s.microareaId === selectedMicroareaId).length)
     : 0;
   const unpaintedDirtRoadIds = streets
     .filter(

@@ -181,7 +181,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   eraserMode: false,
   selectedMicroareaId: null,
   selectedStreetIds: new Set(),
-  showEnvelopes: true,
+  showEnvelopes: false,
   showHeatmap: false,
   showUbsMarkers: true,
   showPlacesMarkers: true,
@@ -210,6 +210,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       paintMode: enabled,
       eraserMode: enabled ? get().eraserMode : false,
       mapPanEnabled: enabled ? false : true,
+      ...(enabled ? {} : { dragPaintIds: new Set<string>() }),
     });
   },
   setEraserMode: (enabled) => {
@@ -217,6 +218,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       eraserMode: enabled,
       paintMode: enabled ? true : get().paintMode,
       mapPanEnabled: enabled ? false : get().mapPanEnabled,
+      dragPaintIds: new Set<string>(),
     });
   },
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),

@@ -16,16 +16,7 @@ import {
   LinearProgress,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  microareasApi,
-  neighborhoodsApi,
-  osmApi,
-  paintZonesApi,
-  streetsApi,
-  ubsApi,
-  placesApi,
-  type Street,
-} from '../../services/api';
+import { microareasApi, neighborhoodsApi, osmApi, paintZonesApi, streetsApi, ubsApi, placesApi, type Street } from '../../services/api';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
 import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { StreetsLayer, MapCenterController } from './StreetsLayer';
@@ -192,8 +183,13 @@ export function SigapsMap() {
     void queryClient.invalidateQueries({ queryKey: ['streets-viewport', municipalityId] });
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
+    void microareasApi.rebuildEnvelopes(municipalityId).catch(() => undefined);
     void queryClient.refetchQueries({
       queryKey: queryKeys.streetsMap(municipalityId),
+      type: 'active',
+    });
+    void queryClient.refetchQueries({
+      queryKey: queryKeys.microareas(municipalityId),
       type: 'active',
     });
     void queryClient.refetchQueries({
@@ -201,6 +197,13 @@ export function SigapsMap() {
       type: 'active',
     });
   }, [municipalityId, queryClient]);
+
+  const paintStateSyncedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!municipalityId || paintStateSyncedRef.current === municipalityId) return;
+    paintStateSyncedRef.current = municipalityId;
+    refreshMapPaintState();
+  }, [municipalityId, refreshMapPaintState]);
 
   const [paintLayerEpoch, setPaintLayerEpoch] = useState(0);
 
@@ -509,6 +512,7 @@ export function SigapsMap() {
       return { previous };
     },
     onSuccess: (res, streetIds) => {
+      clearDragPaintIds();
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
         refreshMapPaintState();

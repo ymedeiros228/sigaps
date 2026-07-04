@@ -38,6 +38,18 @@ export class MicroareasController {
     return this.microareasService.listEnvelopesByMunicipality(municipalityId);
   }
 
+  @Post('municipality/:municipalityId/rebuild-envelopes')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Recalcular polígonos das microáreas e limpar órfãos' })
+  rebuildEnvelopes(@Param('municipalityId') municipalityId: string) {
+    return this.microareasService.rebuildEnvelopes(municipalityId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalhes da microárea' })
   findOne(@Param('id') id: string, @Req() req: { user: { role: string } }) {

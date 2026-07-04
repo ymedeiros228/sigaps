@@ -362,6 +362,8 @@ export const microareasApi = {
         labelLng: number | null;
       }>
     >(`/microareas/municipality/${municipalityId}/envelopes`),
+  rebuildEnvelopes: (municipalityId: string) =>
+    api.post<{ rebuilt: number }>(`/microareas/municipality/${municipalityId}/rebuild-envelopes`),
   create: (data: Partial<Microarea> & { municipalityId: string; number: number; name: string; color: string }) =>
     api.post('/microareas', data),
   update: (id: string, data: Partial<Microarea>) =>

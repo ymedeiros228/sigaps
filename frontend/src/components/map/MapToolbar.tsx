@@ -206,7 +206,7 @@ export function MapToolbar({
             onChange={(e) => setShowEnvelopes(e.target.checked)}
           />
         }
-        label="Microáreas"
+        label="Áreas (polígonos)"
         sx={{ mr: 0 }}
       />
 

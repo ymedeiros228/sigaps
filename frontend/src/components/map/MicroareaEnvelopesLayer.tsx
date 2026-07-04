@@ -44,17 +44,18 @@ function createLabelIcon(name: string, color: string) {
 export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLayerProps) {
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
   const paintMode = useMapStore((s) => s.paintMode);
+  const eraserMode = useMapStore((s) => s.eraserMode);
   const microareas = useAppStore((s) => s.microareas);
 
   const { data: envelopes = [] } = useQuery({
     queryKey: queryKeys.microareaEnvelopes(municipalityId),
     queryFn: () => microareasApi.listEnvelopes(municipalityId).then((r) => r.data),
-    enabled: showEnvelopes && !!municipalityId,
-    staleTime: 120_000,
+    enabled: showEnvelopes && !!municipalityId && !paintMode && !eraserMode,
+    staleTime: 30_000,
   });
 
   const visibleEnvelopes = useMemo(() => {
-    if (microareas.length === 0) return envelopes;
+    if (microareas.length === 0) return [];
     const visibleIds = new Set(
       microareas
         .filter(
@@ -89,16 +90,17 @@ export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLa
     [visibleEnvelopes],
   );
 
-  if (!showEnvelopes || features.length === 0) return null;
+  if (!showEnvelopes || paintMode || eraserMode || features.length === 0) return null;
 
   const style = (feature?: GeoJSON.Feature): PathOptions => {
     const color = (feature?.properties as { color: string })?.color ?? '#888';
     return {
-      color: '#ffffff',
-      weight: 2.5,
-      opacity: 0.95,
+      color,
+      weight: 2,
+      opacity: 0.85,
+      dashArray: '6 4',
       fillColor: color,
-      fillOpacity: paintMode ? 0.32 : 0.42,
+      fillOpacity: 0.08,
       lineCap: 'round',
       lineJoin: 'round',
     };
@@ -107,23 +109,22 @@ export function MicroareaEnvelopesLayer({ municipalityId }: MicroareaEnvelopesLa
   return (
     <>
       <GeoJSON
-        key={`envelopes-${envelopeVersion}-${paintMode}`}
+        key={`envelopes-${envelopeVersion}`}
         data={{ type: 'FeatureCollection', features } as GeoJSON.FeatureCollection}
         style={style}
         interactive={false}
       />
-      {!paintMode &&
-        visibleEnvelopes.map((e) => {
-          if (e.labelLat == null || e.labelLng == null) return null;
-          return (
-            <Marker
-              key={`label-${e.id}`}
-              position={[e.labelLat, e.labelLng]}
-              icon={createLabelIcon(e.name, e.color)}
-              interactive={false}
-            />
-          );
-        })}
+      {visibleEnvelopes.map((e) => {
+        if (e.labelLat == null || e.labelLng == null) return null;
+        return (
+          <Marker
+            key={`label-${e.id}`}
+            position={[e.labelLat, e.labelLng]}
+            icon={createLabelIcon(e.name, e.color)}
+            interactive={false}
+          />
+        );
+      })}
     </>
   );
 }
