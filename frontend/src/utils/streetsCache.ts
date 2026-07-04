@@ -43,6 +43,25 @@ export function patchStreetsMicroarea(
   });
 }
 
+export function clearMicroareaStreets(
+  queryClient: QueryClient,
+  municipalityId: string,
+  microareaId: string,
+) {
+  const key = queryKeys.streetsMap(municipalityId);
+  queryClient.setQueryData<StreetsMapData>(key, (old) => {
+    if (!old?.items) return old;
+    return {
+      ...old,
+      items: old.items.map((s) =>
+        s.microareaId === microareaId
+          ? { ...s, microareaId: null, microarea: undefined }
+          : s,
+      ),
+    };
+  });
+}
+
 export function clearAllStreetsMicroarea(
   queryClient: QueryClient,
   municipalityId: string,

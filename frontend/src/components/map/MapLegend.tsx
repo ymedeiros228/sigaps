@@ -29,6 +29,7 @@ export function MapLegend({
   const showHeatmap = useMapStore((s) => s.showHeatmap);
   const showUbs = useMapStore((s) => s.showUbsMarkers);
   const showPlaces = useMapStore((s) => s.showPlacesMarkers);
+  const eraserMode = useMapStore((s) => s.eraserMode);
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
@@ -123,7 +124,7 @@ export function MapLegend({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             {microareas.map((m) => {
               const count = m._count?.streets ?? stats.byMicroareaViewport.get(m.id) ?? 0;
-              const canClear = paintMode && count > 0 && !!onClearMicroarea;
+              const canClear = (paintMode || eraserMode) && count > 0 && !!onClearMicroarea;
               return (
                 <Box
                   key={m.id}

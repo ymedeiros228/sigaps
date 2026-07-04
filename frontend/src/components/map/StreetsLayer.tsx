@@ -196,12 +196,27 @@ export function StreetsLayer({
     if (!paintMode || !hoveredId) return null;
     const street = streetsById.get(hoveredId);
     if (!street?.geojson) return null;
+    if (eraserMode && street.microareaId) return null;
     return {
       type: 'Feature' as const,
       properties: { id: hoveredId },
       geometry: street.geojson,
     };
-  }, [paintMode, hoveredId, streetsById]);
+  }, [paintMode, eraserMode, hoveredId, streetsById]);
+
+  const hoverPreviewStyle = (): PathOptions => {
+    if (eraserMode) {
+      return {
+        color: '#78909c',
+        weight: 6,
+        opacity: 0.9,
+        dashArray: '5 8',
+        lineCap: 'round',
+        lineJoin: 'round',
+      };
+    }
+    return unassignedStyle();
+  };
 
   const fc = (list: typeof features) => ({ type: 'FeatureCollection' as const, features: list });
 
@@ -224,7 +239,7 @@ export function StreetsLayer({
     const emphasis = props?.highlighted || props?.selected || props?.dragPending;
     return {
       color,
-      weight: emphasis ? 10 : 8,
+      weight: eraserMode ? 12 : emphasis ? 10 : 8,
       opacity: 1,
       lineCap: 'round',
       lineJoin: 'round',
@@ -411,9 +426,9 @@ export function StreetsLayer({
 
       {hoveredFeature && (
         <GeoJSON
-          key={`hover-${hoveredId}-${paintMode}`}
+          key={`hover-${hoveredId}-${paintMode}-${eraserMode}`}
           data={fc([hoveredFeature as (typeof features)[number]])}
-          style={unassignedStyle}
+          style={hoverPreviewStyle}
           interactive={false}
         />
       )}

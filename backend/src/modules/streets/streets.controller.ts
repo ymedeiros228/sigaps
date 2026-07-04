@@ -188,6 +188,21 @@ export class StreetsController {
     return this.streetsService.unassignFromMicroarea(dto, req.user.id);
   }
 
+  @Post('microarea/:microareaId/clear-assignments')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Remover vínculo de todas as ruas de uma microárea' })
+  clearMicroareaAssignments(
+    @Param('microareaId') microareaId: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.clearMicroareaAssignments(microareaId, req.user.id);
+  }
+
   @Post('municipality/:municipalityId/clear-assignments')
   @Roles(
     UserRole.ENFERMEIRO,

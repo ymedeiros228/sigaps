@@ -429,6 +429,43 @@ export class StreetsService {
     return { cleared: streets.length };
   }
 
+  async clearMicroareaAssignments(microareaId: string, userId: string) {
+    const microarea = await this.prisma.microarea.findUnique({
+      where: { id: microareaId },
+      select: { id: true, municipalityId: true, name: true },
+    });
+    if (!microarea) throw new NotFoundException('Microárea não encontrada');
+
+    const painted = await this.prisma.street.findMany({
+      where: { microareaId },
+      select: { id: true, microareaId: true },
+    });
+
+    if (painted.length === 0) {
+      return { cleared: 0, microareaId, microareaName: microarea.name };
+    }
+
+    await this.prisma.street.updateMany({
+      where: { microareaId },
+      data: { microareaId: null },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        entityType: 'microarea',
+        entityId: microareaId,
+        action: 'CLEAR_STREET_ASSIGNMENTS',
+        afterData: { cleared: painted.length },
+      },
+    });
+
+    await this.updateAffectedEnvelopes(new Set([microareaId]));
+    invalidateDashboardIndicators(microarea.municipalityId);
+
+    return { cleared: painted.length, microareaId, microareaName: microarea.name };
+  }
+
   async clearAllAssignments(municipalityId: string, userId: string) {
     const painted = await this.prisma.street.findMany({
       where: { municipalityId, microareaId: { not: null } },

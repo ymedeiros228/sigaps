@@ -312,6 +312,10 @@ export const streetsApi = {
     api.post<{ cleared: number }>(
       `/streets/municipality/${municipalityId}/clear-assignments`,
     ),
+  clearMicroareaAssignments: (microareaId: string) =>
+    api.post<{ cleared: number; microareaId: string; microareaName: string }>(
+      `/streets/microarea/${microareaId}/clear-assignments`,
+    ),
   suggest: (id: string) => api.get(`/streets/${id}/suggest-microarea`),
   assignNeighborhood: (streetIds: string[], neighborhoodId: string | null) =>
     api.post<{ updated: number; neighborhoodId: string | null }>('/streets/assign-neighborhood', {

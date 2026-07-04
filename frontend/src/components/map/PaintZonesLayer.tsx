@@ -35,6 +35,7 @@ export function PaintZonesLayer({ zones }: PaintZonesLayerProps) {
             } as GeoJSON.Feature
           }
           style={zoneStyle(zone.microarea.color)}
+          interactive={false}
         />
       ))}
       {draft && (

@@ -540,7 +540,7 @@ export function PaintGuidePanel({
                   sx={{ borderRadius: 2 }}
                 >
                   {eraserMode
-                    ? 'Clique ou arraste sobre ruas pintadas para remover o vínculo. Ruas sem cor não são afetadas.'
+                    ? 'Clique na linha grossa colorida para apagar. Cinza tracejado = rua sem pintura. Ou clique na microárea na legenda (ex.: Microárea 05 · 1).'
                     : canPaint
                       ? mapPanEnabled
                         ? 'Modo mover mapa ativo — arraste o fundo para reposicionar. Desative para pintar ruas.'
