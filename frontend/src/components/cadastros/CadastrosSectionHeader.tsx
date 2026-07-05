@@ -1,6 +1,7 @@
-import { Box, Button, InputAdornment, TextField, Typography } from '@mui/material';
-import { Add, Search } from '@mui/icons-material';
+import { Box, Button, InputAdornment, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Add, Search, SortByAlpha, Tag } from '@mui/icons-material';
 import type { ReactNode } from 'react';
+import type { MicroareaSortMode } from '../../utils/sortMicroareas';
 
 type CadastrosSectionHeaderProps = {
   title: string;
@@ -13,6 +14,8 @@ type CadastrosSectionHeaderProps = {
   addLabel?: string;
   canManage?: boolean;
   extra?: ReactNode;
+  sortMode?: MicroareaSortMode;
+  onSortModeChange?: (mode: MicroareaSortMode) => void;
 };
 
 export function CadastrosSectionHeader({
@@ -26,6 +29,8 @@ export function CadastrosSectionHeader({
   addLabel,
   canManage = true,
   extra,
+  sortMode,
+  onSortModeChange,
 }: CadastrosSectionHeaderProps) {
   return (
     <Box sx={{ mb: 3 }}>
@@ -77,23 +82,52 @@ export function CadastrosSectionHeader({
         </Box>
       </Box>
 
-      {onSearchChange && (
-        <TextField
-          size="small"
-          placeholder={searchPlaceholder}
-          value={search ?? ''}
-          onChange={(e) => onSearchChange(e.target.value)}
-          sx={{ maxWidth: 360, width: '100%' }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search fontSize="small" color="action" />
-                </InputAdornment>
-              ),
-            },
+      {(onSearchChange || onSortModeChange) && (
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 1.5,
           }}
-        />
+        >
+          {onSearchChange && (
+            <TextField
+              size="small"
+              placeholder={searchPlaceholder}
+              value={search ?? ''}
+              onChange={(e) => onSearchChange(e.target.value)}
+              sx={{ maxWidth: 360, width: '100%', flex: { xs: '1 1 100%', sm: '1 1 280px' } }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          )}
+          {onSortModeChange && sortMode && (
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={sortMode}
+              onChange={(_, value) => value && onSortModeChange(value)}
+              aria-label="Ordenação da lista"
+            >
+              <ToggleButton value="number" aria-label="Ordenar por número">
+                <Tag fontSize="small" sx={{ mr: 0.75 }} />
+                Nº
+              </ToggleButton>
+              <ToggleButton value="name" aria-label="Ordenar por nome">
+                <SortByAlpha fontSize="small" sx={{ mr: 0.75 }} />
+                Nome
+              </ToggleButton>
+            </ToggleButtonGroup>
+          )}
+        </Box>
       )}
     </Box>
   );

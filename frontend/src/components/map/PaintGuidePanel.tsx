@@ -27,7 +27,7 @@ import {
   DeleteSweep,
   UnfoldLess,
 } from '@mui/icons-material';
-import { useState, type MouseEvent } from 'react';
+import { useState, useMemo, type MouseEvent } from 'react';
 import type { ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import type { Microarea, Street } from '../../services/api';
@@ -40,6 +40,7 @@ import { useAuthStore } from '../../store';
 import { AddMicroareaDialog } from './AddMicroareaDialog';
 import { ClearPaintDialog } from './ClearPaintDialog';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { sortMicroareas } from '../../utils/sortMicroareas';
 
 interface PaintGuidePanelProps {
   microareas: Microarea[];
@@ -94,6 +95,8 @@ export function PaintGuidePanel({
   const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
   const collapsed = useMapStore((s) => s.paintGuideCollapsed);
   const setPaintGuideCollapsed = useMapStore((s) => s.setPaintGuideCollapsed);
+
+  const sortedMicroareas = useMemo(() => sortMicroareas(microareas), [microareas]);
 
   const selectedMicroarea = microareas.find((m) => m.id === selectedMicroareaId);
   const paintedCount = microareas.reduce((sum, m) => sum + (m._count?.streets ?? 0), 0);
@@ -373,7 +376,7 @@ export function PaintGuidePanel({
               MICROÁREAS — {streetCount > 0 ? `${streetCount} ruas no mapa` : 'nenhuma rua carregada'}
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
-              {microareas.map((m) => {
+              {sortedMicroareas.map((m) => {
                 const selected = m.id === selectedMicroareaId;
                 const count = streets.filter((s) => s.microareaId === m.id).length;
                 return (

@@ -23,6 +23,7 @@ import { maskCpfDisplay } from '../../../utils/inputMasks';
 import { canViewFullCpf } from '../../../utils/permissions';
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
+import { sortMicroareas, type MicroareaSortMode } from '../../../utils/sortMicroareas';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
 import { CadastrosLoadError } from '../CadastrosLoadError';
 
@@ -52,6 +53,7 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Microarea | null>(null);
   const [search, setSearch] = useState('');
+  const [sortMode, setSortMode] = useState<MicroareaSortMode>('number');
   const {
     register,
     handleSubmit,
@@ -111,6 +113,8 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         (row.neighborhood?.name ?? '').toLowerCase().includes(query),
     );
   }, [data, search]);
+
+  const sorted = useMemo(() => sortMicroareas(filtered, sortMode), [filtered, sortMode]);
 
   const saveMutation = useMutation({
     mutationFn: (values: MicroareaForm) => {
@@ -202,6 +206,8 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Buscar por nome, número, UBS, ACS ou bairro..."
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
         onAdd={() => openForm()}
         addLabel="Nova Microárea"
         canManage={canManage}
@@ -276,7 +282,7 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
 
       <CadastrosDataTable
         loading={isPending && data.length === 0 && !isError}
-        rows={filtered}
+        rows={sorted}
         rowKey={(row) => row.id}
         columns={[
           { id: 'number', label: 'Nº', width: 56, render: (row) => row.number },

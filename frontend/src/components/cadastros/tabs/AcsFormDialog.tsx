@@ -19,6 +19,7 @@ import { CloudUpload, Person } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import type { Acs, Microarea } from '../../../services/api';
 import { assetUrl } from '../../../utils/assetUrl';
+import { sortMicroareas } from '../../../utils/sortMicroareas';
 
 export type AcsFormValues = {
   name: string;
@@ -78,10 +79,12 @@ export function AcsFormDialog({
     );
   }, [open, editing, reset]);
 
-  const microareaOptions = microareas.filter((m) => {
-    if (!m.acsId) return true;
-    return editing && m.acsId === editing.id;
-  });
+  const microareaOptions = sortMicroareas(
+    microareas.filter((m) => {
+      if (!m.acsId) return true;
+      return editing && m.acsId === editing.id;
+    }),
+  );
 
   const submit = (andAnother: boolean) =>
     handleSubmit((values) => onSave(values, andAnother));

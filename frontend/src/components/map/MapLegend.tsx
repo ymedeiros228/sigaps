@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { Microarea, Street, Ubs, Place } from '../../services/api';
 import { useMapStore } from '../../store';
 import { familyHeatColor } from '../../utils/geo';
+import { sortMicroareas } from '../../utils/sortMicroareas';
 
 interface MapLegendProps {
   microareas: Microarea[];
@@ -33,6 +34,8 @@ export function MapLegend({
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
+
+  const sortedMicroareas = useMemo(() => sortMicroareas(microareas), [microareas]);
 
   const stats = useMemo(() => {
     const byMicroareaViewport = new Map<string, number>();
@@ -122,7 +125,7 @@ export function MapLegend({
             }}
           />
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-            {microareas.map((m) => {
+            {sortedMicroareas.map((m) => {
               const count = m._count?.streets ?? stats.byMicroareaViewport.get(m.id) ?? 0;
               const canClear = (paintMode || eraserMode) && count > 0 && !!onClearMicroarea;
               return (
