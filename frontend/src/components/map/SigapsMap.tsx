@@ -40,12 +40,13 @@ import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
 import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
+import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea, clearMicroareaStreets } from '../../utils/streetsCache';
 import { LeafletMap } from './LeafletMap';
 import { MapTileLayerController } from './MapTileLayerController';
-import { MapCursorCoordsBadge, MapCursorCoordsTracker } from './MapCursorCoords';
+import { MapCursorCoordsTracker } from './MapCursorCoords';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
 
@@ -86,6 +87,7 @@ export function SigapsMap() {
   const unpaintingIdsRef = useRef<Set<string>>(new Set());
   const lastAssignIdsRef = useRef<string[]>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  useMapToolbarOffset(mapContainerRef);
   const autoImportAttempted = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -932,7 +934,7 @@ export function SigapsMap() {
     <Box
       ref={mapContainerRef}
       className={paintMode ? (eraserMode ? 'sigaps-map-painting sigaps-map-eraser' : 'sigaps-map-painting') : undefined}
-      sx={{ position: 'relative', height: 'calc(100vh - 64px)', width: '100%' }}
+      sx={{ position: 'relative', height: 'calc(100vh - 64px)', width: '100%', '--map-toolbar-offset': '120px' } as const}
     >
       <MapToolbar
         mapContainerRef={mapContainerRef}
@@ -945,6 +947,8 @@ export function SigapsMap() {
         selectedCount={selectedStreetIds.size}
         onImportFamilies={acsReadOnly ? undefined : () => setFamilyImportOpen(true)}
         readOnly={acsReadOnly}
+        cursorLatitude={mapCursorCoords?.lat ?? null}
+        cursorLongitude={mapCursorCoords?.lng ?? null}
       />
 
       <MapLegend
@@ -1103,11 +1107,6 @@ export function SigapsMap() {
           Mova o mapa para carregar mais ruas
         </Alert>
       )}
-
-      <MapCursorCoordsBadge
-        latitude={mapCursorCoords?.lat ?? null}
-        longitude={mapCursorCoords?.lng ?? null}
-      />
 
       <LeafletMap
           className="sigaps-leaflet-map"

@@ -9,6 +9,7 @@ import {
   Chip,
   FormControlLabel,
   Switch,
+  Typography,
   useTheme,
   alpha,
 } from '@mui/material';
@@ -41,6 +42,8 @@ interface MapToolbarProps {
   onSearchSelect: (option: StreetSearchOption) => void;
   onImportFamilies?: () => void;
   readOnly?: boolean;
+  cursorLatitude?: number | null;
+  cursorLongitude?: number | null;
 }
 
 const panelSx = {
@@ -64,6 +67,8 @@ export function MapToolbar({
   onSearchSelect,
   onImportFamilies,
   readOnly = false,
+  cursorLatitude = null,
+  cursorLongitude = null,
 }: MapToolbarProps) {
   const theme = useTheme();
   const municipalityId = useAppStore((s) => s.municipalityId);
@@ -97,9 +102,12 @@ export function MapToolbar({
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
 
+  const hasCursorCoords =
+    cursorLatitude != null && cursorLongitude != null && Number.isFinite(cursorLatitude) && Number.isFinite(cursorLongitude);
+
   return (
     <Paper
-      className="map-float-panel"
+      className="map-float-panel map-toolbar-root"
       elevation={0}
       sx={{
         ...panelSx,
@@ -263,6 +271,34 @@ export function MapToolbar({
             <MyLocation fontSize="small" />
           </IconButton>
         </Tooltip>
+      </Box>
+
+      <Box
+        sx={{
+          flexBasis: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          pt: 0.75,
+          mt: 0.25,
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+        }}
+      >
+        <MyLocation fontSize="small" color="action" sx={{ flexShrink: 0 }} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
+            Coordenadas do cursor
+          </Typography>
+          <Typography
+            variant="caption"
+            component="span"
+            sx={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: 0.2 }}
+          >
+            {hasCursorCoords
+              ? `${cursorLatitude!.toFixed(5)}, ${cursorLongitude!.toFixed(5)}`
+              : 'Passe o mouse no mapa'}
+          </Typography>
+        </Box>
       </Box>
     </Paper>
   );

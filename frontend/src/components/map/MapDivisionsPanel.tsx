@@ -50,7 +50,7 @@ export function MapDivisionsPanel({
 }: MapDivisionsPanelProps) {
   const theme = useTheme();
   const queryClient = useQueryClient();
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [deleteZoneId, setDeleteZoneId] = useState<string | null>(null);
   const divisionMode = useMapStore((s) => s.divisionMode);
   const setDivisionMode = useMapStore((s) => s.setDivisionMode);
@@ -122,14 +122,15 @@ export function MapDivisionsPanel({
       elevation={0}
       sx={{
         position: 'absolute',
-        top: { xs: 88, sm: 96 },
+        top: 'var(--map-toolbar-offset, 120px)',
         right: { xs: 8, sm: 16 },
-        zIndex: 1000,
+        zIndex: 999,
         width: { xs: 'calc(100% - 16px)', sm: 300 },
         maxWidth: 320,
+        maxHeight: 'calc(100% - var(--map-toolbar-offset, 120px) - 180px)',
         bgcolor: glassBg,
         borderRadius: 3,
-        overflow: 'hidden',
+        overflow: 'auto',
         border: divisionMode ? `2px solid ${theme.palette.info.main}` : undefined,
       }}
     >

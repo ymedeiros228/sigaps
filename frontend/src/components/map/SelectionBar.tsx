@@ -51,7 +51,7 @@ export function SelectionBar({
       elevation={0}
       sx={{
         position: 'absolute',
-        top: { xs: 72, sm: 88 },
+        top: 'var(--map-toolbar-offset, 120px)',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 1002,
