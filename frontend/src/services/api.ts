@@ -242,6 +242,7 @@ export interface Place {
   municipalityId: string;
   microareaId?: string | null;
   microarea?: { id: string; name: string; number: number; color: string } | null;
+  createdAt?: string;
 }
 
 export interface NominatimResult {

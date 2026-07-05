@@ -1,7 +1,9 @@
 import { Box, Button, InputAdornment, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { Add, Search, SortByAlpha, Tag } from '@mui/icons-material';
 import type { ReactNode } from 'react';
-import type { MicroareaSortMode } from '../../utils/sortMicroareas';
+import type { PlaceSortMode } from '../../utils/sortPlaces';
+
+export type CadastrosListSortMode = PlaceSortMode;
 
 type CadastrosSectionHeaderProps = {
   title: string;
@@ -14,8 +16,8 @@ type CadastrosSectionHeaderProps = {
   addLabel?: string;
   canManage?: boolean;
   extra?: ReactNode;
-  sortMode?: MicroareaSortMode;
-  onSortModeChange?: (mode: MicroareaSortMode) => void;
+  sortMode?: CadastrosListSortMode;
+  onSortModeChange?: (mode: CadastrosListSortMode) => void;
 };
 
 export function CadastrosSectionHeader({

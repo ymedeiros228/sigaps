@@ -17,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Add, Delete, Edit, HomeWork, Map, Search, CloudDownload, Upload } from '@mui/icons-material';
+import { Add, Delete, Edit, HomeWork, Map as MapIcon, Search, CloudDownload, Upload } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -36,6 +36,7 @@ import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyStat
 import { CadastrosFormDialog } from '../CadastrosFormDialog';
 import { PlaceCoordinatePicker } from '../PlaceCoordinatePicker';
 import { PlacesBulkImportDialog } from './PlacesBulkImportDialog';
+import { sortPlaces, type PlaceSortMode } from '../../../utils/sortPlaces';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
@@ -71,6 +72,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
   const debouncedNominatim = useDebouncedValue(nominatimQuery, 400);
   const [editing, setEditing] = useState<Place | null>(null);
   const [search, setSearch] = useState('');
+  const [sortMode, setSortMode] = useState<PlaceSortMode>('number');
   const [coordsPaste, setCoordsPaste] = useState('');
   const {
     register,
@@ -138,6 +140,53 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
     if (!query) return data;
     return data.filter((row) => row.name.toLowerCase().includes(query));
   }, [data, search]);
+
+  const sorted = useMemo(() => sortPlaces(filtered, sortMode), [filtered, sortMode]);
+  const placeIndexById = useMemo(
+    () => new Map(sorted.map((row, index) => [row.id, index + 1])),
+    [sorted],
+  );
+
+  const columns = useMemo(
+    () => [
+      {
+        id: 'index',
+        label: 'Nº',
+        width: 56,
+        align: 'center' as const,
+        render: (row: Place) => placeIndexById.get(row.id) ?? '—',
+      },
+      { id: 'name', label: 'Nome', render: (row: Place) => row.name },
+      {
+        id: 'kind',
+        label: 'Tipo',
+        render: (row: Place) => kindLabel(row.kind),
+      },
+      {
+        id: 'coords',
+        label: 'Coordenadas',
+        render: (row: Place) => `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}`,
+      },
+      {
+        id: 'ubs',
+        label: 'UBS',
+        hideOnMobile: true,
+        render: (row: Place) => splitPlaceNotes(row.notes).ubsRef || '—',
+      },
+      {
+        id: 'source',
+        label: 'Origem',
+        align: 'center' as const,
+        render: (row: Place) =>
+          row.osmNodeId ? (
+            <Chip size="small" label="OSM" color="default" variant="outlined" />
+          ) : (
+            <Chip size="small" label="Manual" color="primary" variant="outlined" />
+          ),
+      },
+    ],
+    [placeIndexById],
+  );
 
   const invalidatePlaces = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.places(municipalityId) });
@@ -266,6 +315,8 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Buscar povoado..."
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
         onAdd={() => openForm()}
         addLabel="Novo povoado"
         canManage={canManagePlaces}
@@ -307,38 +358,9 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
 
       <CadastrosDataTable
         loading={isLoading && data.length === 0}
-        rows={filtered}
+        rows={sorted}
         rowKey={(row) => row.id}
-        columns={[
-          { id: 'name', label: 'Nome', render: (row) => row.name },
-          {
-            id: 'kind',
-            label: 'Tipo',
-            render: (row) => kindLabel(row.kind),
-          },
-          {
-            id: 'coords',
-            label: 'Coordenadas',
-            render: (row) => `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}`,
-          },
-          {
-            id: 'ubs',
-            label: 'UBS',
-            hideOnMobile: true,
-            render: (row) => splitPlaceNotes(row.notes).ubsRef || '—',
-          },
-          {
-            id: 'source',
-            label: 'Origem',
-            align: 'center',
-            render: (row) =>
-              row.osmNodeId ? (
-                <Chip size="small" label="OSM" color="default" variant="outlined" />
-              ) : (
-                <Chip size="small" label="Manual" color="primary" variant="outlined" />
-              ),
-          },
-        ]}
+        columns={columns}
         emptyState={
           <CadastrosEmptyState
             icon={<HomeWork sx={{ fontSize: 32 }} />}
@@ -379,7 +401,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
                       component={RouterLink}
                       to={`/mapa?lat=${row.latitude}&lng=${row.longitude}&zoom=17&tipo=povoado`}
                     >
-                      <Map fontSize="small" />
+                      <MapIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   {canManagePlaces && (
@@ -561,7 +583,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
                 secondary={`${item.displayName} · ${item.latitude.toFixed(5)}, ${item.longitude.toFixed(5)}`}
                 slotProps={{ primary: { sx: { fontWeight: 600 } } }}
               />
-                <Map fontSize="small" color="action" />
+                <MapIcon fontSize="small" color="action" />
               </ListItemButton>
             ))}
           </List>
@@ -575,7 +597,7 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
                 {canManagePlaces && (
                   <Button
                     variant="contained"
-                    startIcon={<Map />}
+                    startIcon={<MapIcon />}
                     onClick={openManualFromSearch}
                     sx={{ mt: 1.5 }}
                   >

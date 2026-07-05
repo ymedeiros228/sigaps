@@ -36,7 +36,7 @@ export class PlacesService {
   findByMunicipality(municipalityId: string) {
     return this.prisma.place.findMany({
       where: { municipalityId },
-      orderBy: { name: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
       include: {
         microarea: { select: { id: true, name: true, number: true, color: true } },
       },
