@@ -108,8 +108,14 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::RENDER_DEPLOY_HOOK ausente — Render depende do Auto-Deploy do Git"
           fi
+
+      - name: Render deploy hook obrigatorio
+        if: steps.hook.outputs.configured != 'true'
+        run: |
+          echo "::error::RENDER_DEPLOY_HOOK nao configurado — o Render NAO sera atualizado."
+          echo "Configure: docs/CONFIGURAR_DEPLOY_AUTOMATICO.md ou scripts/configurar-render-hook.ps1"
+          exit 1
 
       - name: Disparar redeploy no Render
         if: steps.hook.outputs.configured == 'true'
