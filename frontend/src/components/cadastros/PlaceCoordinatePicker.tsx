@@ -1,9 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Box, Typography } from '@mui/material';
+import { MyLocation } from '@mui/icons-material';
 import { LeafletMap } from '../map/LeafletMap';
 import { MapTileLayerController } from '../map/MapTileLayerController';
+
+function formatCoord(value: number) {
+  return value.toFixed(5);
+}
 
 const pickerIcon = L.divIcon({
   className: 'place-picker-marker',
@@ -23,6 +28,18 @@ function MapClickHandler({ onPick }: { onPick: (lat: number, lng: number) => voi
   useMapEvents({
     click(e) {
       onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+function MapCursorTracker({ onMove }: { onMove: (lat: number | null, lng: number | null) => void }) {
+  useMapEvents({
+    mousemove(e) {
+      onMove(e.latlng.lat, e.latlng.lng);
+    },
+    mouseout() {
+      onMove(null, null);
     },
   });
   return null;
@@ -65,8 +82,9 @@ export function PlaceCoordinatePicker({
   center,
   onChange,
   height = 260,
-  pickHint = 'Clique no mapa satélite para marcar o local. Arraste o pino para ajustar a posição.',
+  pickHint = 'Passe o mouse no mapa para ver as coordenadas. Clique para marcar o local ou arraste o pino para ajustar.',
 }: PlaceCoordinatePickerProps) {
+  const [cursor, setCursor] = useState<{ lat: number; lng: number } | null>(null);
   const hasPoint =
     latitude != null && longitude != null && Number.isFinite(latitude) && Number.isFinite(longitude);
 
@@ -77,11 +95,13 @@ export function PlaceCoordinatePicker({
       </Typography>
       <Box
         sx={{
+          position: 'relative',
           height,
           borderRadius: 2,
           overflow: 'hidden',
           border: '1px solid',
           borderColor: 'divider',
+          '& .leaflet-container': { cursor: 'crosshair' },
         }}
       >
         <LeafletMap
@@ -93,6 +113,7 @@ export function PlaceCoordinatePicker({
         >
           <MapTileLayerController layerId="satellite" />
           <MapClickHandler onPick={onChange} />
+          <MapCursorTracker onMove={(lat, lng) => setCursor(lat != null && lng != null ? { lat, lng } : null)} />
           <MapViewController latitude={latitude} longitude={longitude} center={center} />
           {hasPoint && (
             <Marker
@@ -108,10 +129,66 @@ export function PlaceCoordinatePicker({
             />
           )}
         </LeafletMap>
+        {cursor && (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: 8,
+              bottom: 8,
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              px: 1.25,
+              py: 0.75,
+              borderRadius: 1.5,
+              bgcolor: 'rgba(0, 0, 0, 0.72)',
+              color: '#fff',
+              pointerEvents: 'none',
+              fontFamily: 'monospace',
+              fontSize: '0.75rem',
+              lineHeight: 1.3,
+              boxShadow: 2,
+            }}
+          >
+            <MyLocation sx={{ fontSize: 16, opacity: 0.9 }} />
+            <Box>
+              <Typography component="span" variant="caption" sx={{ display: 'block', color: 'rgba(255,255,255,0.75)' }}>
+                Cursor no mapa
+              </Typography>
+              <Typography component="span" variant="caption" sx={{ fontFamily: 'inherit', fontWeight: 700 }}>
+                {formatCoord(cursor.lat)}, {formatCoord(cursor.lng)}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </Box>
+      <Box
+        sx={{
+          mt: 1,
+          px: 1.25,
+          py: 1,
+          borderRadius: 1.5,
+          bgcolor: 'action.hover',
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
+          Coordenadas do cursor
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: 0.2 }}
+        >
+          {cursor
+            ? `${formatCoord(cursor.lat)}, ${formatCoord(cursor.lng)}`
+            : 'Passe o mouse no mapa satélite acima'}
+        </Typography>
       </Box>
       {hasPoint && (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-          Marcado em {latitude!.toFixed(5)}, {longitude!.toFixed(5)}
+          Marcado em {formatCoord(latitude!)}, {formatCoord(longitude!)}
         </Typography>
       )}
     </Box>

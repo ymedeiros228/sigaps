@@ -366,7 +366,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
           longitude={pickerLongitude}
           center={mapCenter}
           onChange={handleMapPick}
-          pickHint="Clique no mapa satélite onde fica a UBS. Arraste o pino para ajustar."
+          pickHint="Passe o mouse no mapa para ver as coordenadas. Clique onde fica a UBS ou arraste o pino para ajustar."
         />
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
           <TextField

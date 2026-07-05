@@ -279,7 +279,6 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
         rows={filtered}
         rowKey={(row) => row.id}
         columns={[
-          { id: 'number', label: 'Nº', width: 56, render: (row) => row.number },
           { id: 'name', label: 'Nome', render: (row) => row.name },
           {
             id: 'color',
