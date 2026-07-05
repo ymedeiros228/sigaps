@@ -45,6 +45,7 @@ import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
 import { patchStreetsMicroarea, clearAllStreetsMicroarea, clearMicroareaStreets } from '../../utils/streetsCache';
 import { LeafletMap } from './LeafletMap';
 import { MapTileLayerController } from './MapTileLayerController';
+import { MapCursorCoordsBadge, MapCursorCoordsTracker } from './MapCursorCoords';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
 
@@ -78,6 +79,7 @@ export function SigapsMap() {
   const [lastPaintAction, setLastPaintAction] = useState<string | null>(null);
   const [importFailed, setImportFailed] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
+  const [mapCursorCoords, setMapCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
   const streetsAutoRetryCount = useRef(0);
   const pendingPaintRef = useRef<Set<string>>(new Set());
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
@@ -1102,6 +1104,11 @@ export function SigapsMap() {
         </Alert>
       )}
 
+      <MapCursorCoordsBadge
+        latitude={mapCursorCoords?.lat ?? null}
+        longitude={mapCursorCoords?.lng ?? null}
+      />
+
       <LeafletMap
           className="sigaps-leaflet-map"
           center={[PASSAGEM_FRANCA.lat, PASSAGEM_FRANCA.lng]}
@@ -1113,6 +1120,11 @@ export function SigapsMap() {
           maxZoom={19}
         >
           <MapInteractionController />
+          <MapCursorCoordsTracker
+            onMove={(lat, lng) =>
+              setMapCursorCoords(lat != null && lng != null ? { lat, lng } : null)
+            }
+          />
           {useViewport && <MapBoundsReporter onBounds={onBounds} />}
           <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />
