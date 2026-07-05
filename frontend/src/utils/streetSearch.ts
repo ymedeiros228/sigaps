@@ -32,7 +32,7 @@ export function formatStreetLabel(street: { name: string; streetType?: string })
   return `${type} ${name}`;
 }
 
-/** Ruas com nome real, geometria válida e origem OSM para exibir no mapa */
+/** Ruas com geometria válida e origem OSM para exibir no mapa */
 export function isMappableStreet(street: Street): boolean {
   if (!street.name?.trim()) return false;
   if (street.name.startsWith('Via OSM')) return false;

@@ -12,19 +12,42 @@ const root = join(__dirname, '..');
 const input = process.argv[2] ?? join(root, 'assets/geo/passagem-franca-map.osm');
 const output = process.argv[3] ?? join(root, 'assets/geo/passagem-franca-streets.geojson');
 
-const HIGHWAY = /^(primary|secondary|tertiary|residential|unclassified|living_street|track|path|service)$/;
+const HIGHWAY =
+  /^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|trunk|trunk_link|residential|unclassified|living_street|track|path|service)$/;
+
+const UNNAMED_LABEL = {
+  primary: 'Via principal',
+  primary_link: 'Acesso via principal',
+  secondary: 'Via secundária',
+  secondary_link: 'Acesso via secundária',
+  tertiary: 'Via terciária',
+  tertiary_link: 'Acesso via terciária',
+  trunk: 'Rodovia',
+  trunk_link: 'Acesso rodovia',
+  residential: 'Rua sem nome',
+  unclassified: 'Via sem nome',
+  living_street: 'Rua residencial',
+  track: 'Estrada de terra',
+  path: 'Caminho',
+  service: 'Via de acesso',
+};
 
 function resolveName(tags, osmId) {
-  const name = tags.name?.trim();
-  if (name) return name;
-
-  const highway = tags.highway ?? '';
-  if (highway !== 'track' && highway !== 'path' && highway !== 'service') return null;
+  const named =
+    tags.name?.trim() ||
+    tags['name:pt']?.trim() ||
+    tags.alt_name?.trim() ||
+    tags.loc_name?.trim() ||
+    tags.official_name?.trim();
+  if (named) return named;
 
   const ref = tags.ref?.trim();
-  if (ref) return `Estrada ${ref}`;
-  if (highway === 'service') return `Via de acesso #${osmId}`;
-  return `Estrada de terra #${osmId}`;
+  if (ref) return ref.startsWith('MA-') || ref.includes('-') ? `Estrada ${ref}` : ref;
+
+  const highway = tags.highway ?? '';
+  const label = UNNAMED_LABEL[highway];
+  if (!label) return null;
+  return `${label} #${osmId}`;
 }
 
 const xml = readFileSync(input, 'utf8');

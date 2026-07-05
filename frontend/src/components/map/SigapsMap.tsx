@@ -440,11 +440,12 @@ export function SigapsMap() {
       }
       if (imported > 0 || (res.data?.total ?? 0) > 0) {
         setPaintMode(true);
+        const total = res.data?.total ?? imported;
         setSnackbar({
           message:
-            source === 'bundled'
-              ? `${imported} vias de Passagem Franca (inclui estradas de terra). Pode pintar!`
-              : `${imported || res.data?.total} ruas prontas! Escolha a microárea e clique nas ruas.`,
+            source === 'bundled' || source === 'overpass'
+              ? `${total} vias no mapa (inclui ruas sem nome e estradas de terra). Pode pintar!`
+              : `${imported || total} ruas prontas! Escolha a microárea e clique nas ruas.`,
           severity: 'success',
         });
       }

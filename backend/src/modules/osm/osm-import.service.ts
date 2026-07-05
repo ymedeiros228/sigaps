@@ -91,29 +91,57 @@ export class OsmImportService {
         this.logger.log(
           `Ruas do pacote local: ${bundled.imported} (${bundled.path})`,
         );
-        const result = {
-          ...bundled,
-          status: 'done' as const,
-          osmRelationId: this.resolveOsmRelationId(municipality),
-        };
-        await this.importPlacesComplement(municipalityId, userId);
-        return result;
       }
 
-      if (existing > 0) {
+      let overpass: Awaited<ReturnType<typeof this.runOverpassImport>> | null = null;
+      try {
+        this.logger.log('Complementando ruas via Overpass (inclui vias sem nome)...');
+        overpass = await this.runOverpassImport(municipality);
+      } catch (error) {
+        this.logger.warn(`Overpass complementar falhou: ${(error as Error).message}`);
+        if (bundled.imported === 0 && existing === 0) {
+          throw error;
+        }
+      }
+
+      await this.importPlacesComplement(municipalityId, userId);
+
+      const totalInDb = await withDbRetry(() =>
+        this.prisma.street.count({
+          where: { municipalityId, osmId: { not: null } },
+        }),
+      );
+
+      if (overpass) {
+        return {
+          ...overpass,
+          bundledImported: bundled.imported,
+          total: totalInDb,
+        };
+      }
+
+      if (bundled.imported > 0) {
+        return {
+          ...bundled,
+          status: 'done' as const,
+          total: totalInDb,
+          osmRelationId: this.resolveOsmRelationId(municipality),
+        };
+      }
+
+      if (existing > 0 || totalInDb > 0) {
         return {
           imported: 0,
           skipped: 0,
-          total: existing,
+          total: totalInDb,
           status: 'done' as const,
           source: 'database' as const,
         };
       }
 
-      this.logger.log('Pacote local vazio — tentando Overpass (pode demorar)...');
-      const overpass = await this.runOverpassImport(municipality);
-      await this.importPlacesComplement(municipalityId, userId);
-      return overpass;
+      throw new BadGatewayException(
+        'Serviço de mapas ocupado. Tente novamente em alguns minutos.',
+      );
     } finally {
       OsmImportService.importLocks.delete(municipalityId);
     }
