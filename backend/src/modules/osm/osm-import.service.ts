@@ -156,10 +156,11 @@ export class OsmImportService {
     osmRelationId: number | null;
   }) {
     const relationId = this.resolveOsmRelationId(municipality);
-    const queries: string[] = [this.buildBboxQuery(this.bboxFromMunicipality(municipality))];
+    const queries: string[] = [];
     if (relationId) {
-      queries.unshift(this.buildAreaQuery(relationId));
+      queries.push(this.buildAreaQuery(relationId));
     }
+    queries.push(this.buildBboxQuery(this.bboxFromMunicipality(municipality)));
 
     const overpassUrls = [
       'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
@@ -168,14 +169,17 @@ export class OsmImportService {
       'https://overpass-api.de/api/interpreter',
     ].filter((url, i, arr): url is string => !!url && arr.indexOf(url) === i);
 
-    let data: { elements: OverpassElement[] } | null = null;
+    const merged = new Map<number, OverpassElement>();
     let lastError: unknown;
 
-    outer: for (const query of queries) {
+    for (const query of queries) {
       for (const overpassUrl of overpassUrls) {
         try {
-          data = await this.fetchOverpass(overpassUrl, query);
-          if (data.elements.length > 0) break outer;
+          const chunk = await this.fetchOverpass(overpassUrl, query);
+          for (const element of chunk.elements) {
+            merged.set(element.id, element);
+          }
+          if (chunk.elements.length > 0) break;
         } catch (err) {
           lastError = err;
           this.logger.warn(`Overpass falhou (${overpassUrl}): ${err}`);
@@ -183,7 +187,9 @@ export class OsmImportService {
       }
     }
 
-    if (!data || data.elements.length === 0) {
+    const data = { elements: Array.from(merged.values()) };
+
+    if (data.elements.length === 0) {
       if (lastError instanceof BadGatewayException || lastError instanceof ServiceUnavailableException) {
         throw lastError;
       }
@@ -292,7 +298,7 @@ export class OsmImportService {
   }
 
   private bboxFromMunicipality(municipality: { latitude: number; longitude: number }) {
-    const pad = 0.12;
+    const pad = 0.18;
     return {
       south: municipality.latitude - pad,
       north: municipality.latitude + pad,

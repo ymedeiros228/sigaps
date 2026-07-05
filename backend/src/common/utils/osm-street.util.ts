@@ -1,6 +1,6 @@
 /** Tipos de via incluídos no mapa (pavimentadas + rurais + acessos). */
 export const HIGHWAY_FILTER =
-  '^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|trunk|trunk_link|residential|unclassified|living_street|track|path|service)$';
+  '^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|trunk|trunk_link|residential|unclassified|living_street|track|path|service|road|bridleway)$';
 
 const DIRT_HIGHWAYS = new Set(['track', 'path']);
 
@@ -19,6 +19,8 @@ const UNNAMED_HIGHWAY_LABEL: Record<string, string> = {
   track: 'Estrada de terra',
   path: 'Caminho',
   service: 'Via de acesso',
+  road: 'Via',
+  bridleway: 'Trilha',
 };
 
 function pickTaggedName(tags: Record<string, string> | undefined): string | null {
