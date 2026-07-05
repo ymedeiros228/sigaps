@@ -14,10 +14,12 @@ import {
   ListItemText,
   MenuItem,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { Add, Delete, Edit, HomeWork, Map as MapIcon, Search, CloudDownload, Upload } from '@mui/icons-material';
+import { Add, Delete, Edit, HomeWork, Map as MapIcon, Search, CloudDownload, Upload, SortByAlpha, Tag } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -315,8 +317,24 @@ export function PlacesTab({ municipalityId }: { municipalityId: string }) {
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Buscar povoado..."
-        sortMode={sortMode}
-        onSortModeChange={setSortMode}
+        searchExtra={
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={sortMode}
+            onChange={(_, value) => value && setSortMode(value)}
+            aria-label="Ordenação da lista de povoados"
+          >
+            <ToggleButton value="number" aria-label="Ordenar povoados por número">
+              <Tag fontSize="small" sx={{ mr: 0.75 }} />
+              Nº
+            </ToggleButton>
+            <ToggleButton value="name" aria-label="Ordenar povoados por nome">
+              <SortByAlpha fontSize="small" sx={{ mr: 0.75 }} />
+              Nome
+            </ToggleButton>
+          </ToggleButtonGroup>
+        }
         onAdd={() => openForm()}
         addLabel="Novo povoado"
         canManage={canManagePlaces}
