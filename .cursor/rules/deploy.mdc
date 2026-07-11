@@ -1,0 +1,43 @@
+---
+description: Deploy automático SIGAPS após commits em master
+alwaysApply: true
+---
+
+# Deploy SIGAPS
+
+Após commits que alterem código de produção (backend, frontend, Dockerfile, migrações), **sempre publicar no ar** sem pedir confirmação extra se o usuário já delegou controle de deploy.
+
+## Fluxo padrão
+
+1. Garantir que `npm run build` passa em `backend/` e `frontend/`.
+2. Commit + `git push origin master`.
+3. Aguardar Render auto-deploy (serviço `sigaps-api`, branch `master`).
+4. Confirmar em `https://sigaps-api.onrender.com/health` que o campo `commit` corresponde ao HEAD.
+5. Se o GitHub Action **Deploy** falhar por falta de `RENDER_DEPLOY_HOOK`, o Render ainda redeploya via auto-deploy se conectado ao repo — monitorar o dashboard.
+
+## Scripts do projeto
+
+- `.\scripts\deploy-site-now.ps1` — migrate local + redeploy Render (requer `RENDER_API_KEY`)
+- `.\scripts\configurar-render-hook.ps1` — configura secret `RENDER_DEPLOY_HOOK` no GitHub
+- `gh workflow run deploy.yml` — dispara pipeline (migrate Supabase + Render hook + Cloudflare)
+
+## Secrets GitHub necessários
+
+| Secret | Função |
+|--------|--------|
+| `DATABASE_URL` | Migrações Prisma no Supabase |
+| `RENDER_DEPLOY_HOOK` | Redeploy Render via Actions |
+| `VITE_API_URL` | Confirmação pós-deploy (`https://sigaps-api.onrender.com`) |
+
+## Se o build falhar no Render
+
+1. Abrir logs do deploy no dashboard Render.
+2. Corrigir erros TypeScript/build localmente.
+3. Novo commit + push.
+
+## URL de produção
+
+- Site/API: https://sigaps-api.onrender.com/mapa
+- Health: https://sigaps-api.onrender.com/health
+
+Após deploy bem-sucedido, avisar o usuário para usar **Ctrl+Shift+R** no navegador.
