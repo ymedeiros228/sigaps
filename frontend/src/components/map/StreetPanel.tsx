@@ -11,7 +11,6 @@ import {
   Alert,
   alpha,
   useTheme,
-  useMediaQuery,
   FormControl,
   InputLabel,
   Select,
@@ -30,10 +29,13 @@ import LinearScaleIcon from '@mui/icons-material/LinearScale';
 import CallSplitIcon from '@mui/icons-material/CallSplit';
 import { useQuery } from '@tanstack/react-query';
 import { streetsApi, type Microarea, type Neighborhood, type Street } from '../../services/api';
+import FormatPaintIcon from '@mui/icons-material/FormatPaint';
 import {
   getStreetSideAssignment,
   isDualSideStreet,
+  segmentLengthPercent,
   sideLabel,
+  uniqueMicroareasOnStreet,
 } from '../../utils/streetPaintSegments';
 
 type AssignmentMode = 'FULL' | 'SPLIT';
@@ -54,6 +56,7 @@ interface StreetPanelProps {
   }) => void;
   onAssignNeighborhood: (neighborhoodId: string | null) => void;
   onUnassign: () => void;
+  onEditPaint?: () => void;
   onUpdateDemographics: (data: {
     familyCount: number;
     inhabitantCount: number;
@@ -154,6 +157,7 @@ export function StreetPanel({
   onAssignSides,
   onAssignNeighborhood,
   onUnassign,
+  onEditPaint,
   onUpdateDemographics,
   assigning,
   assigningSides,
@@ -162,7 +166,6 @@ export function StreetPanel({
   savingDemographics,
 }: StreetPanelProps) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dualSide = isDualSideStreet(street);
   const sideAssignment = useMemo(() => getStreetSideAssignment(street), [street]);
 
@@ -208,15 +211,8 @@ export function StreetPanel({
     parseInt(propertyCount, 10) !== (street.propertyCount ?? 0);
 
   const hasSegments = (street.paintSegments?.length ?? 0) > 0;
-  const hasPartialSegments =
-    hasSegments &&
-    street.paintSegments!.some(
-      (seg) =>
-        seg.side === 'FULL' ||
-        (seg.startIndex > 0 ||
-          seg.endIndex < (street.geojson?.coordinates?.length ?? 1) - 1),
-    ) &&
-    sideAssignment.mode === 'NONE';
+  const microareasOnStreet = useMemo(() => uniqueMicroareasOnStreet(street), [street]);
+  const hasMultipleMicroareas = microareasOnStreet.length > 1;
 
   const sidesDirty =
     dualSide &&
@@ -304,18 +300,95 @@ export function StreetPanel({
 
         <Alert severity="info" icon={<LightbulbOutlinedIcon fontSize="small" />} sx={{ mt: 1.5, py: 0.5, borderRadius: 2 }}>
           <Typography variant="caption" component="div">
-            {dualSide ? (
-              <>Avenidas e ruas principais podem ser divididas por lado — cada lado para um ACS diferente.</>
-            ) : isMobile ? (
-              <>Toque em uma rua para ver detalhes e vincular à microárea.</>
-            ) : (
-              <>
-                Segure <strong>Ctrl</strong> (ou <strong>Cmd</strong> no Mac) e clique em várias ruas
-                para selecionar e vincular todas de uma vez.
-              </>
-            )}
+            {hasMultipleMicroareas
+              ? 'Esta rua tem trechos com microáreas diferentes. Use "Editar trechos" para ajustar no mapa.'
+              : dualSide
+                ? 'Avenidas podem ser divididas por lado ou por trechos ao longo da via.'
+                : 'Clique em "Editar trechos" para pintar ou alterar limites quantas vezes precisar.'}
           </Typography>
         </Alert>
+
+        {hasSegments && (
+          <Box sx={{ mt: 1.5, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <LinearScaleIcon fontSize="small" />
+              Trechos pintados ({street.paintSegments!.length})
+            </Typography>
+            {microareasOnStreet.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                {microareasOnStreet.map((ma) => (
+                  <Chip
+                    key={ma.microareaId}
+                    size="small"
+                    label={`${ma.name}${ma.segmentCount > 1 ? ` · ${ma.segmentCount} trechos` : ''}`}
+                    sx={{ bgcolor: ma.color, color: '#fff', fontWeight: 600 }}
+                  />
+                ))}
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, maxHeight: 160, overflowY: 'auto' }}>
+              {street.paintSegments!.map((seg) => (
+                <Box
+                  key={seg.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    p: 1,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: alpha(seg.microarea?.color ?? '#888', 0.4),
+                    bgcolor: alpha(seg.microarea?.color ?? '#888', 0.08),
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      bgcolor: seg.microarea?.color ?? '#888',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                      {seg.microarea?.name ?? 'Microárea'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {seg.side && seg.side !== 'FULL' ? `${sideLabel(seg.side)} · ` : ''}
+                      ~{segmentLengthPercent(street, seg)}% da rua
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+            {onEditPaint && (
+              <Button
+                fullWidth
+                variant="contained"
+                size="small"
+                startIcon={<FormatPaintIcon />}
+                onClick={onEditPaint}
+                sx={{ mt: 1.25, fontWeight: 700 }}
+              >
+                Editar trechos no mapa
+              </Button>
+            )}
+          </Box>
+        )}
+
+        {!hasSegments && onEditPaint && (
+          <Button
+            fullWidth
+            variant="outlined"
+            size="small"
+            startIcon={<FormatPaintIcon />}
+            onClick={onEditPaint}
+            sx={{ mt: 1.5, mb: 1, fontWeight: 700 }}
+          >
+            Pintar trechos no mapa
+          </Button>
+        )}
 
         <Divider sx={{ my: 2 }} />
 
@@ -477,15 +550,21 @@ export function StreetPanel({
             <InfoRow
               label="Microárea"
               value={
-                hasPartialSegments ? (
+                hasMultipleMicroareas ? (
                   <Typography variant="body2" color="text.secondary">
-                    Vários trechos (modo pintura)
+                    {microareasOnStreet.length} microáreas nesta rua
                   </Typography>
                 ) : street.microarea ? (
                   <Chip
                     size="small"
                     label={street.microarea.name}
                     sx={{ bgcolor: street.microarea.color, color: '#fff', fontWeight: 600 }}
+                  />
+                ) : microareasOnStreet[0] ? (
+                  <Chip
+                    size="small"
+                    label={microareasOnStreet[0].name}
+                    sx={{ bgcolor: microareasOnStreet[0].color, color: '#fff', fontWeight: 600 }}
                   />
                 ) : (
                   <Typography variant="body2" color="text.secondary">Não vinculada</Typography>
@@ -540,45 +619,6 @@ export function StreetPanel({
               })}
             </Box>
           </>
-        )}
-
-        {hasSegments && sideAssignment.mode === 'NONE' && (
-          <Box sx={{ mt: 1.5, mb: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-              <LinearScaleIcon fontSize="small" />
-              Trechos pintados
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-              {street.paintSegments!.map((seg) => (
-                <Box
-                  key={seg.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    p: 1,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 12,
-                      height: 12,
-                      borderRadius: '50%',
-                      bgcolor: seg.microarea?.color ?? '#888',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
-                    {seg.microarea?.name ?? 'Microárea'}
-                    {seg.side && seg.side !== 'FULL' ? ` · ${sideLabel(seg.side)}` : ''}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          </Box>
         )}
 
         {(street.microareaId || hasSegments) && (

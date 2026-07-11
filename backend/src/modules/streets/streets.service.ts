@@ -1066,13 +1066,12 @@ export class StreetsService {
           ? [StreetPaintSide.LEFT, StreetPaintSide.RIGHT]
           : [paintMode as StreetPaintSide];
 
-    const useFullSidePaint =
-      isDualSideStreet(reloaded) ||
-      paintMode === StreetPaintSide.FULL ||
-      paintMode === 'BOTH';
+    const wantsFullLengthPaint =
+      paintMode === 'BOTH' ||
+      (paintMode === StreetPaintSide.FULL && isDualSideStreet(reloaded));
 
     for (const side of sidesToPaint) {
-      if (useFullSidePaint) {
+      if (wantsFullLengthPaint) {
         ranges = applyFullSidePaint(ranges, microareaId, side, maxIndex);
       } else {
         ranges = applyPaintOnSide(ranges, vertexIndex, microareaId, side, maxIndex);

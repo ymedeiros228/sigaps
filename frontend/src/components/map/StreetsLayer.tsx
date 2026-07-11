@@ -395,10 +395,7 @@ export function StreetsLayer({
         path
           .getElement()
           ?.classList.add(
-            eraserMode ||
-              (!!selectedMicroareaId && state.microareaId === selectedMicroareaId)
-              ? 'sigaps-street-eraser-hover'
-              : 'sigaps-street-hover',
+            eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover',
           );
         layer.setTooltipContent(tooltipForPoint(lat, lng));
         if (dragActionRef.current) applyDragAction(lat, lng);
@@ -420,11 +417,6 @@ export function StreetsLayer({
           return;
         }
         if (!selectedMicroareaId) return;
-        if (state.microareaId === selectedMicroareaId) {
-          dragActionRef.current = 'unpaint';
-          onStreetUnpaint(street, lat, lng);
-          return;
-        }
         dragActionRef.current = 'paint';
         onStreetPaint(street, lat, lng);
       });

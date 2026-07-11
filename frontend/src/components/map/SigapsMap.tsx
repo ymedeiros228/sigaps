@@ -1028,6 +1028,28 @@ export function SigapsMap() {
     },
   });
 
+  const handleEditStreetPaint = useCallback(() => {
+    if (!selectedStreet) return;
+    const maId =
+      selectedStreet.microareaId ??
+      selectedStreet.paintSegments?.[0]?.microareaId ??
+      selectedMicroareaId ??
+      microareas[0]?.id;
+    if (maId) setSelectedMicroarea(maId);
+    const mapState = useMapStore.getState();
+    mapState.setEraserMode(false);
+    setPaintMode(true);
+    mapState.setPaintGuideCollapsed(false);
+    setHighlightedStreet(selectedStreet.id);
+    if (selectedStreet.geojson?.coordinates?.length) {
+      useMapStore.getState().focusOnLine(selectedStreet.geojson, 18);
+    }
+    setSnackbar({
+      message: 'Modo pintura — clique na rua para definir ou alterar trechos.',
+      severity: 'info',
+    });
+  }, [selectedStreet, selectedMicroareaId, microareas, setSelectedMicroarea, setPaintMode, setHighlightedStreet]);
+
   const handleUnassignMicroarea = useCallback((microareaId: string) => {
     clearMicroareaPaintMutation.mutate(microareaId);
   }, [clearMicroareaPaintMutation]);
@@ -1309,6 +1331,7 @@ export function SigapsMap() {
               unassignMutation.mutate([selectedStreet.id]);
             }
           }}
+          onEditPaint={handleEditStreetPaint}
           onUpdateDemographics={(data) =>
             updateDemographicsMutation.mutate({ streetId: selectedStreet.id, data })
           }

@@ -126,6 +126,42 @@ export function sideLabel(side: StreetPaintSide): string {
   return 'Rua inteira';
 }
 
+export function segmentLengthPercent(street: Street, seg: StreetPaintSegment): number {
+  const maxIndex = Math.max(1, streetCoords(street.geojson).length - 1);
+  return Math.round(((seg.endIndex - seg.startIndex) / maxIndex) * 100);
+}
+
+export function uniqueMicroareasOnStreet(street: Street): Array<{
+  microareaId: string;
+  name: string;
+  color: string;
+  segmentCount: number;
+}> {
+  const byId = new Map<string, { microareaId: string; name: string; color: string; segmentCount: number }>();
+  for (const seg of street.paintSegments ?? []) {
+    const existing = byId.get(seg.microareaId);
+    if (existing) {
+      existing.segmentCount += 1;
+    } else {
+      byId.set(seg.microareaId, {
+        microareaId: seg.microareaId,
+        name: seg.microarea?.name ?? 'Microárea',
+        color: seg.microarea?.color ?? '#888',
+        segmentCount: 1,
+      });
+    }
+  }
+  if (street.microareaId && street.microarea && !byId.has(street.microareaId)) {
+    byId.set(street.microareaId, {
+      microareaId: street.microareaId,
+      name: street.microarea.name,
+      color: street.microarea.color,
+      segmentCount: 1,
+    });
+  }
+  return Array.from(byId.values());
+}
+
 export function segmentAtPoint(
   street: Street,
   latitude: number,

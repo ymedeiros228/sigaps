@@ -73,6 +73,7 @@ export function MapLegend({
   }, [streets, microareas]);
 
   if (microareas.length === 0) return null;
+  if (paintMode) return null;
 
   return (
     <Paper

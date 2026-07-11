@@ -190,7 +190,9 @@ export function PaintGuidePanel({
           zIndex: 1001,
           width: collapsed
             ? { xs: 'calc(100% - 24px)', sm: 'auto' }
-            : { xs: 'calc(100% - 16px)', sm: 520, md: 600 },
+            : paintMode
+              ? { xs: 'calc(100% - 16px)', sm: 460 }
+              : { xs: 'calc(100% - 16px)', sm: 520, md: 560 },
           maxWidth: collapsed ? { xs: '100%', sm: 520 } : undefined,
           display: 'flex',
           flexDirection: 'column',
@@ -300,14 +302,16 @@ export function PaintGuidePanel({
           <>
           <Box
             sx={{
-              p: 2,
-              pt: 1.5,
+              p: paintMode ? 1.5 : 2,
+              pt: paintMode ? 1.25 : 1.5,
               overflowY: 'auto',
-              maxHeight: { xs: 'min(48vh, 400px)', sm: 'min(54vh, 440px)' },
+              maxHeight: paintMode
+                ? { xs: 'min(36vh, 280px)', sm: 'min(40vh, 320px)' }
+                : { xs: 'min(48vh, 400px)', sm: 'min(54vh, 440px)' },
             }}
           >
             {microareas.length === 0 ? (
-              <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+              <Alert severity="warning" sx={{ borderRadius: 2 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                   Nenhuma microárea cadastrada
                 </Typography>
@@ -334,358 +338,331 @@ export function PaintGuidePanel({
                 )}
               </Alert>
             ) : streetCount === 0 ? (
-              <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-                Carregando ruas do município automaticamente. Aguarde alguns segundos.
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                Carregando ruas do município. Aguarde alguns segundos.
               </Alert>
             ) : (
               <>
-                {neighborhoods.length > 0 &&
-                  streets.filter((s) => !s.neighborhood?.id).length > 0 && (
-                    <Alert severity="warning" sx={{ borderRadius: 2, mb: 1.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {streets.filter((s) => !s.neighborhood?.id).length} rua(s) sem bairro
-                      </Typography>
-                      <Button
-                        component={RouterLink}
-                        to="/cadastros?secao=bairros"
-                        size="small"
-                        sx={{ mt: 0.5 }}
-                      >
-                        Ir para Bairros
-                      </Button>
-                    </Alert>
-                  )}
                 {!paintMode && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
                     <StepRow
                       number={1}
                       done={!!selectedMicroareaId}
                       icon={<Palette fontSize="small" />}
-                      title="Escolha a microárea"
-                      subtitle="Toque de novo para desmarcar"
+                      title="Escolha a cor (microárea)"
+                      subtitle="Cada cor = um ACS"
                     />
                     <StepRow
                       number={2}
-                      done={paintMode && !eraserMode}
+                      done={false}
                       icon={<TouchApp fontSize="small" />}
-                      title="Clique em Pintar"
-                      subtitle="Depois clique nas ruas no mapa"
+                      title="Clique em Pintar e use o mapa"
+                      subtitle="Uma rua pode ter várias microáreas em trechos diferentes"
                     />
                   </Box>
                 )}
-              </>
-            )}
 
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
-              MICROÁREAS — {streetCount > 0 ? `${streetCount} ruas no mapa` : 'nenhuma rua carregada'}
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
-              {sortedMicroareas.map((m) => {
-                const selected = m.id === selectedMicroareaId;
-                const count =
-                  m._count?.streets ?? countStreetsForMicroarea(streets, m.id);
-                return (
-                  <Button
-                    key={m.id}
-                    variant={selected && !eraserMode ? 'contained' : 'outlined'}
-                    size="medium"
-                    onClick={() => handleToggleMicroarea(m.id)}
-                    sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 0.5, sm: 0.75 },
-                      px: { xs: 1, sm: 1.5 },
-                      gap: 0.75,
-                      borderColor: m.color,
-                      borderWidth: 2,
-                      fontWeight: 700,
-                      ...(selected && !eraserMode && {
-                        bgcolor: m.color,
-                        color: '#fff',
-                        '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' },
-                      }),
-                    }}
-                  >
-                    <Box
-                      component="span"
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: '50%',
-                        bgcolor: selected && !eraserMode ? '#fff' : m.color,
-                        border: selected && !eraserMode ? '2px solid #fff' : 'none',
-                        flexShrink: 0,
-                      }}
-                    />
-                    {m.name}
-                    {count > 0 && (
-                      <Chip
-                        size="small"
-                        label={count}
-                        sx={{
-                          height: 20,
-                          fontSize: 11,
-                          ml: 0.25,
-                          bgcolor: selected && !eraserMode ? alpha('#fff', 0.25) : alpha(m.color, 0.15),
-                          color: selected && !eraserMode ? '#fff' : 'text.primary',
-                        }}
-                      />
-                    )}
-                  </Button>
-                );
-              })}
-              {canAddMicroarea && (
-                <Button
-                  variant="outlined"
-                  size="medium"
-                  onClick={() => setAddOpen(true)}
-                  sx={{ minWidth: 44, px: 1.5, borderStyle: 'dashed' }}
-                  aria-label="Adicionar microárea"
-                >
-                  <Add />
-                </Button>
-              )}
-            </Box>
-
-            <AddMicroareaDialog
-              open={addOpen}
-              onClose={() => setAddOpen(false)}
-              municipalityId={municipalityId}
-              existingCount={microareas.length}
-              onCreated={(ma) => {
-                setSelectedMicroarea(ma.id);
-                setEraserMode(false);
-                onMicroareaCreated?.(ma.id);
-              }}
-            />
-
-            {streetCount > 0 && (
-              <ToggleButtonGroup
-                exclusive
-                fullWidth
-                size="small"
-                value={eraserMode ? 'eraser' : paintMode ? 'paint' : 'idle'}
-                sx={{ mb: 2 }}
-              >
-                <ToggleButton
-                  value="paint"
-                  onClick={handleStartPaint}
-                  disabled={importing || microareas.length === 0}
-                  sx={{ py: 1, gap: 0.75, fontWeight: 700 }}
-                >
-                  <FormatPaint fontSize="small" />
-                  Pintar
-                </ToggleButton>
-                <ToggleButton
-                  value="eraser"
-                  onClick={handleStartEraser}
-                  disabled={importing || paintedCount === 0}
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
+                  {paintMode ? 'Cor ativa' : 'Microáreas'}
+                </Typography>
+                <Box
                   sx={{
-                    py: 1,
+                    display: 'flex',
                     gap: 0.75,
-                    fontWeight: 700,
-                    '&.Mui-selected': {
-                      bgcolor: alpha(theme.palette.error.main, 0.15),
-                      color: 'error.main',
-                      borderColor: alpha(theme.palette.error.main, 0.5),
-                    },
+                    overflowX: 'auto',
+                    pb: 0.5,
+                    mb: 1.5,
+                    flexWrap: paintMode ? 'nowrap' : 'wrap',
                   }}
                 >
-                  <AutoFixOff fontSize="small" />
-                  Apagar
-                </ToggleButton>
-              </ToggleButtonGroup>
-            )}
-
-            {paintMode && canPaint && neighborhoods.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
-                  PINTAR BAIRRO INTEIRO
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                  {neighborhoods.map((n) => {
-                    const count = streets.filter((s) => s.neighborhood?.id === n.id).length;
-                    if (count === 0) return null;
+                  {sortedMicroareas.map((m) => {
+                    const selected = m.id === selectedMicroareaId;
+                    const count = m._count?.streets ?? countStreetsForMicroarea(streets, m.id);
                     return (
                       <Button
-                        key={n.id}
+                        key={m.id}
+                        variant={selected && !eraserMode ? 'contained' : 'outlined'}
                         size="small"
-                        variant="outlined"
-                        onClick={() => handlePaintNeighborhood(n.id, n.name)}
+                        onClick={() => handleToggleMicroarea(m.id)}
+                        sx={{
+                          flexShrink: paintMode ? 0 : undefined,
+                          fontSize: '0.8rem',
+                          py: 0.5,
+                          px: 1.25,
+                          gap: 0.5,
+                          borderColor: m.color,
+                          borderWidth: 2,
+                          fontWeight: 700,
+                          ...(selected && !eraserMode && {
+                            bgcolor: m.color,
+                            color: '#fff',
+                            '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' },
+                          }),
+                        }}
                       >
-                        {n.name} ({count})
+                        <Box
+                          component="span"
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: selected && !eraserMode ? '#fff' : m.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                        {m.name}
+                        {count > 0 && (
+                          <Typography component="span" variant="caption" sx={{ opacity: 0.85, ml: 0.25 }}>
+                            {count}
+                          </Typography>
+                        )}
                       </Button>
                     );
                   })}
+                  {canAddMicroarea && (
+                    <IconButton
+                      size="small"
+                      onClick={() => setAddOpen(true)}
+                      sx={{ border: '1px dashed', borderColor: 'divider', flexShrink: 0 }}
+                      aria-label="Adicionar microárea"
+                    >
+                      <Add fontSize="small" />
+                    </IconButton>
+                  )}
                 </Box>
-              </Box>
-            )}
 
-            {paintMode && canPaint && unpaintedDirtRoadIds.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
-                  ESTRADAS DE TERRA
-                </Typography>
-                <Button
-                  fullWidth
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  onClick={() => setDirtRoadConfirm({ count: unpaintedDirtRoadIds.length })}
-                >
-                  Marcar estradas de terra ({unpaintedDirtRoadIds.length})
-                </Button>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
-                  Marca em lote as estradas de terra carregadas no mapa para a microárea selecionada.
-                </Typography>
-              </Box>
-            )}
+                <AddMicroareaDialog
+                  open={addOpen}
+                  onClose={() => setAddOpen(false)}
+                  municipalityId={municipalityId}
+                  existingCount={microareas.length}
+                  onCreated={(ma) => {
+                    setSelectedMicroarea(ma.id);
+                    setEraserMode(false);
+                    onMicroareaCreated?.(ma.id);
+                  }}
+                />
 
-            {paintMode && !eraserMode && (
-              <Box sx={{ mb: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
-                  O que pintar ao clicar na rua
-                </Typography>
-                <ToggleButtonGroup
-                  exclusive
-                  size="small"
-                  fullWidth
-                  value={paintStreetSide}
-                  onChange={(_e, value) => value && setPaintStreetSide(value)}
-                >
-                  <ToggleButton value="FULL">Rua inteira</ToggleButton>
-                  <ToggleButton value="RIGHT">Lado direito</ToggleButton>
-                  <ToggleButton value="LEFT">Lado esquerdo</ToggleButton>
-                </ToggleButtonGroup>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
-                  Em avenidas e ruas principais, cada lado pode pertencer a um ACS diferente.
-                </Typography>
-              </Box>
-            )}
+                {streetCount > 0 && (
+                  <ToggleButtonGroup
+                    exclusive
+                    fullWidth
+                    size="small"
+                    value={eraserMode ? 'eraser' : paintMode ? 'paint' : 'idle'}
+                    sx={{ mb: paintMode ? 1.25 : 2 }}
+                  >
+                    <ToggleButton
+                      value="paint"
+                      onClick={handleStartPaint}
+                      disabled={importing || microareas.length === 0}
+                      sx={{ py: 0.75, gap: 0.5, fontWeight: 700 }}
+                    >
+                      <FormatPaint fontSize="small" />
+                      Pintar
+                    </ToggleButton>
+                    <ToggleButton
+                      value="eraser"
+                      onClick={handleStartEraser}
+                      disabled={importing || paintedCount === 0}
+                      sx={{
+                        py: 0.75,
+                        gap: 0.5,
+                        fontWeight: 700,
+                        '&.Mui-selected': {
+                          bgcolor: alpha(theme.palette.error.main, 0.15),
+                          color: 'error.main',
+                          borderColor: alpha(theme.palette.error.main, 0.5),
+                        },
+                      }}
+                    >
+                      <AutoFixOff fontSize="small" />
+                      Apagar
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                )}
 
-            {paintMode && (
-              <>
-                <Alert
-                  severity={eraserMode ? 'warning' : canPaint ? 'success' : 'info'}
-                  icon={eraserMode ? <AutoFixOff /> : <CheckCircle />}
-                  sx={{ borderRadius: 2 }}
-                >
-                  {eraserMode
-                    ? 'Clique na linha grossa colorida para apagar. Cinza tracejado = rua sem pintura. Ou clique na microárea na legenda (ex.: Microárea 05 · 1).'
-                    : canPaint
-                      ? mapPanEnabled
-                        ? 'Modo mover mapa ativo — arraste o fundo para reposicionar. Desative para pintar ruas.'
-                        : `Passe o mouse sobre as ruas e clique para pintar ${paintStreetSide === 'FULL' ? 'a rua inteira' : paintStreetSide === 'LEFT' ? 'apenas o lado esquerdo' : 'apenas o lado direito'} com ${selectedMicroarea?.name}.`
-                      : 'Selecione uma microárea acima para começar.'}
-                </Alert>
-                {canPaint && (
+                {paintMode && !eraserMode && (
+                  <Box sx={{ mb: 1.25 }}>
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      fullWidth
+                      value={paintStreetSide}
+                      onChange={(_e, value) => value && setPaintStreetSide(value)}
+                    >
+                      <ToggleButton value="FULL">Trecho / rua inteira</ToggleButton>
+                      <ToggleButton value="RIGHT">Lado D</ToggleButton>
+                      <ToggleButton value="LEFT">Lado E</ToggleButton>
+                    </ToggleButtonGroup>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      Clique no mapa para definir limites. Troque a cor e clique de novo para editar quantas vezes quiser.
+                    </Typography>
+                  </Box>
+                )}
+
+                {paintMode && (
+                  <Alert
+                    severity={eraserMode ? 'warning' : canPaint ? 'success' : 'info'}
+                    icon={eraserMode ? <AutoFixOff fontSize="small" /> : <CheckCircle fontSize="small" />}
+                    sx={{ borderRadius: 2, py: 0.25, '& .MuiAlert-message': { py: 0.5 } }}
+                  >
+                    {eraserMode
+                      ? 'Clique no trecho colorido para apagar. Use o modo Pintar para repor outra cor.'
+                      : canPaint
+                        ? mapPanEnabled
+                          ? 'Modo mover mapa — desative abaixo para pintar.'
+                          : `${selectedMicroarea?.name}: clique na rua para pintar ou alterar trechos.`
+                        : 'Selecione uma microárea (cor) acima.'}
+                  </Alert>
+                )}
+
+                {paintMode && canPaint && (
                   <Button
                     fullWidth
                     variant={mapPanEnabled ? 'contained' : 'outlined'}
-                    size="medium"
+                    size="small"
                     startIcon={<PanTool />}
                     onClick={() => setMapPanEnabled(!mapPanEnabled)}
-                    sx={{ mt: 1.5 }}
+                    sx={{ mt: 1 }}
                   >
                     {mapPanEnabled ? 'Mover mapa (ativo)' : 'Mover mapa'}
                   </Button>
                 )}
-              </>
-            )}
 
-            {paintedCount > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Button
-                  fullWidth
-                  size="small"
-                  color="inherit"
-                  onClick={() => setAdvancedOpen((open) => !open)}
-                  endIcon={advancedOpen ? <ExpandLess /> : <ExpandMore />}
-                  sx={{ justifyContent: 'space-between', fontWeight: 700 }}
-                >
-                  Limpar pinturas em lote (opcional)
-                </Button>
-                <Collapse in={advancedOpen}>
-                  <Box
-                    sx={{
-                      mt: 1,
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: alpha(theme.palette.warning.main, 0.06),
-                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                    }}
-                  >
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                      Use o modo <strong>Apagar</strong> para corrigir ruas individuais. As opções
-                      abaixo removem várias ruas de uma vez.
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {selectedMicroarea && selectedMicroareaPaintedCount > 0 && (
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          color="warning"
-                          size="small"
-                          startIcon={<DeleteSweep />}
-                          disabled={clearingPaint}
-                          onClick={() => setClearDialog('microarea')}
-                          sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
-                        >
-                          Limpar {selectedMicroarea.name} ({selectedMicroareaPaintedCount} ruas)
-                        </Button>
-                      )}
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        startIcon={<DeleteSweep />}
-                        disabled={clearingPaint}
-                        onClick={() => setClearDialog('all')}
-                        sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                {paintedCount > 0 && (
+                  <Box sx={{ mt: paintMode ? 1.25 : 2 }}>
+                    <Button
+                      fullWidth
+                      size="small"
+                      color="inherit"
+                      onClick={() => setAdvancedOpen((open) => !open)}
+                      endIcon={advancedOpen ? <ExpandLess /> : <ExpandMore />}
+                      sx={{ justifyContent: 'space-between', fontWeight: 700 }}
+                    >
+                      {paintMode ? 'Mais opções' : 'Limpar pinturas em lote'}
+                    </Button>
+                    <Collapse in={advancedOpen}>
+                      <Box
+                        sx={{
+                          mt: 1,
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: alpha(theme.palette.warning.main, 0.06),
+                          border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                        }}
                       >
-                        Limpar todas as pinturas ({paintedCount} ruas)
-                      </Button>
-                      {paintZoneCount > 0 && onClearPaintZones && (
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          color="warning"
-                          size="small"
-                          startIcon={<DeleteSweep />}
-                          disabled={clearingPaintZones}
-                          onClick={onClearPaintZones}
-                          sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
-                        >
-                          Remover círculos do mapa ({paintZoneCount})
-                        </Button>
-                      )}
-                    </Box>
+                        {paintMode && canPaint && neighborhoods.length > 0 && (
+                          <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
+                              Pintar bairro inteiro
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                              {neighborhoods.map((n) => {
+                                const count = streets.filter((s) => s.neighborhood?.id === n.id).length;
+                                if (count === 0) return null;
+                                return (
+                                  <Button
+                                    key={n.id}
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => handlePaintNeighborhood(n.id, n.name)}
+                                  >
+                                    {n.name} ({count})
+                                  </Button>
+                                );
+                              })}
+                            </Box>
+                          </Box>
+                        )}
+
+                        {paintMode && canPaint && unpaintedDirtRoadIds.length > 0 && (
+                          <Box sx={{ mb: 1.5 }}>
+                            <Button
+                              fullWidth
+                              size="small"
+                              variant="outlined"
+                              color="warning"
+                              onClick={() => setDirtRoadConfirm({ count: unpaintedDirtRoadIds.length })}
+                            >
+                              Marcar estradas de terra ({unpaintedDirtRoadIds.length})
+                            </Button>
+                          </Box>
+                        )}
+
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                          Use <strong>Apagar</strong> para corrigir trecho a trecho.
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {selectedMicroarea && selectedMicroareaPaintedCount > 0 && (
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              color="warning"
+                              size="small"
+                              startIcon={<DeleteSweep />}
+                              disabled={clearingPaint}
+                              onClick={() => setClearDialog('microarea')}
+                              sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                            >
+                              Limpar {selectedMicroarea.name} ({selectedMicroareaPaintedCount})
+                            </Button>
+                          )}
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            startIcon={<DeleteSweep />}
+                            disabled={clearingPaint}
+                            onClick={() => setClearDialog('all')}
+                            sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                          >
+                            Limpar todas ({paintedCount})
+                          </Button>
+                          {paintZoneCount > 0 && onClearPaintZones && (
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              color="warning"
+                              size="small"
+                              startIcon={<DeleteSweep />}
+                              disabled={clearingPaintZones}
+                              onClick={onClearPaintZones}
+                              sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                            >
+                              Remover círculos ({paintZoneCount})
+                            </Button>
+                          )}
+                        </Box>
+                      </Box>
+                    </Collapse>
                   </Box>
-                </Collapse>
-              </Box>
-            )}
+                )}
 
-            {lastAction && (
-              <Typography
-                variant="body2"
-                color="success.main"
-                sx={{ mt: 1.5, fontWeight: 600, textAlign: 'center' }}
-              >
-                {lastAction}
-              </Typography>
-            )}
+                {lastAction && (
+                  <Typography
+                    variant="body2"
+                    color="success.main"
+                    sx={{ mt: 1.25, fontWeight: 600, textAlign: 'center' }}
+                  >
+                    {lastAction}
+                  </Typography>
+                )}
 
-            {streetCount > 0 && (
-              <Typography
-                variant="caption"
-                color="text.disabled"
-                sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}
-              >
-                Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>Esc</strong> parar
-              </Typography>
+                {streetCount > 0 && !paintMode && (
+                  <Typography
+                    variant="caption"
+                    color="text.disabled"
+                    sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}
+                  >
+                    Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>Esc</strong> parar
+                  </Typography>
+                )}
+              </>
             )}
           </Box>
 
+          {!paintMode && !collapsed && (
           <Box
             sx={{
               px: 2,
@@ -719,10 +696,11 @@ export function PaintGuidePanel({
                 }}
                 sx={{ fontWeight: 700 }}
               >
-                Desmarcar microárea
+                Desmarcar
               </Button>
             )}
           </Box>
+          )}
           </>
         )}
       </Paper>
