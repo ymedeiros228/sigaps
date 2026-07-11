@@ -71,7 +71,7 @@ export function SelectionBar({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
         <LinkIcon color="info" fontSize="small" />
         <Typography variant="body2" sx={{ fontWeight: 700, flex: 1 }}>
-          {count} rua{count > 1 ? 's' : ''} selecionada{count > 1 ? 's' : ''}
+          {count} rua{count > 1 ? 's' : ''} marcada{count > 1 ? 's' : ''} — toque na cor para vincular
         </Typography>
         <IconButton
           size="small"
@@ -123,7 +123,7 @@ export function SelectionBar({
         )}
 
         <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-          Microárea:
+          Cor do ACS:
         </Typography>
         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', flex: 1 }}>
           {microareas.map((m) => (

@@ -27,6 +27,7 @@ import { StreetPanel } from './StreetPanel';
 import { MapLegend } from './MapLegend';
 import { MicroareaEnvelopesLayer } from './MicroareaEnvelopesLayer';
 import { PaintGuidePanel } from './PaintGuidePanel';
+import { MapPaintBanner } from './MapPaintBanner';
 import { MapDivisionsPanel } from './MapDivisionsPanel';
 import { PaintZonesLayer } from './PaintZonesLayer';
 import { DivisionMapClickHandler } from './DivisionMapClickHandler';
@@ -247,12 +248,12 @@ export function SigapsMap() {
           setSelectedMicroarea(microareas[0].id);
         }
         setPaintMode(true);
-        setSnackbar({ message: 'Modo pintar (P)', severity: 'info' });
+        setSnackbar({ message: 'Escolha uma cor abaixo e toque em Começar a pintar', severity: 'info' });
       }
       if (e.key === 'e' || e.key === 'E') {
         if (countPaintedStreets(streets) === 0) return;
         useMapStore.getState().setEraserMode(true);
-        setSnackbar({ message: 'Modo apagar (E)', severity: 'info' });
+        setSnackbar({ message: 'Modo apagar — toque na rua colorida', severity: 'info' });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1045,7 +1046,7 @@ export function SigapsMap() {
       useMapStore.getState().focusOnLine(selectedStreet.geojson, 18);
     }
     setSnackbar({
-      message: 'Modo pintura — clique na rua para definir ou alterar trechos.',
+      message: 'Modo pintura — toque nas ruas do mapa para colorir.',
       severity: 'info',
     });
   }, [selectedStreet, selectedMicroareaId, microareas, setSelectedMicroarea, setPaintMode, setHighlightedStreet]);
@@ -1087,7 +1088,7 @@ export function SigapsMap() {
     <Box
       ref={mapContainerRef}
       className={paintMode ? (eraserMode ? 'sigaps-map-painting sigaps-map-eraser' : 'sigaps-map-painting') : undefined}
-      sx={{ position: 'relative', height: 'calc(100vh - 64px)', width: '100%', '--map-toolbar-offset': '120px' } as const}
+      sx={{ position: 'relative', height: 'calc(100vh - 64px)', width: '100%', '--map-toolbar-offset': paintMode ? '72px' : '120px' } as const}
     >
       <MapToolbar
         mapContainerRef={mapContainerRef}
@@ -1104,6 +1105,10 @@ export function SigapsMap() {
         cursorLongitude={mapCursorCoords?.lng ?? null}
       />
 
+      {!acsReadOnly && paintMode && (
+        <MapPaintBanner microarea={microareas.find((m) => m.id === selectedMicroareaId)} />
+      )}
+
       <MapLegend
         microareas={microareas}
         streets={streets}
@@ -1114,6 +1119,7 @@ export function SigapsMap() {
         onClearMicroarea={handleUnassignMicroarea}
       />
 
+      {!paintMode && (
       <SelectionBar
         microareas={microareas}
         neighborhoods={neighborhoods}
@@ -1129,6 +1135,7 @@ export function SigapsMap() {
           return street && streetHasPaint(street);
         })}
       />
+      )}
 
       {!acsReadOnly && (
       <PaintGuidePanel
@@ -1153,7 +1160,7 @@ export function SigapsMap() {
           queryClient.invalidateQueries({ queryKey: ['microareas', municipalityId] });
         }}
         onMinimized={() =>
-          setSnackbar({ message: 'Mapa guardado — ruas salvas. Toque na barra inferior para pintar de novo.', severity: 'success' })
+          setSnackbar({ message: 'Pronto! Suas ruas foram salvas.', severity: 'success' })
         }
       />
       )}

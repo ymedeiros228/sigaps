@@ -145,34 +145,24 @@ export function MapToolbar({
 
       {!paintMode && streetCount > 0 && (
         <Chip
-          label="Clique na rua para selecionar"
+          label="Toque na rua para ver detalhes"
           size="small"
           variant="outlined"
           sx={{ fontWeight: 600, display: { xs: 'none', md: 'flex' } }}
         />
       )}
 
-      {paintMode && eraserMode && (
+      {paintMode && (
         <Chip
-          icon={<AutoFixOff fontSize="small" />}
-          label="Apagando"
-          color="error"
-          size="small"
-          sx={{ fontWeight: 700 }}
+          icon={eraserMode ? <AutoFixOff fontSize="small" /> : <FormatPaint fontSize="small" />}
+          label={eraserMode ? 'Apagando' : 'Pintando ruas'}
+          color={eraserMode ? 'error' : 'primary'}
+          size="medium"
+          sx={{ fontWeight: 800, fontSize: '0.85rem' }}
         />
       )}
 
-      {paintMode && !eraserMode && (
-        <Chip
-          icon={<FormatPaint fontSize="small" />}
-          label="Pintando"
-          color="primary"
-          size="small"
-          sx={{ fontWeight: 700 }}
-        />
-      )}
-
-      {streetCount > 0 && (
+      {!paintMode && streetCount > 0 && (
         <Chip
           label={`${coverage}% cobertura`}
           size="small"
@@ -182,11 +172,11 @@ export function MapToolbar({
         />
       )}
 
-      {readOnly && (
+      {!paintMode && readOnly && (
         <Chip label="Consulta — sua microárea" size="small" color="primary" variant="outlined" />
       )}
 
-      {!readOnly && canImport && (streetCount > 0 || importing) && (
+      {!paintMode && !readOnly && canImport && (streetCount > 0 || importing) && (
         <Button
           size="small"
           variant="outlined"
@@ -198,7 +188,7 @@ export function MapToolbar({
         </Button>
       )}
 
-      {selectedCount > 0 && (
+      {!paintMode && selectedCount > 0 && (
         <Chip
           size="small"
           label={`${selectedCount} selecionada(s)`}
@@ -207,6 +197,8 @@ export function MapToolbar({
         />
       )}
 
+      {!paintMode && (
+        <>
       <FormControlLabel
         control={
           <Switch
@@ -260,6 +252,8 @@ export function MapToolbar({
         microareas={microareas}
         onImportFamilies={onImportFamilies}
       />
+        </>
+      )}
 
       <Box sx={{ display: 'flex', gap: 0.5, ml: { md: 'auto' } }}>
         <Tooltip title="Tela cheia">
@@ -274,6 +268,7 @@ export function MapToolbar({
         </Tooltip>
       </Box>
 
+      {!paintMode && (
       <Box
         sx={{
           flexBasis: '100%',
@@ -301,6 +296,7 @@ export function MapToolbar({
           </Typography>
         </Box>
       </Box>
+      )}
     </Paper>
   );
 }

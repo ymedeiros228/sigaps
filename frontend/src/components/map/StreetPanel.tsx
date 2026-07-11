@@ -301,10 +301,10 @@ export function StreetPanel({
         <Alert severity="info" icon={<LightbulbOutlinedIcon fontSize="small" />} sx={{ mt: 1.5, py: 0.5, borderRadius: 2 }}>
           <Typography variant="caption" component="div">
             {hasMultipleMicroareas
-              ? 'Esta rua tem trechos com microáreas diferentes. Use "Editar trechos" para ajustar no mapa.'
+              ? 'Esta rua tem partes com cores diferentes. Toque em "Colorir no mapa" para ajustar.'
               : dualSide
-                ? 'Avenidas podem ser divididas por lado ou por trechos ao longo da via.'
-                : 'Clique em "Editar trechos" para pintar ou alterar limites quantas vezes precisar.'}
+                ? 'Avenidas podem ter cores diferentes em cada lado.'
+                : 'Toque em "Colorir no mapa" e depois toque nas ruas.'}
           </Typography>
         </Alert>
 
@@ -371,7 +371,7 @@ export function StreetPanel({
                 onClick={onEditPaint}
                 sx={{ mt: 1.25, fontWeight: 700 }}
               >
-                Editar trechos no mapa
+                Editar no mapa
               </Button>
             )}
           </Box>
@@ -386,7 +386,7 @@ export function StreetPanel({
             onClick={onEditPaint}
             sx={{ mt: 1.5, mb: 1, fontWeight: 700 }}
           >
-            Pintar trechos no mapa
+            Pintar no mapa
           </Button>
         )}
 
