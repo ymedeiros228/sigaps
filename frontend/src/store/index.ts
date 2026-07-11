@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Microarea, User } from '../services/api';
+import type { Microarea, PaintStreetSide, User } from '../services/api';
 import { syncApiToken } from '../services/api';
 import { DEV_LOGIN } from '../constants/devAuth';
 import { lineStringBounds, lineStringCentroid, boundsFromLineStrings } from '../utils/geo';
@@ -86,9 +86,11 @@ interface MapState {
   mapPanEnabled: boolean;
   divisionMode: boolean;
   divisionDraft: { lat: number; lng: number; radiusMeters: number; name: string } | null;
+  paintStreetSide: PaintStreetSide;
   setPaintMode: (enabled: boolean) => void;
   setEraserMode: (enabled: boolean) => void;
   setSelectedMicroarea: (id: string | null) => void;
+  setPaintStreetSide: (side: PaintStreetSide) => void;
   toggleStreetSelection: (id: string) => void;
   clearSelection: () => void;
   setShowEnvelopes: (show: boolean) => void;
@@ -193,6 +195,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   mapPanEnabled: true,
   divisionMode: false,
   divisionDraft: null,
+  paintStreetSide: 'FULL' as PaintStreetSide,
   setPaintMode: (enabled) => {
     const state = get();
     if (enabled && !state.selectedMicroareaId) {
@@ -222,6 +225,7 @@ export const useMapStore = create<MapState>((set, get) => ({
     });
   },
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),
+  setPaintStreetSide: (side) => set({ paintStreetSide: side }),
   toggleStreetSelection: (id) => {
     const next = new Set(get().selectedStreetIds);
     if (next.has(id)) next.delete(id);

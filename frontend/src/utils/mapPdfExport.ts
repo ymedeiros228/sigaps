@@ -2,6 +2,7 @@ import type { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { Microarea, Street } from '../services/api';
 import { formatStreetLabel } from './streetSearch';
+import { getStreetSideAssignment, sideLabel } from './streetPaintSegments';
 
 export type PdfFormat = 'a4' | 'a3';
 
@@ -205,6 +206,64 @@ function drawMapInsetLegend(
   }
 }
 
+function drawSplitStreetsLegend(
+  pdf: jsPDF,
+  x: number,
+  y: number,
+  streets: Street[],
+  microareas: Microarea[],
+  isA3: boolean,
+) {
+  const maxItems = Math.min(streets.length, isA3 ? 4 : 3);
+  if (maxItems === 0) return;
+  const lineH = isA3 ? 4.2 : 3.8;
+  const boxH = maxItems * lineH + 8;
+  const boxW = isA3 ? 62 : 54;
+
+  pdf.setFillColor(255, 255, 255);
+  pdf.setDrawColor(180);
+  pdf.setLineWidth(0.3);
+  pdf.roundedRect(x, y, boxW, boxH, 1.5, 1.5, 'FD');
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(isA3 ? 6.5 : 6);
+  pdf.setTextColor(15, 61, 46);
+  pdf.text('RUAS DIVIDIDAS', x + 2.5, y + 4);
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(isA3 ? 5.5 : 5);
+  let ly = y + 7.5;
+  for (let i = 0; i < maxItems; i++) {
+    const street = streets[i];
+    const assignment = getStreetSideAssignment(street);
+    const leftMa = microareas.find((m) => m.id === assignment.leftMicroareaId);
+    const rightMa = microareas.find((m) => m.id === assignment.rightMicroareaId);
+    pdf.setTextColor(35, 35, 35);
+    pdf.text(truncate(pdf, formatStreetLabel(street), boxW - 4), x + 2.5, ly);
+    ly += lineH * 0.85;
+    if (rightMa) {
+      const [r, g, b] = hexToRgb(rightMa.color);
+      pdf.setFillColor(r, g, b);
+      pdf.rect(x + 2.5, ly - 2, 3, 2.2, 'F');
+      pdf.text(truncate(pdf, `Dir.: ${rightMa.name}`, boxW - 8), x + 7, ly);
+      ly += lineH * 0.85;
+    }
+    if (leftMa) {
+      const [r, g, b] = hexToRgb(leftMa.color);
+      pdf.setFillColor(r, g, b);
+      pdf.rect(x + 2.5, ly - 2, 3, 2.2, 'F');
+      pdf.text(truncate(pdf, `Esq.: ${leftMa.name}`, boxW - 8), x + 7, ly);
+      ly += lineH * 0.85;
+    }
+    ly += lineH * 0.3;
+  }
+  if (streets.length > maxItems) {
+    pdf.setTextColor(100);
+    pdf.setFontSize(5);
+    pdf.text(`+ ${streets.length - maxItems} rua(s)`, x + 2.5, y + boxH - 1.5);
+  }
+}
+
 function drawHomologationStamp(
   pdf: jsPDF,
   x: number,
@@ -264,7 +323,10 @@ function drawSignatureRow(
 function buildMicroareaRows(microareas: Microarea[], streets: Street[]): MicroareaRow[] {
   return microareas
     .map((microarea) => {
-      const maStreets = streets.filter((s) => s.microareaId === microarea.id);
+      const maStreets = streets.filter((s) => {
+        if (s.microareaId === microarea.id) return true;
+        return s.paintSegments?.some((seg) => seg.microareaId === microarea.id);
+      });
       return {
         microarea,
         streetCount: maStreets.length,
@@ -274,6 +336,10 @@ function buildMicroareaRows(microareas: Microarea[], streets: Street[]): Microar
     })
     .filter((row) => row.streetCount > 0)
     .sort((a, b) => a.microarea.number - b.microarea.number);
+}
+
+function splitStreets(streets: Street[]): Street[] {
+  return streets.filter((s) => getStreetSideAssignment(s).mode === 'SPLIT');
 }
 
 function truncate(pdf: jsPDF, text: string, maxW: number): string {
@@ -401,9 +467,12 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   const footerH = (isA3 ? 16 : 14) + signatureH;
 
   const rows = buildMicroareaRows(microareas, streets);
+  const dividedStreets = splitStreets(streets);
   const totalFamilies = streets.reduce((sum, s) => sum + (s.familyCount ?? 0), 0);
   const totalInhabitants = streets.reduce((sum, s) => sum + (s.inhabitantCount ?? 0), 0);
-  const paintedStreets = streets.filter((s) => s.microareaId).length;
+  const paintedStreets = streets.filter(
+    (s) => s.microareaId || (s.paintSegments?.length ?? 0) > 0,
+  ).length;
   const coveragePct =
     streets.length > 0 ? Math.round((paintedStreets / streets.length) * 100) : 0;
 
@@ -488,6 +557,9 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   drawScaleBar(pdf, mapX + 5, mapY + mapH - (isA3 ? 16 : 13), isA3 ? 36 : 30);
   if (rows.length > 0) {
     drawMapInsetLegend(pdf, mapX + 5, mapY + 5, rows, isA3);
+  }
+  if (dividedStreets.length > 0) {
+    drawSplitStreetsLegend(pdf, mapX + 5, mapY + (rows.length > 0 ? 52 : 5), dividedStreets, microareas, isA3);
   }
   if (homologation) {
     drawHomologationStamp(
@@ -597,7 +669,10 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
     annexY += 8;
 
     for (const { microarea, streetCount } of rows) {
-      const maStreets = streets.filter((s) => s.microareaId === microarea.id);
+      const maStreets = streets.filter((s) => {
+        if (s.microareaId === microarea.id) return true;
+        return s.paintSegments?.some((seg) => seg.microareaId === microarea.id);
+      });
       const blockH = 8 + Math.min(maStreets.length, 12) * lineH;
       if (annexY + blockH > maxY) {
         pdf.addPage();
@@ -635,7 +710,12 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
         if (y > maxY - 4) return;
         const families = street.familyCount ?? 0;
         const suffix = families > 0 ? ` (${families} fam.)` : '';
-        pdf.text(`• ${formatStreetLabel(street)}${suffix}`, x, y);
+        const assignment = getStreetSideAssignment(street);
+        const sideSuffix =
+          assignment.mode === 'SPLIT'
+            ? ` [${sideLabel('RIGHT')}: ${microareas.find((m) => m.id === assignment.rightMicroareaId)?.name ?? '?'} / ${sideLabel('LEFT')}: ${microareas.find((m) => m.id === assignment.leftMicroareaId)?.name ?? '?'}]`
+            : '';
+        pdf.text(`• ${formatStreetLabel(street)}${suffix}${sideSuffix}`, x, y);
       });
 
       const listed = Math.min(maStreets.length, 24);

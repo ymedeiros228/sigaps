@@ -1,16 +1,26 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { Microarea } from '../services/api';
+import type { Microarea, Street } from '../services/api';
 import { queryKeys } from './queryKeys';
 
 type StreetsMapData = {
-  items: Array<{
-    id: string;
-    microareaId?: string | null;
-    microarea?: { id: string; name: string; number: number; color: string };
-    [key: string]: unknown;
-  }>;
+  items: Street[];
   total?: number;
 };
+
+export function patchStreetInMapCache(
+  queryClient: QueryClient,
+  municipalityId: string,
+  street: Street,
+) {
+  const key = queryKeys.streetsMap(municipalityId);
+  queryClient.setQueryData<StreetsMapData>(key, (old) => {
+    if (!old?.items) return old;
+    return {
+      ...old,
+      items: old.items.map((s) => (s.id === street.id ? { ...s, ...street } : s)),
+    };
+  });
+}
 
 export function patchStreetsMicroarea(
   queryClient: QueryClient,
@@ -26,7 +36,7 @@ export function patchStreetsMicroarea(
       items: old.items.map((s) => {
         if (!streetIds.includes(s.id)) return s;
         if (!microarea) {
-          return { ...s, microareaId: null, microarea: undefined };
+          return { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] };
         }
         return {
           ...s,
@@ -37,6 +47,7 @@ export function patchStreetsMicroarea(
             number: microarea.number,
             color: microarea.color,
           },
+          paintSegments: [],
         };
       }),
     };
@@ -53,11 +64,17 @@ export function clearMicroareaStreets(
     if (!old?.items) return old;
     return {
       ...old,
-      items: old.items.map((s) =>
-        s.microareaId === microareaId
-          ? { ...s, microareaId: null, microarea: undefined }
-          : s,
-      ),
+      items: old.items.map((s) => {
+        const segments = (s.paintSegments ?? []).filter((seg) => seg.microareaId !== microareaId);
+        const clearedWhole = s.microareaId === microareaId;
+        if (!clearedWhole && segments.length === (s.paintSegments?.length ?? 0)) return s;
+        return {
+          ...s,
+          microareaId: clearedWhole ? undefined : s.microareaId,
+          microarea: clearedWhole ? undefined : s.microarea,
+          paintSegments: segments,
+        };
+      }),
     };
   });
 }
@@ -72,7 +89,9 @@ export function clearAllStreetsMicroarea(
     return {
       ...old,
       items: old.items.map((s) =>
-        s.microareaId ? { ...s, microareaId: null, microarea: undefined } : s,
+        s.microareaId || s.paintSegments?.length
+          ? { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] }
+          : s,
       ),
     };
   });

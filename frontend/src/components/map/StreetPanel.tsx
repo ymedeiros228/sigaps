@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Paper,
@@ -17,14 +17,26 @@ import {
   Select,
   MenuItem,
   TextField,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SignpostIcon from '@mui/icons-material/Signpost';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import AutoFixOffIcon from '@mui/icons-material/AutoFixOff';
 import SaveIcon from '@mui/icons-material/Save';
+import LinearScaleIcon from '@mui/icons-material/LinearScale';
+import CallSplitIcon from '@mui/icons-material/CallSplit';
 import { useQuery } from '@tanstack/react-query';
 import { streetsApi, type Microarea, type Neighborhood, type Street } from '../../services/api';
+import {
+  getStreetSideAssignment,
+  isDualSideStreet,
+  sideLabel,
+} from '../../utils/streetPaintSegments';
+
+type AssignmentMode = 'FULL' | 'SPLIT';
 
 interface StreetPanelProps {
   street: Street;
@@ -32,6 +44,14 @@ interface StreetPanelProps {
   neighborhoods: Neighborhood[];
   onClose: () => void;
   onAssign: (microareaId: string) => void;
+  onAssignSides: (data: {
+    mode: AssignmentMode;
+    microareaId?: string;
+    leftMicroareaId?: string;
+    rightMicroareaId?: string;
+    leftSideNotes?: string;
+    rightSideNotes?: string;
+  }) => void;
   onAssignNeighborhood: (neighborhoodId: string | null) => void;
   onUnassign: () => void;
   onUpdateDemographics: (data: {
@@ -40,9 +60,89 @@ interface StreetPanelProps {
     propertyCount: number;
   }) => void;
   assigning: boolean;
+  assigningSides: boolean;
   assigningNeighborhood: boolean;
   unassigning: boolean;
   savingDemographics: boolean;
+}
+
+function SidePanel({
+  title,
+  microareaId,
+  notes,
+  microareas,
+  onMicroareaChange,
+  onNotesChange,
+  disabled,
+}: {
+  title: string;
+  microareaId: string;
+  notes: string;
+  microareas: Microarea[];
+  onMicroareaChange: (id: string) => void;
+  onNotesChange: (notes: string) => void;
+  disabled: boolean;
+}) {
+  const selected = microareas.find((m) => m.id === microareaId);
+  return (
+    <Box
+      sx={{
+        p: 1.5,
+        borderRadius: 2,
+        border: '2px solid',
+        borderColor: selected?.color ?? 'divider',
+        bgcolor: selected ? alpha(selected.color, 0.06) : 'transparent',
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+        {title}
+      </Typography>
+      <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+        <InputLabel>Microárea</InputLabel>
+        <Select
+          label="Microárea"
+          value={microareaId}
+          disabled={disabled}
+          onChange={(e) => onMicroareaChange(String(e.target.value))}
+        >
+          <MenuItem value="">
+            <em>Nenhuma</em>
+          </MenuItem>
+          {microareas.map((m) => (
+            <MenuItem key={m.id} value={m.id}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: m.color }} />
+                {m.name}
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      {selected && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
+          <Chip
+            size="small"
+            label={selected.name}
+            sx={{ bgcolor: selected.color, color: '#fff', fontWeight: 600 }}
+          />
+          {selected.acs?.name && (
+            <Chip size="small" variant="outlined" label={`ACS: ${selected.acs.name}`} />
+          )}
+        </Box>
+      )}
+      <TextField
+        fullWidth
+        size="small"
+        label="Observações"
+        multiline
+        minRows={2}
+        value={notes}
+        disabled={disabled}
+        onChange={(e) => onNotesChange(e.target.value)}
+        placeholder="Ex.: limite com a Microárea 02"
+      />
+    </Box>
+  );
 }
 
 export function StreetPanel({
@@ -51,17 +151,25 @@ export function StreetPanel({
   neighborhoods,
   onClose,
   onAssign,
+  onAssignSides,
   onAssignNeighborhood,
   onUnassign,
   onUpdateDemographics,
   assigning,
+  assigningSides,
   assigningNeighborhood,
   unassigning,
   savingDemographics,
 }: StreetPanelProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const accent = street.microarea?.color ?? theme.palette.primary.main;
+  const dualSide = isDualSideStreet(street);
+  const sideAssignment = useMemo(() => getStreetSideAssignment(street), [street]);
+
+  const accent =
+    street.paintSegments?.[0]?.microarea?.color ??
+    street.microarea?.color ??
+    theme.palette.primary.main;
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.92)
     : alpha('#fff', 0.95);
@@ -70,25 +178,79 @@ export function StreetPanel({
   const [inhabitantCount, setInhabitantCount] = useState(String(street.inhabitantCount ?? 0));
   const [propertyCount, setPropertyCount] = useState(String(street.propertyCount ?? 0));
 
+  const [assignMode, setAssignMode] = useState<AssignmentMode>(
+    sideAssignment.mode === 'SPLIT' ? 'SPLIT' : 'FULL',
+  );
+  const [fullMicroareaId, setFullMicroareaId] = useState(
+    sideAssignment.fullMicroareaId ?? street.microareaId ?? '',
+  );
+  const [leftMicroareaId, setLeftMicroareaId] = useState(sideAssignment.leftMicroareaId ?? '');
+  const [rightMicroareaId, setRightMicroareaId] = useState(sideAssignment.rightMicroareaId ?? '');
+  const [leftNotes, setLeftNotes] = useState(street.leftSideNotes ?? '');
+  const [rightNotes, setRightNotes] = useState(street.rightSideNotes ?? '');
+
   useEffect(() => {
     setFamilyCount(String(street.familyCount ?? 0));
     setInhabitantCount(String(street.inhabitantCount ?? 0));
     setPropertyCount(String(street.propertyCount ?? 0));
-  }, [street.id, street.familyCount, street.inhabitantCount, street.propertyCount]);
+    const sa = getStreetSideAssignment(street);
+    setAssignMode(sa.mode === 'SPLIT' ? 'SPLIT' : 'FULL');
+    setFullMicroareaId(sa.fullMicroareaId ?? street.microareaId ?? '');
+    setLeftMicroareaId(sa.leftMicroareaId ?? '');
+    setRightMicroareaId(sa.rightMicroareaId ?? '');
+    setLeftNotes(street.leftSideNotes ?? '');
+    setRightNotes(street.rightSideNotes ?? '');
+  }, [street.id, street.familyCount, street.inhabitantCount, street.propertyCount, street.microareaId, street.paintSegments, street.leftSideNotes, street.rightSideNotes]);
 
   const demographicsDirty =
     parseInt(familyCount, 10) !== (street.familyCount ?? 0) ||
     parseInt(inhabitantCount, 10) !== (street.inhabitantCount ?? 0) ||
     parseInt(propertyCount, 10) !== (street.propertyCount ?? 0);
 
+  const hasSegments = (street.paintSegments?.length ?? 0) > 0;
+  const hasPartialSegments =
+    hasSegments &&
+    street.paintSegments!.some(
+      (seg) =>
+        seg.side === 'FULL' ||
+        (seg.startIndex > 0 ||
+          seg.endIndex < (street.geojson?.coordinates?.length ?? 1) - 1),
+    ) &&
+    sideAssignment.mode === 'NONE';
+
+  const sidesDirty =
+    dualSide &&
+    (assignMode !== (sideAssignment.mode === 'SPLIT' ? 'SPLIT' : 'FULL') ||
+      (assignMode === 'FULL' && fullMicroareaId !== (sideAssignment.fullMicroareaId ?? '')) ||
+      (assignMode === 'SPLIT' &&
+        (leftMicroareaId !== (sideAssignment.leftMicroareaId ?? '') ||
+          rightMicroareaId !== (sideAssignment.rightMicroareaId ?? '') ||
+          leftNotes !== (street.leftSideNotes ?? '') ||
+          rightNotes !== (street.rightSideNotes ?? ''))));
+
   const { data: suggestions = [] } = useQuery({
     queryKey: ['suggest-microarea', street.id],
     queryFn: () => streetsApi.suggest(street.id).then((r) => r.data as Array<{ id: string; name: string; color: string }>),
-    enabled: !street.microareaId,
+    enabled: !street.microareaId && !hasSegments,
     staleTime: 60_000,
   });
 
   const topSuggestion = suggestions[0];
+
+  const handleSaveSides = () => {
+    if (assignMode === 'FULL') {
+      if (!fullMicroareaId) return;
+      onAssignSides({ mode: 'FULL', microareaId: fullMicroareaId });
+      return;
+    }
+    onAssignSides({
+      mode: 'SPLIT',
+      leftMicroareaId: leftMicroareaId || undefined,
+      rightMicroareaId: rightMicroareaId || undefined,
+      leftSideNotes: leftNotes || undefined,
+      rightSideNotes: rightNotes || undefined,
+    });
+  };
 
   return (
     <Paper
@@ -100,7 +262,7 @@ export function StreetPanel({
         right: { xs: 8, sm: 16 },
         left: { xs: 8, sm: 'auto' },
         zIndex: 1000,
-        width: { xs: 'auto', sm: 340 },
+        width: { xs: 'auto', sm: 360 },
         maxHeight: { xs: 'calc(100vh - 200px)', sm: 'calc(100vh - 140px)' },
         overflow: 'auto',
         bgcolor: glassBg,
@@ -142,7 +304,9 @@ export function StreetPanel({
 
         <Alert severity="info" icon={<LightbulbOutlinedIcon fontSize="small" />} sx={{ mt: 1.5, py: 0.5, borderRadius: 2 }}>
           <Typography variant="caption" component="div">
-            {isMobile ? (
+            {dualSide ? (
+              <>Avenidas e ruas principais podem ser divididas por lado — cada lado para um ACS diferente.</>
+            ) : isMobile ? (
               <>Toque em uma rua para ver detalhes e vincular à microárea.</>
             ) : (
               <>
@@ -217,34 +381,207 @@ export function StreetPanel({
         </Box>
 
         <InfoRow label="Bairro" value={street.neighborhood?.name ?? '—'} />
-        <InfoRow
-          label="Microárea"
-          value={
-            street.microarea ? (
-              <Chip
-                size="small"
-                label={street.microarea.name}
-                sx={{ bgcolor: street.microarea.color, color: '#fff', fontWeight: 600 }}
-              />
-            ) : (
-              <Typography variant="body2" color="text.secondary">Não vinculada</Typography>
-            )
-          }
-        />
-        <InfoRow
-          label="Atualização"
-          value={new Date(street.updatedAt).toLocaleDateString('pt-BR')}
-        />
-
-        {street.notes && (
-          <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: alpha(theme.palette.action.hover, 0.5) }}>
-            <Typography variant="body2" color="text.secondary">{street.notes}</Typography>
-          </Box>
-        )}
 
         <Divider sx={{ my: 2 }} />
 
-        {street.microareaId && (
+        {dualSide ? (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <CallSplitIcon fontSize="small" />
+              Modo de atribuição
+            </Typography>
+            <RadioGroup
+              value={assignMode}
+              onChange={(e) => setAssignMode(e.target.value as AssignmentMode)}
+            >
+              <FormControlLabel value="FULL" control={<Radio size="small" />} label="Rua inteira" />
+              <FormControlLabel value="SPLIT" control={<Radio size="small" />} label="Dividir por lados" />
+            </RadioGroup>
+
+            {assignMode === 'FULL' ? (
+              <Box sx={{ mt: 1.5 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Microárea</InputLabel>
+                  <Select
+                    label="Microárea"
+                    value={fullMicroareaId}
+                    disabled={assigningSides}
+                    onChange={(e) => setFullMicroareaId(String(e.target.value))}
+                  >
+                    {microareas.map((m) => (
+                      <MenuItem key={m.id} value={m.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: m.color }} />
+                          {m.name}
+                          {m.acs?.name ? ` · ${m.acs.name}` : ''}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {fullMicroareaId && (
+                  <Box sx={{ mt: 1 }}>
+                    {(() => {
+                      const m = microareas.find((x) => x.id === fullMicroareaId);
+                      if (!m) return null;
+                      return (
+                        <Chip
+                          size="small"
+                          label={`${m.name}${m.acs?.name ? ` · ACS ${m.acs.name}` : ''}`}
+                          sx={{ bgcolor: m.color, color: '#fff', fontWeight: 600 }}
+                        />
+                      );
+                    })()}
+                  </Box>
+                )}
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1.5 }}>
+                <SidePanel
+                  title="Lado direito"
+                  microareaId={rightMicroareaId}
+                  notes={rightNotes}
+                  microareas={microareas}
+                  disabled={assigningSides}
+                  onMicroareaChange={setRightMicroareaId}
+                  onNotesChange={setRightNotes}
+                />
+                <SidePanel
+                  title="Lado esquerdo"
+                  microareaId={leftMicroareaId}
+                  notes={leftNotes}
+                  microareas={microareas}
+                  disabled={assigningSides}
+                  onMicroareaChange={setLeftMicroareaId}
+                  onNotesChange={setLeftNotes}
+                />
+              </Box>
+            )}
+
+            {(sidesDirty || (assignMode === 'FULL' && fullMicroareaId && !street.microareaId)) && (
+              <Button
+                fullWidth
+                variant="contained"
+                size="small"
+                sx={{ mt: 1.5, fontWeight: 700 }}
+                disabled={assigningSides || (assignMode === 'FULL' ? !fullMicroareaId : !leftMicroareaId && !rightMicroareaId)}
+                startIcon={assigningSides ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
+                onClick={handleSaveSides}
+              >
+                {assigningSides ? 'Salvando…' : 'Salvar atribuição'}
+              </Button>
+            )}
+          </Box>
+        ) : (
+          <>
+            <InfoRow
+              label="Microárea"
+              value={
+                hasPartialSegments ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Vários trechos (modo pintura)
+                  </Typography>
+                ) : street.microarea ? (
+                  <Chip
+                    size="small"
+                    label={street.microarea.name}
+                    sx={{ bgcolor: street.microarea.color, color: '#fff', fontWeight: 600 }}
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">Não vinculada</Typography>
+                )
+              }
+            />
+
+            {!street.microareaId && !hasSegments && topSuggestion && (
+              <Box sx={{ mb: 2, mt: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  Sugestão automática
+                </Typography>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  disabled={assigning}
+                  onClick={() => onAssign(topSuggestion.id)}
+                  sx={{ borderColor: topSuggestion.color, justifyContent: 'flex-start', gap: 1 }}
+                >
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: topSuggestion.color }} />
+                  Vincular à {topSuggestion.name}
+                </Button>
+              </Box>
+            )}
+
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, mt: 1 }}>
+              Vincular à microárea
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              {microareas.map((m) => {
+                const selected = street.microareaId === m.id;
+                return (
+                  <Button
+                    key={m.id}
+                    variant={selected ? 'contained' : 'outlined'}
+                    size="small"
+                    disabled={assigning}
+                    onClick={() => onAssign(m.id)}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      gap: 1,
+                      borderColor: m.color,
+                      ...(selected && { bgcolor: m.color, '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' } }),
+                    }}
+                  >
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: selected ? '#fff' : m.color }} />
+                    {assigning ? <CircularProgress size={14} sx={{ mr: 0.5 }} /> : null}
+                    {m.name}
+                  </Button>
+                );
+              })}
+            </Box>
+          </>
+        )}
+
+        {hasSegments && sideAssignment.mode === 'NONE' && (
+          <Box sx={{ mt: 1.5, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <LinearScaleIcon fontSize="small" />
+              Trechos pintados
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              {street.paintSegments!.map((seg) => (
+                <Box
+                  key={seg.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    p: 1,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      bgcolor: seg.microarea?.color ?? '#888',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+                    {seg.microarea?.name ?? 'Microárea'}
+                    {seg.side && seg.side !== 'FULL' ? ` · ${sideLabel(seg.side)}` : ''}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        {(street.microareaId || hasSegments) && (
           <Button
             fullWidth
             variant="outlined"
@@ -253,35 +590,16 @@ export function StreetPanel({
             disabled={unassigning}
             startIcon={<AutoFixOffIcon />}
             onClick={onUnassign}
-            sx={{ mb: 2, fontWeight: 700, borderWidth: 2 }}
+            sx={{ mt: 2, fontWeight: 700, borderWidth: 2 }}
           >
-            {unassigning ? 'Removendo…' : 'Remover pintura desta rua'}
+            {unassigning ? 'Removendo…' : 'Remover toda a pintura desta rua'}
           </Button>
-        )}
-
-        {!street.microareaId && topSuggestion && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-              Sugestão automática
-            </Typography>
-            <Button
-              fullWidth
-              variant="outlined"
-              size="small"
-              disabled={assigning}
-              onClick={() => onAssign(topSuggestion.id)}
-              sx={{ borderColor: topSuggestion.color, justifyContent: 'flex-start', gap: 1 }}
-            >
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: topSuggestion.color }} />
-              Vincular à {topSuggestion.name}
-            </Button>
-          </Box>
         )}
 
         <Divider sx={{ my: 2 }} />
 
         {neighborhoods.length > 0 && (
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
               Bairro
             </Typography>
@@ -308,34 +626,6 @@ export function StreetPanel({
             </FormControl>
           </Box>
         )}
-
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-          Vincular à microárea
-        </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-          {microareas.map((m) => {
-            const selected = street.microareaId === m.id;
-            return (
-              <Button
-                key={m.id}
-                variant={selected ? 'contained' : 'outlined'}
-                size="small"
-                disabled={assigning}
-                onClick={() => onAssign(m.id)}
-                sx={{
-                  justifyContent: 'flex-start',
-                  gap: 1,
-                  borderColor: m.color,
-                  ...(selected && { bgcolor: m.color, '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' } }),
-                }}
-              >
-                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: selected ? '#fff' : m.color }} />
-                {assigning ? <CircularProgress size={14} sx={{ mr: 0.5 }} /> : null}
-                {m.name}
-              </Button>
-            );
-          })}
-        </Box>
       </Box>
     </Paper>
   );

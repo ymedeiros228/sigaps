@@ -153,6 +153,7 @@ model Microarea {
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
   streets Street[]
+  paintSegments StreetPaintSegment[]
   paintZones MicroareaPaintZone[]
   places Place[]
 
@@ -217,7 +218,10 @@ model Street {
   familyCount    Int      @default(0) @map("family_count")
   inhabitantCount Int     @default(0) @map("inhabitant_count")
   notes          String?
+  leftSideNotes  String?  @map("left_side_notes")
+  rightSideNotes String?  @map("right_side_notes")
   geojson        Json
+  paintSegments  StreetPaintSegment[]
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -227,6 +231,32 @@ model Street {
   @@index([municipalityId, microareaId])
   @@index([name])
   @@map("streets")
+}
+
+enum StreetPaintSide {
+  FULL
+  LEFT
+  RIGHT
+}
+
+model StreetPaintSegment {
+  id           String          @id @default(uuid())
+  streetId     String          @map("street_id")
+  street       Street          @relation(fields: [streetId], references: [id], onDelete: Cascade)
+  microareaId  String          @map("microarea_id")
+  microarea    Microarea       @relation(fields: [microareaId], references: [id], onDelete: Cascade)
+  startIndex   Int             @map("start_index")
+  endIndex     Int             @map("end_index")
+  side         StreetPaintSide @default(FULL)
+  geojson      Json
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  @@index([streetId])
+  @@index([microareaId])
+  @@index([streetId, startIndex])
+  @@index([streetId, side, startIndex])
+  @@map("street_paint_segments")
 }
 
 model AuditLog {

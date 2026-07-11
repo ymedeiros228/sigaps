@@ -1,13 +1,37 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
+import {
+  applyPaintOnSide,
+  applyFullSidePaint,
+  closestVertexIndex,
+  expandFullSegmentsForDualSide,
+  isDualSideStreet,
+  mergeAdjacentSegments,
+  normalizePaintSide,
+  sliceStreetGeojson,
+  streetCoords,
+  syncStreetMicroareaId,
+  type SegmentRange,
+  StreetPaintSide,
+} from '../../common/utils/street-paint-segment.util';
 import { applyAcsMicroareaScope, type AuthViewer } from '../../common/utils/acs-scope.util';
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { withDbRetry } from '../../common/utils/prisma-retry.util';
+import { AssignStreetSidesDto } from './dto/assign-street-sides.dto';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
 import { UpdateStreetDemographicsDto } from './dto/update-street-demographics.dto';
+
+const segmentMicroareaSelect = { id: true, name: true, number: true, color: true } as const;
+
+const mapPaintSegmentInclude = {
+  paintSegments: {
+    orderBy: { startIndex: 'asc' as const },
+    include: { microarea: { select: segmentMicroareaSelect } },
+  },
+};
 
 @Injectable()
 export class StreetsService {
@@ -71,7 +95,14 @@ export class StreetsService {
     const where = {
       municipalityId,
       ...(mapOnly ? { osmId: { not: null } } : {}),
-      ...(scopedMicroareaId ? { microareaId: scopedMicroareaId } : {}),
+      ...(scopedMicroareaId
+        ? {
+            OR: [
+              { microareaId: scopedMicroareaId },
+              { paintSegments: { some: { microareaId: scopedMicroareaId } } },
+            ],
+          }
+        : {}),
       ...(options.neighborhoodId ? { neighborhoodId: options.neighborhoodId } : {}),
       ...(options.search
         ? { name: { contains: options.search, mode: 'insensitive' as const } }
@@ -98,6 +129,18 @@ export class StreetsService {
                 propertyCount: true,
                 microarea: { select: { id: true, name: true, number: true, color: true } },
                 neighborhood: { select: { id: true, name: true } },
+                paintSegments: {
+                  orderBy: { startIndex: 'asc' },
+                  select: {
+                    id: true,
+                    startIndex: true,
+                    endIndex: true,
+                    side: true,
+                    microareaId: true,
+                    geojson: true,
+                    microarea: { select: { id: true, name: true, number: true, color: true } },
+                  },
+                },
               },
               orderBy: { name: 'asc' },
             })
@@ -108,6 +151,7 @@ export class StreetsService {
               include: {
                 microarea: { select: { id: true, name: true, number: true, color: true } },
                 neighborhood: { select: { id: true, name: true } },
+                ...mapPaintSegmentInclude,
               },
               orderBy: { name: 'asc' },
             }),
@@ -116,19 +160,7 @@ export class StreetsService {
     );
 
     return {
-      items: items.map((s) => ({
-        ...s,
-        geojson: compactLineStringGeojson(s.geojson, geoPrecision),
-        ...(mapOnly
-          ? {
-              osmId: (s as { osmId?: bigint | null }).osmId?.toString() ?? null,
-              propertyCount: (s as { propertyCount?: number }).propertyCount ?? 0,
-              familyCount: (s as { familyCount?: number }).familyCount ?? 0,
-              inhabitantCount: (s as { inhabitantCount?: number }).inhabitantCount ?? 0,
-              updatedAt: new Date(0).toISOString(),
-            }
-          : { osmId: (s as { osmId?: bigint | null }).osmId?.toString() ?? null }),
-      })),
+      items: items.map((s) => this.serializeStreetForApi(s, geoPrecision, mapOnly)),
       total,
       page,
       limit,
@@ -144,10 +176,11 @@ export class StreetsService {
           include: { acs: { select: { id: true, name: true, phone: true } } },
         },
         neighborhood: true,
+        ...mapPaintSegmentInclude,
       },
     });
     if (!street) throw new NotFoundException('Rua não encontrada');
-    return { ...street, osmId: street.osmId?.toString() ?? null };
+    return this.serializeStreetForApi(street, undefined, false);
   }
 
   async assignToMicroarea(
@@ -162,16 +195,20 @@ export class StreetsService {
 
     const streets = await this.prisma.street.findMany({
       where: { id: { in: dto.streetIds } },
-      include: { microarea: true },
+      include: {
+        microarea: true,
+        paintSegments: { select: { microareaId: true } },
+      },
     });
 
     if (streets.length !== dto.streetIds.length) {
       throw new NotFoundException('Uma ou mais ruas não foram encontradas');
     }
 
-    const conflicts = streets.filter(
-      (s) => s.microareaId && s.microareaId !== dto.microareaId,
-    );
+    const conflicts = streets.filter((s) => {
+      if (s.microareaId && s.microareaId !== dto.microareaId) return true;
+      return s.paintSegments.some((seg) => seg.microareaId !== dto.microareaId);
+    });
 
     if (conflicts.length && !forceTransfer) {
       const first = conflicts[0];
@@ -198,6 +235,19 @@ export class StreetsService {
       where: { id: { in: dto.streetIds } },
       data: { microareaId: dto.microareaId },
     });
+
+    for (const street of streets) {
+      const coords = streetCoords(street.geojson);
+      if (coords.length < 2) continue;
+      const maxIndex = coords.length - 1;
+      const ranges: SegmentRange[] = isDualSideStreet(street)
+        ? [
+            { startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.LEFT },
+            { startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.RIGHT },
+          ]
+        : [{ startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.FULL }];
+      await this.replaceStreetSegments(street.id, ranges, coords);
+    }
 
     await this.prisma.auditLog.createMany({
       data: streets.map((street) => ({
@@ -392,7 +442,10 @@ export class StreetsService {
 
   async unassignFromMicroarea(dto: UnassignStreetsDto, userId: string) {
     const streets = await this.prisma.street.findMany({
-      where: { id: { in: dto.streetIds }, microareaId: { not: null } },
+      where: {
+        id: { in: dto.streetIds },
+        OR: [{ microareaId: { not: null } }, { paintSegments: { some: {} } }],
+      },
       select: { id: true, microareaId: true, municipalityId: true },
     });
 
@@ -400,9 +453,19 @@ export class StreetsService {
       return { cleared: 0 };
     }
 
-    const affectedMicroareas = new Set(
-      streets.map((s) => s.microareaId).filter((id): id is string => !!id),
-    );
+    const affectedMicroareas = new Set<string>();
+    for (const street of streets) {
+      if (street.microareaId) affectedMicroareas.add(street.microareaId);
+      const segs = await this.prisma.streetPaintSegment.findMany({
+        where: { streetId: street.id },
+        select: { microareaId: true },
+      });
+      for (const seg of segs) affectedMicroareas.add(seg.microareaId);
+    }
+
+    await this.prisma.streetPaintSegment.deleteMany({
+      where: { streetId: { in: streets.map((s) => s.id) } },
+    });
 
     await this.prisma.street.updateMany({
       where: { id: { in: streets.map((s) => s.id) } },
@@ -437,18 +500,37 @@ export class StreetsService {
     if (!microarea) throw new NotFoundException('Microárea não encontrada');
 
     const painted = await this.prisma.street.findMany({
-      where: { microareaId },
+      where: {
+        OR: [{ microareaId }, { paintSegments: { some: { microareaId } } }],
+      },
       select: { id: true, microareaId: true },
     });
 
-    if (painted.length === 0) {
+    const segmentOnly = await this.prisma.streetPaintSegment.findMany({
+      where: { microareaId },
+      select: { streetId: true },
+    });
+
+    if (painted.length === 0 && segmentOnly.length === 0) {
       return { cleared: 0, microareaId, microareaName: microarea.name };
     }
 
+    const streetIds = [
+      ...new Set([...painted.map((s) => s.id), ...segmentOnly.map((s) => s.streetId)]),
+    ];
+    await this.prisma.streetPaintSegment.deleteMany({ where: { microareaId } });
     await this.prisma.street.updateMany({
       where: { microareaId },
       data: { microareaId: null },
     });
+
+    for (const streetId of streetIds) {
+      const street = await this.prisma.street.findUnique({
+        where: { id: streetId },
+        select: { geojson: true },
+      });
+      if (street) await this.syncStreetMicroareaFromSegments(streetId, street.geojson);
+    }
 
     await this.prisma.auditLog.create({
       data: {
@@ -468,7 +550,10 @@ export class StreetsService {
 
   async clearAllAssignments(municipalityId: string, userId: string) {
     const painted = await this.prisma.street.findMany({
-      where: { municipalityId, microareaId: { not: null } },
+      where: {
+        municipalityId,
+        OR: [{ microareaId: { not: null } }, { paintSegments: { some: {} } }],
+      },
       select: { id: true, microareaId: true },
     });
 
@@ -476,9 +561,20 @@ export class StreetsService {
       return { cleared: 0 };
     }
 
+    const segmentMicroareas = await this.prisma.streetPaintSegment.findMany({
+      where: { street: { municipalityId } },
+      select: { microareaId: true },
+    });
     const affectedMicroareas = new Set(
-      painted.map((s) => s.microareaId).filter((id): id is string => !!id),
+      [
+        ...painted.map((s) => s.microareaId).filter((id): id is string => !!id),
+        ...segmentMicroareas.map((s) => s.microareaId),
+      ],
     );
+
+    await this.prisma.streetPaintSegment.deleteMany({
+      where: { street: { municipalityId } },
+    });
 
     await this.prisma.street.updateMany({
       where: { municipalityId, microareaId: { not: null } },
@@ -500,6 +596,107 @@ export class StreetsService {
     invalidateDashboardIndicators(municipalityId);
 
     return { cleared: painted.length };
+  }
+
+  async assignStreetSides(
+    streetId: string,
+    dto: AssignStreetSidesDto,
+    userId: string,
+  ) {
+    const street = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    if (!street) throw new NotFoundException('Rua não encontrada');
+
+    const coords = streetCoords(street.geojson);
+    const maxIndex = coords.length - 1;
+    if (maxIndex < 1) throw new BadRequestException('Geometria da rua inválida');
+
+    const dual = isDualSideStreet(street);
+    let ranges: SegmentRange[] = [];
+    const affectedMicroareas = new Set<string>();
+    if (street.microareaId) affectedMicroareas.add(street.microareaId);
+    for (const seg of street.paintSegments) affectedMicroareas.add(seg.microareaId);
+
+    const notesData: { leftSideNotes?: string | null; rightSideNotes?: string | null } = {};
+    if (dto.leftSideNotes !== undefined) notesData.leftSideNotes = dto.leftSideNotes || null;
+    if (dto.rightSideNotes !== undefined) notesData.rightSideNotes = dto.rightSideNotes || null;
+
+    if (dto.mode === 'FULL') {
+      if (!dto.microareaId) {
+        throw new BadRequestException('Selecione a microárea para a rua inteira');
+      }
+      const microarea = await this.prisma.microarea.findUnique({
+        where: { id: dto.microareaId },
+      });
+      if (!microarea) throw new NotFoundException('Microárea não encontrada');
+
+      affectedMicroareas.add(dto.microareaId);
+      ranges = dual
+        ? [
+            { startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.LEFT },
+            { startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.RIGHT },
+          ]
+        : [{ startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.FULL }];
+
+      await this.replaceStreetSegments(streetId, ranges, coords);
+      await this.prisma.street.update({
+        where: { id: streetId },
+        data: { microareaId: dto.microareaId, leftSideNotes: null, rightSideNotes: null, ...notesData },
+      });
+    } else {
+      if (!dto.leftMicroareaId && !dto.rightMicroareaId) {
+        throw new BadRequestException('Selecione ao menos uma microárea para os lados');
+      }
+
+      if (dto.leftMicroareaId) {
+        const ma = await this.prisma.microarea.findUnique({ where: { id: dto.leftMicroareaId } });
+        if (!ma) throw new NotFoundException('Microárea do lado esquerdo não encontrada');
+        affectedMicroareas.add(dto.leftMicroareaId);
+        ranges.push({
+          startIndex: 0,
+          endIndex: maxIndex,
+          microareaId: dto.leftMicroareaId,
+          side: StreetPaintSide.LEFT,
+        });
+      }
+      if (dto.rightMicroareaId) {
+        const ma = await this.prisma.microarea.findUnique({ where: { id: dto.rightMicroareaId } });
+        if (!ma) throw new NotFoundException('Microárea do lado direito não encontrada');
+        affectedMicroareas.add(dto.rightMicroareaId);
+        ranges.push({
+          startIndex: 0,
+          endIndex: maxIndex,
+          microareaId: dto.rightMicroareaId,
+          side: StreetPaintSide.RIGHT,
+        });
+      }
+
+      await this.replaceStreetSegments(streetId, ranges, coords);
+      const microareaIdSynced = syncStreetMicroareaId(ranges, maxIndex);
+      await this.prisma.street.update({
+        where: { id: streetId },
+        data: { microareaId: microareaIdSynced, ...notesData },
+      });
+    }
+
+    await this.audit.log({
+      userId,
+      entityType: 'street',
+      entityId: streetId,
+      action: 'ASSIGN_STREET_SIDES',
+      afterData: dto,
+    });
+
+    await this.updateAffectedEnvelopes(affectedMicroareas);
+    invalidateDashboardIndicators(street.municipalityId);
+
+    const updated = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    return this.serializeStreetForApi(updated!, undefined, false);
   }
 
   async updateDemographics(
@@ -709,7 +906,13 @@ export class StreetsService {
       intersects,
     ];
     if (options.microareaId) {
-      filters.push(`s.microarea_id = '${options.microareaId}'::uuid`);
+      filters.push(`(
+        s.microarea_id = '${options.microareaId}'::uuid
+        OR EXISTS (
+          SELECT 1 FROM street_paint_segments sps
+          WHERE sps.street_id = s.id AND sps.microarea_id = '${options.microareaId}'::uuid
+        )
+      )`);
     }
     if (options.neighborhoodId) {
       filters.push(`s.neighborhood_id = '${options.neighborhoodId}'::uuid`);
@@ -760,23 +963,51 @@ export class StreetsService {
     );
 
     const total = Number(countResult[0]?.count ?? 0);
-    const items = rows.map((s) => ({
-      id: s.id,
-      name: s.name,
-      streetType: s.street_type,
-      microareaId: s.microarea_id,
-      neighborhoodId: s.neighborhood_id,
-      osmId: s.osm_id?.toString() ?? null,
-      geojson: compactLineStringGeojson(s.geojson, geoPrecision),
-      familyCount: s.family_count ?? 0,
-      inhabitantCount: s.inhabitant_count ?? 0,
-      propertyCount: s.property_count ?? 0,
-      updatedAt: new Date(0).toISOString(),
-      microarea: s.ma_id
-        ? { id: s.ma_id, name: s.ma_name!, number: s.ma_number!, color: s.ma_color! }
-        : undefined,
-      neighborhood: s.n_id ? { id: s.n_id, name: s.n_name! } : undefined,
-    }));
+    const streetIds = rows.map((s) => s.id);
+    const segmentRows =
+      streetIds.length > 0
+        ? await this.prisma.streetPaintSegment.findMany({
+            where: { streetId: { in: streetIds } },
+            orderBy: { startIndex: 'asc' },
+            include: { microarea: { select: segmentMicroareaSelect } },
+          })
+        : [];
+    const segmentsByStreet = new Map<string, typeof segmentRows>();
+    for (const seg of segmentRows) {
+      const list = segmentsByStreet.get(seg.streetId) ?? [];
+      list.push(seg);
+      segmentsByStreet.set(seg.streetId, list);
+    }
+
+    const items = rows.map((s) => {
+      const paintSegments = (segmentsByStreet.get(s.id) ?? []).map((seg) => ({
+        id: seg.id,
+        startIndex: seg.startIndex,
+        endIndex: seg.endIndex,
+        side: seg.side,
+        microareaId: seg.microareaId,
+        geojson: compactLineStringGeojson(seg.geojson, geoPrecision),
+        microarea: seg.microarea,
+      }));
+      return {
+        id: s.id,
+        name: s.name,
+        streetType: s.street_type,
+        microareaId: s.microarea_id,
+        neighborhoodId: s.neighborhood_id,
+        osmId: s.osm_id?.toString() ?? null,
+        geojson: compactLineStringGeojson(s.geojson, geoPrecision),
+        familyCount: s.family_count ?? 0,
+        inhabitantCount: s.inhabitant_count ?? 0,
+        propertyCount: s.property_count ?? 0,
+        updatedAt: new Date(0).toISOString(),
+        microarea: s.ma_id
+          ? { id: s.ma_id, name: s.ma_name!, number: s.ma_number!, color: s.ma_color! }
+          : undefined,
+        neighborhood: s.n_id ? { id: s.n_id, name: s.n_name! } : undefined,
+        paintSegments,
+      };
+    });
 
     return {
       items,
@@ -785,6 +1016,282 @@ export class StreetsService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async paintAtPoint(
+    streetId: string,
+    microareaId: string,
+    latitude: number,
+    longitude: number,
+    userId: string,
+    requestedSide?: string,
+  ) {
+    const microarea = await this.prisma.microarea.findUnique({ where: { id: microareaId } });
+    if (!microarea) throw new NotFoundException('Microárea não encontrada');
+
+    const street = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    if (!street) throw new NotFoundException('Rua não encontrada');
+
+    await this.ensureLegacySegments(street);
+    const reloaded = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    if (!reloaded) throw new NotFoundException('Rua não encontrada');
+
+    const coords = streetCoords(reloaded.geojson);
+    const maxIndex = coords.length - 1;
+    if (maxIndex < 1) throw new BadRequestException('Geometria da rua inválida para pintura parcial');
+
+    const vertexIndex = closestVertexIndex(coords, latitude, longitude);
+    let ranges: SegmentRange[] = reloaded.paintSegments.map((s) => ({
+      startIndex: s.startIndex,
+      endIndex: s.endIndex,
+      microareaId: s.microareaId,
+      side: s.side,
+    }));
+
+    const paintMode = normalizePaintSide(reloaded, requestedSide);
+    if (isDualSideStreet(reloaded) && ranges.some((r) => r.side === StreetPaintSide.FULL)) {
+      ranges = expandFullSegmentsForDualSide(ranges);
+    }
+
+    const sidesToPaint: StreetPaintSide[] =
+      paintMode === 'BOTH'
+        ? [StreetPaintSide.LEFT, StreetPaintSide.RIGHT]
+        : paintMode === StreetPaintSide.FULL && isDualSideStreet(reloaded)
+          ? [StreetPaintSide.LEFT, StreetPaintSide.RIGHT]
+          : [paintMode as StreetPaintSide];
+
+    const useFullSidePaint =
+      isDualSideStreet(reloaded) ||
+      paintMode === StreetPaintSide.FULL ||
+      paintMode === 'BOTH';
+
+    for (const side of sidesToPaint) {
+      if (useFullSidePaint) {
+        ranges = applyFullSidePaint(ranges, microareaId, side, maxIndex);
+      } else {
+        ranges = applyPaintOnSide(ranges, vertexIndex, microareaId, side, maxIndex);
+      }
+    }
+    ranges = mergeAdjacentSegments(ranges);
+
+    await this.replaceStreetSegments(streetId, ranges, coords);
+    const microareaIdSynced = syncStreetMicroareaId(ranges, maxIndex);
+    await this.prisma.street.update({
+      where: { id: streetId },
+      data: { microareaId: microareaIdSynced },
+    });
+
+    await this.audit.log({
+      userId,
+      entityType: 'street',
+      entityId: streetId,
+      action: 'PAINT_SEGMENT',
+      afterData: { microareaId, vertexIndex, segmentCount: ranges.length },
+    });
+
+    await this.updateAffectedEnvelopes([microareaId, ...(reloaded.microareaId ? [reloaded.microareaId] : [])]);
+    invalidateDashboardIndicators(reloaded.municipalityId);
+
+    const updated = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    return this.serializeStreetForApi(updated!, undefined, false);
+  }
+
+  async unpaintAtPoint(
+    streetId: string,
+    latitude: number,
+    longitude: number,
+    userId: string,
+    filterMicroareaId?: string,
+    requestedSide?: string,
+  ) {
+    const street = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    if (!street) throw new NotFoundException('Rua não encontrada');
+
+    await this.ensureLegacySegments(street);
+    const reloaded = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    if (!reloaded) throw new NotFoundException('Rua não encontrada');
+
+    const coords = streetCoords(reloaded.geojson);
+    const maxIndex = coords.length - 1;
+    if (maxIndex < 1) return { cleared: false };
+
+    const vertexIndex = closestVertexIndex(coords, latitude, longitude);
+    let ranges: SegmentRange[] = reloaded.paintSegments.map((s) => ({
+      startIndex: s.startIndex,
+      endIndex: s.endIndex,
+      microareaId: s.microareaId,
+      side: s.side,
+    }));
+
+    const unpaintSide = normalizePaintSide(reloaded, requestedSide);
+    if (unpaintSide === 'BOTH') {
+      return { cleared: false };
+    }
+
+    if (isDualSideStreet(reloaded) && ranges.some((r) => r.side === StreetPaintSide.FULL)) {
+      ranges = expandFullSegmentsForDualSide(ranges);
+    }
+
+    const containing = ranges.find(
+      (s) =>
+        s.side === unpaintSide &&
+        s.startIndex <= vertexIndex &&
+        s.endIndex >= vertexIndex &&
+        (!filterMicroareaId || s.microareaId === filterMicroareaId),
+    );
+    if (!containing) return { cleared: false };
+
+    const affected = new Set<string>([containing.microareaId]);
+    ranges = ranges.filter((s) => s !== containing);
+
+    if (vertexIndex > containing.startIndex) {
+      ranges.push({
+        startIndex: containing.startIndex,
+        endIndex: vertexIndex,
+        microareaId: containing.microareaId,
+        side: containing.side,
+      });
+    }
+    if (vertexIndex < containing.endIndex) {
+      ranges.push({
+        startIndex: vertexIndex,
+        endIndex: containing.endIndex,
+        microareaId: containing.microareaId,
+        side: containing.side,
+      });
+    }
+
+    ranges = mergeAdjacentSegments(ranges);
+    await this.replaceStreetSegments(streetId, ranges, coords);
+    await this.syncStreetMicroareaFromSegments(streetId, reloaded.geojson);
+
+    await this.audit.log({
+      userId,
+      entityType: 'street',
+      entityId: streetId,
+      action: 'UNPAINT_SEGMENT',
+      beforeData: { microareaId: containing.microareaId },
+    });
+
+    await this.updateAffectedEnvelopes(affected);
+    invalidateDashboardIndicators(reloaded.municipalityId);
+
+    const updated = await this.prisma.street.findUnique({
+      where: { id: streetId },
+      include: mapPaintSegmentInclude,
+    });
+    return {
+      cleared: true,
+      street: this.serializeStreetForApi(updated!, undefined, false),
+    };
+  }
+
+  private serializeStreetForApi(
+    street: Record<string, unknown>,
+    geoPrecision?: number,
+    mapOnly = false,
+  ) {
+    const paintSegments = (street.paintSegments as Array<Record<string, unknown>> | undefined)?.map(
+      (seg) => ({
+        id: seg.id,
+        startIndex: seg.startIndex,
+        endIndex: seg.endIndex,
+        side: seg.side,
+        microareaId: seg.microareaId,
+        geojson: compactLineStringGeojson(seg.geojson, geoPrecision),
+        microarea: seg.microarea,
+      }),
+    );
+
+    return {
+      ...street,
+      geojson: compactLineStringGeojson(street.geojson, geoPrecision),
+      osmId: (street.osmId as bigint | null | undefined)?.toString?.() ?? street.osmId ?? null,
+      paintSegments,
+      ...(mapOnly
+        ? {
+            propertyCount: (street.propertyCount as number | undefined) ?? 0,
+            familyCount: (street.familyCount as number | undefined) ?? 0,
+            inhabitantCount: (street.inhabitantCount as number | undefined) ?? 0,
+            updatedAt: new Date(0).toISOString(),
+          }
+        : {}),
+    };
+  }
+
+  private async ensureLegacySegments(street: {
+    id: string;
+    microareaId: string | null;
+    geojson: unknown;
+    paintSegments: unknown[];
+  }) {
+    if (street.paintSegments.length > 0 || !street.microareaId) return;
+    const coords = streetCoords(street.geojson);
+    if (coords.length < 2) return;
+    await this.replaceStreetSegments(
+      street.id,
+      [{ startIndex: 0, endIndex: coords.length - 1, microareaId: street.microareaId, side: StreetPaintSide.FULL }],
+      coords,
+    );
+  }
+
+  private async replaceStreetSegments(
+    streetId: string,
+    ranges: SegmentRange[],
+    coords: ReturnType<typeof streetCoords>,
+  ) {
+    await this.prisma.streetPaintSegment.deleteMany({ where: { streetId } });
+    for (const range of ranges) {
+      const geojson = sliceStreetGeojson(coords, range.startIndex, range.endIndex);
+      if (!geojson) continue;
+      await this.prisma.streetPaintSegment.create({
+        data: {
+          streetId,
+          microareaId: range.microareaId,
+          startIndex: range.startIndex,
+          endIndex: range.endIndex,
+          side: range.side,
+          geojson,
+        },
+      });
+    }
+  }
+
+  private async syncStreetMicroareaFromSegments(streetId: string, geojson: unknown) {
+    const coords = streetCoords(geojson);
+    const maxIndex = coords.length - 1;
+    const segments = await this.prisma.streetPaintSegment.findMany({
+      where: { streetId },
+      select: { startIndex: true, endIndex: true, microareaId: true, side: true },
+    });
+    const microareaId = syncStreetMicroareaId(
+      segments.map((s) => ({
+        startIndex: s.startIndex,
+        endIndex: s.endIndex,
+        microareaId: s.microareaId,
+        side: s.side,
+      })),
+      maxIndex,
+    );
+    await this.prisma.street.update({
+      where: { id: streetId },
+      data: { microareaId },
+    });
   }
 
   private async updateAffectedEnvelopes(microareaIds: Iterable<string>) {

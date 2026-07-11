@@ -140,6 +140,24 @@ export interface CadastrosSummary {
   acsAtivos: number;
 }
 
+export type StreetPaintSide = 'FULL' | 'LEFT' | 'RIGHT';
+export type PaintStreetSide = 'FULL' | 'LEFT' | 'RIGHT';
+
+export interface StreetPaintSegment {
+  id: string;
+  startIndex: number;
+  endIndex: number;
+  side: StreetPaintSide;
+  microareaId: string;
+  geojson: GeoJSON.LineString;
+  microarea?: {
+    id: string;
+    name: string;
+    number: number;
+    color: string;
+  };
+}
+
 export interface Street {
   id: string;
   name: string;
@@ -153,11 +171,14 @@ export interface Street {
     number: number;
     color: string;
   };
+  paintSegments?: StreetPaintSegment[];
   lengthMeters?: number;
   propertyCount: number;
   familyCount: number;
   inhabitantCount: number;
   notes?: string;
+  leftSideNotes?: string;
+  rightSideNotes?: string;
   updatedAt: string;
   neighborhood?: { id: string; name: string };
 }
@@ -309,6 +330,17 @@ export const streetsApi = {
   get: (id: string) => api.get<Street>(`/streets/${id}`),
   assign: (streetIds: string[], microareaId: string, forceTransfer = false) =>
     api.post('/streets/assign', { streetIds, microareaId, forceTransfer }),
+  assignSides: (
+    streetId: string,
+    data: {
+      mode: 'FULL' | 'SPLIT';
+      microareaId?: string;
+      leftMicroareaId?: string;
+      rightMicroareaId?: string;
+      leftSideNotes?: string;
+      rightSideNotes?: string;
+    },
+  ) => api.patch<Street>(`/streets/${streetId}/sides`, data),
   unassign: (streetIds: string[]) =>
     api.post<{ cleared: number }>('/streets/unassign', { streetIds }),
   clearAssignments: (municipalityId: string) =>
@@ -352,6 +384,23 @@ export const streetsApi = {
       errors: Array<{ row: number; streetRef: string; message: string }>;
       total: number;
     }>('/streets/bulk-demographics', { municipalityId, items }),
+  paintAtPoint: (
+    streetId: string,
+    data: {
+      microareaId: string;
+      latitude: number;
+      longitude: number;
+      side?: PaintStreetSide | StreetPaintSide;
+    },
+  ) => api.post<Street>(`/streets/${streetId}/paint-at-point`, data),
+  unpaintAtPoint: (
+    streetId: string,
+    data: { latitude: number; longitude: number; side?: StreetPaintSide },
+  ) =>
+    api.post<{ cleared: boolean; street?: Street }>(
+      `/streets/${streetId}/unpaint-at-point`,
+      data,
+    ),
 };
 
 export const microareasApi = {

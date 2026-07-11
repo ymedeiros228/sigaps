@@ -93,6 +93,8 @@ export function PaintGuidePanel({
   const setMapPanEnabled = useMapStore((s) => s.setMapPanEnabled);
   const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
   const setSelectedMicroarea = useMapStore((s) => s.setSelectedMicroarea);
+  const paintStreetSide = useMapStore((s) => s.paintStreetSide);
+  const setPaintStreetSide = useMapStore((s) => s.setPaintStreetSide);
   const collapsed = useMapStore((s) => s.paintGuideCollapsed);
   const setPaintGuideCollapsed = useMapStore((s) => s.setPaintGuideCollapsed);
 
@@ -535,6 +537,28 @@ export function PaintGuidePanel({
               </Box>
             )}
 
+            {paintMode && !eraserMode && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 600 }}>
+                  O que pintar ao clicar na rua
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  fullWidth
+                  value={paintStreetSide}
+                  onChange={(_e, value) => value && setPaintStreetSide(value)}
+                >
+                  <ToggleButton value="FULL">Rua inteira</ToggleButton>
+                  <ToggleButton value="RIGHT">Lado direito</ToggleButton>
+                  <ToggleButton value="LEFT">Lado esquerdo</ToggleButton>
+                </ToggleButtonGroup>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                  Em avenidas e ruas principais, cada lado pode pertencer a um ACS diferente.
+                </Typography>
+              </Box>
+            )}
+
             {paintMode && (
               <>
                 <Alert
@@ -547,7 +571,7 @@ export function PaintGuidePanel({
                     : canPaint
                       ? mapPanEnabled
                         ? 'Modo mover mapa ativo — arraste o fundo para reposicionar. Desative para pintar ruas.'
-                        : `Passe o mouse sobre as ruas e clique para pintar com ${selectedMicroarea?.name}. Segure e arraste sobre várias ruas.`
+                        : `Passe o mouse sobre as ruas e clique para pintar ${paintStreetSide === 'FULL' ? 'a rua inteira' : paintStreetSide === 'LEFT' ? 'apenas o lado esquerdo' : 'apenas o lado direito'} com ${selectedMicroarea?.name}.`
                       : 'Selecione uma microárea acima para começar.'}
                 </Alert>
                 {canPaint && (

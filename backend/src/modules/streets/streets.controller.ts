@@ -13,11 +13,16 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { AssignStreetSidesDto } from './dto/assign-street-sides.dto';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { AssignNeighborhoodDto } from './dto/assign-neighborhood.dto';
 import { BulkNeighborhoodDto } from './dto/bulk-neighborhood.dto';
 import { BulkDemographicsDto } from './dto/bulk-demographics.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
+import {
+  PaintStreetAtPointDto,
+  UnpaintStreetAtPointDto,
+} from './dto/paint-street-at-point.dto';
 import { UpdateStreetDemographicsDto } from './dto/update-street-demographics.dto';
 import { StreetsService } from './streets.service';
 
@@ -107,6 +112,22 @@ export class StreetsController {
     );
   }
 
+  @Patch(':id/sides')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Vincular rua inteira ou dividir por lados (zona urbana)' })
+  assignSides(
+    @Param('id') id: string,
+    @Body() dto: AssignStreetSidesDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.assignStreetSides(id, dto, req.user.id);
+  }
+
   @Post('assign-neighborhood')
   @Roles(
     UserRole.ENFERMEIRO,
@@ -186,6 +207,52 @@ export class StreetsController {
   @ApiOperation({ summary: 'Remover vínculo de ruas com microáreas' })
   unassign(@Body() dto: UnassignStreetsDto, @Req() req: { user: { id: string } }) {
     return this.streetsService.unassignFromMicroarea(dto, req.user.id);
+  }
+
+  @Post(':id/paint-at-point')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Pintar trecho da rua no ponto clicado (vértice mais próximo)' })
+  paintAtPoint(
+    @Param('id') id: string,
+    @Body() dto: PaintStreetAtPointDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.paintAtPoint(
+      id,
+      dto.microareaId,
+      dto.latitude,
+      dto.longitude,
+      req.user.id,
+      dto.side,
+    );
+  }
+
+  @Post(':id/unpaint-at-point')
+  @Roles(
+    UserRole.ENFERMEIRO,
+    UserRole.COORDENADOR_APS,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.ADMINISTRADOR,
+  )
+  @ApiOperation({ summary: 'Remover pintura do trecho no ponto clicado' })
+  unpaintAtPoint(
+    @Param('id') id: string,
+    @Body() dto: UnpaintStreetAtPointDto,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.streetsService.unpaintAtPoint(
+      id,
+      dto.latitude,
+      dto.longitude,
+      req.user.id,
+      undefined,
+      dto.side,
+    );
   }
 
   @Post('microarea/:microareaId/clear-assignments')
