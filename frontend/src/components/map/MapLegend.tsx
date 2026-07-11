@@ -5,6 +5,7 @@ import type { Microarea, Street, Ubs, Place } from '../../services/api';
 import { useMapStore } from '../../store';
 import { familyHeatColor } from '../../utils/geo';
 import { sortMicroareas } from '../../utils/sortMicroareas';
+import { countPaintedStreets, streetBelongsToMicroarea } from '../../utils/streetPaintStats';
 
 interface MapLegendProps {
   microareas: Microarea[];
@@ -39,21 +40,22 @@ export function MapLegend({
 
   const stats = useMemo(() => {
     const byMicroareaViewport = new Map<string, number>();
-    let paintedViewport = 0;
     let totalFamilies = 0;
     let maxFamilies = 0;
     for (const s of streets) {
       const families = s.familyCount ?? 0;
       totalFamilies += families;
       if (families > maxFamilies) maxFamilies = families;
-      if (s.microareaId) {
-        paintedViewport++;
-        byMicroareaViewport.set(
-          s.microareaId,
-          (byMicroareaViewport.get(s.microareaId) ?? 0) + 1,
-        );
+      for (const microarea of microareas) {
+        if (streetBelongsToMicroarea(s, microarea.id)) {
+          byMicroareaViewport.set(
+            microarea.id,
+            (byMicroareaViewport.get(microarea.id) ?? 0) + 1,
+          );
+        }
       }
     }
+    const paintedViewport = countPaintedStreets(streets);
     const paintedTotal = microareas.reduce(
       (sum, microarea) => sum + (microarea._count?.streets ?? 0),
       0,

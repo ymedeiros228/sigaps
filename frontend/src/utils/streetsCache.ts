@@ -1,11 +1,14 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { Microarea, Street } from '../services/api';
+import type { Microarea, Street, StreetPaintSegment, StreetPaintSide } from '../services/api';
 import { queryKeys } from './queryKeys';
+import { isDualSideStreet } from './streetPaintSegments';
 
 type StreetsMapData = {
   items: Street[];
   total?: number;
 };
+
+type MicroareaRef = Pick<Microarea, 'id' | 'name' | 'number' | 'color'>;
 
 /** Mescla ruas por id — preserva pinturas fora do viewport atual. */
 export function mergeStreetsById(existing: Street[] | undefined, incoming: Street[]): Street[] {
@@ -24,63 +27,89 @@ function patchStreetList(items: Street[], street: Street): Street[] {
   return items.map((s) => (s.id === street.id ? { ...s, ...street } : s));
 }
 
+function updateStreetsMapCache(
+  queryClient: QueryClient,
+  municipalityId: string,
+  updater: (items: Street[]) => Street[],
+) {
+  const apply = (old: StreetsMapData | undefined): StreetsMapData | undefined => {
+    if (!old?.items) return old;
+    return { ...old, items: updater(old.items) };
+  };
+
+  queryClient.setQueryData<StreetsMapData>(queryKeys.streetsMap(municipalityId), apply);
+  queryClient.setQueriesData<StreetsMapData>(
+    { queryKey: ['streets-viewport', municipalityId] },
+    apply,
+  );
+}
+
+function buildOptimisticPaintSegments(
+  street: Street,
+  microarea: MicroareaRef,
+): StreetPaintSegment[] {
+  const coords = street.geojson?.coordinates ?? [];
+  const maxIndex = Math.max(0, coords.length - 1);
+  const microareaRef = {
+    id: microarea.id,
+    name: microarea.name,
+    number: microarea.number,
+    color: microarea.color,
+  };
+
+  const makeSeg = (side: StreetPaintSide, suffix: string): StreetPaintSegment => ({
+    id: `optimistic:${street.id}:${suffix}`,
+    startIndex: 0,
+    endIndex: maxIndex,
+    side,
+    microareaId: microarea.id,
+    geojson: street.geojson,
+    microarea: microareaRef,
+  });
+
+  if (isDualSideStreet(street)) {
+    return [makeSeg('LEFT', 'left'), makeSeg('RIGHT', 'right')];
+  }
+  return [makeSeg('FULL', 'full')];
+}
+
+export function buildOptimisticAssignStreet(street: Street, microarea: MicroareaRef): Street {
+  return {
+    ...street,
+    microareaId: microarea.id,
+    microarea: {
+      id: microarea.id,
+      name: microarea.name,
+      number: microarea.number,
+      color: microarea.color,
+    },
+    paintSegments: buildOptimisticPaintSegments(street, microarea),
+  };
+}
+
 export function patchStreetInMapCache(
   queryClient: QueryClient,
   municipalityId: string,
   street: Street,
 ) {
-  const key = queryKeys.streetsMap(municipalityId);
-  queryClient.setQueryData<StreetsMapData>(key, (old) => {
-    if (!old?.items) return old;
-    return {
-      ...old,
-      items: patchStreetList(old.items, street),
-    };
-  });
-
-  // Mantém caches por viewport sincronizados (modo malha grande).
-  queryClient.setQueriesData<StreetsMapData>(
-    { queryKey: ['streets-viewport', municipalityId] },
-    (old) => {
-      if (!old?.items) return old;
-      return {
-        ...old,
-        items: patchStreetList(old.items, street),
-      };
-    },
-  );
+  updateStreetsMapCache(queryClient, municipalityId, (items) => patchStreetList(items, street));
 }
 
 export function patchStreetsMicroarea(
   queryClient: QueryClient,
   municipalityId: string,
   streetIds: string[],
-  microarea: Pick<Microarea, 'id' | 'name' | 'number' | 'color'> | null,
+  microarea: MicroareaRef | null,
 ) {
-  const key = queryKeys.streetsMap(municipalityId);
-  queryClient.setQueryData<StreetsMapData>(key, (old) => {
-    if (!old?.items) return old;
-    return {
-      ...old,
-      items: old.items.map((s) => {
-        if (!streetIds.includes(s.id)) return s;
-        if (!microarea) {
-          return { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] };
-        }
-        return {
-          ...s,
-          microareaId: microarea.id,
-          microarea: {
-            id: microarea.id,
-            name: microarea.name,
-            number: microarea.number,
-            color: microarea.color,
-          },
-          paintSegments: [],
-        };
-      }),
-    };
-  });
+  updateStreetsMapCache(queryClient, municipalityId, (items) =>
+    items.map((s) => {
+      if (!streetIds.includes(s.id)) return s;
+      if (!microarea) {
+        return { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] };
+      }
+      return buildOptimisticAssignStreet(s, microarea);
+    }),
+  );
 }
 
 export function clearMicroareaStreets(
@@ -88,40 +117,36 @@ export function clearMicroareaStreets(
   municipalityId: string,
   microareaId: string,
 ) {
-  const key = queryKeys.streetsMap(municipalityId);
-  queryClient.setQueryData<StreetsMapData>(key, (old) => {
-    if (!old?.items) return old;
-    return {
-      ...old,
-      items: old.items.map((s) => {
-        const segments = (s.paintSegments ?? []).filter((seg) => seg.microareaId !== microareaId);
-        const clearedWhole = s.microareaId === microareaId;
-        if (!clearedWhole && segments.length === (s.paintSegments?.length ?? 0)) return s;
+  updateStreetsMapCache(queryClient, municipalityId, (items) =>
+    items.map((s) => {
+      const hadAssignment =
+        s.microareaId === microareaId ||
+        (s.paintSegments ?? []).some((seg) => seg.microareaId === microareaId);
+      if (!hadAssignment) return s;
+
+      const segments = (s.paintSegments ?? []).filter((seg) => seg.microareaId !== microareaId);
+      if (s.microareaId === microareaId) {
         return {
           ...s,
-          microareaId: clearedWhole ? undefined : s.microareaId,
-          microarea: clearedWhole ? undefined : s.microarea,
+          microareaId: segments[0]?.microareaId,
+          microarea: segments[0]?.microarea,
           paintSegments: segments,
         };
-      }),
-    };
-  });
+      }
+      return { ...s, paintSegments: segments };
+    }),
+  );
 }
 
 export function clearAllStreetsMicroarea(
   queryClient: QueryClient,
   municipalityId: string,
 ) {
-  const key = queryKeys.streetsMap(municipalityId);
-  queryClient.setQueryData<StreetsMapData>(key, (old) => {
-    if (!old?.items) return old;
-    return {
-      ...old,
-      items: old.items.map((s) =>
-        s.microareaId || s.paintSegments?.length
-          ? { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] }
-          : s,
-      ),
-    };
-  });
+  updateStreetsMapCache(queryClient, municipalityId, (items) =>
+    items.map((s) =>
+      s.microareaId || s.paintSegments?.length
+        ? { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] }
+        : s,
+    ),
+  );
 }

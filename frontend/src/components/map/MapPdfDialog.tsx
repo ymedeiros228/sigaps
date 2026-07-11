@@ -27,10 +27,12 @@ import {
   streetsApi,
   ubsApi,
   type Microarea,
+  type Street,
 } from '../../services/api';
 import { useAppStore, useMapStore } from '../../store';
 import { assetUrl } from '../../utils/assetUrl';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
+import { countPaintedStreets } from '../../utils/streetPaintStats';
 import { captureLeafletMapImage, waitForMapFlyComplete, waitForMapReady } from '../../utils/mapPdfCapture';
 import {
   generateOfficialMapPdf,
@@ -90,8 +92,8 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
     enabled: open && !!municipalityId,
   });
 
-  const streets = streetsData?.items ?? [];
-  const paintedCount = streets.filter((s) => s.microareaId).length;
+  const streets = (streetsData?.items ?? []) as Street[];
+  const paintedCount = countPaintedStreets(streets);
   const neighborhoodName = neighborhoods.find((n) => n.id === neighborhoodId)?.name;
 
   const handleGenerate = async () => {

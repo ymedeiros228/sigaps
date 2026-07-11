@@ -28,8 +28,9 @@ import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { MapExportMenu } from './MapExportMenu';
 import { StreetSearchBar, type StreetSearchOption } from './StreetSearchBar';
 import { canImportStreets } from '../../utils/permissions';
+import { countPaintedStreets } from '../../utils/streetPaintStats';
 import type { RefObject } from 'react';
-import type { Microarea } from '../../services/api';
+import type { Microarea, Street } from '../../services/api';
 
 interface MapToolbarProps {
   onImport: () => void;
@@ -38,7 +39,7 @@ interface MapToolbarProps {
   selectedCount?: number;
   mapContainerRef: RefObject<HTMLElement | null>;
   microareas: Microarea[];
-  streets: Array<{ id: string; name: string; streetType?: string; geojson: GeoJSON.LineString; microareaId?: string | null }>;
+  streets: Street[];
   onSearchSelect: (option: StreetSearchOption) => void;
   onImportFamilies?: () => void;
   readOnly?: boolean;
@@ -90,7 +91,7 @@ export function MapToolbar({
 
   const coverage = useMemo(() => {
     if (streetCount === 0) return 0;
-    const painted = streets.filter((s) => s.microareaId).length;
+    const painted = countPaintedStreets(streets);
     return Math.round((painted / streetCount) * 100);
   }, [streets, streetCount]);
 

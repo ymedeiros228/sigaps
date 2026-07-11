@@ -41,6 +41,8 @@ import { AddMicroareaDialog } from './AddMicroareaDialog';
 import { ClearPaintDialog } from './ClearPaintDialog';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { sortMicroareas } from '../../utils/sortMicroareas';
+import { countStreetsForMicroarea } from '../../utils/streetPaintStats';
+import { streetHasPaint } from '../../utils/streetPaintSegments';
 
 interface PaintGuidePanelProps {
   microareas: Microarea[];
@@ -104,12 +106,12 @@ export function PaintGuidePanel({
   const paintedCount = microareas.reduce((sum, m) => sum + (m._count?.streets ?? 0), 0);
   const selectedMicroareaPaintedCount = selectedMicroareaId
     ? (microareas.find((m) => m.id === selectedMicroareaId)?._count?.streets ??
-      streets.filter((s) => s.microareaId === selectedMicroareaId).length)
+      countStreetsForMicroarea(streets, selectedMicroareaId))
     : 0;
   const unpaintedDirtRoadIds = streets
     .filter(
       (s) =>
-        !s.microareaId &&
+        !streetHasPaint(s) &&
         (s.streetType ?? '').toLowerCase().includes('terra'),
     )
     .map((s) => s.id);
@@ -380,7 +382,8 @@ export function PaintGuidePanel({
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
               {sortedMicroareas.map((m) => {
                 const selected = m.id === selectedMicroareaId;
-                const count = streets.filter((s) => s.microareaId === m.id).length;
+                const count =
+                  m._count?.streets ?? countStreetsForMicroarea(streets, m.id);
                 return (
                   <Button
                     key={m.id}
