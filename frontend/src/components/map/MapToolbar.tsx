@@ -162,7 +162,7 @@ export function MapToolbar({
         />
       )}
 
-      {!paintMode && streetCount > 0 && (
+      {streetCount > 0 && (
         <Chip
           label={`${coverage}% cobertura`}
           size="small"
@@ -172,11 +172,11 @@ export function MapToolbar({
         />
       )}
 
-      {!paintMode && readOnly && (
+      {readOnly && (
         <Chip label="Consulta — sua microárea" size="small" color="primary" variant="outlined" />
       )}
 
-      {!paintMode && !readOnly && canImport && (streetCount > 0 || importing) && (
+      {!readOnly && canImport && (streetCount > 0 || importing) && (
         <Button
           size="small"
           variant="outlined"
@@ -188,7 +188,7 @@ export function MapToolbar({
         </Button>
       )}
 
-      {!paintMode && selectedCount > 0 && (
+      {selectedCount > 0 && (
         <Chip
           size="small"
           label={`${selectedCount} selecionada(s)`}
@@ -197,8 +197,6 @@ export function MapToolbar({
         />
       )}
 
-      {!paintMode && (
-        <>
       <FormControlLabel
         control={
           <Switch
@@ -252,8 +250,6 @@ export function MapToolbar({
         microareas={microareas}
         onImportFamilies={onImportFamilies}
       />
-        </>
-      )}
 
       <Box sx={{ display: 'flex', gap: 0.5, ml: { md: 'auto' } }}>
         <Tooltip title="Tela cheia">
@@ -268,7 +264,6 @@ export function MapToolbar({
         </Tooltip>
       </Box>
 
-      {!paintMode && (
       <Box
         sx={{
           flexBasis: '100%',
@@ -296,7 +291,6 @@ export function MapToolbar({
           </Typography>
         </Box>
       </Box>
-      )}
     </Paper>
   );
 }

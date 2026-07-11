@@ -32,6 +32,7 @@ export function MapLegend({
   const showUbs = useMapStore((s) => s.showUbsMarkers);
   const showPlaces = useMapStore((s) => s.showPlacesMarkers);
   const eraserMode = useMapStore((s) => s.eraserMode);
+  const paintGuideCollapsed = useMapStore((s) => s.paintGuideCollapsed);
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
@@ -73,7 +74,6 @@ export function MapLegend({
   }, [streets, microareas]);
 
   if (microareas.length === 0) return null;
-  if (paintMode) return null;
 
   return (
     <Paper
@@ -81,7 +81,7 @@ export function MapLegend({
       elevation={0}
       sx={{
         position: 'absolute',
-        bottom: { xs: 220, sm: 200 },
+        bottom: paintMode && !paintGuideCollapsed ? { xs: 280, sm: 260 } : { xs: 220, sm: 200 },
         left: { xs: 8, sm: 16 },
         zIndex: 1000,
         minWidth: { xs: 0, sm: 220 },
