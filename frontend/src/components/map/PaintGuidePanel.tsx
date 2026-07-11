@@ -147,6 +147,7 @@ export function PaintGuidePanel({
       setSelectedMicroarea(microareas[0].id);
     }
     setEraserMode(false);
+    setMapPanEnabled(false);
     setPaintMode(true);
     setPaintGuideCollapsed(false);
   };
@@ -154,6 +155,7 @@ export function PaintGuidePanel({
   const handleStartEraser = () => {
     setPaintMode(true);
     setEraserMode(true);
+    setMapPanEnabled(false);
     setPaintGuideCollapsed(false);
   };
 
@@ -241,7 +243,7 @@ export function PaintGuidePanel({
                   ? 'Modo apagar'
                   : paintMode
                     ? 'Pintando'
-                    : 'Pintar micro├íreas'}
+                    : 'Pintar microáreas'}
             </Typography>
             {collapsed && (
               <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline' } }}>
@@ -267,7 +269,7 @@ export function PaintGuidePanel({
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
             {!collapsed && (
-              <Tooltip title="Guardar e ver o mapa (n├úo apaga ruas)">
+              <Tooltip title="Guardar e ver o mapa (não apaga ruas)">
                 <Button
                   size="small"
                   variant="contained"
@@ -306,16 +308,16 @@ export function PaintGuidePanel({
               pt: paintMode ? 1.25 : 1.5,
               overflowY: 'auto',
               maxHeight: paintMode
-                ? { xs: 'min(36vh, 280px)', sm: 'min(40vh, 320px)' }
-                : { xs: 'min(48vh, 400px)', sm: 'min(54vh, 440px)' },
+                ? { xs: 'min(30vh, 240px)', sm: 'min(34vh, 260px)' }
+                : { xs: 'min(42vh, 360px)', sm: 'min(48vh, 400px)' },
             }}
           >
             {microareas.length === 0 ? (
               <Alert severity="warning" sx={{ borderRadius: 2 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                  Nenhuma micro├írea cadastrada
+                  Nenhuma microárea cadastrada
                 </Typography>
-                Antes de pintar, cadastre as micro├íreas do munic├¡pio.
+                Antes de pintar, cadastre as microáreas do município.
                 {canAddMicroarea ? (
                   <Button
                     size="small"
@@ -324,7 +326,7 @@ export function PaintGuidePanel({
                     onClick={() => setAddOpen(true)}
                     sx={{ mt: 1, display: 'block' }}
                   >
-                    Adicionar micro├írea
+                    Adicionar microárea
                   </Button>
                 ) : (
                   <Button
@@ -333,13 +335,13 @@ export function PaintGuidePanel({
                     size="small"
                     sx={{ mt: 1, display: 'block' }}
                   >
-                    Ir para Cadastros ÔåÆ Micro├íreas
+                    Ir para Cadastros → Microáreas
                   </Button>
                 )}
               </Alert>
             ) : streetCount === 0 ? (
               <Alert severity="info" sx={{ borderRadius: 2 }}>
-                Carregando ruas do munic├¡pio. Aguarde alguns segundos.
+                Carregando ruas do município. Aguarde alguns segundos.
               </Alert>
             ) : (
               <>
@@ -349,7 +351,7 @@ export function PaintGuidePanel({
                       number={1}
                       done={!!selectedMicroareaId}
                       icon={<Palette fontSize="small" />}
-                      title="Escolha a cor (micro├írea)"
+                      title="Escolha a cor (microárea)"
                       subtitle="Cada cor = um ACS"
                     />
                     <StepRow
@@ -357,15 +359,16 @@ export function PaintGuidePanel({
                       done={false}
                       icon={<TouchApp fontSize="small" />}
                       title="Clique em Pintar e use o mapa"
-                      subtitle="Uma rua pode ter v├írias micro├íreas em trechos diferentes"
+                      subtitle="Uma rua pode ter várias microáreas em trechos diferentes"
                     />
                   </Box>
                 )}
 
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
-                  {paintMode ? 'Cor ativa' : 'Micro├íreas'}
+                  {paintMode ? 'Cor ativa' : 'Microáreas'}
                 </Typography>
                 <Box
+                  className="map-microarea-chips"
                   sx={{
                     display: 'flex',
                     gap: 0.75,
@@ -378,45 +381,50 @@ export function PaintGuidePanel({
                   {sortedMicroareas.map((m) => {
                     const selected = m.id === selectedMicroareaId;
                     const count = m._count?.streets ?? countStreetsForMicroarea(streets, m.id);
+                    const tip = m.acs?.name ? `${m.name} — ACS ${m.acs.name}` : m.name;
                     return (
-                      <Button
-                        key={m.id}
-                        variant={selected && !eraserMode ? 'contained' : 'outlined'}
-                        size="small"
-                        onClick={() => handleToggleMicroarea(m.id)}
-                        sx={{
-                          flexShrink: paintMode ? 0 : undefined,
-                          fontSize: '0.8rem',
-                          py: 0.5,
-                          px: 1.25,
-                          gap: 0.5,
-                          borderColor: m.color,
-                          borderWidth: 2,
-                          fontWeight: 700,
-                          ...(selected && !eraserMode && {
-                            bgcolor: m.color,
-                            color: '#fff',
-                            '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' },
-                          }),
-                        }}
-                      >
-                        <Box
-                          component="span"
+                      <Tooltip key={m.id} title={tip} arrow placement="top">
+                        <Button
+                          variant={selected && !eraserMode ? 'contained' : 'outlined'}
+                          size="small"
+                          onClick={() => handleToggleMicroarea(m.id)}
                           sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: '50%',
-                            bgcolor: selected && !eraserMode ? '#fff' : m.color,
-                            flexShrink: 0,
+                            flexShrink: paintMode ? 0 : undefined,
+                            fontSize: '0.8rem',
+                            py: 0.5,
+                            px: 1.25,
+                            gap: 0.5,
+                            borderColor: m.color,
+                            borderWidth: 2,
+                            fontWeight: 700,
+                            maxWidth: paintMode ? 160 : 'none',
+                            ...(selected && !eraserMode && {
+                              bgcolor: m.color,
+                              color: '#fff',
+                              '&:hover': { bgcolor: m.color, filter: 'brightness(0.92)' },
+                            }),
                           }}
-                        />
-                        {m.name}
-                        {count > 0 && (
-                          <Typography component="span" variant="caption" sx={{ opacity: 0.85, ml: 0.25 }}>
-                            {count}
-                          </Typography>
-                        )}
-                      </Button>
+                        >
+                          <Box
+                            component="span"
+                            sx={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              bgcolor: selected && !eraserMode ? '#fff' : m.color,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {m.name}
+                          </Box>
+                          {count > 0 && (
+                            <Typography component="span" variant="caption" sx={{ opacity: 0.85, ml: 0.25, flexShrink: 0 }}>
+                              {count}
+                            </Typography>
+                          )}
+                        </Button>
+                      </Tooltip>
                     );
                   })}
                   {canAddMicroarea && (
@@ -424,7 +432,7 @@ export function PaintGuidePanel({
                       size="small"
                       onClick={() => setAddOpen(true)}
                       sx={{ border: '1px dashed', borderColor: 'divider', flexShrink: 0 }}
-                      aria-label="Adicionar micro├írea"
+                      aria-label="Adicionar microárea"
                     >
                       <Add fontSize="small" />
                     </IconButton>
@@ -510,9 +518,9 @@ export function PaintGuidePanel({
                       ? 'Clique no trecho colorido para apagar. Use o modo Pintar para repor outra cor.'
                       : canPaint
                         ? mapPanEnabled
-                          ? 'Modo mover mapa ÔÇö desative abaixo para pintar.'
+                          ? 'Modo mover mapa — desative abaixo para pintar.'
                           : `${selectedMicroarea?.name}: clique na rua para pintar ou alterar trechos.`
-                        : 'Selecione uma micro├írea (cor) acima.'}
+                        : 'Selecione uma microárea (cor) acima.'}
                   </Alert>
                 )}
 
@@ -539,7 +547,7 @@ export function PaintGuidePanel({
                       endIcon={advancedOpen ? <ExpandLess /> : <ExpandMore />}
                       sx={{ justifyContent: 'space-between', fontWeight: 700 }}
                     >
-                      {paintMode ? 'Mais op├º├Áes' : 'Limpar pinturas em lote'}
+                      {paintMode ? 'Mais opções' : 'Limpar pinturas em lote'}
                     </Button>
                     <Collapse in={advancedOpen}>
                       <Box
@@ -630,7 +638,7 @@ export function PaintGuidePanel({
                               onClick={onClearPaintZones}
                               sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
                             >
-                              Remover c├¡rculos ({paintZoneCount})
+                              Remover círculos ({paintZoneCount})
                             </Button>
                           )}
                         </Box>
@@ -655,7 +663,7 @@ export function PaintGuidePanel({
                     color="text.disabled"
                     sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}
                   >
-                    Atalhos: <strong>P</strong> pintar ┬À <strong>E</strong> apagar ┬À <strong>Esc</strong> parar
+                    Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>Esc</strong> parar
                   </Typography>
                 )}
               </>
@@ -710,7 +718,7 @@ export function PaintGuidePanel({
         title={`Pintar bairro ${neighborhoodConfirm?.name ?? ''}?`}
         message={
           neighborhoodConfirm
-            ? `Isso pinta ${neighborhoodConfirm.count} ruas de uma vez. Recomendamos pintar rua por rua para maior precis├úo. Deseja continuar?`
+            ? `Isso pinta ${neighborhoodConfirm.count} ruas de uma vez. Recomendamos pintar rua por rua para maior precisão. Deseja continuar?`
             : ''
         }
         confirmLabel="Pintar bairro"
@@ -730,7 +738,7 @@ export function PaintGuidePanel({
         title="Marcar estradas de terra?"
         message={
           dirtRoadConfirm
-            ? `Isso vincula ${dirtRoadConfirm.count} estrada(s) de terra carregadas no mapa ├á micro├írea ${selectedMicroarea?.name ?? 'selecionada'}. Deseja continuar?`
+            ? `Isso vincula ${dirtRoadConfirm.count} estrada(s) de terra carregadas no mapa à microárea ${selectedMicroarea?.name ?? 'selecionada'}. Deseja continuar?`
             : ''
         }
         confirmLabel="Marcar estradas"
@@ -799,7 +807,7 @@ function StepRow({
           color: done ? '#fff' : 'text.secondary',
         }}
       >
-        {done ? 'Ô£ô' : number}
+        {done ? '✓' : number}
       </Box>
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
