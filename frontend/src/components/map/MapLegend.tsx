@@ -1,6 +1,6 @@
 import { Box, Paper, Typography, alpha, useTheme, IconButton, Collapse, LinearProgress } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { Microarea, Street, Ubs, Place } from '../../services/api';
 import { useMapStore } from '../../store';
 import { familyHeatColor } from '../../utils/geo';
@@ -36,6 +36,11 @@ export function MapLegend({
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
+
+  useEffect(() => {
+    if (paintMode && !paintGuideCollapsed) setOpen(false);
+    else if (!paintMode) setOpen(true);
+  }, [paintMode, paintGuideCollapsed]);
 
   const sortedMicroareas = useMemo(() => sortMicroareas(microareas), [microareas]);
 
@@ -77,11 +82,11 @@ export function MapLegend({
 
   return (
     <Paper
-      className="map-float-panel"
+      className="map-float-panel map-legend-panel"
       elevation={0}
       sx={{
         position: 'absolute',
-        bottom: paintMode && !paintGuideCollapsed ? { xs: 280, sm: 260 } : { xs: 220, sm: 200 },
+        bottom: paintMode && !paintGuideCollapsed ? { xs: 240, sm: 220 } : { xs: 220, sm: 200 },
         left: { xs: 8, sm: 16 },
         zIndex: 1000,
         minWidth: { xs: 0, sm: 220 },
@@ -89,6 +94,7 @@ export function MapLegend({
         bgcolor: glassBg,
         borderRadius: 3,
         overflow: 'hidden',
+        opacity: paintMode && !paintGuideCollapsed ? 0.92 : 1,
       }}
     >
       <Box

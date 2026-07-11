@@ -108,15 +108,16 @@ export function MapToolbar({
 
   return (
     <Paper
-      className="map-float-panel map-toolbar-root"
+      className={`map-float-panel map-toolbar-root${paintMode ? ' map-toolbar-root--paint' : ''}`}
       elevation={0}
       sx={{
         ...panelSx,
         bgcolor: glassBg,
         display: 'flex',
         flexWrap: 'wrap',
-        gap: 1,
+        gap: paintMode ? 0.75 : 1,
         alignItems: 'center',
+        py: paintMode ? 1 : 1.5,
       }}
     >
       <StreetSearchBar
@@ -143,36 +144,27 @@ export function MapToolbar({
         </ToggleButton>
       </ToggleButtonGroup>
 
-      {!paintMode && streetCount > 0 && (
-        <Chip
-          label="Toque na rua para ver detalhes"
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 600, display: { xs: 'none', md: 'flex' } }}
-        />
-      )}
-
       {paintMode && (
         <Chip
           icon={eraserMode ? <AutoFixOff fontSize="small" /> : <FormatPaint fontSize="small" />}
-          label={eraserMode ? 'Apagando' : 'Pintando ruas'}
+          label={eraserMode ? 'Apagando' : 'Pintando'}
           color={eraserMode ? 'error' : 'primary'}
-          size="medium"
-          sx={{ fontWeight: 800, fontSize: '0.85rem' }}
+          size="small"
+          sx={{ fontWeight: 700 }}
         />
       )}
 
       {streetCount > 0 && (
         <Chip
-          label={`${coverage}% cobertura`}
+          label={`${coverage}%`}
           size="small"
           color={coverage >= 80 ? 'success' : coverage >= 40 ? 'warning' : 'default'}
           variant="outlined"
-          sx={{ fontWeight: 700, display: { xs: 'none', sm: 'flex' } }}
+          sx={{ fontWeight: 700, display: { xs: 'none', sm: 'flex' }, minWidth: 52 }}
         />
       )}
 
-      {readOnly && (
+      {!paintMode && readOnly && (
         <Chip label="Consulta — sua microárea" size="small" color="primary" variant="outlined" />
       )}
 
@@ -197,6 +189,17 @@ export function MapToolbar({
         />
       )}
 
+      {!paintMode && streetCount > 0 && (
+        <Chip
+          label="Toque na rua para detalhes"
+          size="small"
+          variant="outlined"
+          sx={{ fontWeight: 600, display: { xs: 'none', lg: 'flex' } }}
+        />
+      )}
+
+      {!paintMode && (
+      <>
       <FormControlLabel
         control={
           <Switch
@@ -250,6 +253,8 @@ export function MapToolbar({
         microareas={microareas}
         onImportFamilies={onImportFamilies}
       />
+      </>
+      )}
 
       <Box sx={{ display: 'flex', gap: 0.5, ml: { md: 'auto' } }}>
         <Tooltip title="Tela cheia">
@@ -264,6 +269,7 @@ export function MapToolbar({
         </Tooltip>
       </Box>
 
+      {!paintMode && (
       <Box
         sx={{
           flexBasis: '100%',
@@ -291,6 +297,7 @@ export function MapToolbar({
           </Typography>
         </Box>
       </Box>
+      )}
     </Paper>
   );
 }

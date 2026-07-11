@@ -85,6 +85,50 @@ body {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  transition:
+    box-shadow 0.28s ease,
+    border-color 0.28s ease,
+    opacity 0.28s ease,
+    bottom 0.28s ease;
+}
+
+.map-paint-panel {
+  animation: mapPanelSlideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.map-paint-panel--collapsed {
+  animation: none;
+}
+
+.map-paint-panel--active {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+}
+
+.map-microarea-chip {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease !important;
+}
+
+.map-microarea-chip:hover {
+  transform: translateY(-1px);
+}
+
+.map-toolbar-root--paint {
+  padding-bottom: 10px !important;
+}
+
+.map-legend-panel {
+  transition: bottom 0.28s ease, opacity 0.28s ease;
+}
+
+@keyframes mapPanelSlideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .sigaps-map-painting .leaflet-container,
