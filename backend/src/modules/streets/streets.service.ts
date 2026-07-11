@@ -686,7 +686,7 @@ export class StreetsService {
       entityType: 'street',
       entityId: streetId,
       action: 'ASSIGN_STREET_SIDES',
-      afterData: dto,
+      afterData: { ...dto },
     });
 
     await this.updateAffectedEnvelopes(affectedMicroareas);

@@ -1,4 +1,4 @@
-import type { PaintStreetSide, Street, StreetPaintSegment, StreetPaintSide } from '../services/api';
+import type { PaintStreetSide, Street, StreetPaintSegment, StreetPaintSide, ApiPaintSide } from '../services/api';
 
 type Coord = [number, number];
 
@@ -130,7 +130,7 @@ export function segmentAtPoint(
   street: Street,
   latitude: number,
   longitude: number,
-  activeSide?: PaintStreetSide | StreetPaintSide,
+  activeSide?: ApiPaintSide | StreetPaintSide,
 ): StreetPaintSegment | null {
   const segments = street.paintSegments;
   if (!segments?.length) return null;
@@ -153,7 +153,7 @@ export function paintStateAtPoint(
   street: Street,
   latitude: number,
   longitude: number,
-  activeSide?: PaintStreetSide | StreetPaintSide,
+  activeSide?: ApiPaintSide | StreetPaintSide,
 ): { microareaId: string | null; segment: StreetPaintSegment | null } {
   const segment = segmentAtPoint(street, latitude, longitude, activeSide);
   if (segment) {
@@ -385,9 +385,9 @@ export function getStreetSideAssignment(street: Street): StreetSideAssignment {
 export function resolveApiPaintSide(
   street: Street,
   paintStreetSide: PaintStreetSide,
-): PaintStreetSide | StreetPaintSide {
+): ApiPaintSide | StreetPaintSide {
   if (!isDualSideStreet(street)) return 'FULL';
-  if (paintStreetSide === 'FULL') return 'BOTH' as PaintStreetSide;
+  if (paintStreetSide === 'FULL') return 'BOTH';
   return paintStreetSide;
 }
 
@@ -410,11 +410,11 @@ export function effectivePaintSide(
   longitude: number,
   paintStreetSide: PaintStreetSide,
   eraserMode: boolean,
-): PaintStreetSide | StreetPaintSide {
+): ApiPaintSide | StreetPaintSide {
   if (!isDualSideStreet(street)) return 'FULL';
   if (eraserMode && paintStreetSide === 'FULL') {
     return detectClickSide(street, latitude, longitude);
   }
-  if (paintStreetSide === 'FULL') return 'BOTH' as PaintStreetSide;
+  if (paintStreetSide === 'FULL') return 'BOTH';
   return paintStreetSide;
 }

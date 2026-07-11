@@ -16,7 +16,7 @@ import {
   LinearProgress,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { microareasApi, neighborhoodsApi, osmApi, paintZonesApi, streetsApi, ubsApi, placesApi, type Place, type Street } from '../../services/api';
+import { microareasApi, neighborhoodsApi, osmApi, paintZonesApi, streetsApi, ubsApi, placesApi, type ApiPaintSide, type Place, type Street } from '../../services/api';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
 import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { StreetsLayer, MapCenterController } from './StreetsLayer';
@@ -614,7 +614,7 @@ export function SigapsMap() {
       latitude: number;
       longitude: number;
       side?: string;
-    }) => streetsApi.paintAtPoint(streetId, { microareaId, latitude, longitude, side: side as 'LEFT' | 'RIGHT' | 'BOTH' | 'FULL' }),
+    }) => streetsApi.paintAtPoint(streetId, { microareaId, latitude, longitude, side: side as ApiPaintSide }),
     onSuccess: (res) => {
       if (!municipalityId) return;
       const updated = prepareStreetsForMap([res.data])[0];
