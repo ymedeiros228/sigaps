@@ -16,7 +16,7 @@ import {
   LinearProgress,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { microareasApi, neighborhoodsApi, osmApi, paintZonesApi, streetsApi, ubsApi, placesApi, type ApiPaintSide, type Place, type Street } from '../../services/api';
+import { microareasApi, neighborhoodsApi, osmApi, paintZonesApi, streetsApi, ubsApi, placesApi, type ApiPaintSide, type PaintScope, type Place, type Street } from '../../services/api';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
 import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { StreetsLayer, MapCenterController } from './StreetsLayer';
@@ -601,13 +601,21 @@ export function SigapsMap() {
       latitude,
       longitude,
       side,
+      scope,
     }: {
       streetId: string;
       microareaId: string;
       latitude: number;
       longitude: number;
       side?: string;
-    }) => streetsApi.paintAtPoint(streetId, { microareaId, latitude, longitude, side: side as ApiPaintSide }),
+      scope?: string;
+    }) => streetsApi.paintAtPoint(streetId, {
+      microareaId,
+      latitude,
+      longitude,
+      side: side as ApiPaintSide,
+      scope: scope as PaintScope | undefined,
+    }),
     onSuccess: (res) => {
       if (!municipalityId) return;
       const updated = prepareStreetsForMap([res.data])[0];
@@ -711,8 +719,9 @@ export function SigapsMap() {
 
   const paintStreet = useCallback((street: Street, latitude: number, longitude: number) => {
     if (!paintMode || eraserMode || !selectedMicroareaId || !municipalityId) return;
-    const side = resolveApiPaintSide(street, useMapStore.getState().paintStreetSide);
-    const key = `${street.id}:${latitude.toFixed(5)}:${longitude.toFixed(5)}:${selectedMicroareaId}:${side}`;
+    const { paintStreetSide, paintScope } = useMapStore.getState();
+    const side = resolveApiPaintSide(street, paintStreetSide, paintScope, latitude, longitude);
+    const key = `${street.id}:${latitude.toFixed(5)}:${longitude.toFixed(5)}:${selectedMicroareaId}:${side}:${paintScope}`;
     if (segmentPaintKeysRef.current.has(key)) return;
     segmentPaintKeysRef.current.add(key);
     paintAtPointMutation.mutate(
@@ -722,6 +731,7 @@ export function SigapsMap() {
         latitude,
         longitude,
         side,
+        scope: paintScope,
       },
       {
         onSettled: () => {
@@ -733,8 +743,8 @@ export function SigapsMap() {
 
   const unpaintStreet = useCallback((street: Street, latitude: number, longitude: number) => {
     if (!paintMode) return;
-    const { paintStreetSide, eraserMode: eraser } = useMapStore.getState();
-    const side = effectivePaintSide(street, latitude, longitude, paintStreetSide, eraser);
+    const { paintStreetSide, paintScope, eraserMode: eraser } = useMapStore.getState();
+    const side = effectivePaintSide(street, latitude, longitude, paintStreetSide, paintScope, eraser);
     const apiSide = side === 'BOTH' ? detectClickSide(street, latitude, longitude) : side;
     const key = `unpaint:${street.id}:${latitude.toFixed(5)}:${longitude.toFixed(5)}:${apiSide}`;
     if (segmentPaintKeysRef.current.has(key)) return;

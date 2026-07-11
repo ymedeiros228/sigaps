@@ -1025,6 +1025,7 @@ export class StreetsService {
     longitude: number,
     userId: string,
     requestedSide?: string,
+    scope: 'segment' | 'whole' = 'segment',
   ) {
     const microarea = await this.prisma.microarea.findUnique({ where: { id: microareaId } });
     if (!microarea) throw new NotFoundException('Microárea não encontrada');
@@ -1067,6 +1068,7 @@ export class StreetsService {
           : [paintMode as StreetPaintSide];
 
     const wantsFullLengthPaint =
+      scope === 'whole' ||
       paintMode === 'BOTH' ||
       (paintMode === StreetPaintSide.FULL && isDualSideStreet(reloaded));
 

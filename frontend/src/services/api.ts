@@ -142,6 +142,7 @@ export interface CadastrosSummary {
 
 export type StreetPaintSide = 'FULL' | 'LEFT' | 'RIGHT';
 export type PaintStreetSide = 'FULL' | 'LEFT' | 'RIGHT';
+export type PaintScope = 'segment' | 'whole';
 /** Lado enviado à API ao pintar rua inteira em via de mão dupla */
 export type ApiPaintSide = PaintStreetSide | 'BOTH';
 
@@ -393,6 +394,7 @@ export const streetsApi = {
       latitude: number;
       longitude: number;
       side?: ApiPaintSide | StreetPaintSide;
+      scope?: PaintScope;
     },
   ) => api.post<Street>(`/streets/${streetId}/paint-at-point`, data),
   unpaintAtPoint: (

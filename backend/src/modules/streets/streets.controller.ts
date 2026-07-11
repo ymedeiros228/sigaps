@@ -229,6 +229,7 @@ export class StreetsController {
       dto.longitude,
       req.user.id,
       dto.side,
+      dto.scope ?? 'segment',
     );
   }
 

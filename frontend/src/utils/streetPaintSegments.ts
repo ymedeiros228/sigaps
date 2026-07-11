@@ -1,4 +1,4 @@
-import type { PaintStreetSide, Street, StreetPaintSegment, StreetPaintSide, ApiPaintSide } from '../services/api';
+import type { PaintScope, PaintStreetSide, Street, StreetPaintSegment, StreetPaintSide, ApiPaintSide } from '../services/api';
 
 type Coord = [number, number];
 
@@ -421,10 +421,20 @@ export function getStreetSideAssignment(street: Street): StreetSideAssignment {
 export function resolveApiPaintSide(
   street: Street,
   paintStreetSide: PaintStreetSide,
+  paintScope: PaintScope,
+  latitude: number,
+  longitude: number,
 ): ApiPaintSide | StreetPaintSide {
-  if (!isDualSideStreet(street)) return 'FULL';
-  if (paintStreetSide === 'FULL') return 'BOTH';
-  return paintStreetSide;
+  if (paintScope === 'whole') {
+    if (isDualSideStreet(street)) return 'BOTH';
+    return 'FULL';
+  }
+  if (paintStreetSide === 'LEFT') return 'LEFT';
+  if (paintStreetSide === 'RIGHT') return 'RIGHT';
+  if (isDualSideStreet(street)) {
+    return detectClickSide(street, latitude, longitude);
+  }
+  return 'FULL';
 }
 
 export function detectClickSide(street: Street, latitude: number, longitude: number): StreetPaintSide {
@@ -445,12 +455,15 @@ export function effectivePaintSide(
   latitude: number,
   longitude: number,
   paintStreetSide: PaintStreetSide,
+  paintScope: PaintScope,
   eraserMode: boolean,
 ): ApiPaintSide | StreetPaintSide {
   if (!isDualSideStreet(street)) return 'FULL';
-  if (eraserMode && paintStreetSide === 'FULL') {
+  if (eraserMode && paintStreetSide === 'FULL' && paintScope === 'segment') {
     return detectClickSide(street, latitude, longitude);
   }
-  if (paintStreetSide === 'FULL') return 'BOTH';
-  return paintStreetSide;
+  if (paintScope === 'whole') return 'BOTH';
+  if (paintStreetSide === 'LEFT') return 'LEFT';
+  if (paintStreetSide === 'RIGHT') return 'RIGHT';
+  return detectClickSide(street, latitude, longitude);
 }

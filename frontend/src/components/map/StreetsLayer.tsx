@@ -52,6 +52,7 @@ export function StreetsLayer({
   const showHeatmap = useMapStore((s) => s.showHeatmap);
   const microareas = useAppStore((s) => s.microareas);
   const paintStreetSide = useMapStore((s) => s.paintStreetSide);
+  const paintScope = useMapStore((s) => s.paintScope);
   const activeColor = eraserMode
     ? '#EF5350'
     : microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
@@ -241,7 +242,7 @@ export function StreetsLayer({
     const street = streetsById.get(hoveredId);
     if (!street?.geojson) return null;
     const { lat, lng } = hoverLatLng;
-    const side = effectivePaintSide(street, lat, lng, paintStreetSide, eraserMode);
+    const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
     const state = paintStateAtPoint(street, lat, lng, side);
     if (eraserMode && !state.microareaId) return null;
     return {
@@ -331,7 +332,7 @@ export function StreetsLayer({
     const label = formatStreetLabel({ name: props.name, streetType: props.streetType });
 
     const tooltipForPoint = (lat: number, lng: number) => {
-      const side = effectivePaintSide(street, lat, lng, paintStreetSide, eraserMode);
+      const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
       const state = paintStateAtPoint(street, lat, lng, side);
       const segName = state.segment?.microarea?.name ?? street.microarea?.name;
       const sideText = isDualSideStreet(street) ? ` (${sideLabel(side as 'LEFT' | 'RIGHT' | 'FULL')})` : '';
@@ -345,7 +346,9 @@ export function StreetsLayer({
           !!selectedMicroareaId && state.microareaId === selectedMicroareaId;
         return togglesToUnpaint
           ? `Despintar trecho${sideText}: ${label}`
-          : `Pintar trecho${sideText}: ${label}`;
+          : paintScope === 'whole'
+            ? `Pintar rua inteira: ${label}`
+            : `Cortar e pintar trecho${sideText}: ${label}`;
       }
       if (segName) return `${label} — ${segName}${sideText}`;
       if (street.familyCount > 0) return `${label} — ${street.familyCount} família(s)`;
@@ -376,7 +379,7 @@ export function StreetsLayer({
 
     if (paintMode) {
       const applyDragAction = (lat: number, lng: number) => {
-        const side = effectivePaintSide(street, lat, lng, paintStreetSide, eraserMode);
+        const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
         if (dragActionRef.current === 'unpaint') {
           if (state.microareaId) onStreetUnpaint(street, lat, lng);
@@ -387,7 +390,7 @@ export function StreetsLayer({
 
       layer.on('mouseover', (e: L.LeafletMouseEvent) => {
         const { lat, lng } = e.latlng;
-        const side = effectivePaintSide(street, lat, lng, paintStreetSide, eraserMode);
+        const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
         if (eraserMode && !state.microareaId) return;
         setHoveredId(props.streetId);
@@ -408,7 +411,7 @@ export function StreetsLayer({
       layer.on('mousedown', (e: L.LeafletMouseEvent) => {
         stopMapEvent(e);
         const { lat, lng } = e.latlng;
-        const side = effectivePaintSide(street, lat, lng, paintStreetSide, eraserMode);
+        const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
         if (eraserMode) {
           if (!state.microareaId) return;
