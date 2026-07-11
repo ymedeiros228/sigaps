@@ -7,6 +7,23 @@ type StreetsMapData = {
   total?: number;
 };
 
+/** Mescla ruas por id — preserva pinturas fora do viewport atual. */
+export function mergeStreetsById(existing: Street[] | undefined, incoming: Street[]): Street[] {
+  if (!existing?.length) return incoming;
+  if (!incoming.length) return existing;
+  const byId = new Map(existing.map((s) => [s.id, s]));
+  for (const street of incoming) {
+    byId.set(street.id, street);
+  }
+  return Array.from(byId.values());
+}
+
+function patchStreetList(items: Street[], street: Street): Street[] {
+  const idx = items.findIndex((s) => s.id === street.id);
+  if (idx < 0) return [...items, street];
+  return items.map((s) => (s.id === street.id ? { ...s, ...street } : s));
+}
+
 export function patchStreetInMapCache(
   queryClient: QueryClient,
   municipalityId: string,
@@ -17,9 +34,21 @@ export function patchStreetInMapCache(
     if (!old?.items) return old;
     return {
       ...old,
-      items: old.items.map((s) => (s.id === street.id ? { ...s, ...street } : s)),
+      items: patchStreetList(old.items, street),
     };
   });
+
+  // Mantém caches por viewport sincronizados (modo malha grande).
+  queryClient.setQueriesData<StreetsMapData>(
+    { queryKey: ['streets-viewport', municipalityId] },
+    (old) => {
+      if (!old?.items) return old;
+      return {
+        ...old,
+        items: patchStreetList(old.items, street),
+      };
+    },
+  );
 }
 
 export function patchStreetsMicroarea(

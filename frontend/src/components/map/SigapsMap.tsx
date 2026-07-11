@@ -182,19 +182,13 @@ export function SigapsMap() {
   const deferredStreets = useDeferredValue(streets);
   const mapStreets = paintMode ? streets : deferredStreets;
 
-  const refreshMapPaintState = useCallback((options?: { rebuildEnvelopes?: boolean }) => {
+  const refreshMicroareaVisuals = useCallback((options?: { rebuildEnvelopes?: boolean }) => {
     if (!municipalityId) return;
-    void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
-    void queryClient.invalidateQueries({ queryKey: ['streets-viewport', municipalityId] });
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
     if (options?.rebuildEnvelopes) {
       void microareasApi.rebuildEnvelopes(municipalityId).catch(() => undefined);
     }
-    void queryClient.refetchQueries({
-      queryKey: queryKeys.streetsMap(municipalityId),
-      type: 'active',
-    });
     void queryClient.refetchQueries({
       queryKey: queryKeys.microareas(municipalityId),
       type: 'active',
@@ -204,6 +198,18 @@ export function SigapsMap() {
       type: 'active',
     });
   }, [municipalityId, queryClient]);
+
+  const refreshMapPaintState = useCallback((options?: { rebuildEnvelopes?: boolean; reloadStreets?: boolean }) => {
+    if (!municipalityId) return;
+    refreshMicroareaVisuals(options);
+    if (!options?.reloadStreets) return;
+    void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+    void queryClient.invalidateQueries({ queryKey: ['streets-viewport', municipalityId] });
+    void queryClient.refetchQueries({
+      queryKey: queryKeys.streetsMap(municipalityId),
+      type: 'active',
+    });
+  }, [municipalityId, queryClient, refreshMicroareaVisuals]);
 
   const paintStateSyncedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -302,7 +308,7 @@ export function SigapsMap() {
     onSuccess: (_data, variables) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState({ rebuildEnvelopes: true });
+        refreshMapPaintState({ rebuildEnvelopes: true, reloadStreets: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       setConflictMsg(null);
@@ -348,11 +354,13 @@ export function SigapsMap() {
     onSuccess: (res) => {
       if (!municipalityId) return;
       const updated = prepareStreetsForMap([res.data])[0];
-      patchStreetInMapCache(queryClient, municipalityId, updated);
+      if (updated) {
+        patchStreetInMapCache(queryClient, municipalityId, updated);
+        setSelectedStreet(updated);
+      }
       setPaintLayerEpoch((epoch) => epoch + 1);
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      refreshMapPaintState({ rebuildEnvelopes: true });
-      setSelectedStreet(updated);
+      refreshMicroareaVisuals({ rebuildEnvelopes: true });
       const msg =
         res.data.paintSegments?.some((s) => s.side === 'LEFT') &&
         res.data.paintSegments?.some((s) => s.side === 'RIGHT') &&
@@ -563,7 +571,7 @@ export function SigapsMap() {
       clearDragPaintIds();
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState({ rebuildEnvelopes: true });
+        refreshMapPaintState({ rebuildEnvelopes: true, reloadStreets: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       if (selectedStreet && streetIds.includes(selectedStreet.id)) {
@@ -584,7 +592,7 @@ export function SigapsMap() {
           message: 'Nenhuma pintura foi removida. Atualizando mapa…',
           severity: 'info',
         });
-        refreshMapPaintState({ rebuildEnvelopes: true });
+        refreshMapPaintState({ rebuildEnvelopes: true, reloadStreets: true });
       }
     },
     onError: (err, streetIds, context) => {
@@ -618,10 +626,11 @@ export function SigapsMap() {
     onSuccess: (res) => {
       if (!municipalityId) return;
       const updated = prepareStreetsForMap([res.data])[0];
+      if (!updated) return;
       patchStreetInMapCache(queryClient, municipalityId, updated);
       setPaintLayerEpoch((epoch) => epoch + 1);
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      refreshMapPaintState({ rebuildEnvelopes: true });
+      refreshMicroareaVisuals({ rebuildEnvelopes: true });
       if (selectedStreet?.id === updated.id) {
         setSelectedStreet(updated);
       }
@@ -650,14 +659,16 @@ export function SigapsMap() {
       if (!municipalityId) return;
       if (res.data.street) {
         const updated = prepareStreetsForMap([res.data.street])[0];
-        patchStreetInMapCache(queryClient, municipalityId, updated);
-        if (selectedStreet?.id === updated.id) {
-          setSelectedStreet(updated);
+        if (updated) {
+          patchStreetInMapCache(queryClient, municipalityId, updated);
+          if (selectedStreet?.id === updated.id) {
+            setSelectedStreet(updated);
+          }
         }
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      refreshMapPaintState({ rebuildEnvelopes: true });
+      refreshMicroareaVisuals({ rebuildEnvelopes: true });
     },
     onError: (err) => {
       setSnackbar({
@@ -926,7 +937,7 @@ export function SigapsMap() {
     onSuccess: (res) => {
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState({ rebuildEnvelopes: true });
+        refreshMapPaintState({ rebuildEnvelopes: true, reloadStreets: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       setSelectedStreet(null);
@@ -997,7 +1008,7 @@ export function SigapsMap() {
       clearDragPaintIds();
       if (municipalityId) {
         scheduleDashboardInvalidate(queryClient, municipalityId);
-        refreshMapPaintState({ rebuildEnvelopes: true });
+        refreshMapPaintState({ rebuildEnvelopes: true, reloadStreets: true });
       }
       setPaintLayerEpoch((epoch) => epoch + 1);
       if (res.data.cleared > 0) {

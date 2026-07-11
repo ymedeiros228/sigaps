@@ -4,6 +4,7 @@ import type { LatLngBounds } from 'leaflet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { streetsApi, type Street } from '../services/api';
 import { fetchAllMapStreets } from '../utils/fetchAllStreets';
+import { mergeStreetsById } from '../utils/streetsCache';
 import { useDebouncedValue } from './useDebouncedValue';
 import { CACHE, queryKeys } from '../utils/queryKeys';
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from '../utils/queryRetry';
@@ -22,8 +23,8 @@ function boundsKey(bounds: LatLngBounds): string {
   ].join(',');
 }
 
-function mergeViewportStreets(_existing: Street[] | undefined, incoming: Street[]): Street[] {
-  return incoming;
+function mergeViewportStreets(existing: Street[] | undefined, incoming: Street[]): Street[] {
+  return mergeStreetsById(existing, incoming);
 }
 
 async function fetchViewportStreets(
@@ -106,10 +107,18 @@ export function useMapViewportStreets(municipalityId: string | null) {
 
   const viewportCacheQuery = useQuery({
     queryKey: queryKeys.streetsMap(municipalityId!),
-    queryFn: async () => ({ items: [] as Street[], total: streetsTotal }),
+    queryFn: async () => {
+      const existing = queryClient.getQueryData<StreetsMapData>(
+        queryKeys.streetsMap(municipalityId!),
+      );
+      return existing ?? { items: [] as Street[], total: streetsTotal };
+    },
     enabled: !!municipalityId && probeQuery.isSuccess && useViewport,
     staleTime: Infinity,
     gcTime: 15 * 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const viewportQuery = useQuery({
@@ -134,7 +143,9 @@ export function useMapViewportStreets(municipalityId: string | null) {
   const streetsData = useViewport ? viewportCacheQuery.data : fullQuery.data;
   const isLoading =
     probeQuery.isLoading ||
-    (useViewport ? viewportCacheQuery.isLoading || !streetsData?.items.length : fullQuery.isLoading);
+    (useViewport
+      ? viewportCacheQuery.isLoading && !(viewportCacheQuery.data as StreetsMapData | undefined)?.items?.length
+      : fullQuery.isLoading);
   const isFetching = useViewport ? viewportQuery.isFetching : fullQuery.isFetching;
   const isError = useViewport ? viewportQuery.isError : fullQuery.isError;
   const refetch = useViewport ? viewportQuery.refetch : fullQuery.refetch;
