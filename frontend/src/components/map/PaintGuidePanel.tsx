@@ -231,6 +231,7 @@ export function PaintGuidePanel({
   return (
     <>
       <Paper
+        data-testid="paint-guide"
         className={`map-float-panel map-paint-panel${collapsed ? ' map-paint-panel--collapsed' : ''}${paintMode ? ' map-paint-panel--active' : ''}`}
         elevation={0}
         sx={{
@@ -259,6 +260,7 @@ export function PaintGuidePanel({
         }}
       >
         <Box
+          data-testid="paint-guide-header"
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -423,6 +425,7 @@ export function PaintGuidePanel({
                       <Tooltip key={m.id} title={tip} arrow placement="top">
                         <Button
                           className="map-microarea-chip"
+                          data-testid={`paint-chip-${m.number}`}
                           variant={selected && !eraserMode ? 'contained' : 'outlined'}
                           size="small"
                           onClick={() => handleToggleMicroarea(m.id)}
@@ -538,6 +541,7 @@ export function PaintGuidePanel({
                     >
                       <ToggleButton
                         value="paint"
+                        data-testid="paint-mode-start"
                         onClick={handleStartPaint}
                         disabled={importing || microareas.length === 0}
                         sx={{ py: 0.75, gap: 0.5, fontWeight: 700, flex: 1 }}

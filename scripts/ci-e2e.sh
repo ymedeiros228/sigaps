@@ -27,7 +27,7 @@ npm run start:prod &
 BACKEND_PID=$!
 
 echo "==> Aguardando API em :${BACKEND_PORT}"
-for i in $(seq 1 60); do
+for i in $(seq 1 90); do
   if curl -sf "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null; then
     echo "API pronta."
     break

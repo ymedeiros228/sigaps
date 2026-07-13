@@ -190,6 +190,14 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 **Critério de aceite:** qualquer povoado do município pode ser cadastrado em menos de 2 minutos, mesmo sem resultado na busca automática.
 
+### Sprint 17 — E2E pintura no mapa — ✅ Concluído
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| P1 | Teste Playwright: painel pintura + seleção microárea | [x] |
+| P2 | Teste Playwright: busca rua + pintura (API paint-at-point) | [x] |
+| P3 | `data-testid` no PaintGuidePanel (chips, modo pintar) | [x] |
+
 ### Sprint 16 — Testes E2E Playwright — ✅ Concluído
 
 | Item | Descrição | Status |
