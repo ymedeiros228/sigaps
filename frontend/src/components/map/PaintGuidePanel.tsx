@@ -58,6 +58,8 @@ interface PaintGuidePanelProps {
   lastAction?: string | null;
   onMicroareaCreated?: (id: string) => void;
   onMinimized?: () => void;
+  cursorLatitude?: number | null;
+  cursorLongitude?: number | null;
 }
 
 export function PaintGuidePanel({
@@ -76,6 +78,8 @@ export function PaintGuidePanel({
   lastAction,
   onMicroareaCreated,
   onMinimized,
+  cursorLatitude = null,
+  cursorLongitude = null,
 }: PaintGuidePanelProps) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
@@ -125,6 +129,12 @@ export function PaintGuidePanel({
     : selectedMicroarea?.color ?? theme.palette.primary.main;
 
   const canPaint = streetCount > 0 && !!selectedMicroareaId && !eraserMode;
+
+  const hasCursorCoords =
+    cursorLatitude != null &&
+    cursorLongitude != null &&
+    Number.isFinite(cursorLatitude) &&
+    Number.isFinite(cursorLongitude);
 
   const { data: neighborhoods = [] } = useQuery({
     queryKey: queryKeys.neighborhoods(municipalityId),
@@ -687,13 +697,30 @@ export function PaintGuidePanel({
                   </Typography>
                 )}
 
+                {paintMode && hasCursorCoords && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                      display: 'block',
+                      mt: 1,
+                      textAlign: 'center',
+                      fontFamily: 'monospace',
+                      fontWeight: 600,
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    {cursorLatitude!.toFixed(5)}, {cursorLongitude!.toFixed(5)}
+                  </Typography>
+                )}
+
                 {streetCount > 0 && !paintMode && (
                   <Typography
                     variant="caption"
                     color="text.disabled"
                     sx={{ display: 'block', mt: 1.25, textAlign: 'center' }}
                   >
-                    Atalhos: P pintar · E apagar · Esc parar
+                    Atalhos: P pintar · E apagar · M mover · Esc parar
                   </Typography>
                 )}
               </>

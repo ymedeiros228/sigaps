@@ -242,17 +242,28 @@ export function SigapsMap() {
       }
       if (e.key === 'p' || e.key === 'P') {
         if (microareas.length === 0 || streetCount === 0) return;
-        useMapStore.getState().setEraserMode(false);
+        const store = useMapStore.getState();
+        store.setEraserMode(false);
+        store.setMapPanEnabled(false);
         if (!selectedMicroareaId && microareas.length > 0) {
           setSelectedMicroarea(microareas[0].id);
         }
         setPaintMode(true);
-        setSnackbar({ message: 'Escolha uma cor abaixo e toque em Começar a pintar', severity: 'info' });
+        useMapStore.getState().setPaintGuideCollapsed(false);
+        setSnackbar({ message: 'Modo pintar — escolha a cor e toque nas ruas', severity: 'info' });
       }
       if (e.key === 'e' || e.key === 'E') {
         if (countPaintedStreets(streets) === 0) return;
-        useMapStore.getState().setEraserMode(true);
+        const store = useMapStore.getState();
+        store.setEraserMode(true);
+        store.setMapPanEnabled(false);
+        setPaintMode(true);
+        useMapStore.getState().setPaintGuideCollapsed(false);
         setSnackbar({ message: 'Modo apagar — toque na rua colorida', severity: 'info' });
+      }
+      if ((e.key === 'm' || e.key === 'M') && paintMode) {
+        const store = useMapStore.getState();
+        store.setMapPanEnabled(!store.mapPanEnabled);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -616,7 +627,7 @@ export function SigapsMap() {
       side: side as ApiPaintSide,
       scope: scope as PaintScope | undefined,
     }),
-    onSuccess: (res) => {
+    onSuccess: (res, variables) => {
       if (!municipalityId) return;
       const updated = prepareStreetsForMap([res.data])[0];
       if (!updated) {
@@ -633,6 +644,8 @@ export function SigapsMap() {
       if (selectedStreet?.id === updated.id) {
         setSelectedStreet(updated);
       }
+      const ma = getMicroarea(variables.microareaId);
+      setLastPaintAction(ma ? `Trecho vinculado à ${ma.name}` : 'Trecho pintado');
     },
     onError: (err) => {
       setSnackbar({
@@ -703,7 +716,7 @@ export function SigapsMap() {
     if (!paintMode || eraserMode) return;
     if (!selectedMicroareaId) {
       setSnackbar({
-        message: 'Escolha uma microárea na legenda antes de pintar o povoado.',
+        message: 'Escolha uma microárea no painel de pintura antes de vincular o povoado.',
         severity: 'info',
       });
       return;
@@ -1165,6 +1178,8 @@ export function SigapsMap() {
         onMinimized={() =>
           setSnackbar({ message: 'Pronto! Suas ruas foram salvas.', severity: 'success' })
         }
+        cursorLatitude={mapCursorCoords?.lat ?? null}
+        cursorLongitude={mapCursorCoords?.lng ?? null}
       />
       )}
 

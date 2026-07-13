@@ -319,6 +319,24 @@ Módulo criado para **complementar** o mapa de ruas do OpenStreetMap com lugares
 - **Localidade** — lugar nomeado sem classificação específica
 - **Distrito** — subdivisão administrativa
 
+## 8.3 Cadastro manual com coordenadas
+
+Quando a busca automática (OSM ou Nominatim) **não encontra** o lugar — mas ele aparece no Google Maps — use o cadastro manual:
+
+<div class="flow-step">
+<strong>Passo 1.</strong> Cadastros → <strong>Povoados</strong> → <strong>Cadastrar com coordenadas</strong> (ou botão <strong>Novo</strong>).<br>
+<strong>Passo 2.</strong> Informe o <strong>nome</strong> e o <strong>tipo</strong> (povoado, localidade ou distrito).<br>
+<strong>Passo 3.</strong> No mapa satélite do formulário, <strong>clique no ponto exato</strong> ou arraste o pino azul para ajustar.<br>
+<strong>Passo 4.</strong> Alternativa: no Google Maps, clique com o botão direito no local → <strong>Copiar coordenadas</strong> → cole no campo <strong>Colar coordenadas</strong> do SIGAPS.<br>
+<strong>Passo 5.</strong> Clique em <strong>Cadastrar e marcar no mapa</strong>. O marcador marrom aparece imediatamente no mapa principal (ative o toggle <strong>Povoados</strong>).
+</div>
+
+<div class="info-box">
+
+<strong>Dica:</strong> Se a busca Nominatim não retornar resultados, o sistema oferece o atalho <strong>Cadastrar com coordenadas</strong> na mesma tela — não é necessário sair do cadastro.
+
+</div>
+
 <div class="info-box">
 
 O mapeamento de **ruas** existente **não é alterado** por este módulo. Os povoados são pontos complementares exibidos como marcadores no mapa.
@@ -401,11 +419,15 @@ Esta seção descreve o **uso prático** do SIGAPS pelo enfermeiro da APS — co
 
 <div class="flow-step">
 <strong>Passo 1.</strong> Menu lateral → <strong>Pintar Mapa</strong>.<br>
-<strong>Passo 2.</strong> Toque no painel <strong>"Pintar microáreas"</strong> (Figuras 4 e 5).<br>
-<strong>Passo 3.</strong> Selecione a <strong>microárea</strong> desejada (cada uma tem uma cor).<br>
-<strong>Passo 4.</strong> Ative o modo <strong>Pintar</strong> e clique nas ruas do território — ou use <strong>Pintar bairro inteiro</strong> quando as ruas já tiverem bairro cadastrado.<br>
-<strong>Passo 5.</strong> Ao terminar, clique em <strong>Guardar e ver mapa</strong> para minimizar o painel e conferir o resultado.<br>
-<strong>Dica:</strong> Use a <strong>busca</strong> no topo para localizar uma rua pelo nome antes de pintar.
+<strong>Passo 2.</strong> No painel inferior <strong>Pintar microáreas</strong>, toque na <strong>cor do ACS</strong> desejada — o modo pintar inicia automaticamente.<br>
+<strong>Passo 3.</strong> Escolha <strong>como pintar</strong>:<br>
+&nbsp;&nbsp;• <strong>Dividir trecho</strong> — clique em pontos da rua para cortar entre microáreas (ideal para avenidas longas).<br>
+&nbsp;&nbsp;• <strong>Rua inteira</strong> — um clique colorirá a via toda.<br>
+&nbsp;&nbsp;• <strong>Lado E / Lado D</strong> — para avenidas com dois sentidos, pinta só o lado escolhido.<br>
+<strong>Passo 4.</strong> Toque nas ruas do território. Use <strong>Mover</strong> (ou tecla <strong>M</strong>) para arrastar o mapa sem pintar.<br>
+<strong>Passo 5.</strong> Para pintar várias ruas de uma vez, expanda <strong>Mais opções</strong> → <strong>Pintar bairro inteiro</strong> (quando as ruas já tiverem bairro cadastrado).<br>
+<strong>Passo 6.</strong> Ao terminar, clique em <strong>Guardar</strong> para minimizar o painel e conferir o resultado.<br>
+<strong>Dica:</strong> Use a <strong>busca</strong> no topo para localizar uma rua pelo nome antes de pintar. Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>Esc</strong> parar.
 </div>
 
 ## 11.3 Cadastrar ou atualizar ACS
@@ -422,9 +444,12 @@ Esta seção descreve o **uso prático** do SIGAPS pelo enfermeiro da APS — co
 Quando um lugar aparece no Google Maps mas não nas ruas do sistema (ex.: Povoado Bacabinha):
 
 <div class="flow-step">
-<strong>Passo 1.</strong> Cadastros → <strong>Povoados</strong> → <strong>Importar OSM</strong> ou <strong>Buscar no mapa</strong>.<br>
-<strong>Passo 2.</strong> No mapa, ative o toggle <strong>Povoados</strong> na barra superior para ver os marcadores marrons.<br>
-<strong>Passo 3.</strong> Use a busca do mapa para localizar o povoado pelo nome.
+<strong>Passo 1.</strong> Cadastros → <strong>Povoados</strong> → tente <strong>Importar OSM</strong> ou <strong>Buscar no mapa</strong> (Nominatim).<br>
+<strong>Passo 2.</strong> Se a busca não retornar resultados, clique em <strong>Cadastrar com coordenadas</strong>.<br>
+<strong>Passo 3.</strong> No formulário, clique no mapa satélite no ponto exato <strong>ou</strong> cole as coordenadas copiadas do Google Maps.<br>
+<strong>Passo 4.</strong> Salve com <strong>Cadastrar e marcar no mapa</strong>.<br>
+<strong>Passo 5.</strong> No mapa principal, ative o toggle <strong>Povoados</strong> na barra superior para ver o marcador marrom.<br>
+<strong>Passo 6.</strong> Use a busca do mapa para localizar o povoado pelo nome e conferir a posição.
 </div>
 
 ## 11.5 Exportar mapa para reunião ou arquivo

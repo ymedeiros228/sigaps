@@ -250,7 +250,7 @@ export function StreetsLayer({
       properties: { id: hoveredId },
       geometry: street.geojson,
     };
-  }, [paintMode, eraserMode, hoveredId, hoverLatLng, streetsById, paintStreetSide]);
+  }, [paintMode, eraserMode, hoveredId, hoverLatLng, streetsById, paintStreetSide, paintScope]);
 
   const hoverPreviewStyle = (): PathOptions => {
     if (eraserMode) {

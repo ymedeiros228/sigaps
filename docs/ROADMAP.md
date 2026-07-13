@@ -186,7 +186,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | P4 | Escolher ponto no mapa satélite (clique + arrastar pino) | [x] |
 | P5 | Enfermeiro pode cadastrar povoados (permissão alinhada ao backend) | [x] |
 | P6 | Busca Nominatim com viés regional (viewbox do município) | [x] |
-| P7 | Atualizar manual PDF com fluxo de povoado manual | [ ] |
+| P7 | Atualizar manual PDF com fluxo de povoado manual | [x] |
 
 **Critério de aceite:** qualquer povoado do município pode ser cadastrado em menos de 2 minutos, mesmo sem resultado na busca automática.
 
