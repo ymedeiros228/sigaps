@@ -21,7 +21,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | **Cadastros** | ✅ Forte | UBS, bairros, ACS (manual + CSV + foto), microáreas com vínculo ACS/UBS/bairro, povoados (OSM + Nominatim + manual) |
 | **Dashboard** | ✅ Forte | Cards, gráficos, cobertura %, relatório por ACS, histórico de alterações |
 | **Administração** | ✅ Forte | CRUD usuários, backup manual/automático, auditoria paginada |
-| **Infra** | ✅ Forte | JWT, PostGIS, deploy Render, multi-município na UI |
+| **Infra** | ✅ Forte | JWT, PostGIS, deploy Render |
 | **Integrações gov** | 🟡 Piloto | CNES (consulta), e-SUS (import CSV + sync) |
 | **Mobile / PWA** | ✅ Entregue | Instalável, cache offline para ACS |
 
