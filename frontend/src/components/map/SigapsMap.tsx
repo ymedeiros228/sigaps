@@ -235,7 +235,7 @@ export function SigapsMap() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-      if (e.key === 'Escape' && paintMode) {
+      if ((e.key === 'x' || e.key === 'X') && paintMode) {
         setPaintMode(false);
         setSnackbar({ message: 'Modo pintar desativado', severity: 'info' });
         return;

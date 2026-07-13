@@ -720,7 +720,7 @@ export function PaintGuidePanel({
                     color="text.disabled"
                     sx={{ display: 'block', mt: 1.25, textAlign: 'center' }}
                   >
-                    Atalhos: P pintar · E apagar · M mover · Esc parar
+                    Atalhos: P pintar · E apagar · M mover · X sair
                   </Typography>
                 )}
               </>
