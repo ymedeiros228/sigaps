@@ -115,6 +115,7 @@ export function SigapsMap() {
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
   const unpaintingIdsRef = useRef<Set<string>>(new Set());
   const segmentPaintKeysRef = useRef<Set<string>>(new Set());
+  const paintSeqByStreetRef = useRef<Map<string, number>>(new Map());
   const lastDragPaintRef = useRef<Map<string, number>>(new Map());
   const undoStackRef = useRef<PaintUndoAction[]>([]);
   const isUndoingRef = useRef(false);
@@ -665,6 +666,8 @@ export function SigapsMap() {
     }),
     onMutate: async (variables) => {
       if (!municipalityId) return;
+      const seq = (paintSeqByStreetRef.current.get(variables.streetId) ?? 0) + 1;
+      paintSeqByStreetRef.current.set(variables.streetId, seq);
       const streetsKey = queryKeys.streetsMap(municipalityId);
       await queryClient.cancelQueries({ queryKey: streetsKey });
       const previous = queryClient.getQueryData(streetsKey);
@@ -685,10 +688,15 @@ export function SigapsMap() {
           patchStreetInMapCache(queryClient, municipalityId, optimistic);
         }
       }
-      return { previous };
+      return { previous, seq };
     },
-    onSuccess: (res, variables) => {
+    onSuccess: (res, variables, context) => {
       if (!municipalityId) return;
+      const currentSeq = paintSeqByStreetRef.current.get(variables.streetId);
+      if (context?.seq !== currentSeq) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+        return;
+      }
       const updated = prepareStreetsForMap([res.data])[0];
       if (!updated) {
         setSnackbar({

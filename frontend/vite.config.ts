@@ -65,6 +65,9 @@ export default defineConfig({
           if (id.includes('html2canvas') || id.includes('jspdf') || id.includes('qrcode')) {
             return 'export-tools';
           }
+          if (id.includes('/xlsx/') || id.includes('node_modules/xlsx')) {
+            return 'xlsx';
+          }
         },
       },
     },

@@ -190,6 +190,20 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 **Critério de aceite:** qualquer povoado do município pode ser cadastrado em menos de 2 minutos, mesmo sem resultado na busca automática.
 
+### Sprint 15 — Prontidão para produção — ✅ Concluído
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| S1 | Guard global de escopo por município (IDOR) | [x] |
+| S2 | SQL parametrizado em consultas espaciais | [x] |
+| S3 | Rate limiting (auth + API global) | [x] |
+| S4 | JWT revalida usuário ativo no banco | [x] |
+| S5 | CPF mascarado em logs de auditoria | [x] |
+| S6 | Testes unitários + e2e no CI | [x] |
+| S7 | Busca do mapa com cancelamento (AbortSignal) | [x] |
+| S8 | Pintura otimista com proteção contra respostas defasadas | [x] |
+| S9 | Code-split do bundle xlsx (importações) | [x] |
+
 ---
 
 ## Histórico de fases (referência)

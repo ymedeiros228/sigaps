@@ -598,8 +598,11 @@ export const placesApi = {
 };
 
 export const searchApi = {
-  query: (municipalityId: string, q: string) =>
-    api.get<SearchResult>(`/search/municipality/${municipalityId}`, { params: { q } }),
+  query: (municipalityId: string, q: string, config?: { signal?: AbortSignal }) =>
+    api.get<SearchResult>(`/search/municipality/${municipalityId}`, {
+      params: { q },
+      signal: config?.signal,
+    }),
 };
 
 export const dashboardApi = {

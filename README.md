@@ -62,6 +62,7 @@ Variáveis de exemplo: `.env.production.example` | Blueprint: `render.yaml`
 - Administração: CRUD de usuários, backup manual/automático, auditoria paginada
 - LGPD: CPF mascarado na API conforme perfil
 - API documentada via Swagger
+- **Segurança:** escopo por município, rate limiting, SQL parametrizado, CPF mascarado em auditoria
 
 Detalhamento e próximos passos: [ROADMAP.md](docs/ROADMAP.md)
 

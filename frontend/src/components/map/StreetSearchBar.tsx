@@ -51,7 +51,8 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
 
   const { data: searchData, isFetching, isError: searchError, refetch: refetchSearch } = useQuery({
     queryKey: ['unified-search', municipalityId, debounced],
-    queryFn: () => searchApi.query(municipalityId!, debounced).then((r) => r.data),
+    queryFn: ({ signal }) =>
+      searchApi.query(municipalityId!, debounced, { signal }).then((r) => r.data),
     enabled: !!municipalityId && debounced.trim().length >= 2,
     staleTime: 30_000,
     retry: 2,
@@ -182,6 +183,11 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         size="small"
         fullWidth
         value={text}
+        role="combobox"
+        aria-expanded={showList}
+        aria-autocomplete="list"
+        aria-controls="street-search-results"
+        aria-label="Buscar rua, UBS, povoado ou ACS"
         onChange={(e) => {
           setText(e.target.value);
           setOpen(true);
@@ -210,6 +216,8 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
 
       {showList && (
         <Paper
+          id="street-search-results"
+          role="listbox"
           elevation={8}
           sx={{
             position: 'absolute',
@@ -244,7 +252,11 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
           ) : (
             <List dense disablePadding>
               {options.map((opt) => (
-                <ListItemButton key={`${opt.kind}-${opt.id}`} onMouseDown={() => pick(opt)}>
+                <ListItemButton
+                  key={`${opt.kind}-${opt.id}`}
+                  role="option"
+                  onMouseDown={() => pick(opt)}
+                >
                   <ListItemText
                     primary={opt.label}
                     secondary={opt.group}

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MunicipalitiesModule } from './modules/municipalities/municipalities.module';
@@ -31,6 +32,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 120 },
+      { name: 'auth', ttl: 60_000, limit: 15 },
+    ]),
     PrismaModule,
     AuthModule,
     MunicipalitiesModule,
@@ -52,6 +57,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     PlacesModule,
   ],
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: MunicipalityScopeGuard },

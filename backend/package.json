@@ -37,6 +37,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/swagger": "^11.4.5",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^5.22.0",
     "@tmcw/togeojson": "^7.1.2",
     "@turf/circle": "^7.3.5",
