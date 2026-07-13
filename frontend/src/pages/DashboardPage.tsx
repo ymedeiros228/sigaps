@@ -50,6 +50,7 @@ import { municipalitiesApi } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { CACHE, queryKeys } from '../utils/queryKeys';
 import { OperationalChecklistCard } from '../components/dashboard/OperationalChecklist';
+import { DashboardNextSteps } from '../components/dashboard/DashboardNextSteps';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
@@ -215,6 +216,14 @@ export function DashboardPage() {
             </MuiTooltip>
           </Box>
         }
+      />
+
+      <DashboardNextSteps
+        municipalityId={municipalityId}
+        coverage={data.coverage}
+        families={data.families}
+        streets={data.streets}
+        mapHomologatedAt={municipality?.mapHomologatedAt}
       />
 
       <OperationalChecklistCard municipalityId={municipalityId} />

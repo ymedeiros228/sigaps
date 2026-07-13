@@ -31,8 +31,17 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 1. **Homologação PDF A3** — Layout pronto; falta aceite formal da SMS.
 2. **Integração e-SUS completa** — Piloto CSV com re-sincronização automática do último import; API oficial ainda pendente.
-3. **Segundo município em produção** — UI multi-município pronta; falta onboarding de outro cliente.
-4. **Domínio institucional** — `.gov.br` e servidor sempre ligado (plano pago Render).
+3. **Domínio institucional** — `.gov.br` e servidor sempre ligado (plano pago Render).
+
+> **Escopo:** deploy exclusivo para **Passagem Franca/MA** (não é produto multi-município).
+
+### Sprint 19 — Guia operacional PF — 🟡 Em andamento
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| G1 | Painel "Próximos passos" no dashboard (cobertura, e-SUS, homologação) | [x] |
+| G2 | Homologação SMS (aceite formal A6) | [ ] |
+| G3 | Popular famílias via CSV e-SUS | [ ] |
 
 ---
 
