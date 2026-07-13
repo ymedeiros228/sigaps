@@ -1,6 +1,7 @@
 export const LEGACY_DOWNLOAD_FILENAME = 'sigaps-legado-passagem-franca.zip';
 
-export const LEGACY_DOWNLOAD_PATH = `/downloads/${LEGACY_DOWNLOAD_FILENAME}`;
+/** Download direto do ZIP (força attachment, não abre o app). */
+export const LEGACY_DOWNLOAD_PATH = `/entrega/${LEGACY_DOWNLOAD_FILENAME}`;
 
 export const LEGACY_DOWNLOAD_URL = `https://sigaps-api.onrender.com${LEGACY_DOWNLOAD_PATH}`;
 

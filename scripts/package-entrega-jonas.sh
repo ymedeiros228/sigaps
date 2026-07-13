@@ -34,7 +34,7 @@ Gerado em: ${DATE_TAG} (UTC)
 Commit Git: ${COMMIT}
 Produção: https://sigaps-api.onrender.com/mapa
 Health: https://sigaps-api.onrender.com/health
-Download: https://sigaps-api.onrender.com/downloads/sigaps-legado-passagem-franca.zip
+Download: https://sigaps-api.onrender.com/entrega/sigaps-legado-passagem-franca.zip
 EOF
 
 copy_tree() {
@@ -104,7 +104,7 @@ Pacote de **código-fonte legado** para Jonas Almeida Medeiros.
 | [sigaps-legado-passagem-franca.zip](sigaps-legado-passagem-franca.zip) | Última versão empacotada |
 | \`${ZIP_NAME}\` | Build datado de ${DATE_TAG} |
 
-**Download em produção:** https://sigaps-api.onrender.com/downloads/sigaps-legado-passagem-franca.zip
+**Download direto (ZIP):** https://sigaps-api.onrender.com/entrega/sigaps-legado-passagem-franca.zip
 
 **Página de download:** https://sigaps-api.onrender.com/downloads/
 

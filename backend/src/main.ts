@@ -79,6 +79,7 @@ async function bootstrap() {
       '/paint-zones',
       '/integrations',
       '/cadastros',
+      '/entrega',
       '/docs',
       '/uploads',
     ];

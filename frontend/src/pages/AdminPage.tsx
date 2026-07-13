@@ -395,6 +395,8 @@ export function AdminPage() {
                   startIcon={<Download />}
                   component="a"
                   href={LEGACY_DOWNLOAD_PATH}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   download={LEGACY_DOWNLOAD_FILENAME}
                   sx={{ fontWeight: 700 }}
                 >

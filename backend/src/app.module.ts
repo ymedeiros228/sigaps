@@ -22,6 +22,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { CadastrosModule } from './modules/cadastros/cadastros.module';
 import { PlacesModule } from './modules/places/places.module';
+import { EntregaModule } from './modules/entrega/entrega.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { MunicipalityScopeGuard } from './common/guards/municipality-scope.guard';
@@ -59,6 +60,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     IntegrationsModule,
     CadastrosModule,
     PlacesModule,
+    EntregaModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
