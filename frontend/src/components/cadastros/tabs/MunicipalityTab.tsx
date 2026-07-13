@@ -307,9 +307,12 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
         open={esusOpen}
         municipalityId={municipalityId}
         onClose={() => setEsusOpen(false)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['streets'] });
-          queryClient.invalidateQueries({ queryKey: queryKeys.municipality(municipalityId) });
+        onSuccess={(message) => {
+          invalidateCadastrosCache(queryClient, municipalityId);
+          queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(municipalityId) });
+          queryClient.invalidateQueries({ queryKey: queryKeys.operationalChecklist(municipalityId) });
+          queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+          reportSuccess(message);
         }}
       />
     </Box>

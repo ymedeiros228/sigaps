@@ -1128,6 +1128,15 @@ export function SigapsMap() {
     setLastPaintAction('Desfeito');
   }, [streets, unpaintAtPointMutation, paintAtPointMutation]);
 
+  const handlePaintBlocked = useCallback((reason: 'pan') => {
+    if (reason === 'pan') {
+      setSnackbar({
+        message: 'Desative Mover para pintar nesta rua.',
+        severity: 'info',
+      });
+    }
+  }, []);
+
   const handleDragPaintEnd = useCallback(() => {
     clearDragPaintIds();
     pendingPaintRef.current.clear();
@@ -1672,6 +1681,7 @@ export function SigapsMap() {
               onStreetUnpaint={unpaintStreet}
               onStreetPaintRange={paintStreetRange}
               onStreetUnpaintRange={unpaintStreetRange}
+              onPaintBlocked={handlePaintBlocked}
               onDragPaintEnd={handleDragPaintEnd}
             />
           )}

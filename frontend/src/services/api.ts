@@ -795,10 +795,14 @@ export const integrationsApi = {
   lookupCnes: (code: string) =>
     api.get<CnesLookupResult>(`/integrations/cnes/${encodeURIComponent(code)}`),
   importEsus: (municipalityId: string, csv: string) =>
-    api.post<{ updated: number; total: number; errors: Array<{ row: number; streetRef: string; message: string }>; lastSyncAt?: string }>(
-      `/integrations/esus/import/${municipalityId}`,
-      { csv },
-    ),
+    api.post<{
+      ok: boolean;
+      message: string;
+      updated: number;
+      total: number;
+      errors: Array<{ row: number; streetRef: string; message: string }>;
+      lastSyncAt?: string;
+    }>(`/integrations/esus/import/${municipalityId}`, { csv }),
   syncEsus: (municipalityId: string) =>
     api.post<{
       ok: boolean;

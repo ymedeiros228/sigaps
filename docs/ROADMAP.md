@@ -43,7 +43,17 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | G4 | Entrega zerada: seed sem pintura, admin preparar entrega, mapa limpo | [x] |
 | G5 | Checklist `readyForPainting` + status de entrega no Admin | [x] |
 | G2 | Homologação SMS (aceite formal A6) | [ ] |
-| G3 | Popular famílias via CSV e-SUS | [ ] |
+| G3 | Popular famílias via CSV e-SUS | [~] Rodada 1: matching + UX import |
+
+### Sprint 20 — Rodada 1 de melhorias — 🟡 Em andamento
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| R1.1 | Matching e-SUS com mesma lógica do ACS (acento, prefixo, ambíguo) | [x] |
+| R1.2 | EsusImportDialog: arquivo CSV, modelo, lista de erros | [x] |
+| R1.3 | Dashboard: alertas e-SUS + invalidação cache pós-import | [x] |
+| R1.4 | E2E: modo arrastar (brush) e rua inteira | [x] |
+| R1.5 | Aviso quando Mover bloqueia pintura no mapa | [x] |
 
 ---
 

@@ -541,11 +541,11 @@ export function PaintGuidePanel({
                       onChange={(_e, value) => value && handleBrushMode(value)}
                       sx={{ mb: 0.75 }}
                     >
-                      <ToggleButton value="brush" sx={{ py: 0.65, gap: 0.4, fontWeight: 700, flex: 1.2 }}>
+                      <ToggleButton value="brush" data-testid="paint-mode-brush" sx={{ py: 0.65, gap: 0.4, fontWeight: 700, flex: 1.2 }}>
                         <Brush sx={{ fontSize: 16 }} />
                         Arrastar
                       </ToggleButton>
-                      <ToggleButton value="whole" sx={{ py: 0.65, fontWeight: 700, flex: 1 }}>
+                      <ToggleButton value="whole" data-testid="paint-mode-whole" sx={{ py: 0.65, fontWeight: 700, flex: 1 }}>
                         Rua inteira
                       </ToggleButton>
                       <ToggleButton value="left" sx={{ py: 0.65, fontWeight: 700, flex: 0.8 }}>
@@ -624,6 +624,7 @@ export function PaintGuidePanel({
                       </ToggleButton>
                       <ToggleButton
                         value="eraser"
+                        data-testid="paint-mode-eraser"
                         onClick={handleStartEraser}
                         disabled={importing || paintedCount === 0}
                         sx={{

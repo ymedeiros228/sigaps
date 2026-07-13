@@ -71,6 +71,77 @@ test.describe('Pintura no mapa', () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
+  test('pinta rua inteira no modo whole', async ({ page }) => {
+    await openMapAndWaitStreets(page);
+
+    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    await search.fill('Viriato');
+    await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
+
+    await enterPaintWithMicroarea01(page);
+    await page.getByTestId('paint-mode-whole').click();
+
+    const paintResponse = page.waitForResponse(
+      (res) =>
+        res.url().includes('/paint-at-point') &&
+        res.request().method() === 'POST' &&
+        res.status() < 500,
+      { timeout: 30_000 },
+    );
+
+    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    await streetPath.click({ force: true });
+
+    const response = await paintResponse;
+    expect(response.ok(), `paint-at-point falhou: ${response.status()}`).toBeTruthy();
+    const body = (await response.request().postDataJSON()) as { scope?: string };
+    expect(body.scope).toBe('whole');
+  });
+
+  test('modo arrastar envia scope brush com coordenadas de fim', async ({ page }) => {
+    await openMapAndWaitStreets(page);
+
+    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    await search.fill('Viriato');
+    await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
+
+    await enterPaintWithMicroarea01(page);
+    await page.getByTestId('paint-mode-brush').click();
+
+    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    const box = await streetPath.boundingBox();
+    if (!box) throw new Error('Rua não visível no mapa');
+
+    const paintResponse = page.waitForResponse(
+      (res) =>
+        res.url().includes('/paint-at-point') &&
+        res.request().method() === 'POST' &&
+        res.status() < 500,
+      { timeout: 30_000 },
+    );
+
+    const fromX = box.x + box.width * 0.2;
+    const toX = box.x + box.width * 0.8;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(fromX, y);
+    await page.mouse.down();
+    await page.mouse.move(toX, y, { steps: 8 });
+    await page.mouse.up();
+
+    const response = await paintResponse;
+    expect(response.ok(), `paint brush falhou: ${response.status()}`).toBeTruthy();
+    const body = (await response.request().postDataJSON()) as {
+      scope?: string;
+      endLatitude?: number;
+      endLongitude?: number;
+    };
+    expect(body.scope).toBe('brush');
+    expect(body.endLatitude).toBeDefined();
+    expect(body.endLongitude).toBeDefined();
+  });
+
   test('modo apagar remove pintura ao clicar na rua', async ({ page }) => {
     await openMapAndWaitStreets(page);
 

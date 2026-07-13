@@ -66,3 +66,62 @@ export function buildStreetSearchKeys(street: { name: string; streetType?: strin
     ...buildStreetCoverageVariants(`${street.streetType ?? ''} ${street.name}`),
   ]);
 }
+
+export type StreetRefCatalogEntry = {
+  id: string;
+  name: string;
+  streetType?: string | null;
+  microareaId?: string | null;
+  searchKeys: string[];
+};
+
+export type StreetRefMatchResult =
+  | { status: 'matched'; street: StreetRefCatalogEntry }
+  | { status: 'ambiguous' }
+  | { status: 'unmatched' };
+
+export function buildStreetRefCatalog(
+  streets: Array<{ id: string; name: string; streetType?: string | null; microareaId?: string | null }>,
+): StreetRefCatalogEntry[] {
+  return streets.map((street) => ({
+    ...street,
+    searchKeys: buildStreetSearchKeys(street),
+  }));
+}
+
+/** Casa referência de logradouro (e-SUS, CSV) com ruas do município. */
+export function matchStreetRef(ref: string, catalog: StreetRefCatalogEntry[]): StreetRefMatchResult {
+  const refVariants = buildStreetCoverageVariants(ref);
+  const exact = new Map<string, StreetRefCatalogEntry>();
+  for (const entry of catalog) {
+    if (refVariants.some((variant) => entry.searchKeys.includes(variant))) {
+      exact.set(entry.id, entry);
+    }
+  }
+  if (exact.size === 1) {
+    return { status: 'matched', street: [...exact.values()][0] };
+  }
+  if (exact.size > 1) {
+    return { status: 'ambiguous' };
+  }
+
+  const partial = new Map<string, StreetRefCatalogEntry>();
+  for (const entry of catalog) {
+    if (
+      refVariants.some(
+        (variant) =>
+          variant.length >= 4 &&
+          entry.searchKeys.some((key) => key.includes(variant) || variant.includes(key)),
+      )
+    ) {
+      partial.set(entry.id, entry);
+    }
+  }
+  if (partial.size === 1) {
+    return { status: 'matched', street: [...partial.values()][0] };
+  }
+  if (partial.size > 1) {
+    return { status: 'ambiguous' };
+  }
+  return { status: 'unmatched' };
+}

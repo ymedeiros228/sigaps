@@ -5,6 +5,7 @@ import {
   MapOutlined,
   PictureAsPdf,
   Storage,
+  Sync,
   Verified,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
@@ -42,6 +43,10 @@ export function DashboardNextSteps({
 
   const ready = checklist?.readyForHomologation ?? false;
   const readyForPainting = checklist?.readyForPainting ?? false;
+  const familiesItem = checklist?.items.find((item) => item.id === 'families');
+  const esusSyncItem = checklist?.items.find((item) => item.id === 'esus-sync');
+  const familiesPending = familiesItem ? !familiesItem.done : families === 0;
+  const esusSyncPending = esusSyncItem ? !esusSyncItem.done : false;
   const coverageGoal = 80;
   const coverageGap = Math.max(0, coverageGoal - coverage);
 
@@ -157,7 +162,7 @@ export function DashboardNextSteps({
         </Alert>
       )}
 
-      {streets > 0 && families === 0 && (
+      {streets > 0 && familiesPending && (
         <Alert
           severity="info"
           icon={<FamilyRestroom />}
@@ -177,6 +182,30 @@ export function DashboardNextSteps({
           <Typography variant="body2">
             Importe o CSV do <strong>e-SUS</strong> para popular famílias e habitantes por logradouro
             (opcional para pintar, útil para indicadores).
+          </Typography>
+        </Alert>
+      )}
+
+      {streets > 0 && !familiesPending && esusSyncPending && (
+        <Alert
+          severity="info"
+          icon={<Sync />}
+          action={
+            <Button
+              component={RouterLink}
+              to="/cadastros?secao=municipio"
+              color="inherit"
+              size="small"
+              variant="outlined"
+            >
+              Sincronizar e-SUS
+            </Button>
+          }
+          sx={{ borderRadius: 2, alignItems: 'center' }}
+        >
+          <Typography variant="body2">
+            Há importação e-SUS salva, mas ainda sem sincronização registrada. Use{' '}
+            <strong>Sincronizar e-SUS</strong> em Cadastros → Município para atualizar os dados.
           </Typography>
         </Alert>
       )}

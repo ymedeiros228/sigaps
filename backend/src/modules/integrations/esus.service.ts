@@ -2,7 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
-import { buildStreetSearchWhere } from '../../common/utils/street-search.util';
+import {
+  buildStreetRefCatalog,
+  matchStreetRef,
+} from '../acs/acs-street-coverage.util';
 
 type EsusRow = {
   streetRef: string;
@@ -75,7 +78,7 @@ export class EsusService {
     return {
       ok: true,
       message: `${result.updated} de ${result.total} ruas atualizadas${
-        result.errors.length > 0 ? ` (${result.errors.length} não encontradas)` : ''
+        result.errors.length > 0 ? ` (${result.errors.length} com aviso)` : ''
       }`,
       lastSyncAt: syncedAt.toISOString(),
       ...result,
@@ -107,7 +110,7 @@ export class EsusService {
     return {
       ok: true,
       message: `${result.updated} de ${result.total} ruas atualizadas${
-        result.errors.length > 0 ? ` (${result.errors.length} não encontradas)` : ''
+        result.errors.length > 0 ? ` (${result.errors.length} com aviso)` : ''
       }`,
       lastSyncAt: syncedAt.toISOString(),
       ...result,
@@ -120,35 +123,50 @@ export class EsusService {
     userId: string,
     source: 'esus-csv' | 'esus-sync',
   ) {
-    let updated = 0;
+    const streets = await this.prisma.street.findMany({
+      where: { municipalityId },
+      select: { id: true, name: true, streetType: true },
+    });
+    const catalog = buildStreetRefCatalog(streets);
+
     const errors: Array<{ row: number; streetRef: string; message: string }> = [];
+    const updates: Array<{ id: string; familyCount: number; inhabitantCount: number }> = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const row = i + 2;
-      try {
-        const street = await this.prisma.street.findFirst({
-          where: buildStreetSearchWhere(municipalityId, item.streetRef),
-        });
-        if (!street) {
-          errors.push({ row, streetRef: item.streetRef, message: 'Rua não encontrada no SIGAPS' });
-          continue;
-        }
-        await this.prisma.street.update({
-          where: { id: street.id },
-          data: {
-            familyCount: item.familyCount,
-            inhabitantCount: item.inhabitantCount,
-          },
-        });
-        updated++;
-      } catch (error) {
+      const match = matchStreetRef(item.streetRef, catalog);
+      if (match.status === 'unmatched') {
+        errors.push({ row, streetRef: item.streetRef, message: 'Rua não encontrada no SIGAPS' });
+        continue;
+      }
+      if (match.status === 'ambiguous') {
         errors.push({
           row,
           streetRef: item.streetRef,
-          message: (error as Error).message || 'Erro ao importar linha',
+          message: 'Mais de uma rua corresponde a este logradouro',
         });
+        continue;
       }
+      updates.push({
+        id: match.street.id,
+        familyCount: item.familyCount,
+        inhabitantCount: item.inhabitantCount,
+      });
+    }
+
+    if (updates.length > 0) {
+      await this.prisma.$transaction(
+        updates.map((u) =>
+          this.prisma.street.update({
+            where: { id: u.id },
+            data: {
+              familyCount: u.familyCount,
+              inhabitantCount: u.inhabitantCount,
+            },
+          }),
+        ),
+      );
     }
 
     await this.audit.log({
@@ -156,9 +174,9 @@ export class EsusService {
       entityType: 'street',
       entityId: municipalityId,
       action: 'UPDATE_DEMOGRAPHICS',
-      afterData: { source, updated, total: items.length, errors: errors.length },
+      afterData: { source, updated: updates.length, total: items.length, errors: errors.length },
     });
 
-    return { updated, errors, total: items.length };
+    return { updated: updates.length, errors, total: items.length };
   }
 }

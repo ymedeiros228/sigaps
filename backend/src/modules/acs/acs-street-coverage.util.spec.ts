@@ -1,6 +1,8 @@
 import {
   buildStreetCoverageVariants,
+  buildStreetRefCatalog,
   buildStreetSearchKeys,
+  matchStreetRef,
   splitStreetCoverageText,
 } from './acs-street-coverage.util';
 
@@ -25,5 +27,12 @@ describe('acs-street-coverage.util', () => {
       'sao jose',
       'rua sao jose',
     ]);
+  });
+
+  it('matchStreetRef resolves unique street', () => {
+    const catalog = buildStreetRefCatalog([{ id: 'a', name: 'Viriato', streetType: 'Rua' }]);
+    const result = matchStreetRef('Rua Viriato', catalog);
+    expect(result.status).toBe('matched');
+    if (result.status === 'matched') expect(result.street.id).toBe('a');
   });
 });

@@ -43,6 +43,7 @@ interface StreetsLayerProps {
     endLat: number,
     endLng: number,
   ) => void;
+  onPaintBlocked?: (reason: 'pan') => void;
   onDragPaintEnd: () => void;
 }
 
@@ -68,6 +69,7 @@ export function StreetsLayer({
   onStreetUnpaint,
   onStreetPaintRange,
   onStreetUnpaintRange,
+  onPaintBlocked,
   onDragPaintEnd,
 }: StreetsLayerProps) {
   const highlightedId = useMapStore((s) => s.highlightedStreetId);
@@ -607,6 +609,10 @@ export function StreetsLayer({
     }
 
     if (paintMode && mapPanEnabled) {
+      layer.on('mousedown', (e: L.LeafletMouseEvent) => {
+        stopMapEvent(e);
+        onPaintBlocked?.('pan');
+      });
       layer.on('mouseover', (e: L.LeafletMouseEvent) => {
         layer.setTooltipContent(tooltipForPoint(e.latlng.lat, e.latlng.lng));
       });

@@ -19,18 +19,13 @@ import { maskCpfField } from '../../common/utils/mask-cpf.util';
 import { CreateAcsDto, UpdateAcsDto } from './dto/acs.dto';
 import { BulkAcsImportDto } from './dto/bulk-acs.dto';
 import {
-  buildStreetCoverageVariants,
-  buildStreetSearchKeys,
+  buildStreetRefCatalog,
+  matchStreetRef,
   splitStreetCoverageText,
+  type StreetRefCatalogEntry,
 } from './acs-street-coverage.util';
 
-type StreetCoverageCatalogEntry = {
-  id: string;
-  name: string;
-  streetType?: string | null;
-  microareaId?: string | null;
-  searchKeys: string[];
-};
+type StreetCoverageCatalogEntry = StreetRefCatalogEntry;
 
 type StreetCoverageSyncResult = {
   totalRefs: number;
@@ -119,46 +114,11 @@ export class AcsService {
   private buildStreetCoverageCatalog(
     streets: Array<{ id: string; name: string; streetType?: string | null; microareaId?: string | null }>,
   ) {
-    return streets.map((street) => ({
-      ...street,
-      searchKeys: buildStreetSearchKeys(street),
-    }));
+    return buildStreetRefCatalog(streets);
   }
 
-  private matchStreetCoverageRef(ref: string, catalog: StreetCoverageCatalogEntry[]) {
-    const refVariants = buildStreetCoverageVariants(ref);
-    const exact = new Map<string, StreetCoverageCatalogEntry>();
-    for (const entry of catalog) {
-      if (refVariants.some((variant) => entry.searchKeys.includes(variant))) {
-        exact.set(entry.id, entry);
-      }
-    }
-    if (exact.size === 1) {
-      return { status: 'matched' as const, street: [...exact.values()][0] };
-    }
-    if (exact.size > 1) {
-      return { status: 'ambiguous' as const };
-    }
-
-    const partial = new Map<string, StreetCoverageCatalogEntry>();
-    for (const entry of catalog) {
-      if (
-        refVariants.some(
-          (variant) =>
-            variant.length >= 4 &&
-            entry.searchKeys.some((key) => key.includes(variant) || variant.includes(key)),
-        )
-      ) {
-        partial.set(entry.id, entry);
-      }
-    }
-    if (partial.size === 1) {
-      return { status: 'matched' as const, street: [...partial.values()][0] };
-    }
-    if (partial.size > 1) {
-      return { status: 'ambiguous' as const };
-    }
-    return { status: 'unmatched' as const };
+  private matchStreetCoverageRef(ref: string, catalog: ReturnType<typeof buildStreetRefCatalog>) {
+    return matchStreetRef(ref, catalog);
   }
 
   private formatStreetCoverageWarnings(summary: StreetCoverageSyncResult) {
