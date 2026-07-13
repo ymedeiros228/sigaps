@@ -81,6 +81,92 @@ export function closestVertexIndex(coords: Coord[], latitude: number, longitude:
   return best;
 }
 
+const PAINT_HIT_METERS = 28;
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function distancePointToSegmentMeters(
+  plat: number,
+  plng: number,
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): number {
+  const cos = Math.cos((plat * Math.PI) / 180);
+  const ax = aLng * cos;
+  const ay = aLat;
+  const bx = bLng * cos;
+  const by = bLat;
+  const px = plng * cos;
+  const py = plat;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 1e-12) return haversineMeters(plat, plng, aLat, aLng);
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const projLat = ay + t * dy;
+  const projLng = (ax + t * dx) / cos;
+  return haversineMeters(plat, plng, projLat, projLng);
+}
+
+export function distanceToLineStringMeters(
+  latitude: number,
+  longitude: number,
+  geojson: GeoJSON.LineString,
+): number {
+  const coords = streetCoords(geojson);
+  if (coords.length < 2) return Infinity;
+  let best = Infinity;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const [lng1, lat1] = coords[i];
+    const [lng2, lat2] = coords[i + 1];
+    best = Math.min(
+      best,
+      distancePointToSegmentMeters(latitude, longitude, lat1, lng1, lat2, lng2),
+    );
+  }
+  return best;
+}
+
+function segmentAtPointByGeometry(
+  street: Street,
+  latitude: number,
+  longitude: number,
+  activeSide?: ApiPaintSide | StreetPaintSide,
+): StreetPaintSegment | null {
+  const segments = street.paintSegments ?? [];
+  if (!segments.length) return null;
+  let best: StreetPaintSegment | null = null;
+  let bestDist = Infinity;
+  for (const seg of segments) {
+    if (isDualSideStreet(street) && activeSide && activeSide !== 'BOTH' && activeSide !== 'FULL') {
+      const side = activeSide as StreetPaintSide;
+      if (seg.side !== side && seg.side !== 'FULL') continue;
+    }
+    const geom =
+      seg.geojson?.type === 'LineString' && (seg.geojson.coordinates?.length ?? 0) >= 2
+        ? seg.geojson
+        : street.geojson;
+    const d = distanceToLineStringMeters(latitude, longitude, geom);
+    if (d < bestDist) {
+      bestDist = d;
+      best = seg;
+    }
+  }
+  return best && bestDist <= PAINT_HIT_METERS ? best : null;
+}
+
 export function computeUnpaintedRanges(
   segments: Array<{ startIndex: number; endIndex: number }>,
   maxIndex: number,
@@ -175,14 +261,18 @@ export function segmentAtPoint(
 
   if (isDualSideStreet(street) && activeSide && activeSide !== 'BOTH' && activeSide !== 'FULL') {
     const side = activeSide as StreetPaintSide;
-    return (
+    const bySide =
       segmentsCoveringSide(segments, side).find(
         (s) => s.startIndex <= vertexIndex && s.endIndex >= vertexIndex,
-      ) ?? null
-    );
+      ) ?? null;
+    if (bySide) return bySide;
+    return segmentAtPointByGeometry(street, latitude, longitude, activeSide);
   }
 
-  return segments.find((s) => s.startIndex <= vertexIndex && s.endIndex >= vertexIndex) ?? null;
+  const byIndex =
+    segments.find((s) => s.startIndex <= vertexIndex && s.endIndex >= vertexIndex) ?? null;
+  if (byIndex) return byIndex;
+  return segmentAtPointByGeometry(street, latitude, longitude, activeSide);
 }
 
 export function paintStateAtPoint(
@@ -196,6 +286,12 @@ export function paintStateAtPoint(
     return { microareaId: segment.microareaId, segment };
   }
   if (street.paintSegments?.length) {
+    if (
+      street.microareaId &&
+      distanceToLineStringMeters(latitude, longitude, street.geojson) <= PAINT_HIT_METERS
+    ) {
+      return { microareaId: street.microareaId, segment: null };
+    }
     return { microareaId: null, segment: null };
   }
   return { microareaId: street.microareaId ?? null, segment: null };
@@ -714,6 +810,72 @@ export function simulatePaintAtPoint(
   const paintSegments = rangesToPaintSegments(street, ranges, lookup);
   const microareaIdSynced = syncStreetMicroareaId(ranges, maxIndex);
   const primaryMa = microareaIdSynced ? lookup.get(microareaIdSynced) : microarea;
+
+  return {
+    ...street,
+    microareaId: microareaIdSynced ?? undefined,
+    microarea: primaryMa
+      ? { id: primaryMa.id, name: primaryMa.name, number: primaryMa.number, color: primaryMa.color }
+      : undefined,
+    paintSegments,
+  };
+}
+
+export function simulateUnpaintAtPoint(
+  street: Street,
+  latitude: number,
+  longitude: number,
+  requestedSide: ApiPaintSide | StreetPaintSide,
+  microareaLookup?: Map<string, { id: string; name: string; number: number; color: string }>,
+): Street | null {
+  const coords = streetCoords(street.geojson);
+  const maxIndex = coords.length - 1;
+  if (maxIndex < 1) return null;
+
+  let ranges = streetToRanges(street);
+  const unpaintSide = normalizePaintSide(street, requestedSide);
+  if (unpaintSide === 'BOTH') return null;
+
+  if (isDualSideStreet(street) && ranges.some((r) => r.side === 'FULL')) {
+    ranges = expandFullSegmentsForDualSide(ranges);
+  }
+
+  const vertexIndex = closestVertexIndex(coords, latitude, longitude);
+  const containing = ranges.find(
+    (s) =>
+      s.side === unpaintSide &&
+      s.startIndex <= vertexIndex &&
+      s.endIndex >= vertexIndex,
+  );
+  if (!containing) {
+    const geoSeg = segmentAtPointByGeometry(street, latitude, longitude, requestedSide);
+    if (!geoSeg) return null;
+    ranges = ranges.filter(
+      (r) =>
+        !(
+          r.microareaId === geoSeg.microareaId &&
+          r.side === geoSeg.side &&
+          r.startIndex === geoSeg.startIndex &&
+          r.endIndex === geoSeg.endIndex
+        ),
+    );
+  } else {
+    ranges = mergeAdjacentSegments(ranges.filter((s) => s !== containing));
+  }
+
+  const lookup = microareaLookup ?? new Map<string, { id: string; name: string; number: number; color: string }>();
+  for (const seg of street.paintSegments ?? []) {
+    if (seg.microarea && !lookup.has(seg.microareaId)) {
+      lookup.set(seg.microareaId, seg.microarea);
+    }
+  }
+  if (street.microarea && street.microareaId) {
+    lookup.set(street.microareaId, street.microarea);
+  }
+
+  const paintSegments = rangesToPaintSegments(street, ranges, lookup);
+  const microareaIdSynced = syncStreetMicroareaId(ranges, maxIndex);
+  const primaryMa = microareaIdSynced ? lookup.get(microareaIdSynced) : undefined;
 
   return {
     ...street,

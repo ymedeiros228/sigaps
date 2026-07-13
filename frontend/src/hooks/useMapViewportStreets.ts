@@ -36,7 +36,7 @@ async function fetchViewportStreets(
     limit: 5000,
     mapOnly: true,
     page: 1,
-    geoPrecision: 4,
+    geoPrecision: 5,
     bbox: [
       bounds.getWest() - pad,
       bounds.getSouth() - pad,

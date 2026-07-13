@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { Microarea, Street, StreetPaintSegment, StreetPaintSide } from '../services/api';
 import { queryKeys } from './queryKeys';
-import { isDualSideStreet } from './streetPaintSegments';
+import { isDualSideStreet, streetCoords } from './streetPaintSegments';
 
 type StreetsMapData = {
   items: Street[];
@@ -10,13 +10,51 @@ type StreetsMapData = {
 
 type MicroareaRef = Pick<Microarea, 'id' | 'name' | 'number' | 'color'>;
 
-/** Mescla ruas por id — preserva pinturas fora do viewport atual. */
+export type StreetWithLocalRev = Street & { _localRev?: number };
+
+function paintScore(street: Street): number {
+  return (street.paintSegments?.length ?? 0) * 10 + (street.microareaId ? 1 : 0);
+}
+
+function mergeStreetRecord(existing: Street, incoming: Street): Street {
+  const prev = existing as StreetWithLocalRev;
+  const next = incoming as StreetWithLocalRev;
+  const existingRev = prev._localRev ?? 0;
+  const incomingRev = next._localRev ?? 0;
+
+  if (existingRev > incomingRev) return existing;
+  if (incomingRev > existingRev) return incoming;
+
+  const existingScore = paintScore(existing);
+  const incomingScore = paintScore(incoming);
+  if (existingScore > incomingScore) {
+    const merged: StreetWithLocalRev = {
+      ...incoming,
+      microareaId: existing.microareaId ?? incoming.microareaId,
+      microarea: existing.microarea ?? incoming.microarea,
+      paintSegments:
+        (existing.paintSegments?.length ?? 0) >= (incoming.paintSegments?.length ?? 0)
+          ? existing.paintSegments
+          : incoming.paintSegments,
+      geojson:
+        streetCoords(existing.geojson).length >= streetCoords(incoming.geojson).length
+          ? existing.geojson
+          : incoming.geojson,
+      _localRev: existingRev,
+    };
+    return merged;
+  }
+  return incoming;
+}
+
+/** Mescla ruas por id — preserva pinturas locais mais recentes ou mais completas. */
 export function mergeStreetsById(existing: Street[] | undefined, incoming: Street[]): Street[] {
   if (!existing?.length) return incoming;
   if (!incoming.length) return existing;
   const byId = new Map(existing.map((s) => [s.id, s]));
   for (const street of incoming) {
-    byId.set(street.id, street);
+    const prev = byId.get(street.id);
+    byId.set(street.id, prev ? mergeStreetRecord(prev, street) : street);
   }
   return Array.from(byId.values());
 }
@@ -42,6 +80,14 @@ function updateStreetsMapCache(
     { queryKey: ['streets-viewport', municipalityId] },
     apply,
   );
+}
+
+export async function cancelStreetMapQueries(
+  queryClient: QueryClient,
+  municipalityId: string,
+) {
+  await queryClient.cancelQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+  await queryClient.cancelQueries({ queryKey: ['streets-viewport', municipalityId] });
 }
 
 function buildOptimisticPaintSegments(
@@ -84,7 +130,8 @@ export function buildOptimisticAssignStreet(street: Street, microarea: Microarea
       color: microarea.color,
     },
     paintSegments: buildOptimisticPaintSegments(street, microarea),
-  };
+    _localRev: Date.now(),
+  } as StreetWithLocalRev;
 }
 
 export function patchStreetInMapCache(
@@ -92,7 +139,8 @@ export function patchStreetInMapCache(
   municipalityId: string,
   street: Street,
 ) {
-  updateStreetsMapCache(queryClient, municipalityId, (items) => patchStreetList(items, street));
+  const stamped: StreetWithLocalRev = { ...street, _localRev: Date.now() };
+  updateStreetsMapCache(queryClient, municipalityId, (items) => patchStreetList(items, stamped));
 }
 
 export function patchStreetsMicroarea(
@@ -105,7 +153,13 @@ export function patchStreetsMicroarea(
     items.map((s) => {
       if (!streetIds.includes(s.id)) return s;
       if (!microarea) {
-        return { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] };
+        return {
+          ...s,
+          microareaId: undefined,
+          microarea: undefined,
+          paintSegments: [],
+          _localRev: Date.now(),
+        } as StreetWithLocalRev;
       }
       return buildOptimisticAssignStreet(s, microarea);
     }),
@@ -131,9 +185,10 @@ export function clearMicroareaStreets(
           microareaId: segments[0]?.microareaId,
           microarea: segments[0]?.microarea,
           paintSegments: segments,
-        };
+          _localRev: Date.now(),
+        } as StreetWithLocalRev;
       }
-      return { ...s, paintSegments: segments };
+      return { ...s, paintSegments: segments, _localRev: Date.now() } as StreetWithLocalRev;
     }),
   );
 }
@@ -145,7 +200,13 @@ export function clearAllStreetsMicroarea(
   updateStreetsMapCache(queryClient, municipalityId, (items) =>
     items.map((s) =>
       s.microareaId || s.paintSegments?.length
-        ? { ...s, microareaId: undefined, microarea: undefined, paintSegments: [] }
+        ? ({
+            ...s,
+            microareaId: undefined,
+            microarea: undefined,
+            paintSegments: [],
+            _localRev: Date.now(),
+          } as StreetWithLocalRev)
         : s,
     ),
   );

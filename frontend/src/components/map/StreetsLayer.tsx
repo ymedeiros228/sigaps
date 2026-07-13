@@ -247,7 +247,7 @@ export function StreetsLayer({
     const { lat, lng } = hoverLatLng;
     const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
     const state = paintStateAtPoint(street, lat, lng, side);
-    if (eraserMode && !state.microareaId) return null;
+    if (eraserMode && !state.microareaId && !streetHasPaint(street)) return null;
 
     const previewGeom = computePaintPreviewGeometry(
       street,
@@ -411,10 +411,8 @@ export function StreetsLayer({
 
     if (paintMode && !mapPanEnabled) {
       const applyDragAction = (lat: number, lng: number) => {
-        const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
-        const state = paintStateAtPoint(street, lat, lng, side);
         if (dragActionRef.current === 'unpaint') {
-          if (state.microareaId) onStreetUnpaint(street, lat, lng);
+          if (streetHasPaint(street)) onStreetUnpaint(street, lat, lng);
         } else if (selectedMicroareaId) {
           onStreetPaint(street, lat, lng);
         }
@@ -424,7 +422,7 @@ export function StreetsLayer({
         const { lat, lng } = e.latlng;
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
-        if (eraserMode && !state.microareaId) return;
+        if (eraserMode && !streetHasPaint(street) && !state.microareaId) return;
         setHoveredId(props.streetId);
         setHoverLatLng({ lat, lng });
         path
@@ -448,7 +446,7 @@ export function StreetsLayer({
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
         if (eraserMode) {
-          if (!state.microareaId) return;
+          if (!streetHasPaint(street) && !state.microareaId) return;
           dragActionRef.current = 'unpaint';
           onStreetUnpaint(street, lat, lng);
           return;

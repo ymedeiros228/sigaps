@@ -11,7 +11,7 @@ export async function fetchAllMapStreets(municipalityId: string): Promise<{
     limit: PAGE_SIZE,
     mapOnly: true,
     page: 1,
-    geoPrecision: 4,
+    geoPrecision: 5,
   });
   const data = first.data;
   const items = [...data.items];
@@ -28,7 +28,7 @@ export async function fetchAllMapStreets(municipalityId: string): Promise<{
         limit: PAGE_SIZE,
         mapOnly: true,
         page,
-        geoPrecision: 4,
+        geoPrecision: 5,
       }),
     ),
   );

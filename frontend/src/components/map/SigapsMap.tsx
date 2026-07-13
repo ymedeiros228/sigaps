@@ -39,7 +39,7 @@ import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../u
 import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
-import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, closestVertexIndex, streetCoords } from '../../utils/streetPaintSegments';
+import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, simulateUnpaintAtPoint, closestVertexIndex, streetCoords } from '../../utils/streetPaintSegments';
 import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
 import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
@@ -49,6 +49,7 @@ import {
   clearAllStreetsMicroarea,
   clearMicroareaStreets,
   patchStreetInMapCache,
+  cancelStreetMapQueries,
 } from '../../utils/streetsCache';
 import { countPaintedStreets } from '../../utils/streetPaintStats';
 import { streetHasPaint } from '../../utils/streetPaintSegments';
@@ -664,13 +665,14 @@ export function SigapsMap() {
       if (!municipalityId) return;
       const seq = (paintSeqByStreetRef.current.get(variables.streetId) ?? 0) + 1;
       paintSeqByStreetRef.current.set(variables.streetId, seq);
+      await cancelStreetMapQueries(queryClient, municipalityId);
       const streetsKey = queryKeys.streetsMap(municipalityId);
-      await queryClient.cancelQueries({ queryKey: streetsKey });
-      const previous = queryClient.getQueryData(streetsKey);
+      const cached = queryClient.getQueryData<{ items?: Street[] }>(streetsKey);
+      const street =
+        cached?.items?.find((s) => s.id === variables.streetId) ??
+        streets.find((s) => s.id === variables.streetId);
+      const previousStreet = street ? { ...street } : undefined;
       const ma = getMicroarea(variables.microareaId);
-      const street = (previous as { items?: Street[] } | undefined)?.items?.find(
-        (s) => s.id === variables.streetId,
-      ) ?? streets.find((s) => s.id === variables.streetId);
       if (street && ma) {
         const optimistic = simulatePaintAtPoint(
           street,
@@ -684,7 +686,7 @@ export function SigapsMap() {
           patchStreetInMapCache(queryClient, municipalityId, optimistic);
         }
       }
-      return { previous, seq };
+      return { previousStreet, seq };
     },
     onSuccess: (res, variables, context) => {
       if (!municipalityId) return;
@@ -720,9 +722,9 @@ export function SigapsMap() {
         microareaId: variables.microareaId,
       });
     },
-    onError: (err, _vars, context) => {
-      if (context?.previous && municipalityId) {
-        queryClient.setQueryData(queryKeys.streetsMap(municipalityId), context.previous);
+    onError: (err, _variables, context) => {
+      if (context?.previousStreet && municipalityId) {
+        patchStreetInMapCache(queryClient, municipalityId, context.previousStreet);
       }
       setSnackbar({
         message: getApiErrorMessage(err, 'Não foi possível pintar o trecho da rua.'),
@@ -743,8 +745,35 @@ export function SigapsMap() {
       longitude: number;
       side?: string;
     }) => streetsApi.unpaintAtPoint(streetId, { latitude, longitude, side: side as 'LEFT' | 'RIGHT' | 'FULL' }),
-    onSuccess: (res) => {
+    onMutate: async (variables) => {
+      if (!municipalityId) return;
+      const seq = (paintSeqByStreetRef.current.get(variables.streetId) ?? 0) + 1;
+      paintSeqByStreetRef.current.set(variables.streetId, seq);
+      await cancelStreetMapQueries(queryClient, municipalityId);
+      const streetsKey = queryKeys.streetsMap(municipalityId);
+      const cached = queryClient.getQueryData<{ items?: Street[] }>(streetsKey);
+      const street =
+        cached?.items?.find((s) => s.id === variables.streetId) ??
+        streets.find((s) => s.id === variables.streetId);
+      const previousStreet = street ? { ...street } : undefined;
+      if (street) {
+        const optimistic = simulateUnpaintAtPoint(
+          street,
+          variables.latitude,
+          variables.longitude,
+          (variables.side ?? 'FULL') as ApiPaintSide,
+        );
+        if (optimistic) {
+          patchStreetInMapCache(queryClient, municipalityId, optimistic);
+        }
+      }
+      return { previousStreet, seq };
+    },
+    onSuccess: (res, variables, context) => {
       if (!res.data.cleared) {
+        if (context?.previousStreet && municipalityId) {
+          patchStreetInMapCache(queryClient, municipalityId, context.previousStreet);
+        }
         setSnackbar({
           message: 'Não há pintura neste trecho para apagar.',
           severity: 'info',
@@ -752,6 +781,11 @@ export function SigapsMap() {
         return;
       }
       if (!municipalityId) return;
+      const currentSeq = paintSeqByStreetRef.current.get(variables.streetId);
+      if (context?.seq !== currentSeq) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+        return;
+      }
       if (res.data.street) {
         const updated = prepareStreetsForMap([res.data.street])[0];
         if (updated) {
@@ -766,7 +800,10 @@ export function SigapsMap() {
       scheduleEnvelopeRebuild();
       setLastPaintAction('Trecho removido');
     },
-    onError: (err) => {
+    onError: (err, _variables, context) => {
+      if (context?.previousStreet && municipalityId) {
+        patchStreetInMapCache(queryClient, municipalityId, context.previousStreet);
+      }
       setSnackbar({
         message: getApiErrorMessage(err, 'Não foi possível remover o trecho pintado.'),
         severity: 'warning',
@@ -883,7 +920,7 @@ export function SigapsMap() {
     }
     const side = effectivePaintSide(street, latitude, longitude, paintStreetSide, paintScope, eraser);
     const state = paintStateAtPoint(street, latitude, longitude, side);
-    if (!state.microareaId) return;
+    if (!streetHasPaint(street)) return;
     const apiSide = side === 'BOTH' ? detectClickSide(street, latitude, longitude) : side;
     const vertexIndex = closestVertexIndex(streetCoords(street.geojson), latitude, longitude);
     const dedupeKey = `unpaint:${street.id}:${vertexIndex}:${apiSide}`;
@@ -893,7 +930,7 @@ export function SigapsMap() {
     if (now - lastDrag < DRAG_PAINT_THROTTLE_MS) return;
     lastDragPaintRef.current.set(dedupeKey, now);
     segmentPaintKeysRef.current.add(dedupeKey);
-    const capturedMicroareaId = state.microareaId;
+    const capturedMicroareaId = state.microareaId ?? street.microareaId ?? '';
     unpaintAtPointMutation.mutate(
       {
         streetId: street.id,
@@ -902,7 +939,8 @@ export function SigapsMap() {
         side: apiSide,
       },
       {
-        onSuccess: () => {
+        onSuccess: (res) => {
+          if (!res.data.cleared) return;
           pushUndo({
             type: 'unpaint',
             streetId: street.id,
