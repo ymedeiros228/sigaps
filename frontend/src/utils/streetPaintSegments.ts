@@ -8,6 +8,43 @@ export function streetCoords(geojson: GeoJSON.LineString): Coord[] {
   return (geojson?.coordinates ?? []) as Coord[];
 }
 
+/** Ponto mais próximo na polilinha da rua (para o pincel seguir o traço ao arrastar). */
+export function closestPointOnStreet(
+  street: Street,
+  latitude: number,
+  longitude: number,
+): { lat: number; lng: number } {
+  const coords = streetCoords(street.geojson);
+  if (coords.length === 0) return { lat: latitude, lng: longitude };
+  if (coords.length === 1) return { lat: coords[0][1], lng: coords[0][0] };
+
+  let bestLat = coords[0][1];
+  let bestLng = coords[0][0];
+  let bestDist = Infinity;
+
+  for (let i = 0; i < coords.length - 1; i++) {
+    const [lng1, lat1] = coords[i];
+    const [lng2, lat2] = coords[i + 1];
+    const dx = lng2 - lng1;
+    const dy = lat2 - lat1;
+    const lenSq = dx * dx + dy * dy;
+    let t = 0;
+    if (lenSq > 0) {
+      t = ((longitude - lng1) * dx + (latitude - lat1) * dy) / lenSq;
+      t = Math.max(0, Math.min(1, t));
+    }
+    const lat = lat1 + t * dy;
+    const lng = lng1 + t * dx;
+    const d = (lat - latitude) ** 2 + (lng - longitude) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      bestLat = lat;
+      bestLng = lng;
+    }
+  }
+  return { lat: bestLat, lng: bestLng };
+}
+
 export function isDualSideStreet(street: Street): boolean {
   const type = (street.streetType ?? '').toLowerCase();
   if (

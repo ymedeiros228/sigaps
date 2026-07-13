@@ -10,6 +10,7 @@ import { familyHeatColor } from '../../utils/geo';
 import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetViewport';
 import {
   buildStreetMapFeatures,
+  closestPointOnStreet,
   computeBrushPreviewGeometry,
   computePaintPreviewGeometry,
   effectivePaintSide,
@@ -90,6 +91,7 @@ export function StreetsLayer({
     : microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
   const dragActionRef = useRef<'paint' | 'unpaint' | null>(null);
   const brushSessionRef = useRef<BrushSession | null>(null);
+  const brushMoveListenerRef = useRef<((e: MouseEvent | TouchEvent) => void) | null>(null);
   const [brushPreview, setBrushPreview] = useState<GeoJSON.Feature | null>(null);
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
@@ -130,28 +132,113 @@ export function StreetsLayer({
       );
   }, [map, paintMode, eraserMode, brushPreview]);
 
+  const streetsByIdRef = useRef(new Map<string, Street>());
+  streetsByIdRef.current = new Map(streets.map((street) => [street.id, street]));
+
+  const updateBrushPreviewFromSession = (session: BrushSession, street: Street, eraser: boolean) => {
+    const geom = computeBrushPreviewGeometry(
+      street,
+      session.startLat,
+      session.startLng,
+      session.endLat,
+      session.endLng,
+      session.side,
+      eraser,
+    );
+    if (!geom) {
+      setBrushPreview(null);
+      return;
+    }
+    setBrushPreview({
+      type: 'Feature',
+      properties: { id: session.streetId, eraser },
+      geometry: geom,
+    });
+  };
+
+  const stopBrushTracking = () => {
+    const onMove = brushMoveListenerRef.current;
+    if (!onMove) return;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('touchmove', onMove);
+    brushMoveListenerRef.current = null;
+  };
+
+  const advanceBrushFromClient = (clientX: number, clientY: number) => {
+    const session = brushSessionRef.current;
+    if (!session) return;
+    const street = streetsByIdRef.current.get(session.streetId);
+    if (!street) return;
+
+    const container = map.getContainer();
+    const rect = container.getBoundingClientRect();
+    const point = L.point(clientX - rect.left, clientY - rect.top);
+    const latlng = map.containerPointToLatLng(point);
+    const snapped = closestPointOnStreet(street, latlng.lat, latlng.lng);
+    const { paintStreetSide, paintScope, eraserMode } = useMapStore.getState();
+    const side = effectivePaintSide(
+      street,
+      snapped.lat,
+      snapped.lng,
+      paintStreetSide,
+      paintScope,
+      eraserMode,
+    );
+    const next = { ...session, endLat: snapped.lat, endLng: snapped.lng, side };
+    brushSessionRef.current = next;
+    updateBrushPreviewFromSession(next, street, session.action === 'unpaint');
+  };
+
+  const startBrushTracking = () => {
+    if (brushMoveListenerRef.current) return;
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!brushSessionRef.current) return;
+      const clientX = 'touches' in e ? e.touches[0]?.clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY;
+      if (clientX == null || clientY == null) return;
+      if ('touches' in e) e.preventDefault();
+      advanceBrushFromClient(clientX, clientY);
+    };
+    brushMoveListenerRef.current = onMove;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, { passive: false });
+  };
+
   useEffect(() => {
     const finishBrush = () => {
       const session = brushSessionRef.current;
+      stopBrushTracking();
       if (session) {
         const street = streetsByIdRef.current.get(session.streetId);
         if (street) {
-          if (session.action === 'unpaint') {
-            onStreetUnpaintRange(
-              street,
-              session.startLat,
-              session.startLng,
-              session.endLat,
-              session.endLng,
-            );
-          } else {
-            onStreetPaintRange(
-              street,
-              session.startLat,
-              session.startLng,
-              session.endLat,
-              session.endLng,
-            );
+          const eraser = session.action === 'unpaint';
+          const geom = computeBrushPreviewGeometry(
+            street,
+            session.startLat,
+            session.startLng,
+            session.endLat,
+            session.endLng,
+            session.side,
+            eraser,
+          );
+          if (geom) {
+            if (session.action === 'unpaint') {
+              onStreetUnpaintRange(
+                street,
+                session.startLat,
+                session.startLng,
+                session.endLat,
+                session.endLng,
+              );
+            } else {
+              onStreetPaintRange(
+                street,
+                session.startLat,
+                session.startLng,
+                session.endLat,
+                session.endLng,
+              );
+            }
           }
         }
         brushSessionRef.current = null;
@@ -162,14 +249,14 @@ export function StreetsLayer({
     };
     window.addEventListener('mouseup', finishBrush);
     window.addEventListener('touchend', finishBrush);
+    window.addEventListener('touchcancel', finishBrush);
     return () => {
+      stopBrushTracking();
       window.removeEventListener('mouseup', finishBrush);
       window.removeEventListener('touchend', finishBrush);
+      window.removeEventListener('touchcancel', finishBrush);
     };
   }, [onDragPaintEnd, onStreetPaintRange, onStreetUnpaintRange]);
-
-  const streetsByIdRef = useRef(new Map<string, Street>());
-  streetsByIdRef.current = new Map(streets.map((street) => [street.id, street]));
 
   const renderStreets = useMemo(() => {
     if (streets.length < VIEWPORT_CULL_MIN) return streets;
@@ -504,28 +591,15 @@ export function StreetsLayer({
       };
 
       const updateBrushPreview = (session: BrushSession) => {
-        const geom = computeBrushPreviewGeometry(
-          street,
-          session.startLat,
-          session.startLng,
-          session.endLat,
-          session.endLng,
-          session.side,
-          eraserMode,
-        );
-        if (!geom) {
-          setBrushPreview(null);
-          return;
-        }
-        setBrushPreview({
-          type: 'Feature',
-          properties: { id: props.streetId, eraser: eraserMode },
-          geometry: geom,
-        });
+        updateBrushPreviewFromSession(session, street, session.action === 'unpaint');
       };
 
+      const snapOnStreet = (lat: number, lng: number) =>
+        closestPointOnStreet(street, lat, lng);
+
       const handlePointerOver = (e: L.LeafletMouseEvent) => {
-        const { lat, lng } = e.latlng;
+        const raw = e.latlng;
+        const { lat, lng } = snapOnStreet(raw.lat, raw.lng);
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
         if (eraserMode && !streetHasPaint(street) && !state.microareaId) return;
@@ -555,7 +629,8 @@ export function StreetsLayer({
 
       const handlePointerDown = (e: L.LeafletMouseEvent) => {
         stopMapEvent(e);
-        const { lat, lng } = e.latlng;
+        const raw = e.latlng;
+        const { lat, lng } = snapOnStreet(raw.lat, raw.lng);
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
 
@@ -573,7 +648,7 @@ export function StreetsLayer({
               action: 'unpaint',
             };
             brushSessionRef.current = session;
-            addDragPaintId(props.streetId);
+            startBrushTracking();
             updateBrushPreview(session);
             return;
           }
@@ -589,7 +664,7 @@ export function StreetsLayer({
             action: 'paint',
           };
           brushSessionRef.current = session;
-          addDragPaintId(props.streetId);
+          startBrushTracking();
           updateBrushPreview(session);
           return;
         }
