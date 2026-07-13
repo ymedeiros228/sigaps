@@ -819,8 +819,8 @@ export function PaintGuidePanel({
                     sx={{ display: 'block', mt: 1.25, textAlign: 'center' }}
                   >
                     {paintMode
-                      ? 'S ou Esc sair do modo pintar'
-                      : 'P pintar · E apagar · S ou Esc sair'}
+                      ? 'S sair do modo pintar'
+                      : 'P pintar · E apagar · S sair'}
                   </Typography>
                 )}
               </>

@@ -280,7 +280,7 @@ export function SigapsMap() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-      if ((e.key === 's' || e.key === 'S' || e.key === 'Escape') && paintMode) {
+      if ((e.key === 's' || e.key === 'S') && paintMode) {
         setPaintMode(false);
         useMapStore.getState().setPaintGuideCollapsed(true);
         setSnackbar({ message: 'Modo pintar desativado', severity: 'info' });
