@@ -7,6 +7,7 @@ BACKEND_PORT="${BACKEND_PORT:-3000}"
 FRONTEND_PORT="${FRONTEND_PORT:-4173}"
 DATABASE_URL="${DATABASE_URL:-postgresql://sigaps:sigaps_secret@127.0.0.1:5432/sigaps?schema=public}"
 JWT_SECRET="${JWT_SECRET:-sigaps-e2e-test-secret}"
+JWT_REFRESH_SECRET="${JWT_REFRESH_SECRET:-sigaps-e2e-test-refresh-secret}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:${FRONTEND_PORT}}"
 
 cleanup() {
@@ -21,7 +22,7 @@ npm ci
 npx prisma generate
 npx prisma migrate deploy
 npm run prisma:seed
-export DATABASE_URL JWT_SECRET FRONTEND_URL PORT="$BACKEND_PORT"
+export DATABASE_URL JWT_SECRET JWT_REFRESH_SECRET FRONTEND_URL PORT="$BACKEND_PORT"
 npm run build
 NODE_ENV=production npm run start:prod &
 BACKEND_PID=$!

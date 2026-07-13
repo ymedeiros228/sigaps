@@ -82,4 +82,5 @@ jobs:
         env:
           DATABASE_URL: postgresql://sigaps:sigaps_secret@127.0.0.1:5432/sigaps?schema=public
           JWT_SECRET: ci-e2e-jwt-secret
+          JWT_REFRESH_SECRET: ci-e2e-jwt-refresh-secret
           CI: "true"
