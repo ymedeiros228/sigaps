@@ -21,9 +21,9 @@ npm ci
 npx prisma generate
 npx prisma migrate deploy
 npm run prisma:seed
-export DATABASE_URL JWT_SECRET FRONTEND_URL NODE_ENV=production PORT="$BACKEND_PORT"
+export DATABASE_URL JWT_SECRET FRONTEND_URL PORT="$BACKEND_PORT"
 npm run build
-npm run start:prod &
+NODE_ENV=production npm run start:prod &
 BACKEND_PID=$!
 
 echo "==> Aguardando API em :${BACKEND_PORT}"
@@ -41,6 +41,7 @@ done
 
 echo "==> Frontend: build e preview"
 cd "$ROOT/frontend"
+# NODE_ENV=production omitiria devDependencies (vite, typescript) no npm ci
 npm ci
 VITE_API_URL="http://127.0.0.1:${BACKEND_PORT}" VITE_DEV_AUTO_LOGIN=false npm run build
 npm run preview -- --host 127.0.0.1 --port "$FRONTEND_PORT" &
