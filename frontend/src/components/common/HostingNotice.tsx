@@ -9,8 +9,13 @@ import {
   Paper,
   Typography,
 } from '@mui/material';
-import { Info, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { Info, ExpandMore, ExpandLess, Download } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
+import {
+  LEGACY_DOWNLOAD_FILENAME,
+  LEGACY_DOWNLOAD_PATH,
+  legacyDownloadShareUrl,
+} from '../../constants/delivery';
 
 const DISMISS_KEY = 'sigaps_hosting_notice_dismissed';
 
@@ -107,6 +112,30 @@ export function AjudaHostingPage() {
             Estimativa básica paga: US$ 10–25/mês (sem contar domínio).
           </Typography>
         </Collapse>
+      </Paper>
+
+      <Paper sx={{ p: 2.5, mb: 2, borderRadius: 2 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+          Pacote ZIP para o Jonas
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          Código-fonte legado da entrega (backend, frontend, documentação). O Jonas pinta o mapa pelo
+          site — o ZIP é para arquivo, auditoria ou outro desenvolvedor.
+        </Typography>
+        <Button
+          variant="contained"
+          color="success"
+          startIcon={<Download />}
+          component="a"
+          href={LEGACY_DOWNLOAD_PATH}
+          download={LEGACY_DOWNLOAD_FILENAME}
+          sx={{ fontWeight: 700, mb: 1 }}
+        >
+          Baixar sigaps-legado-passagem-franca.zip
+        </Button>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', wordBreak: 'break-all' }}>
+          Link: {legacyDownloadShareUrl()}
+        </Typography>
       </Paper>
 
       <Alert icon={<Info />} severity="success" sx={{ borderRadius: 2 }}>

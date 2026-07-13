@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIGAPS — Download entrega Jonas</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        max-width: 640px;
+        margin: 2rem auto;
+        padding: 0 1.25rem;
+        line-height: 1.5;
+        color: #1a1a1a;
+      }
+      h1 { font-size: 1.35rem; margin-bottom: 0.5rem; }
+      p { color: #444; }
+      a.btn {
+        display: inline-block;
+        margin: 1rem 0;
+        padding: 0.85rem 1.25rem;
+        background: #00a86b;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 700;
+      }
+      code {
+        display: block;
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: #f4f4f4;
+        border-radius: 6px;
+        word-break: break-all;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Pacote legado — Passagem Franca/MA</h1>
+    <p>
+      ZIP com o código-fonte entregue ao Jonas Almeida Medeiros (backend, frontend, docs e scripts).
+      A pintura do mapa é feita pelo site em produção.
+    </p>
+    <a class="btn" href="./sigaps-legado-passagem-franca.zip" download>
+      Baixar sigaps-legado-passagem-franca.zip
+    </a>
+    <p><strong>Link direto:</strong></p>
+    <code id="url"></code>
+    <script>
+      const path = '/downloads/sigaps-legado-passagem-franca.zip';
+      document.getElementById('url').textContent = location.origin + path;
+    </script>
+  </body>
+</html>

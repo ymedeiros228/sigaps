@@ -52,6 +52,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { UserFormDialog, type UserFormValues } from '../components/admin/UserFormDialog';
 import { AdminHomologationTab } from '../components/admin/AdminHomologationTab';
+import { LEGACY_DOWNLOAD_FILENAME, LEGACY_DOWNLOAD_PATH, legacyDownloadShareUrl } from '../constants/delivery';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
 import { adminApi, type AdminUser, type AuditFilters, type AuditLogEntry } from '../services/api';
@@ -371,6 +372,43 @@ export function AdminPage() {
                   color={overview.delivery.mapClean ? 'success' : 'warning'}
                   label={`Mapa: ${overview.delivery.mapClean ? 'zerado' : `${overview.counts.assignedStreets} pintada(s)`}`}
                 />
+              </Box>
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: 'action.hover',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  ZIP para o Jonas
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Código-fonte legado (~14 MB) para enviar por WhatsApp, e-mail ou pendrive.
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<Download />}
+                  component="a"
+                  href={LEGACY_DOWNLOAD_PATH}
+                  download={LEGACY_DOWNLOAD_FILENAME}
+                  sx={{ fontWeight: 700 }}
+                >
+                  Baixar ZIP
+                </Button>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  component="a"
+                  href={LEGACY_DOWNLOAD_PATH}
+                  sx={{ display: 'block', mt: 1, wordBreak: 'break-all' }}
+                >
+                  {legacyDownloadShareUrl()}
+                </Typography>
               </Box>
               {!overview.delivery.mapClean && (
                 <Box>

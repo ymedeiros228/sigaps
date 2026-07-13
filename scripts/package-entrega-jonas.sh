@@ -72,6 +72,23 @@ cp "$ZIP_PATH" "$LATEST_LINK"
 cp "$ZIP_PATH" "$PUBLIC_DIR/$ZIP_NAME"
 cp "$ZIP_PATH" "$PUBLIC_DIR/sigaps-legado-passagem-franca.zip"
 
+if [[ ! -f "$PUBLIC_DIR/index.html" ]]; then
+  cat > "$PUBLIC_DIR/index.html" <<'HTML'
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SIGAPS — Download entrega Jonas</title>
+  </head>
+  <body>
+    <h1>Pacote legado — Passagem Franca/MA</h1>
+    <p><a href="./sigaps-legado-passagem-franca.zip">Baixar ZIP</a></p>
+  </body>
+</html>
+HTML
+fi
+
 BYTES=$(wc -c < "$ZIP_PATH" | tr -d ' ')
 MB=$(awk "BEGIN {printf \"%.1f\", $BYTES/1048576}")
 
@@ -88,6 +105,8 @@ Pacote de **código-fonte legado** para Jonas Almeida Medeiros.
 | \`${ZIP_NAME}\` | Build datado de ${DATE_TAG} |
 
 **Download em produção:** https://sigaps-api.onrender.com/downloads/sigaps-legado-passagem-franca.zip
+
+**Página de download:** https://sigaps-api.onrender.com/downloads/
 
 Gerado em ${DATE_TAG} · commit \`${COMMIT:0:7}\` · ~${MB} MB
 
