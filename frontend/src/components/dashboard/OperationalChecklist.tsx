@@ -71,11 +71,8 @@ function ChecklistContent({
           <Typography variant="subtitle1" sx={{ fontWeight: 800, flex: 1 }}>
             Checklist operacional
           </Typography>
-          {checklist.readyForHomologation && (
-            <Chip size="small" color="success" label="Pronto p/ homologação" />
-          )}
-          {checklist.readyForPainting && !checklist.readyForHomologation && (
-            <Chip size="small" color="info" label="Pronto para pintar" />
+          {checklist.readyForPainting && (
+            <Chip size="small" color="success" label="Pronto para pintar" />
           )}
           <Chip
             size="small"

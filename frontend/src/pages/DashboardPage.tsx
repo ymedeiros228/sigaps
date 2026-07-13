@@ -223,6 +223,7 @@ export function DashboardPage() {
         coverage={data.coverage}
         families={data.families}
         streets={data.streets}
+        microareas={data.microareas}
         mapHomologatedAt={municipality?.mapHomologatedAt}
       />
 

@@ -90,38 +90,21 @@ export class DashboardService {
     });
     if (!municipality) throw new NotFoundException('Município não encontrado');
 
-    const [microareas, acsSemMicro, streetStats, ubsCount] = await Promise.all([
+    const [microareas, microareasWithoutAcs, streetStats, ubsCount] = await Promise.all([
       this.prisma.microarea.count({ where: { municipalityId } }),
-      this.prisma.acs.count({
-        where: { municipalityId, status: 'ATIVO', microarea: null },
-      }),
-      this.prisma.$queryRaw<
-        Array<{
-          total: bigint;
-          assigned: bigint;
-          with_neighborhood: bigint;
-          families: bigint | null;
-        }>
-      >`
-        SELECT
-          COUNT(*)::bigint AS total,
-          COUNT(microarea_id)::bigint AS assigned,
-          COUNT(neighborhood_id)::bigint AS with_neighborhood,
-          COALESCE(SUM(family_count), 0)::bigint AS families
-        FROM streets
-        WHERE municipality_id = ${municipalityId}::uuid
-      `,
+      this.prisma.microarea.count({ where: { municipalityId, acsId: null } }),
+      this.getStreetStats(municipalityId),
       this.prisma.ubs.count({ where: { municipalityId } }),
     ]);
 
-    const row = streetStats[0];
-    const streets = Number(row?.total ?? 0);
-    const assigned = Number(row?.assigned ?? 0);
-    const withNeighborhood = Number(row?.with_neighborhood ?? 0);
-    const families = Number(row?.families ?? 0);
+    const streets = streetStats.total;
+    const assigned = streetStats.assigned;
+    const withNeighborhood = streetStats.withNeighborhood;
+    const families = streetStats.families;
     const coverage = streets > 0 ? Math.round((assigned / streets) * 100) : 0;
     const neighborhoodPct =
       streets > 0 ? Math.round((withNeighborhood / streets) * 100) : 0;
+    const cadastrosBaseDone = streets > 0 && microareas > 0 && ubsCount > 0;
 
     const items: OperationalChecklistItem[] = [
       {
@@ -150,27 +133,23 @@ export class DashboardService {
       },
       {
         id: 'acs-linked',
-        label: 'ACS vinculados à microárea',
-        done: acsSemMicro === 0,
+        label: 'ACS titular nas microáreas',
+        done: microareas > 0 && microareasWithoutAcs === 0,
         detail:
-          acsSemMicro > 0
-            ? `${acsSemMicro} ACS sem microárea`
-            : 'Todos os ACS ativos vinculados',
-        priority: 'critical',
+          microareasWithoutAcs > 0
+            ? `${microareasWithoutAcs} microárea(s) sem ACS — recomendado, não bloqueia pintar`
+            : 'Cada microárea tem ACS titular',
+        priority: 'medium',
+        optional: true,
         actionHref: CHECKLIST_LINKS['acs-linked'],
       },
       {
         id: 'cadastros-base',
         label: 'Cadastros base prontos (mapa pode estar zerado)',
-        done:
-          streets > 0 &&
-          microareas > 0 &&
-          ubsCount > 0 &&
-          acsSemMicro === 0,
-        detail:
-          streets > 0 && microareas > 0 && ubsCount > 0 && acsSemMicro === 0
-            ? 'Ruas, UBS, microáreas e ACS OK — pintura é decisão do enfermeiro'
-            : 'Complete ruas, UBS, microáreas e vínculo ACS antes da entrega',
+        done: cadastrosBaseDone,
+        detail: cadastrosBaseDone
+          ? 'Ruas, UBS e microáreas OK — pintura é decisão do enfermeiro'
+          : 'Complete ruas, UBS e microáreas antes de pintar',
         priority: 'high',
         actionHref: CHECKLIST_LINKS.microareas,
       },
@@ -233,7 +212,6 @@ export class DashboardService {
       .filter((i) => i.priority === 'critical')
       .every((i) => i.done);
     const coverageDone = items.find((i) => i.id === 'coverage')?.done ?? false;
-    const cadastrosBaseDone = items.find((i) => i.id === 'cadastros-base')?.done ?? false;
 
     return {
       items,
@@ -245,6 +223,29 @@ export class DashboardService {
           : 0,
       readyForHomologation: criticalDone && coverageDone,
       readyForPainting: cadastrosBaseDone && assigned === 0,
+    };
+  }
+
+  private async getStreetStats(municipalityId: string) {
+    const [total, assigned, withNeighborhood, agg] = await Promise.all([
+      this.prisma.street.count({ where: { municipalityId } }),
+      this.prisma.street.count({
+        where: { municipalityId, microareaId: { not: null } },
+      }),
+      this.prisma.street.count({
+        where: { municipalityId, neighborhoodId: { not: null } },
+      }),
+      this.prisma.street.aggregate({
+        where: { municipalityId },
+        _sum: { familyCount: true, inhabitantCount: true },
+      }),
+    ]);
+    return {
+      total,
+      assigned,
+      withNeighborhood,
+      families: agg._sum.familyCount ?? 0,
+      inhabitants: agg._sum.inhabitantCount ?? 0,
     };
   }
 
@@ -312,34 +313,7 @@ export class DashboardService {
       ),
       safe(
         'streetStats',
-        async () => {
-          const rows = await this.prisma.$queryRaw<
-            Array<{
-              total: bigint;
-              assigned: bigint;
-              with_neighborhood: bigint;
-              families: bigint | null;
-              inhabitants: bigint | null;
-            }>
-          >`
-            SELECT
-              COUNT(*)::bigint AS total,
-              COUNT(microarea_id)::bigint AS assigned,
-              COUNT(neighborhood_id)::bigint AS with_neighborhood,
-              COALESCE(SUM(family_count), 0)::bigint AS families,
-              COALESCE(SUM(inhabitant_count), 0)::bigint AS inhabitants
-            FROM streets
-            WHERE municipality_id = ${municipalityId}::uuid
-          `;
-          const row = rows[0];
-          return {
-            total: Number(row?.total ?? 0),
-            assigned: Number(row?.assigned ?? 0),
-            withNeighborhood: Number(row?.with_neighborhood ?? 0),
-            families: Number(row?.families ?? 0),
-            inhabitants: Number(row?.inhabitants ?? 0),
-          };
-        },
+        () => this.getStreetStats(municipalityId),
         { total: 0, assigned: 0, withNeighborhood: 0, families: 0, inhabitants: 0 },
       ),
       safe('recentChanges', () => this.audit.findRecent(municipalityId, 10), []),
