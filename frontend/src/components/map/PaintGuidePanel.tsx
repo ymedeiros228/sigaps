@@ -60,6 +60,8 @@ interface PaintGuidePanelProps {
   onMinimized?: () => void;
   cursorLatitude?: number | null;
   cursorLongitude?: number | null;
+  undoCount?: number;
+  onUndo?: () => void;
 }
 
 export function PaintGuidePanel({
@@ -80,6 +82,8 @@ export function PaintGuidePanel({
   onMinimized,
   cursorLatitude = null,
   cursorLongitude = null,
+  undoCount = 0,
+  onUndo,
 }: PaintGuidePanelProps) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
@@ -181,8 +185,6 @@ export function PaintGuidePanel({
     const isSelected = microareaId === selectedMicroareaId && !eraserMode;
     if (isSelected) {
       setSelectedMicroarea(null);
-      setPaintMode(false);
-      setEraserMode(false);
       return;
     }
     setSelectedMicroarea(microareaId);
@@ -510,10 +512,10 @@ export function PaintGuidePanel({
                         Rua inteira
                       </ToggleButton>
                       <ToggleButton value="left" sx={{ py: 0.65, fontWeight: 700, flex: 0.8 }}>
-                        Lado E
+                        Esquerdo
                       </ToggleButton>
                       <ToggleButton value="right" sx={{ py: 0.65, fontWeight: 700, flex: 0.8 }}>
-                        Lado D
+                        Direito
                       </ToggleButton>
                     </ToggleButtonGroup>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
@@ -572,6 +574,16 @@ export function PaintGuidePanel({
                         sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
                       >
                         Mover
+                      </Button>
+                    )}
+                    {paintMode && undoCount > 0 && onUndo && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={onUndo}
+                        sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
+                      >
+                        Desfazer ({undoCount})
                       </Button>
                     )}
                   </Box>
@@ -714,13 +726,15 @@ export function PaintGuidePanel({
                   </Typography>
                 )}
 
-                {streetCount > 0 && !paintMode && (
+                {streetCount > 0 && (
                   <Typography
                     variant="caption"
                     color="text.disabled"
                     sx={{ display: 'block', mt: 1.25, textAlign: 'center' }}
                   >
-                    Atalhos: P pintar · E apagar · M mover · X sair
+                    {paintMode
+                      ? 'Atalhos: 1 trecho · 2 rua inteira · 3 esq · 4 dir · M mover · Ctrl+Z desfazer · X sair'
+                      : 'Atalhos: P pintar · E apagar · M mover · X sair'}
                   </Typography>
                 )}
               </>

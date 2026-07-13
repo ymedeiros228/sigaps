@@ -39,7 +39,7 @@ import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../u
 import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
-import { effectivePaintSide, resolveApiPaintSide, detectClickSide } from '../../utils/streetPaintSegments';
+import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, closestVertexIndex, streetCoords } from '../../utils/streetPaintSegments';
 import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
 import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
@@ -57,6 +57,27 @@ import { MapTileLayerController } from './MapTileLayerController';
 import { MapCursorCoordsTracker } from './MapCursorCoords';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
+const DRAG_PAINT_THROTTLE_MS = 100;
+
+type PaintUndoAction =
+  | {
+      type: 'paint';
+      streetId: string;
+      latitude: number;
+      longitude: number;
+      side: string;
+      scope: string;
+      microareaId: string;
+    }
+  | {
+      type: 'unpaint';
+      streetId: string;
+      latitude: number;
+      longitude: number;
+      side: string;
+      microareaId: string;
+      scope: string;
+    };
 
 export function SigapsMap() {
   const queryClient = useQueryClient();
@@ -85,6 +106,7 @@ export function SigapsMap() {
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'info' | 'warning' } | null>(null);
   const [familyImportOpen, setFamilyImportOpen] = useState(false);
   const [lastPaintAction, setLastPaintAction] = useState<string | null>(null);
+  const [undoCount, setUndoCount] = useState(0);
   const [importFailed, setImportFailed] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
   const [mapCursorCoords, setMapCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -93,6 +115,10 @@ export function SigapsMap() {
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
   const unpaintingIdsRef = useRef<Set<string>>(new Set());
   const segmentPaintKeysRef = useRef<Set<string>>(new Set());
+  const lastDragPaintRef = useRef<Map<string, number>>(new Map());
+  const undoStackRef = useRef<PaintUndoAction[]>([]);
+  const isUndoingRef = useRef(false);
+  const envelopeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAssignIdsRef = useRef<string[]>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   useMapToolbarOffset(mapContainerRef);
@@ -206,14 +232,27 @@ export function SigapsMap() {
     });
   }, [municipalityId, queryClient]);
 
+  const scheduleEnvelopeRebuild = useCallback(() => {
+    if (!municipalityId) return;
+    if (envelopeTimerRef.current) clearTimeout(envelopeTimerRef.current);
+    envelopeTimerRef.current = setTimeout(() => {
+      refreshMicroareaVisuals({ rebuildEnvelopes: true });
+    }, 4000);
+  }, [municipalityId, refreshMicroareaVisuals]);
+
+  const pushUndo = useCallback((action: PaintUndoAction) => {
+    if (isUndoingRef.current) return;
+    undoStackRef.current.push(action);
+    if (undoStackRef.current.length > 40) undoStackRef.current.shift();
+    setUndoCount(undoStackRef.current.length);
+  }, []);
+
   const paintStateSyncedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!municipalityId || paintStateSyncedRef.current === municipalityId) return;
     paintStateSyncedRef.current = municipalityId;
     refreshMicroareaVisuals();
   }, [municipalityId, refreshMicroareaVisuals]);
-
-  const [paintLayerEpoch, setPaintLayerEpoch] = useState(0);
 
   const lastFocusedMicroareaRef = useRef<string | null>(null);
   useEffect(() => {
@@ -302,7 +341,6 @@ export function SigapsMap() {
         scheduleDashboardInvalidate(queryClient, municipalityId);
         refreshMicroareaVisuals({ rebuildEnvelopes: true });
       }
-      setPaintLayerEpoch((epoch) => epoch + 1);
       setConflictMsg(null);
       setConflictOpen(false);
 
@@ -355,7 +393,6 @@ export function SigapsMap() {
           severity: 'warning',
         });
       }
-      setPaintLayerEpoch((epoch) => epoch + 1);
       scheduleDashboardInvalidate(queryClient, municipalityId);
       refreshMicroareaVisuals({ rebuildEnvelopes: true });
       const msg =
@@ -570,7 +607,6 @@ export function SigapsMap() {
         scheduleDashboardInvalidate(queryClient, municipalityId);
         refreshMicroareaVisuals({ rebuildEnvelopes: true });
       }
-      setPaintLayerEpoch((epoch) => epoch + 1);
       if (selectedStreet && streetIds.includes(selectedStreet.id)) {
         setSelectedStreet({
           ...selectedStreet,
@@ -627,6 +663,30 @@ export function SigapsMap() {
       side: side as ApiPaintSide,
       scope: scope as PaintScope | undefined,
     }),
+    onMutate: async (variables) => {
+      if (!municipalityId) return;
+      const streetsKey = queryKeys.streetsMap(municipalityId);
+      await queryClient.cancelQueries({ queryKey: streetsKey });
+      const previous = queryClient.getQueryData(streetsKey);
+      const ma = getMicroarea(variables.microareaId);
+      const street = (previous as { items?: Street[] } | undefined)?.items?.find(
+        (s) => s.id === variables.streetId,
+      ) ?? streets.find((s) => s.id === variables.streetId);
+      if (street && ma) {
+        const optimistic = simulatePaintAtPoint(
+          street,
+          ma,
+          variables.latitude,
+          variables.longitude,
+          variables.side as ApiPaintSide,
+          (variables.scope ?? 'segment') as PaintScope,
+        );
+        if (optimistic) {
+          patchStreetInMapCache(queryClient, municipalityId, optimistic);
+        }
+      }
+      return { previous };
+    },
     onSuccess: (res, variables) => {
       if (!municipalityId) return;
       const updated = prepareStreetsForMap([res.data])[0];
@@ -638,16 +698,28 @@ export function SigapsMap() {
         return;
       }
       patchStreetInMapCache(queryClient, municipalityId, updated);
-      setPaintLayerEpoch((epoch) => epoch + 1);
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      refreshMicroareaVisuals({ rebuildEnvelopes: true });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+      scheduleEnvelopeRebuild();
       if (selectedStreet?.id === updated.id) {
         setSelectedStreet(updated);
       }
       const ma = getMicroarea(variables.microareaId);
       setLastPaintAction(ma ? `Trecho vinculado à ${ma.name}` : 'Trecho pintado');
+      pushUndo({
+        type: 'paint',
+        streetId: variables.streetId,
+        latitude: variables.latitude,
+        longitude: variables.longitude,
+        side: variables.side ?? 'FULL',
+        scope: variables.scope ?? 'segment',
+        microareaId: variables.microareaId,
+      });
     },
-    onError: (err) => {
+    onError: (err, _vars, context) => {
+      if (context?.previous && municipalityId) {
+        queryClient.setQueryData(queryKeys.streetsMap(municipalityId), context.previous);
+      }
       setSnackbar({
         message: getApiErrorMessage(err, 'Não foi possível pintar o trecho da rua.'),
         severity: 'warning',
@@ -678,9 +750,10 @@ export function SigapsMap() {
           }
         }
       }
-      setPaintLayerEpoch((epoch) => epoch + 1);
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      refreshMicroareaVisuals({ rebuildEnvelopes: true });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+      scheduleEnvelopeRebuild();
+      setLastPaintAction('Trecho removido');
     },
     onError: (err) => {
       setSnackbar({
@@ -734,9 +807,44 @@ export function SigapsMap() {
     if (!paintMode || eraserMode || !selectedMicroareaId || !municipalityId) return;
     const { paintStreetSide, paintScope } = useMapStore.getState();
     const side = resolveApiPaintSide(street, paintStreetSide, paintScope, latitude, longitude);
-    const key = `${street.id}:${latitude.toFixed(5)}:${longitude.toFixed(5)}:${selectedMicroareaId}:${side}:${paintScope}`;
-    if (segmentPaintKeysRef.current.has(key)) return;
-    segmentPaintKeysRef.current.add(key);
+    const state = paintStateAtPoint(street, latitude, longitude, side);
+    if (state.microareaId === selectedMicroareaId) {
+      const apiSide = side === 'BOTH' ? detectClickSide(street, latitude, longitude) : side;
+      const vertexIndex = closestVertexIndex(streetCoords(street.geojson), latitude, longitude);
+      const dedupeKey = `unpaint:${street.id}:${vertexIndex}:${apiSide}`;
+      if (!segmentPaintKeysRef.current.has(dedupeKey) && state.microareaId) {
+        const capturedMicroareaId = state.microareaId;
+        const { paintScope } = useMapStore.getState();
+        segmentPaintKeysRef.current.add(dedupeKey);
+        unpaintAtPointMutation.mutate(
+          { streetId: street.id, latitude, longitude, side: apiSide },
+          {
+            onSuccess: () => {
+              pushUndo({
+                type: 'unpaint',
+                streetId: street.id,
+                latitude,
+                longitude,
+                side: String(apiSide),
+                microareaId: capturedMicroareaId,
+                scope: paintScope,
+              });
+            },
+            onSettled: () => segmentPaintKeysRef.current.delete(dedupeKey),
+          },
+        );
+      }
+      return;
+    }
+    const vertexIndex = closestVertexIndex(streetCoords(street.geojson), latitude, longitude);
+    const apiSide = side === 'BOTH' ? detectClickSide(street, latitude, longitude) : side;
+    const dedupeKey = `${street.id}:${vertexIndex}:${apiSide}:${paintScope}`;
+    if (segmentPaintKeysRef.current.has(dedupeKey)) return;
+    const now = Date.now();
+    const lastDrag = lastDragPaintRef.current.get(dedupeKey) ?? 0;
+    if (now - lastDrag < DRAG_PAINT_THROTTLE_MS) return;
+    lastDragPaintRef.current.set(dedupeKey, now);
+    segmentPaintKeysRef.current.add(dedupeKey);
     paintAtPointMutation.mutate(
       {
         streetId: street.id,
@@ -748,20 +856,28 @@ export function SigapsMap() {
       },
       {
         onSettled: () => {
-          segmentPaintKeysRef.current.delete(key);
+          segmentPaintKeysRef.current.delete(dedupeKey);
         },
       },
     );
-  }, [paintMode, eraserMode, selectedMicroareaId, municipalityId, paintAtPointMutation]);
+  }, [paintMode, eraserMode, selectedMicroareaId, municipalityId, paintAtPointMutation, unpaintAtPointMutation, pushUndo]);
 
   const unpaintStreet = useCallback((street: Street, latitude: number, longitude: number) => {
     if (!paintMode) return;
     const { paintStreetSide, paintScope, eraserMode: eraser } = useMapStore.getState();
     const side = effectivePaintSide(street, latitude, longitude, paintStreetSide, paintScope, eraser);
+    const state = paintStateAtPoint(street, latitude, longitude, side);
+    if (!state.microareaId) return;
     const apiSide = side === 'BOTH' ? detectClickSide(street, latitude, longitude) : side;
-    const key = `unpaint:${street.id}:${latitude.toFixed(5)}:${longitude.toFixed(5)}:${apiSide}`;
-    if (segmentPaintKeysRef.current.has(key)) return;
-    segmentPaintKeysRef.current.add(key);
+    const vertexIndex = closestVertexIndex(streetCoords(street.geojson), latitude, longitude);
+    const dedupeKey = `unpaint:${street.id}:${vertexIndex}:${apiSide}`;
+    if (segmentPaintKeysRef.current.has(dedupeKey)) return;
+    const now = Date.now();
+    const lastDrag = lastDragPaintRef.current.get(dedupeKey) ?? 0;
+    if (now - lastDrag < DRAG_PAINT_THROTTLE_MS) return;
+    lastDragPaintRef.current.set(dedupeKey, now);
+    segmentPaintKeysRef.current.add(dedupeKey);
+    const capturedMicroareaId = state.microareaId;
     unpaintAtPointMutation.mutate(
       {
         streetId: street.id,
@@ -770,12 +886,94 @@ export function SigapsMap() {
         side: apiSide,
       },
       {
+        onSuccess: () => {
+          pushUndo({
+            type: 'unpaint',
+            streetId: street.id,
+            latitude,
+            longitude,
+            side: String(apiSide),
+            microareaId: capturedMicroareaId,
+            scope: paintScope,
+          });
+        },
         onSettled: () => {
-          segmentPaintKeysRef.current.delete(key);
+          segmentPaintKeysRef.current.delete(dedupeKey);
         },
       },
     );
-  }, [paintMode, unpaintAtPointMutation]);
+  }, [paintMode, unpaintAtPointMutation, pushUndo]);
+
+  const handleUndo = useCallback(() => {
+    const action = undoStackRef.current.pop();
+    if (!action) return;
+    setUndoCount(undoStackRef.current.length);
+    isUndoingRef.current = true;
+    if (action.type === 'paint') {
+      const apiSide =
+        action.side === 'BOTH'
+          ? detectClickSide(
+              streets.find((s) => s.id === action.streetId) ?? ({ geojson: { coordinates: [[action.longitude, action.latitude]] } } as Street),
+              action.latitude,
+              action.longitude,
+            )
+          : (action.side as 'LEFT' | 'RIGHT' | 'FULL');
+      unpaintAtPointMutation.mutate(
+        {
+          streetId: action.streetId,
+          latitude: action.latitude,
+          longitude: action.longitude,
+          side: apiSide,
+        },
+        { onSettled: () => { isUndoingRef.current = false; } },
+      );
+    } else {
+      paintAtPointMutation.mutate(
+        {
+          streetId: action.streetId,
+          microareaId: action.microareaId,
+          latitude: action.latitude,
+          longitude: action.longitude,
+          side: action.side,
+          scope: action.scope,
+        },
+        { onSettled: () => { isUndoingRef.current = false; } },
+      );
+    }
+    setLastPaintAction('Desfeito');
+  }, [streets, unpaintAtPointMutation, paintAtPointMutation]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      if (!paintMode) return;
+
+      const store = useMapStore.getState();
+      if (e.key === '1') {
+        store.setPaintScope('segment');
+        store.setPaintStreetSide('FULL');
+      } else if (e.key === '2') {
+        store.setPaintScope('whole');
+        store.setPaintStreetSide('FULL');
+      } else if (e.key === '3') {
+        store.setPaintScope('segment');
+        store.setPaintStreetSide('LEFT');
+      } else if (e.key === '4') {
+        store.setPaintScope('segment');
+        store.setPaintStreetSide('RIGHT');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paintMode, handleUndo]);
 
   const handleDragPaintEnd = useCallback(() => {
     clearDragPaintIds();
@@ -953,7 +1151,6 @@ export function SigapsMap() {
         scheduleDashboardInvalidate(queryClient, municipalityId);
         refreshMicroareaVisuals({ rebuildEnvelopes: true });
       }
-      setPaintLayerEpoch((epoch) => epoch + 1);
       setSelectedStreet(null);
       setHighlightedStreet(null);
       clearSelection();
@@ -1027,7 +1224,6 @@ export function SigapsMap() {
         scheduleDashboardInvalidate(queryClient, municipalityId);
         refreshMicroareaVisuals({ rebuildEnvelopes: true });
       }
-      setPaintLayerEpoch((epoch) => epoch + 1);
       if (res.data.cleared > 0) {
         setSnackbar({
           message: `${res.data.cleared} rua(s) removida(s) de ${res.data.microareaName}.`,
@@ -1180,6 +1376,8 @@ export function SigapsMap() {
         }
         cursorLatitude={mapCursorCoords?.lat ?? null}
         cursorLongitude={mapCursorCoords?.lng ?? null}
+        undoCount={undoCount}
+        onUndo={handleUndo}
       />
       )}
 
@@ -1315,7 +1513,6 @@ export function SigapsMap() {
           <MicroareaEnvelopesLayer municipalityId={municipalityId!} />
           {streets.length > 0 && (
             <StreetsLayer
-              key={`streets-layer-${paintLayerEpoch}`}
               streets={mapStreets}
               onStreetClick={handleStreetClick}
               onStreetPaint={paintStreet}

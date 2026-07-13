@@ -161,10 +161,29 @@ body {
 }
 
 .leaflet-container.sigaps-map-painting.sigaps-map-eraser {
-  cursor: not-allowed;
+  cursor: crosshair !important;
 }
 
-.paint-tooltip,
+.leaflet-container.sigaps-map-painting {
+  touch-action: none;
+}
+
+.paint-tooltip {
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 2px solid rgba(0, 168, 107, 0.45) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  color: #1b5e20 !important;
+}
+
+.leaflet-container.sigaps-map-painting.sigaps-map-eraser .paint-tooltip {
+  border-color: rgba(239, 83, 80, 0.55) !important;
+  color: #b71c1c !important;
+}
+
 .street-tooltip {
   font-weight: 600;
   font-size: 12px;

@@ -467,3 +467,323 @@ export function effectivePaintSide(
   if (paintStreetSide === 'RIGHT') return 'RIGHT';
   return detectClickSide(street, latitude, longitude);
 }
+
+// --- Paint-at-point simulation (mirrors backend street-paint-segment.util) ---
+
+type SegmentRange = {
+  startIndex: number;
+  endIndex: number;
+  microareaId: string;
+  side: StreetPaintSide;
+};
+
+function streetToRanges(street: Street): SegmentRange[] {
+  return (street.paintSegments ?? []).map((s) => ({
+    startIndex: s.startIndex,
+    endIndex: s.endIndex,
+    microareaId: s.microareaId,
+    side: s.side,
+  }));
+}
+
+function mergeAdjacentSegments(segments: SegmentRange[]): SegmentRange[] {
+  if (segments.length === 0) return [];
+  const sorted = [...segments].sort((a, b) => {
+    if (a.side !== b.side) return a.side.localeCompare(b.side);
+    return a.startIndex - b.startIndex;
+  });
+  const merged: SegmentRange[] = [{ ...sorted[0] }];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = merged[merged.length - 1];
+    const cur = sorted[i];
+    if (
+      cur.side === prev.side &&
+      cur.microareaId === prev.microareaId &&
+      cur.startIndex <= prev.endIndex
+    ) {
+      prev.endIndex = Math.max(prev.endIndex, cur.endIndex);
+    } else {
+      merged.push({ ...cur });
+    }
+  }
+  return merged.filter((s) => s.endIndex - s.startIndex >= 1);
+}
+
+function expandFullSegmentsForDualSide(ranges: SegmentRange[]): SegmentRange[] {
+  const out: SegmentRange[] = [];
+  for (const range of ranges) {
+    if (range.side === 'FULL') {
+      out.push({ ...range, side: 'LEFT' });
+      out.push({ ...range, side: 'RIGHT' });
+    } else {
+      out.push({ ...range });
+    }
+  }
+  return mergeAdjacentSegments(out);
+}
+
+function applyFullSidePaint(
+  allRanges: SegmentRange[],
+  microareaId: string,
+  side: StreetPaintSide,
+  maxIndex: number,
+): SegmentRange[] {
+  const other = allRanges.filter((r) => r.side !== side);
+  return mergeAdjacentSegments([
+    ...other,
+    { startIndex: 0, endIndex: maxIndex, microareaId, side },
+  ]);
+}
+
+function applyPaintOnSide(
+  allRanges: SegmentRange[],
+  vertexIndex: number,
+  microareaId: string,
+  side: StreetPaintSide,
+  maxIndex: number,
+): SegmentRange[] {
+  const other = allRanges.filter((r) => r.side !== side);
+  let sideRanges = allRanges.filter((r) => r.side === side);
+
+  if (sideRanges.length === 0) {
+    const gaps = computeUnpaintedRanges([], maxIndex);
+    const gap = gaps.find((g) => g.start <= vertexIndex && g.end >= vertexIndex);
+    if (gap && gap.end - Math.max(gap.start, vertexIndex) >= 1) {
+      sideRanges.push({
+        startIndex: Math.max(gap.start, vertexIndex),
+        endIndex: gap.end,
+        microareaId,
+        side,
+      });
+    }
+  } else {
+    const containing = sideRanges.find(
+      (s) => s.startIndex <= vertexIndex && s.endIndex >= vertexIndex,
+    );
+
+    if (containing?.microareaId === microareaId) {
+      return allRanges;
+    }
+
+    if (!containing) {
+      const gaps = computeUnpaintedRanges(sideRanges, maxIndex);
+      const gap = gaps.find((g) => g.start <= vertexIndex && g.end >= vertexIndex);
+      if (gap && gap.end - Math.max(gap.start, vertexIndex) >= 1) {
+        sideRanges.push({
+          startIndex: Math.max(gap.start, vertexIndex),
+          endIndex: gap.end,
+          microareaId,
+          side,
+        });
+      }
+    } else {
+      const oldMicroareaId = containing.microareaId;
+      sideRanges = sideRanges.filter((s) => s !== containing);
+      if (vertexIndex > containing.startIndex) {
+        sideRanges.push({
+          startIndex: containing.startIndex,
+          endIndex: vertexIndex,
+          microareaId: oldMicroareaId,
+          side,
+        });
+      }
+      if (vertexIndex < containing.endIndex) {
+        sideRanges.push({
+          startIndex: vertexIndex,
+          endIndex: containing.endIndex,
+          microareaId,
+          side,
+        });
+      }
+    }
+  }
+
+  return mergeAdjacentSegments([...other, ...sideRanges]);
+}
+
+function normalizePaintSide(
+  street: Street,
+  requested?: ApiPaintSide | StreetPaintSide,
+): StreetPaintSide | 'BOTH' {
+  if (!isDualSideStreet(street)) return 'FULL';
+  if (requested === 'BOTH') return 'BOTH';
+  if (requested === 'FULL') return 'BOTH';
+  if (requested === 'LEFT') return 'LEFT';
+  if (requested === 'RIGHT') return 'RIGHT';
+  return 'LEFT';
+}
+
+function rangesToPaintSegments(
+  street: Street,
+  ranges: SegmentRange[],
+  microareaLookup: Map<string, { id: string; name: string; number: number; color: string }>,
+): StreetPaintSegment[] {
+  const coords = streetCoords(street.geojson);
+  return ranges.map((r, i) => {
+    const ma = microareaLookup.get(r.microareaId);
+    const geojson = sliceStreetGeojson(coords, r.startIndex, r.endIndex) ?? street.geojson;
+    return {
+      id: `sim:${street.id}:${i}:${r.side}:${r.startIndex}`,
+      startIndex: r.startIndex,
+      endIndex: r.endIndex,
+      side: r.side,
+      microareaId: r.microareaId,
+      geojson,
+      microarea: ma ?? { id: r.microareaId, name: 'Microárea', number: 0, color: '#888' },
+    };
+  });
+}
+
+function syncStreetMicroareaId(ranges: SegmentRange[], maxIndex: number): string | null {
+  if (ranges.length === 0) return null;
+  const fullOnly = ranges.every((s) => s.side === 'FULL');
+  if (fullOnly) {
+    const unique = new Set(ranges.map((s) => s.microareaId));
+    if (ranges.length === 1 && ranges[0].startIndex === 0 && ranges[0].endIndex === maxIndex) {
+      return ranges[0].microareaId;
+    }
+    if (unique.size === 1 && ranges[0].startIndex === 0 && ranges[0].endIndex === maxIndex) {
+      return ranges[0].microareaId;
+    }
+    return null;
+  }
+  const left = ranges.filter((s) => s.side === 'LEFT');
+  const right = ranges.filter((s) => s.side === 'RIGHT');
+  if (left.length === 0 || right.length === 0) return null;
+  const covers = (list: SegmentRange[]) =>
+    list.length === 1 && list[0].startIndex === 0 && list[0].endIndex === maxIndex;
+  if (!covers(left) || !covers(right)) return null;
+  if (left[0].microareaId !== right[0].microareaId) return null;
+  return left[0].microareaId;
+}
+
+export function simulatePaintAtPoint(
+  street: Street,
+  microarea: { id: string; name: string; number: number; color: string },
+  latitude: number,
+  longitude: number,
+  requestedSide: ApiPaintSide | StreetPaintSide,
+  scope: PaintScope,
+  microareaLookup?: Map<string, { id: string; name: string; number: number; color: string }>,
+): Street | null {
+  const coords = streetCoords(street.geojson);
+  const maxIndex = coords.length - 1;
+  if (maxIndex < 1) return null;
+
+  const vertexIndex = closestVertexIndex(coords, latitude, longitude);
+  let ranges = streetToRanges(street);
+  const paintMode = normalizePaintSide(street, requestedSide);
+
+  if (isDualSideStreet(street) && ranges.some((r) => r.side === 'FULL')) {
+    ranges = expandFullSegmentsForDualSide(ranges);
+  }
+
+  const sidesToPaint: StreetPaintSide[] =
+    paintMode === 'BOTH'
+      ? ['LEFT', 'RIGHT']
+      : paintMode === 'FULL' && isDualSideStreet(street)
+        ? ['LEFT', 'RIGHT']
+        : [paintMode as StreetPaintSide];
+
+  const wantsFullLengthPaint =
+    scope === 'whole' ||
+    paintMode === 'BOTH' ||
+    (paintMode === 'FULL' && isDualSideStreet(street));
+
+  const before = JSON.stringify(ranges);
+  for (const side of sidesToPaint) {
+    if (wantsFullLengthPaint) {
+      ranges = applyFullSidePaint(ranges, microarea.id, side, maxIndex);
+    } else {
+      ranges = applyPaintOnSide(ranges, vertexIndex, microarea.id, side, maxIndex);
+    }
+  }
+  ranges = mergeAdjacentSegments(ranges);
+  if (JSON.stringify(ranges) === before) return null;
+
+  const lookup = microareaLookup ?? new Map([[microarea.id, microarea]]);
+  for (const seg of street.paintSegments ?? []) {
+    if (seg.microarea && !lookup.has(seg.microareaId)) {
+      lookup.set(seg.microareaId, seg.microarea);
+    }
+  }
+  if (street.microarea && street.microareaId) {
+    lookup.set(street.microareaId, street.microarea);
+  }
+
+  const paintSegments = rangesToPaintSegments(street, ranges, lookup);
+  const microareaIdSynced = syncStreetMicroareaId(ranges, maxIndex);
+  const primaryMa = microareaIdSynced ? lookup.get(microareaIdSynced) : microarea;
+
+  return {
+    ...street,
+    microareaId: microareaIdSynced ?? undefined,
+    microarea: primaryMa
+      ? { id: primaryMa.id, name: primaryMa.name, number: primaryMa.number, color: primaryMa.color }
+      : undefined,
+    paintSegments,
+  };
+}
+
+/** Geometria que será pintada/apagada no hover (preview antes do clique). */
+export function computePaintPreviewGeometry(
+  street: Street,
+  latitude: number,
+  longitude: number,
+  microareaId: string | null,
+  requestedSide: ApiPaintSide | StreetPaintSide,
+  scope: PaintScope,
+  eraserMode: boolean,
+): GeoJSON.LineString | null {
+  const coords = streetCoords(street.geojson);
+  const maxIndex = coords.length - 1;
+  if (maxIndex < 1) return null;
+
+  const vertexIndex = closestVertexIndex(coords, latitude, longitude);
+  const side = normalizePaintSide(street, requestedSide);
+  const paintSide = side === 'BOTH' ? detectClickSide(street, latitude, longitude) : (side as StreetPaintSide);
+
+  if (eraserMode) {
+    const segments = street.paintSegments ?? [];
+    const covering = segmentsCoveringSide(segments, paintSide).find(
+      (s) => s.startIndex <= vertexIndex && s.endIndex >= vertexIndex,
+    );
+    if (!covering) return null;
+    const geom = sliceStreetGeojson(coords, covering.startIndex, covering.endIndex);
+    return geom ? offsetLineForSide(geom, paintSide) : null;
+  }
+
+  if (!microareaId) return null;
+
+  if (scope === 'whole' || side === 'BOTH') {
+    return isDualSideStreet(street) ? offsetLineForSide(street.geojson, paintSide) : street.geojson;
+  }
+
+  let ranges = streetToRanges(street);
+  if (isDualSideStreet(street) && ranges.some((r) => r.side === 'FULL')) {
+    ranges = expandFullSegmentsForDualSide(ranges);
+  }
+
+  const sideRanges = ranges.filter((r) => r.side === paintSide);
+  const containing = sideRanges.find(
+    (s) => s.startIndex <= vertexIndex && s.endIndex >= vertexIndex,
+  );
+
+  if (containing?.microareaId === microareaId) return null;
+
+  if (!containing) {
+    const gaps = computeUnpaintedRanges(sideRanges, maxIndex);
+    const gap = gaps.find((g) => g.start <= vertexIndex && g.end >= vertexIndex);
+    if (!gap || gap.end - Math.max(gap.start, vertexIndex) < 1) return null;
+    const geom = sliceStreetGeojson(coords, Math.max(gap.start, vertexIndex), gap.end);
+    return geom ? offsetLineForSide(geom, paintSide) : null;
+  }
+
+  if (vertexIndex < containing.endIndex) {
+    const geom = sliceStreetGeojson(coords, vertexIndex, containing.endIndex);
+    return geom ? offsetLineForSide(geom, paintSide) : null;
+  }
+  return null;
+}
+
+// --- Paint-at-point simulation (mirrors backend street-paint-segment.util) ---

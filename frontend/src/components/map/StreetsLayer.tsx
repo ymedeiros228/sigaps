@@ -10,6 +10,7 @@ import { familyHeatColor } from '../../utils/geo';
 import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetViewport';
 import {
   buildStreetMapFeatures,
+  computePaintPreviewGeometry,
   effectivePaintSide,
   isDualSideStreet,
   paintStateAtPoint,
@@ -53,6 +54,8 @@ export function StreetsLayer({
   const microareas = useAppStore((s) => s.microareas);
   const paintStreetSide = useMapStore((s) => s.paintStreetSide);
   const paintScope = useMapStore((s) => s.paintScope);
+  const mapPanEnabled = useMapStore((s) => s.mapPanEnabled);
+  const addDragPaintId = useMapStore((s) => s.addDragPaintId);
   const activeColor = eraserMode
     ? '#EF5350'
     : microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
@@ -238,32 +241,61 @@ export function StreetsLayer({
   );
 
   const hoveredFeature = useMemo(() => {
-    if (!paintMode || !hoveredId || !hoverLatLng) return null;
+    if (!paintMode || mapPanEnabled || !hoveredId || !hoverLatLng) return null;
     const street = streetsById.get(hoveredId);
     if (!street?.geojson) return null;
     const { lat, lng } = hoverLatLng;
     const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
     const state = paintStateAtPoint(street, lat, lng, side);
     if (eraserMode && !state.microareaId) return null;
+
+    const previewGeom = computePaintPreviewGeometry(
+      street,
+      lat,
+      lng,
+      eraserMode ? null : selectedMicroareaId,
+      side,
+      paintScope,
+      eraserMode,
+    );
+    if (!previewGeom) return null;
+
     return {
       type: 'Feature' as const,
-      properties: { id: hoveredId },
-      geometry: street.geojson,
+      properties: { id: hoveredId, eraser: eraserMode },
+      geometry: previewGeom,
     };
-  }, [paintMode, eraserMode, hoveredId, hoverLatLng, streetsById, paintStreetSide, paintScope]);
+  }, [
+    paintMode,
+    mapPanEnabled,
+    eraserMode,
+    hoveredId,
+    hoverLatLng,
+    streetsById,
+    paintStreetSide,
+    paintScope,
+    selectedMicroareaId,
+  ]);
 
-  const hoverPreviewStyle = (): PathOptions => {
-    if (eraserMode) {
+  const hoverPreviewStyle = (feature?: GeoJSON.Feature): PathOptions => {
+    if ((feature?.properties as { eraser?: boolean })?.eraser) {
       return {
-        color: '#78909c',
-        weight: 6,
-        opacity: 0.9,
-        dashArray: '5 8',
+        color: '#EF5350',
+        weight: 8,
+        opacity: 0.85,
+        dashArray: '6 6',
         lineCap: 'round',
         lineJoin: 'round',
       };
     }
-    return unassignedStyle();
+    return {
+      color: activeColor,
+      weight: 9,
+      opacity: 0.9,
+      dashArray: '10 5',
+      lineCap: 'round',
+      lineJoin: 'round',
+    };
   };
 
   const fc = (list: typeof features) => ({ type: 'FeatureCollection' as const, features: list });
@@ -377,7 +409,7 @@ export function StreetsLayer({
       });
     }
 
-    if (paintMode) {
+    if (paintMode && !mapPanEnabled) {
       const applyDragAction = (lat: number, lng: number) => {
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
@@ -388,7 +420,7 @@ export function StreetsLayer({
         }
       };
 
-      layer.on('mouseover', (e: L.LeafletMouseEvent) => {
+      const handlePointerOver = (e: L.LeafletMouseEvent) => {
         const { lat, lng } = e.latlng;
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
@@ -402,13 +434,15 @@ export function StreetsLayer({
           );
         layer.setTooltipContent(tooltipForPoint(lat, lng));
         if (dragActionRef.current) applyDragAction(lat, lng);
-      });
-      layer.on('mouseout', () => {
+      };
+
+      const handlePointerOut = () => {
         setHoveredId(null);
         setHoverLatLng(null);
         path.getElement()?.classList.remove('sigaps-street-hover', 'sigaps-street-eraser-hover');
-      });
-      layer.on('mousedown', (e: L.LeafletMouseEvent) => {
+      };
+
+      const handlePointerDown = (e: L.LeafletMouseEvent) => {
         stopMapEvent(e);
         const { lat, lng } = e.latlng;
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
@@ -421,9 +455,22 @@ export function StreetsLayer({
         }
         if (!selectedMicroareaId) return;
         dragActionRef.current = 'paint';
+        addDragPaintId(props.streetId);
         onStreetPaint(street, lat, lng);
-      });
+      };
+
+      layer.on('mouseover', handlePointerOver);
+      layer.on('mouseout', handlePointerOut);
+      layer.on('mousedown', handlePointerDown);
+      layer.on('touchstart', handlePointerDown as L.LeafletEventHandlerFn);
       layer.on('click', stopMapEvent);
+      return;
+    }
+
+    if (paintMode && mapPanEnabled) {
+      layer.on('mouseover', (e: L.LeafletMouseEvent) => {
+        layer.setTooltipContent(tooltipForPoint(e.latlng.lat, e.latlng.lng));
+      });
       return;
     }
 
@@ -493,14 +540,14 @@ export function StreetsLayer({
       {hoveredFeature && (
         <GeoJSON
           key={`hover-${hoveredId}-${paintMode}-${eraserMode}`}
-          data={fc([hoveredFeature as StreetMapFeature])}
+          data={{ type: 'FeatureCollection', features: [hoveredFeature] } as GeoJSON.FeatureCollection}
           style={hoverPreviewStyle}
           interactive={false}
         />
       )}
 
       <GeoJSON
-        key={`streets-hit-${paintMode}-${eraserMode}-${selectedMicroareaId}-${interactionVersion}`}
+        key={`streets-hit-${paintMode}-${eraserMode}-${selectedMicroareaId}-${mapPanEnabled}-${interactionVersion}`}
         data={fc(hitFeatures)}
         style={() => ({
           color: 'transparent',
