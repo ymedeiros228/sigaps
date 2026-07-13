@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { municipalitiesApi } from '../services/api';
 import { useAppStore, useAuthStore } from '../store';
 import { canAccessAdmin } from '../utils/permissions';
+import { queryKeys } from '../utils/queryKeys';
 
 /** Corrige município ativo inválido (ex.: localStorage antigo após reset do banco). */
 export function useEnsureValidMunicipality() {
@@ -11,7 +12,7 @@ export function useEnsureValidMunicipality() {
   const setMunicipalityId = useAppStore((s) => s.setMunicipalityId);
 
   const { data: municipalities = [] } = useQuery({
-    queryKey: ['municipalities'],
+    queryKey: queryKeys.municipalities,
     queryFn: () => municipalitiesApi.list().then((r) => r.data),
     enabled: !!user && canAccessAdmin(user.role),
     staleTime: 60_000,

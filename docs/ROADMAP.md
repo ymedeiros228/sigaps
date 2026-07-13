@@ -190,6 +190,18 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 **Critério de aceite:** qualquer povoado do município pode ser cadastrado em menos de 2 minutos, mesmo sem resultado na busca automática.
 
+### Sprint 18 — Segundo município e seletor — 🟡 Em andamento
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| M1 | Restaurar seletor multi-município no drawer (admin) | [x] |
+| M2 | Guia de onboarding Pedreiras/MA | [x] |
+| M3 | E2E troca de município (Playwright) | [x] |
+| M4 | Import OSM/ruas Pedreiras em produção | [ ] |
+| M5 | Homologação SMS Pedreiras (A6) | [ ] |
+
+---
+
 ### Sprint 17 — E2E pintura no mapa — ✅ Concluído
 
 | Item | Descrição | Status |
@@ -259,6 +271,6 @@ PWA instalável, cache de geometrias para ACS em campo.
 | **Homologação PDF** | Aceite formal do mapa oficial na SMS |
 | **Popular dados reais** | Famílias via e-SUS piloto + pintura territorial |
 | **Povoados com coordenadas** | Complementar território quando OSM/Nominatim não acham o lugar |
-| **Segundo município** | Validar escala multi-tenant em produção |
+| **Segundo município** | Validar escala multi-tenant em produção — ver `docs/ONBOARDING_PEDREIRAS.md` |
 
 O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O próximo salto é **homologação do PDF** e **integração e-SUS completa**.
