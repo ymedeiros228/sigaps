@@ -6,6 +6,7 @@ import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
 import {
   applyPaintOnSide,
   applyFullSidePaint,
+  applyUnpaintOnSide,
   closestVertexIndex,
   expandFullSegmentsForDualSide,
   isDualSideStreet,
@@ -1167,36 +1168,16 @@ export class StreetsService {
       ranges = expandFullSegmentsForDualSide(ranges);
     }
 
-    const containing = ranges.find(
-      (s) =>
-        s.side === unpaintSide &&
-        s.startIndex <= vertexIndex &&
-        s.endIndex >= vertexIndex &&
-        (!filterMicroareaId || s.microareaId === filterMicroareaId),
+    const { ranges: nextRanges, removed } = applyUnpaintOnSide(
+      ranges,
+      vertexIndex,
+      unpaintSide as StreetPaintSide,
+      filterMicroareaId,
     );
-    if (!containing) return { cleared: false };
+    if (!removed) return { cleared: false };
 
-    const affected = new Set<string>([containing.microareaId]);
-    ranges = ranges.filter((s) => s !== containing);
-
-    if (vertexIndex > containing.startIndex) {
-      ranges.push({
-        startIndex: containing.startIndex,
-        endIndex: vertexIndex,
-        microareaId: containing.microareaId,
-        side: containing.side,
-      });
-    }
-    if (vertexIndex < containing.endIndex) {
-      ranges.push({
-        startIndex: vertexIndex,
-        endIndex: containing.endIndex,
-        microareaId: containing.microareaId,
-        side: containing.side,
-      });
-    }
-
-    ranges = mergeAdjacentSegments(ranges);
+    const affected = new Set<string>([removed.microareaId]);
+    ranges = mergeAdjacentSegments(nextRanges);
     await this.replaceStreetSegments(streetId, ranges, coords);
     await this.syncStreetMicroareaFromSegments(streetId, reloaded.geojson);
 
@@ -1205,7 +1186,7 @@ export class StreetsService {
       entityType: 'street',
       entityId: streetId,
       action: 'UNPAINT_SEGMENT',
-      beforeData: { microareaId: containing.microareaId },
+      beforeData: { microareaId: removed.microareaId },
     });
 
     await this.updateAffectedEnvelopes(affected);

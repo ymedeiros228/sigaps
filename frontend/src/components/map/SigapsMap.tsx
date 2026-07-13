@@ -744,6 +744,13 @@ export function SigapsMap() {
       side?: string;
     }) => streetsApi.unpaintAtPoint(streetId, { latitude, longitude, side: side as 'LEFT' | 'RIGHT' | 'FULL' }),
     onSuccess: (res) => {
+      if (!res.data.cleared) {
+        setSnackbar({
+          message: 'Não há pintura neste trecho para apagar.',
+          severity: 'info',
+        });
+        return;
+      }
       if (!municipalityId) return;
       if (res.data.street) {
         const updated = prepareStreetsForMap([res.data.street])[0];
@@ -869,6 +876,11 @@ export function SigapsMap() {
   const unpaintStreet = useCallback((street: Street, latitude: number, longitude: number) => {
     if (!paintMode) return;
     const { paintStreetSide, paintScope, eraserMode: eraser } = useMapStore.getState();
+    if (eraser && paintScope === 'whole') {
+      if (!streetHasPaint(street)) return;
+      unassignMutation.mutate([street.id]);
+      return;
+    }
     const side = effectivePaintSide(street, latitude, longitude, paintStreetSide, paintScope, eraser);
     const state = paintStateAtPoint(street, latitude, longitude, side);
     if (!state.microareaId) return;
@@ -906,7 +918,7 @@ export function SigapsMap() {
         },
       },
     );
-  }, [paintMode, unpaintAtPointMutation, pushUndo]);
+  }, [paintMode, unpaintAtPointMutation, pushUndo, unassignMutation]);
 
   const handleUndo = useCallback(() => {
     const action = undoStackRef.current.pop();

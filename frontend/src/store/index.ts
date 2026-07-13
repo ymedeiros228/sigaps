@@ -225,6 +225,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       paintMode: enabled ? true : get().paintMode,
       mapPanEnabled: enabled ? false : get().mapPanEnabled,
       dragPaintIds: new Set<string>(),
+      ...(enabled ? { paintScope: 'segment' as const } : {}),
     });
   },
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),

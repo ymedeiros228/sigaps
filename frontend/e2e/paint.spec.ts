@@ -70,4 +70,33 @@ test.describe('Pintura no mapa', () => {
       page.getByText(/Trecho vinculado|Trecho pintado|vinculado à/i).first(),
     ).toBeVisible({ timeout: 15_000 });
   });
+
+  test('modo apagar remove pintura ao clicar na rua', async ({ page }) => {
+    await openMapAndWaitStreets(page);
+
+    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    await search.fill('Viriato');
+    await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
+
+    await enterPaintWithMicroarea01(page);
+
+    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    await streetPath.click({ force: true });
+    await expect(page.getByText(/pintada|vinculado/i).first()).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: /^Apagar$/i }).click();
+    await expect(page.getByText(/Modo apagar|Toque na rua colorida/i)).toBeVisible({ timeout: 10_000 });
+
+    const unpaintResponse = page.waitForResponse(
+      (res) =>
+        (res.url().includes('/unpaint-at-point') || res.url().includes('/unassign')) &&
+        res.request().method() === 'POST' &&
+        res.status() < 500,
+      { timeout: 30_000 },
+    );
+    await streetPath.click({ force: true });
+    const response = await unpaintResponse;
+    expect(response.ok(), `apagar falhou: ${response.status()}`).toBeTruthy();
+  });
 });

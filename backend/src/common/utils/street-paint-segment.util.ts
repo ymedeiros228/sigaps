@@ -182,6 +182,29 @@ export function applyPaintOnSide(
   return mergeAdjacentSegments([...other, ...sideRanges]);
 }
 
+/** Remove o trecho pintado que contém o vértice (borracha). */
+export function applyUnpaintOnSide(
+  allRanges: SegmentRange[],
+  vertexIndex: number,
+  unpaintSide: StreetPaintSide,
+  filterMicroareaId?: string,
+): { ranges: SegmentRange[]; removed: SegmentRange | null } {
+  const containing = allRanges.find(
+    (s) =>
+      s.side === unpaintSide &&
+      s.startIndex <= vertexIndex &&
+      s.endIndex >= vertexIndex &&
+      (!filterMicroareaId || s.microareaId === filterMicroareaId),
+  );
+  if (!containing) {
+    return { ranges: allRanges, removed: null };
+  }
+  return {
+    ranges: mergeAdjacentSegments(allRanges.filter((s) => s !== containing)),
+    removed: containing,
+  };
+}
+
 export function mergeAdjacentSegments(segments: SegmentRange[]): SegmentRange[] {
   if (segments.length === 0) return [];
   const sorted = [...segments].sort((a, b) => {

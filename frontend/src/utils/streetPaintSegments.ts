@@ -459,7 +459,7 @@ export function effectivePaintSide(
   eraserMode: boolean,
 ): ApiPaintSide | StreetPaintSide {
   if (!isDualSideStreet(street)) return 'FULL';
-  if (eraserMode && paintStreetSide === 'FULL' && paintScope === 'segment') {
+  if (eraserMode) {
     return detectClickSide(street, latitude, longitude);
   }
   if (paintScope === 'whole') return 'BOTH';
