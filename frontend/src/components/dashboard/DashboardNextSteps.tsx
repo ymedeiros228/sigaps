@@ -2,6 +2,7 @@ import { Alert, Box, Button, LinearProgress, Typography } from '@mui/material';
 import {
   CheckCircle,
   FamilyRestroom,
+  LocalFireDepartment,
   MapOutlined,
   PictureAsPdf,
   Storage,
@@ -163,6 +164,30 @@ export function DashboardNextSteps({
         </Alert>
       )}
 
+      {streets > 0 && families > 0 && coverage > 0 && (
+        <Alert
+          severity="info"
+          icon={<LocalFireDepartment />}
+          action={
+            <Button
+              component={RouterLink}
+              to="/mapa?heatmap=1"
+              color="inherit"
+              size="small"
+              variant="outlined"
+            >
+              Ver mapa de calor
+            </Button>
+          }
+          sx={{ borderRadius: 2, alignItems: 'center' }}
+        >
+          <Typography variant="body2">
+            <strong>{families.toLocaleString('pt-BR')} famílias</strong> importadas — ative a camada
+            de calor no mapa para ver a densidade sobre a pintura das microáreas.
+          </Typography>
+        </Alert>
+      )}
+
       {streets > 0 && familiesPending && (
         <Alert
           severity="info"
@@ -182,7 +207,7 @@ export function DashboardNextSteps({
         >
           <Typography variant="body2">
             Importe o CSV do <strong>e-SUS</strong> para popular famílias e habitantes por logradouro
-            (opcional para pintar, útil para indicadores).
+            (opcional para pintar; ative <strong>Famílias</strong> no mapa depois do import).
           </Typography>
         </Alert>
       )}

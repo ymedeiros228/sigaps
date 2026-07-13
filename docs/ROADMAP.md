@@ -43,7 +43,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | G4 | Entrega zerada: seed sem pintura, admin preparar entrega, mapa limpo | [x] |
 | G5 | Checklist `readyForPainting` + status de entrega no Admin | [x] |
 | G2 | Homologação SMS (aceite formal A6) | [ ] |
-| G3 | Popular famílias via CSV e-SUS | [~] Rodada 1: matching + UX import |
+| G3 | Popular famílias via CSV e-SUS | [x] Rodadas 1–3: import + calor no mapa |
 
 ### Sprint 20 — Rodada 1 de melhorias — ✅ Concluída
 
@@ -55,7 +55,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | R1.4 | E2E: modo arrastar (brush) e rua inteira | [x] |
 | R1.5 | Aviso quando Mover bloqueia pintura no mapa | [x] |
 
-### Sprint 20 — Rodada 2 de melhorias — 🟡 Em andamento
+### Sprint 20 — Rodada 2 de melhorias — ✅ Concluída
 
 | Item | Descrição | Status |
 |------|-----------|--------|
@@ -63,6 +63,15 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | R2.2 | Link `/mapa?pdf=1&homolog=1` abre PDF com dica de revisão | [x] |
 | R2.3 | Dashboard: passos explícitos para homologação | [x] |
 | R2.4 | Polish brush: cursor e classe CSS ao arrastar | [x] |
+
+### Sprint 20 — Rodada 3 de melhorias — 🟡 Em andamento
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| R3.1 | Calor de famílias sobreposto à pintura (não substitui cores) | [x] |
+| R3.2 | Legenda: famílias por microárea + link `/mapa?heatmap=1` | [x] |
+| R3.3 | Dashboard: alerta mapa de calor quando há famílias e pintura | [x] |
+| R3.4 | Toolbar: toggle famílias com total e dica e-SUS | [x] |
 
 ---
 

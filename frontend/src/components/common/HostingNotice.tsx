@@ -81,7 +81,7 @@ export function AjudaHostingPage() {
             <strong>Espaço:</strong> ~500 MB de banco — suficiente para Passagem Franca no piloto.
           </li>
           <li>
-            <strong>Em evolução:</strong> e-SUS automático, app offline e mapa de calor de famílias
+            <strong>Em evolução:</strong> e-SUS automático (API) e domínio institucional
             ainda não estão prontos.
           </li>
         </Box>

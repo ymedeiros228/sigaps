@@ -28,7 +28,7 @@ import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { MapExportMenu } from './MapExportMenu';
 import { StreetSearchBar, type StreetSearchOption } from './StreetSearchBar';
 import { canImportStreets } from '../../utils/permissions';
-import { countPaintedStreets } from '../../utils/streetPaintStats';
+import { countPaintedStreets, countStreetsWithFamilyData, sumFamiliesOnStreets } from '../../utils/streetPaintStats';
 import type { RefObject } from 'react';
 import type { Microarea, Street } from '../../services/api';
 
@@ -94,6 +94,14 @@ export function MapToolbar({
     const painted = countPaintedStreets(streets);
     return Math.round((painted / streetCount) * 100);
   }, [streets, streetCount]);
+
+  const familyStats = useMemo(
+    () => ({
+      total: sumFamiliesOnStreets(streets),
+      streetsWithData: countStreetsWithFamilyData(streets),
+    }),
+    [streets],
+  );
 
   const handleSearchSelect = (option: StreetSearchOption) => {
     onSearchSelect(option);
@@ -212,17 +220,31 @@ export function MapToolbar({
         sx={{ mr: 0 }}
       />
 
-      <FormControlLabel
-        control={
-          <Switch
-            size="small"
-            checked={showHeatmap}
-            onChange={(e) => setShowHeatmap(e.target.checked)}
-          />
+      <Tooltip
+        title={
+          familyStats.streetsWithData === 0
+            ? 'Importe dados e-SUS para ver o mapa de calor'
+            : 'Sobrepõe calor de famílias sobre as cores das microáreas'
         }
-        label="Famílias"
-        sx={{ mr: 0, display: { xs: 'none', md: 'flex' } }}
-      />
+      >
+        <FormControlLabel
+          data-testid="toggle-heatmap"
+          control={
+            <Switch
+              size="small"
+              checked={showHeatmap}
+              onChange={(e) => setShowHeatmap(e.target.checked)}
+              disabled={familyStats.streetsWithData === 0}
+            />
+          }
+          label={
+            familyStats.total > 0
+              ? `Famílias (${familyStats.total})`
+              : 'Famílias'
+          }
+          sx={{ mr: 0, display: { xs: 'none', md: 'flex' } }}
+        />
+      </Tooltip>
 
       <FormControlLabel
         control={

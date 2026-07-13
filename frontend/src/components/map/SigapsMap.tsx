@@ -149,6 +149,15 @@ export function SigapsMap() {
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
+    if (searchParams.get('heatmap') !== '1') return;
+    useMapStore.getState().setShowHeatmap(true);
+    useMapStore.getState().setPaintMode(false);
+    const next = new URLSearchParams(searchParams);
+    next.delete('heatmap');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
     if (!acsReadOnly || !lockedMicroareaId) return;
     setSelectedMicroarea(lockedMicroareaId);
     setPaintMode(false);

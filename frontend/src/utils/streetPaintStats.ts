@@ -23,3 +23,21 @@ export function microareaIdsOnStreet(street: Street): string[] {
   }
   return Array.from(ids);
 }
+
+export function sumFamiliesForMicroarea(streets: Street[], microareaId: string): number {
+  let total = 0;
+  for (const street of streets) {
+    if (streetBelongsToMicroarea(street, microareaId)) {
+      total += street.familyCount ?? 0;
+    }
+  }
+  return total;
+}
+
+export function countStreetsWithFamilyData(streets: Street[]): number {
+  return streets.filter((s) => (s.familyCount ?? 0) > 0).length;
+}
+
+export function sumFamiliesOnStreets(streets: Street[]): number {
+  return streets.reduce((sum, s) => sum + (s.familyCount ?? 0), 0);
+}

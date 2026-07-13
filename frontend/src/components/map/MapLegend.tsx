@@ -5,7 +5,7 @@ import type { Microarea, Street, Ubs, Place } from '../../services/api';
 import { useMapStore } from '../../store';
 import { familyHeatColor } from '../../utils/geo';
 import { sortMicroareas } from '../../utils/sortMicroareas';
-import { countPaintedStreets, streetBelongsToMicroarea } from '../../utils/streetPaintStats';
+import { countPaintedStreets, streetBelongsToMicroarea, sumFamiliesForMicroarea } from '../../utils/streetPaintStats';
 
 interface MapLegendProps {
   microareas: Microarea[];
@@ -138,6 +138,7 @@ export function MapLegend({
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             {sortedMicroareas.map((m) => {
               const count = m._count?.streets ?? stats.byMicroareaViewport.get(m.id) ?? 0;
+              const families = stats.totalFamilies > 0 ? sumFamiliesForMicroarea(streets, m.id) : 0;
               const canClear = (paintMode || eraserMode) && count > 0 && !!onClearMicroarea;
               return (
                 <Box
@@ -180,9 +181,14 @@ export function MapLegend({
                   <Typography
                     variant="caption"
                     color={canClear ? 'error.main' : 'text.secondary'}
-                    sx={{ fontWeight: 700 }}
+                    sx={{ fontWeight: 700, textAlign: 'right' }}
                   >
                     {count}
+                    {families > 0 && (
+                      <Typography component="span" variant="caption" color="text.disabled" sx={{ display: 'block', fontSize: '0.65rem', fontWeight: 600 }}>
+                        {families} fam.
+                      </Typography>
+                    )}
                   </Typography>
                 </Box>
               );
@@ -252,7 +258,7 @@ export function MapLegend({
               {showHeatmap && (
                 <Box sx={{ mt: 0.5 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                    Mapa de calor — famílias ({stats.totalFamilies} total)
+                    Calor sobre a pintura — {stats.totalFamilies} famílias na tela
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 0.25, height: 6, borderRadius: 1, overflow: 'hidden' }}>
                     {[0.1, 0.35, 0.6, 1].map((t) => (

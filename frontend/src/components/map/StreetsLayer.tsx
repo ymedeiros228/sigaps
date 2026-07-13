@@ -291,15 +291,15 @@ export function StreetsLayer({
 
   const heatFeatures = useMemo(() => {
     if (!showHeatmap) return [];
-    return hitFeatures;
+    return hitFeatures.filter((f) => ((f.properties as { familyCount?: number }).familyCount ?? 0) > 0);
   }, [hitFeatures, showHeatmap]);
 
   const heatLineStyle = (feature?: GeoJSON.Feature): PathOptions => {
     const count = (feature?.properties as { familyCount?: number })?.familyCount ?? 0;
     return {
       color: familyHeatColor(count, maxFamilyCount),
-      weight: count > 0 ? 5 + Math.min(4, count) : 3,
-      opacity: count > 0 ? 0.9 : 0.35,
+      weight: 9 + Math.min(5, Math.round(count / Math.max(1, maxFamilyCount / 5))),
+      opacity: 0.92,
       lineCap: 'round',
       lineJoin: 'round',
     };
@@ -390,8 +390,8 @@ export function StreetsLayer({
     const emphasis = props?.highlighted || props?.selected || props?.dragPending;
     return {
       color,
-      weight: eraserMode ? 12 : emphasis ? 10 : 8,
-      opacity: 1,
+      weight: showHeatmap ? (emphasis ? 7 : 5) : eraserMode ? 12 : emphasis ? 10 : 8,
+      opacity: showHeatmap ? 0.55 : 1,
       lineCap: 'round',
       lineJoin: 'round',
     };
@@ -636,16 +636,7 @@ export function StreetsLayer({
 
   return (
     <>
-      {showHeatmap && heatFeatures.length > 0 && (
-        <GeoJSON
-          key={`heat-${heatFeatures.length}-${maxFamilyCount}`}
-          data={fc(heatFeatures)}
-          style={heatLineStyle}
-          interactive={false}
-        />
-      )}
-
-      {unpainted.length > 0 && !showHeatmap && !paintMode && (
+      {unpainted.length > 0 && !paintMode && (
         <GeoJSON
           key={`system-streets-${unpainted.length}-${paintVisualVersion.length}`}
           data={fc(unpainted)}
@@ -654,7 +645,7 @@ export function StreetsLayer({
         />
       )}
 
-      {unpainted.length > 0 && !showHeatmap && paintMode && (
+      {unpainted.length > 0 && paintMode && (
         <GeoJSON
           key={`unpainted-paint-${paintVisualVersion}`}
           data={fc(unpainted)}
@@ -672,7 +663,7 @@ export function StreetsLayer({
         />
       )}
 
-      {painted.length > 0 && !showHeatmap && (
+      {painted.length > 0 && (
         <>
           <GeoJSON
             key={`painted-halo-${paintVisualVersion}`}
@@ -687,6 +678,15 @@ export function StreetsLayer({
             interactive={false}
           />
         </>
+      )}
+
+      {showHeatmap && heatFeatures.length > 0 && (
+        <GeoJSON
+          key={`heat-${heatFeatures.length}-${maxFamilyCount}-overlay`}
+          data={fc(heatFeatures)}
+          style={heatLineStyle}
+          interactive={false}
+        />
       )}
 
       {brushPreview && paintMode && !showHeatmap && (
