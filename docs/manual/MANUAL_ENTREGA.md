@@ -174,6 +174,25 @@ Lista de 9 itens que acompanham a implantação:
 8. Sincronização e-SUS realizada
 9. Mapa homologado pela SMS
 
+## 5.5 Próximos passos (painel guia)
+
+No topo do Dashboard, o painel **Próximos passos** orienta o fluxo do dia a dia:
+
+| Situação | O que o sistema sugere |
+|----------|------------------------|
+| Cadastros incompletos | Ir para Cadastros e concluir ACS, microáreas ou UBS |
+| Mapa zerado, dados prontos | Abrir o mapa e começar a pintura territorial |
+| Cobertura abaixo de 80% | Continuar pintando com barra de progresso |
+| Famílias importadas + pintura | Ver mapa de calor (`/mapa?heatmap=1`) |
+| Sem dados e-SUS | Importar CSV em Cadastros → Município |
+| Pronto para homologação | Guia em Administração → Homologação |
+
+<div class="info-box">
+
+<strong>Entrega Passagem Franca:</strong> o sistema pode ser entregue com <strong>mapa zerado</strong> (ruas cinza, sem microárea pintada). Os cadastros (UBS, ACS, microáreas, malha viária) já vêm prontos; a <strong>decisão de quem pinta o quê</strong> é do enfermeiro no mapa.
+
+</div>
+
 ---
 
 # 6. Mapa interativo — pintura territorial
@@ -182,7 +201,7 @@ O módulo **Pintar Mapa** é o coração do SIGAPS. Sobre o mapa real do municí
 
 <div class="info-box">
 
-As capturas desta seção mostram o sistema em uso real em Passagem Franca/MA, com ruas vinculadas às microáreas, marcadores de UBS e povoados ativos — apenas para ilustrar o manual.
+As capturas desta seção podem mostrar ruas já coloridas para ilustrar o manual. Na **entrega operacional**, o mapa pode estar **zerado** (ruas cinza) para você pintar do zero com os cadastros já prontos.
 
 </div>
 
@@ -203,7 +222,8 @@ As capturas desta seção mostram o sistema em uso real em Passagem Franca/MA, c
 | Elemento | Cor / ícone | Significado |
 |----------|-------------|-------------|
 | **Ruas pintadas** | Verde, laranja, azul, roxo, vermelho… | Vinculadas a uma microárea (com contorno branco para destaque) |
-| **Ruas cinza** | Linha contínua ou tracejada | Ainda sem microárea — visíveis sobre o mapa de ruas |
+| **Ruas cinza** | Linha tracejada | Sem microárea — prontas para você pintar |
+| **Calor de famílias** | Tons quentes sobre a pintura | Densidade e-SUS por logradouro (toggle **Famílias**) |
 | **UBS** | Marcador azul | Unidade Básica de Saúde (9 unidades cadastradas) |
 | **Povoados** | Marcador marrom | Localidades rurais complementares |
 | **Legenda** | Canto inferior esquerdo | Contagem por microárea e % de cobertura |
@@ -215,19 +235,24 @@ As capturas desta seção mostram o sistema em uso real em Passagem Franca/MA, c
 | **Busca** | Localizar ruas, bairros, UBS, ACS, microáreas e povoados |
 | **Camadas** | Mapa de ruas (OpenStreetMap), Satélite ou Relevo |
 | **Cobertura %** | Percentual de ruas já pintadas |
-| **Toggles** | Envelopes das microáreas, UBS e Povoados |
+| **Toggles** | Envelopes das microáreas, UBS, Povoados e **Famílias** (mapa de calor) |
 | **Arquivos** | Importar/exportar GeoJSON, KML, CSV, PDF |
 | **Centralizar** | Voltar ao centro do município |
 
 ## 6.3 Como pintar (passo a passo)
 
 1. Abra o painel **Pintar microáreas** (parte inferior da tela)
-2. Escolha a **microárea** desejada (cada uma tem cor própria)
-3. Clique em **PINTAR** e depois nas ruas do mapa
-4. Use **Pintar bairro inteiro** quando as ruas já tiverem bairro cadastrado
-5. Clique em **Guardar** para minimizar o painel e conferir o resultado
+2. Escolha a **cor do ACS** (microárea) — o modo pintar inicia automaticamente
+3. Modo padrão **Arrastar**: clique num ponto da rua e **arraste** ao longo do traço; solte para salvar
+4. Outros modos no painel: **Rua inteira** (um clique), **Lado E / Lado D** (só um lado da via)
+5. **Opções avançadas** → **Dividir trecho** (clique em pontos para cortar — use só se precisar)
+6. Clique em **Guardar** para minimizar o painel e conferir o resultado
 
-**Atalhos:** clique simples na rua · **Ctrl+clique** para selecionar várias · **Borracha** para remover vínculo
+**Atalhos de teclado:** **P** pintar · **E** apagar · **S** ou **Esc** sair do modo pintar
+
+**Apagar:** botão **Apagar** no painel (ou tecla **E**); arraste na rua colorida para remover trecho (modo brush). Ruas cinza ainda não têm microárea — pinte antes de apagar.
+
+**Mover o mapa:** botão **Mover** no painel (evita pintar enquanto arrasta o mapa).
 
 ## 6.4 Exportações do mapa
 
@@ -357,8 +382,10 @@ O mapeamento de **ruas** existente **não é alterado** por este módulo. Os pov
 ## 9.2 e-SUS (CSV piloto)
 
 1. Exportar planilha do e-SUS com famílias por logradouro
-2. Cadastros → Município → Importar CSV e-SUS
-3. Dados aparecem no mapa (heatmap de famílias) e no Dashboard
+2. Cadastros → Município → Importar CSV e-SUS (modelo e erros por linha no diálogo)
+3. Opcional: **Sincronizar e-SUS** para reprocessar o último arquivo
+4. No mapa, toggle **Famílias** — calor sobreposto à pintura (não substitui cores das microáreas)
+5. Indicadores no Dashboard e checklist operacional
 
 ## 9.3 CNES (Ministério da Saúde)
 
@@ -420,14 +447,14 @@ Esta seção descreve o **uso prático** do SIGAPS pelo enfermeiro da APS — co
 <div class="flow-step">
 <strong>Passo 1.</strong> Menu lateral → <strong>Pintar Mapa</strong>.<br>
 <strong>Passo 2.</strong> No painel inferior <strong>Pintar microáreas</strong>, toque na <strong>cor do ACS</strong> desejada — o modo pintar inicia automaticamente.<br>
-<strong>Passo 3.</strong> Escolha <strong>como pintar</strong>:<br>
-&nbsp;&nbsp;• <strong>Dividir trecho</strong> — clique em pontos da rua para cortar entre microáreas (ideal para avenidas longas).<br>
+<strong>Passo 3.</strong> Modo padrão <strong>Arrastar</strong>: clique e arraste ao longo da rua; solte para salvar. Alternativas no painel:<br>
 &nbsp;&nbsp;• <strong>Rua inteira</strong> — um clique colorirá a via toda.<br>
-&nbsp;&nbsp;• <strong>Lado E / Lado D</strong> — para avenidas com dois sentidos, pinta só o lado escolhido.<br>
-<strong>Passo 4.</strong> Toque nas ruas do território. Use <strong>Mover</strong> (ou tecla <strong>M</strong>) para arrastar o mapa sem pintar.<br>
+&nbsp;&nbsp;• <strong>Lado E / Lado D</strong> — para avenidas, pinta só o lado escolhido.<br>
+&nbsp;&nbsp;• <strong>Dividir trecho</strong> (avançado) — cada clique corta a rua num ponto.<br>
+<strong>Passo 4.</strong> Use <strong>Mover</strong> no painel para arrastar o mapa sem pintar.<br>
 <strong>Passo 5.</strong> Para pintar várias ruas de uma vez, expanda <strong>Mais opções</strong> → <strong>Pintar bairro inteiro</strong> (quando as ruas já tiverem bairro cadastrado).<br>
 <strong>Passo 6.</strong> Ao terminar, clique em <strong>Guardar</strong> para minimizar o painel e conferir o resultado.<br>
-<strong>Dica:</strong> Use a <strong>busca</strong> no topo para localizar uma rua pelo nome antes de pintar. Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>S</strong> sair. Modos de pincel (trecho, rua inteira, lado) ficam nos botões do painel.
+<strong>Dica:</strong> Use a <strong>busca</strong> no topo para localizar uma rua pelo nome antes de pintar. Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>S</strong> ou <strong>Esc</strong> sair.
 </div>
 
 ## 11.3 Cadastrar ou atualizar ACS
@@ -463,6 +490,28 @@ Quando um lugar aparece no Google Maps mas não nas ruas do sistema (ex.: Povoad
 ## 11.6 Acompanhar cobertura após pintar
 
 Após cada sessão de pintura, volte ao **Dashboard** e confira se o percentual de cobertura subiu. A meta para homologação é **≥ 80%** das ruas vinculadas a microáreas.
+
+## 11.7 Importar famílias (e-SUS) e mapa de calor
+
+<div class="flow-step">
+<strong>Passo 1.</strong> Cadastros → <strong>Município</strong> → <strong>Importar CSV e-SUS</strong> (modelo disponível no diálogo).<br>
+<strong>Passo 2.</strong> Revise erros por linha, se houver; confirme o import.<br>
+<strong>Passo 3.</strong> Opcional: <strong>Sincronizar e-SUS</strong> para reprocessar o último arquivo.<br>
+<strong>Passo 4.</strong> No mapa, ative o toggle <strong>Famílias</strong> na barra superior — o calor aparece <strong>sobre</strong> as cores das microáreas (não substitui a pintura).<br>
+<strong>Atalho:</strong> link direto <code>/mapa?heatmap=1</code> ou botão no Dashboard quando há famílias e pintura.
+</div>
+
+## 11.8 Homologação do mapa com a SMS
+
+Quando a cobertura e o checklist estiverem prontos:
+
+<div class="flow-step">
+<strong>Passo 1.</strong> Dashboard → confira alerta <strong>Pronto para homologação</strong>.<br>
+<strong>Passo 2.</strong> Administração → <strong>Homologação</strong> → wizard em 3 passos (checklist → PDF → registrar aceite).<br>
+<strong>Passo 3.</strong> No mapa, exporte <strong>PDF A3</strong> (menu Arquivos). Use <code>/mapa?pdf=1&homolog=1</code> para abrir com dica de revisão.<br>
+<strong>Passo 4.</strong> Leve o PDF à reunião da SMS; após o aceite, registre em Admin → Homologação com observações.<br>
+<strong>Passo 5.</strong> Os próximos PDFs exportados exibirão o carimbo de homologação.
+</div>
 
 ---
 

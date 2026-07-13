@@ -35,15 +35,23 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 > **Escopo:** deploy exclusivo para **Passagem Franca/MA** (não é produto multi-município).
 
-### Sprint 19 — Guia operacional PF — 🟡 Em andamento
+### Sprint 19 — Guia operacional PF — ✅ Concluído (exc. aceite SMS)
 
 | Item | Descrição | Status |
 |------|-----------|--------|
 | G1 | Painel "Próximos passos" no dashboard (dados, e-SUS, homologação) | [x] |
 | G4 | Entrega zerada: seed sem pintura, admin preparar entrega, mapa limpo | [x] |
 | G5 | Checklist `readyForPainting` + status de entrega no Admin | [x] |
-| G2 | Homologação SMS (aceite formal A6) | [ ] |
+| G2 | Homologação SMS (aceite formal A6) | [ ] reunião humana |
 | G3 | Popular famílias via CSV e-SUS | [x] Rodadas 1–3: import + calor no mapa |
+
+### Sprint 21 — Rodada 5 de melhorias — ✅ Concluída
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| R5.1 | Manual de entrega: brush, heatmap, mapa zerado, atalhos Esc | [x] |
+| R5.2 | Manual: seções Próximos passos, e-SUS/calor e homologação SMS | [x] |
+| R5.3 | ROADMAP: Sprint 19 fechado (exc. G2) | [x] |
 
 ### Sprint 20 — Rodada 1 de melhorias — ✅ Concluída
 
@@ -304,9 +312,9 @@ PWA instalável, cache de geometrias para ACS em campo.
 
 | Prioridade imediata | Impacto |
 |---------------------|---------|
-| **Homologação PDF** | Aceite formal do mapa oficial na SMS |
-| **Dados prontos + mapa zerado** | Entregar cadastros OK; Jonas pinta do zero |
-| **Popular famílias e-SUS** | Indicadores por logradouro (piloto CSV) |
+| **Homologação PDF** | Aceite formal do mapa oficial na SMS (fluxo guiado pronto) |
+| **Jonas pinta o mapa** | Cadastros prontos; mapa zerado em produção |
+| **Manual atualizado** | Referência com brush, calor e-SUS e homologação |
 | **Povoados com coordenadas** | Complementar território quando OSM/Nominatim não acham o lugar |
 
-O SIGAPS é **exclusivo para Passagem Franca/MA**. O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O sistema **prepara os dados**; a **pintura e decisão territorial são do enfermeiro**. Próximo salto: **homologação do PDF** e **dados e-SUS reais**.
+O SIGAPS é **exclusivo para Passagem Franca/MA**. O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O sistema **prepara os dados**; a **pintura e decisão territorial são do enfermeiro**. Próximo salto humano: **aceite formal da homologação na reunião da SMS**.
