@@ -116,6 +116,87 @@ export function applyFullSidePaint(
   ]);
 }
 
+/** Pinta só o intervalo [startIndex, endIndex] no lado indicado (modo arrastar). */
+export function applyPaintRange(
+  allRanges: SegmentRange[],
+  startIndex: number,
+  endIndex: number,
+  microareaId: string,
+  side: StreetPaintSide,
+  maxIndex: number,
+): SegmentRange[] {
+  let lo = Math.max(0, Math.min(startIndex, endIndex));
+  let hi = Math.min(maxIndex, Math.max(startIndex, endIndex));
+  if (hi - lo < 1) {
+    if (hi < maxIndex) hi += 1;
+    else if (lo > 0) lo -= 1;
+  }
+  if (hi - lo < 1) return allRanges;
+
+  const other = allRanges.filter((r) => r.side !== side);
+  const sideRanges = allRanges.filter((r) => r.side === side);
+  const trimmed: SegmentRange[] = [];
+
+  for (const seg of sideRanges) {
+    if (seg.endIndex <= lo || seg.startIndex >= hi) {
+      trimmed.push({ ...seg });
+      continue;
+    }
+    if (seg.startIndex < lo) {
+      trimmed.push({ ...seg, endIndex: lo });
+    }
+    if (seg.endIndex > hi) {
+      trimmed.push({ ...seg, startIndex: hi });
+    }
+  }
+
+  trimmed.push({ startIndex: lo, endIndex: hi, microareaId, side });
+  return mergeAdjacentSegments([...other, ...trimmed]);
+}
+
+/** Remove pintura no intervalo [startIndex, endIndex] (borracha arrastando). */
+export function applyUnpaintRange(
+  allRanges: SegmentRange[],
+  startIndex: number,
+  endIndex: number,
+  unpaintSide: StreetPaintSide,
+  filterMicroareaId?: string,
+): { ranges: SegmentRange[]; removed: SegmentRange[] } {
+  let lo = Math.max(0, Math.min(startIndex, endIndex));
+  let hi = Math.max(startIndex, endIndex);
+  if (hi - lo < 1) {
+    if (hi < allRanges.reduce((m, r) => Math.max(m, r.endIndex), 0)) hi += 1;
+    else if (lo > 0) lo -= 1;
+  }
+
+  const removed: SegmentRange[] = [];
+  const kept: SegmentRange[] = [];
+
+  for (const seg of allRanges) {
+    if (seg.side !== unpaintSide) {
+      kept.push({ ...seg });
+      continue;
+    }
+    if (filterMicroareaId && seg.microareaId !== filterMicroareaId) {
+      kept.push({ ...seg });
+      continue;
+    }
+    if (seg.endIndex <= lo || seg.startIndex >= hi) {
+      kept.push({ ...seg });
+      continue;
+    }
+    removed.push({ ...seg });
+    if (seg.startIndex < lo) {
+      kept.push({ ...seg, endIndex: lo });
+    }
+    if (seg.endIndex > hi) {
+      kept.push({ ...seg, startIndex: hi });
+    }
+  }
+
+  return { ranges: mergeAdjacentSegments(kept), removed };
+}
+
 export function applyPaintOnSide(
   allRanges: SegmentRange[],
   vertexIndex: number,

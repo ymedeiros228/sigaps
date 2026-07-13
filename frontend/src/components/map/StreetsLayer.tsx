@@ -10,6 +10,7 @@ import { familyHeatColor } from '../../utils/geo';
 import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetViewport';
 import {
   buildStreetMapFeatures,
+  computeBrushPreviewGeometry,
   computePaintPreviewGeometry,
   effectivePaintSide,
   isDualSideStreet,
@@ -28,8 +29,32 @@ interface StreetsLayerProps {
   onStreetClick: (street: Street, multiSelect?: boolean) => void;
   onStreetPaint: (street: Street, latitude: number, longitude: number) => void;
   onStreetUnpaint: (street: Street, latitude: number, longitude: number) => void;
+  onStreetPaintRange: (
+    street: Street,
+    startLat: number,
+    startLng: number,
+    endLat: number,
+    endLng: number,
+  ) => void;
+  onStreetUnpaintRange: (
+    street: Street,
+    startLat: number,
+    startLng: number,
+    endLat: number,
+    endLng: number,
+  ) => void;
   onDragPaintEnd: () => void;
 }
+
+type BrushSession = {
+  streetId: string;
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  side: ReturnType<typeof effectivePaintSide>;
+  action: 'paint' | 'unpaint';
+};
 
 function stopMapEvent(e: L.LeafletMouseEvent) {
   L.DomEvent.stopPropagation(e);
@@ -41,6 +66,8 @@ export function StreetsLayer({
   onStreetClick,
   onStreetPaint,
   onStreetUnpaint,
+  onStreetPaintRange,
+  onStreetUnpaintRange,
   onDragPaintEnd,
 }: StreetsLayerProps) {
   const highlightedId = useMapStore((s) => s.highlightedStreetId);
@@ -60,6 +87,8 @@ export function StreetsLayer({
     ? '#EF5350'
     : microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
   const dragActionRef = useRef<'paint' | 'unpaint' | null>(null);
+  const brushSessionRef = useRef<BrushSession | null>(null);
+  const [brushPreview, setBrushPreview] = useState<GeoJSON.Feature | null>(null);
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [mapBounds, setMapBounds] = useState(map.getBounds());
@@ -93,13 +122,45 @@ export function StreetsLayer({
   }, [map, paintMode, eraserMode]);
 
   useEffect(() => {
-    const handleMouseUp = () => {
+    const finishBrush = () => {
+      const session = brushSessionRef.current;
+      if (session) {
+        const street = streetsByIdRef.current.get(session.streetId);
+        if (street) {
+          if (session.action === 'unpaint') {
+            onStreetUnpaintRange(
+              street,
+              session.startLat,
+              session.startLng,
+              session.endLat,
+              session.endLng,
+            );
+          } else {
+            onStreetPaintRange(
+              street,
+              session.startLat,
+              session.startLng,
+              session.endLat,
+              session.endLng,
+            );
+          }
+        }
+        brushSessionRef.current = null;
+        setBrushPreview(null);
+      }
       dragActionRef.current = null;
       onDragPaintEnd();
     };
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, [onDragPaintEnd]);
+    window.addEventListener('mouseup', finishBrush);
+    window.addEventListener('touchend', finishBrush);
+    return () => {
+      window.removeEventListener('mouseup', finishBrush);
+      window.removeEventListener('touchend', finishBrush);
+    };
+  }, [onDragPaintEnd, onStreetPaintRange, onStreetUnpaintRange]);
+
+  const streetsByIdRef = useRef(new Map<string, Street>());
+  streetsByIdRef.current = new Map(streets.map((street) => [street.id, street]));
 
   const renderStreets = useMemo(() => {
     if (streets.length < VIEWPORT_CULL_MIN) return streets;
@@ -241,7 +302,7 @@ export function StreetsLayer({
   );
 
   const hoveredFeature = useMemo(() => {
-    if (!paintMode || mapPanEnabled || !hoveredId || !hoverLatLng) return null;
+    if (!paintMode || mapPanEnabled || !hoveredId || !hoverLatLng || brushPreview) return null;
     const street = streetsById.get(hoveredId);
     if (!street?.geojson) return null;
     const { lat, lng } = hoverLatLng;
@@ -275,6 +336,7 @@ export function StreetsLayer({
     paintStreetSide,
     paintScope,
     selectedMicroareaId,
+    brushPreview,
   ]);
 
   const hoverPreviewStyle = (feature?: GeoJSON.Feature): PathOptions => {
@@ -392,7 +454,9 @@ export function StreetsLayer({
           ? `Despintar trecho${sideText}: ${label}`
           : paintScope === 'whole'
             ? `Pintar rua inteira: ${label}`
-            : `Cortar e pintar trecho${sideText}: ${label}`;
+            : paintScope === 'brush'
+              ? `Arraste ao longo da rua${sideText}: ${label}`
+              : `Cortar e pintar trecho${sideText}: ${label}`;
       }
       if (segName) return `${label} — ${segName}${sideText}`;
       if (street.familyCount > 0) return `${label} — ${street.familyCount} família(s)`;
@@ -430,6 +494,27 @@ export function StreetsLayer({
         }
       };
 
+      const updateBrushPreview = (session: BrushSession) => {
+        const geom = computeBrushPreviewGeometry(
+          street,
+          session.startLat,
+          session.startLng,
+          session.endLat,
+          session.endLng,
+          session.side,
+          eraserMode,
+        );
+        if (!geom) {
+          setBrushPreview(null);
+          return;
+        }
+        setBrushPreview({
+          type: 'Feature',
+          properties: { id: props.streetId, eraser: eraserMode },
+          geometry: geom,
+        });
+      };
+
       const handlePointerOver = (e: L.LeafletMouseEvent) => {
         const { lat, lng } = e.latlng;
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
@@ -443,10 +528,17 @@ export function StreetsLayer({
             eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover',
           );
         layer.setTooltipContent(tooltipForPoint(lat, lng));
-        if (dragActionRef.current) applyDragAction(lat, lng);
+        if (brushSessionRef.current?.streetId === props.streetId) {
+          const next = { ...brushSessionRef.current, endLat: lat, endLng: lng, side };
+          brushSessionRef.current = next;
+          updateBrushPreview(next);
+        } else if (dragActionRef.current && paintScope !== 'brush') {
+          applyDragAction(lat, lng);
+        }
       };
 
       const handlePointerOut = () => {
+        if (brushSessionRef.current?.streetId === props.streetId) return;
         setHoveredId(null);
         setHoverLatLng(null);
         path.getElement()?.classList.remove('sigaps-street-hover', 'sigaps-street-eraser-hover');
@@ -457,6 +549,42 @@ export function StreetsLayer({
         const { lat, lng } = e.latlng;
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
+
+        if (paintScope === 'brush') {
+          if (eraserMode) {
+            if (!streetHasPaint(street) && !state.microareaId) return;
+            dragActionRef.current = 'unpaint';
+            const session: BrushSession = {
+              streetId: props.streetId,
+              startLat: lat,
+              startLng: lng,
+              endLat: lat,
+              endLng: lng,
+              side,
+              action: 'unpaint',
+            };
+            brushSessionRef.current = session;
+            addDragPaintId(props.streetId);
+            updateBrushPreview(session);
+            return;
+          }
+          if (!selectedMicroareaId) return;
+          dragActionRef.current = 'paint';
+          const session: BrushSession = {
+            streetId: props.streetId,
+            startLat: lat,
+            startLng: lng,
+            endLat: lat,
+            endLng: lng,
+            side,
+            action: 'paint',
+          };
+          brushSessionRef.current = session;
+          addDragPaintId(props.streetId);
+          updateBrushPreview(session);
+          return;
+        }
+
         if (eraserMode) {
           if (!streetHasPaint(street) && !state.microareaId) return;
           dragActionRef.current = 'unpaint';
@@ -473,6 +601,7 @@ export function StreetsLayer({
       layer.on('mouseout', handlePointerOut);
       layer.on('mousedown', handlePointerDown);
       layer.on('touchstart', handlePointerDown as L.LeafletEventHandlerFn);
+      layer.on('touchmove', handlePointerOver as L.LeafletEventHandlerFn);
       layer.on('click', stopMapEvent);
       return;
     }
@@ -545,6 +674,15 @@ export function StreetsLayer({
             interactive={false}
           />
         </>
+      )}
+
+      {brushPreview && paintMode && !showHeatmap && (
+        <GeoJSON
+          key={`brush-preview-${activeColor}-${eraserMode ? 'e' : 'p'}`}
+          data={{ type: 'FeatureCollection', features: [brushPreview] } as GeoJSON.FeatureCollection}
+          style={hoverPreviewStyle}
+          interactive={false}
+        />
       )}
 
       {hoveredFeature && (

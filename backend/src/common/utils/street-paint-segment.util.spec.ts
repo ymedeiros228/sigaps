@@ -1,9 +1,46 @@
 import {
   applyUnpaintOnSide,
+  applyPaintRange,
+  applyUnpaintRange,
   mergeAdjacentSegments,
   StreetPaintSide,
   type SegmentRange,
 } from './street-paint-segment.util';
+
+describe('applyPaintRange', () => {
+  it('pinta só o intervalo arrastado', () => {
+    const ranges = applyPaintRange([], 2, 6, 'ma-1', StreetPaintSide.FULL, 10);
+    expect(ranges).toEqual([
+      { startIndex: 2, endIndex: 6, microareaId: 'ma-1', side: StreetPaintSide.FULL },
+    ]);
+  });
+
+  it('substitui microárea no intervalo sem afetar fora dele', () => {
+    const base: SegmentRange[] = [
+      { startIndex: 0, endIndex: 10, microareaId: 'ma-old', side: StreetPaintSide.FULL },
+    ];
+    const ranges = applyPaintRange(base, 3, 7, 'ma-new', StreetPaintSide.FULL, 10);
+    expect(mergeAdjacentSegments(ranges)).toEqual([
+      { startIndex: 0, endIndex: 3, microareaId: 'ma-old', side: StreetPaintSide.FULL },
+      { startIndex: 3, endIndex: 7, microareaId: 'ma-new', side: StreetPaintSide.FULL },
+      { startIndex: 7, endIndex: 10, microareaId: 'ma-old', side: StreetPaintSide.FULL },
+    ]);
+  });
+});
+
+describe('applyUnpaintRange', () => {
+  it('remove pintura só no intervalo arrastado', () => {
+    const base: SegmentRange[] = [
+      { startIndex: 0, endIndex: 10, microareaId: 'ma-1', side: StreetPaintSide.FULL },
+    ];
+    const { ranges, removed } = applyUnpaintRange(base, 2, 5, StreetPaintSide.FULL);
+    expect(removed).toHaveLength(1);
+    expect(mergeAdjacentSegments(ranges)).toEqual([
+      { startIndex: 0, endIndex: 2, microareaId: 'ma-1', side: StreetPaintSide.FULL },
+      { startIndex: 5, endIndex: 10, microareaId: 'ma-1', side: StreetPaintSide.FULL },
+    ]);
+  });
+});
 
 describe('applyUnpaintOnSide', () => {
   const base: SegmentRange[] = [

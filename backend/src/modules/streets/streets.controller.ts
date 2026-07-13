@@ -230,6 +230,8 @@ export class StreetsController {
       req.user.id,
       dto.side,
       dto.scope ?? 'segment',
+      dto.endLatitude,
+      dto.endLongitude,
     );
   }
 
@@ -253,6 +255,8 @@ export class StreetsController {
       req.user.id,
       undefined,
       dto.side,
+      dto.endLatitude,
+      dto.endLongitude,
     );
   }
 

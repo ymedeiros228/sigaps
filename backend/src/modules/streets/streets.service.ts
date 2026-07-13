@@ -5,8 +5,10 @@ import { AuditService } from '../../common/services/audit.service';
 import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
 import {
   applyPaintOnSide,
+  applyPaintRange,
   applyFullSidePaint,
   applyUnpaintOnSide,
+  applyUnpaintRange,
   closestVertexIndex,
   expandFullSegmentsForDualSide,
   isDualSideStreet,
@@ -1031,7 +1033,9 @@ export class StreetsService {
     longitude: number,
     userId: string,
     requestedSide?: string,
-    scope: 'segment' | 'whole' = 'segment',
+    scope: 'segment' | 'whole' | 'brush' = 'segment',
+    endLatitude?: number,
+    endLongitude?: number,
   ) {
     const microarea = await this.prisma.microarea.findUnique({ where: { id: microareaId } });
     if (!microarea) throw new NotFoundException('Microárea não encontrada');
@@ -1081,9 +1085,20 @@ export class StreetsService {
       paintMode === 'BOTH' ||
       (paintMode === StreetPaintSide.FULL && isDualSideStreet(reloaded));
 
+    const wantsBrushPaint =
+      scope === 'brush' &&
+      endLatitude != null &&
+      endLongitude != null &&
+      Number.isFinite(endLatitude) &&
+      Number.isFinite(endLongitude);
+
     for (const side of sidesToPaint) {
       if (wantsFullLengthPaint) {
         ranges = applyFullSidePaint(ranges, microareaId, side, maxIndex);
+      } else if (wantsBrushPaint) {
+        const startIndex = closestVertexIndex(coords, latitude, longitude);
+        const endIndex = closestVertexIndex(coords, endLatitude!, endLongitude!);
+        ranges = applyPaintRange(ranges, startIndex, endIndex, microareaId, side, maxIndex);
       } else {
         ranges = applyPaintOnSide(ranges, vertexIndex, microareaId, side, maxIndex);
       }
@@ -1122,6 +1137,8 @@ export class StreetsService {
     userId: string,
     filterMicroareaId?: string,
     requestedSide?: string,
+    endLatitude?: number,
+    endLongitude?: number,
   ) {
     const street = await this.prisma.street.findUnique({
       where: { id: streetId },
@@ -1168,16 +1185,39 @@ export class StreetsService {
       ranges = expandFullSegmentsForDualSide(ranges);
     }
 
-    const { ranges: nextRanges, removed } = applyUnpaintOnSide(
-      ranges,
-      vertexIndex,
-      unpaintSide as StreetPaintSide,
-      filterMicroareaId,
-    );
+    const wantsBrushUnpaint =
+      endLatitude != null &&
+      endLongitude != null &&
+      Number.isFinite(endLatitude) &&
+      Number.isFinite(endLongitude);
+
+    let removed: SegmentRange | null = null;
+    if (wantsBrushUnpaint) {
+      const startIndex = closestVertexIndex(coords, latitude, longitude);
+      const endIndex = closestVertexIndex(coords, endLatitude!, endLongitude!);
+      const result = applyUnpaintRange(
+        ranges,
+        startIndex,
+        endIndex,
+        unpaintSide as StreetPaintSide,
+        filterMicroareaId,
+      );
+      ranges = result.ranges;
+      removed = result.removed[0] ?? null;
+    } else {
+      const result = applyUnpaintOnSide(
+        ranges,
+        vertexIndex,
+        unpaintSide as StreetPaintSide,
+        filterMicroareaId,
+      );
+      ranges = result.ranges;
+      removed = result.removed;
+    }
     if (!removed) return { cleared: false };
 
     const affected = new Set<string>([removed.microareaId]);
-    ranges = mergeAdjacentSegments(nextRanges);
+    ranges = mergeAdjacentSegments(ranges);
     await this.replaceStreetSegments(streetId, ranges, coords);
     await this.syncStreetMicroareaFromSegments(streetId, reloaded.geojson);
 
