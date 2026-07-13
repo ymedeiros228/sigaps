@@ -115,4 +115,4 @@ EOF
 
 echo ""
 echo "OK: $ZIP_PATH (${MB} MB)"
-echo "URL: https://sigaps-api.onrender.com/downloads/sigaps-legado-passagem-franca.zip"
+echo "URL: https://sigaps-api.onrender.com/entrega/sigaps-legado-passagem-franca.zip"
