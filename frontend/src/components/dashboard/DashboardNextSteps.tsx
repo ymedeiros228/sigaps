@@ -48,6 +48,7 @@ export function DashboardNextSteps({
   const esusSyncItem = checklist?.items.find((item) => item.id === 'esus-sync');
   const familiesPending = familiesItem ? !familiesItem.done : families === 0;
   const esusSyncPending = esusSyncItem ? !esusSyncItem.done : false;
+  const showEsusHints = familiesItem?.optional !== true;
   const coverageGoal = 80;
   const coverageGap = Math.max(0, coverageGoal - coverage);
 
@@ -188,7 +189,7 @@ export function DashboardNextSteps({
         </Alert>
       )}
 
-      {streets > 0 && familiesPending && (
+      {streets > 0 && familiesPending && showEsusHints && (
         <Alert
           severity="info"
           icon={<FamilyRestroom />}
@@ -212,7 +213,7 @@ export function DashboardNextSteps({
         </Alert>
       )}
 
-      {streets > 0 && !familiesPending && esusSyncPending && (
+      {streets > 0 && !familiesPending && esusSyncPending && showEsusHints && (
         <Alert
           severity="info"
           icon={<Sync />}

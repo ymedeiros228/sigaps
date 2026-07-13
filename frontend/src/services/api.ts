@@ -637,6 +637,7 @@ export interface OperationalChecklistItem {
   detail: string;
   priority: 'critical' | 'high' | 'medium';
   actionHref?: string;
+  optional?: boolean;
 }
 
 export interface OperationalChecklist {

@@ -105,9 +105,14 @@ function ChecklistContent({
           </Typography>
         )}
 
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+          Itens marcados como opcional não entram no percentual de entrega.
+        </Typography>
+
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {checklist.items.map((item) => {
             const href = checklistItemHref(item);
+            const optionalPending = item.optional && !item.done;
             return (
             <Box
               key={item.id}
@@ -124,7 +129,10 @@ function ChecklistContent({
                 color: 'inherit',
                 bgcolor: item.done
                   ? alpha(theme.palette.success.main, 0.06)
-                  : alpha(theme.palette.warning.main, 0.04),
+                  : optionalPending
+                    ? alpha(theme.palette.divider, 0.06)
+                    : alpha(theme.palette.warning.main, 0.04),
+                opacity: optionalPending ? 0.85 : 1,
                 ...(href
                   ? {
                       '&:hover': {
@@ -140,9 +148,14 @@ function ChecklistContent({
                 <RadioButtonUnchecked color="disabled" fontSize="small" sx={{ mt: 0.2 }} />
               )}
               <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {item.label}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {item.label}
+                  </Typography>
+                  {item.optional && (
+                    <Chip size="small" label="Opcional" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                  )}
+                </Box>
                 <Typography variant="caption" color="text.secondary">
                   {item.detail}
                 </Typography>

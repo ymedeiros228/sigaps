@@ -16,6 +16,8 @@ export interface OperationalChecklistItem {
   detail: string;
   priority: 'critical' | 'high' | 'medium';
   actionHref?: string;
+  /** Não entra no % de progresso da entrega (ex.: e-SUS opcional). */
+  optional?: boolean;
 }
 
 export interface OperationalChecklist {
@@ -188,23 +190,25 @@ export class DashboardService {
       },
       {
         id: 'families',
-        label: 'Dados de famílias (e-SUS)',
+        label: 'Dados de famílias (e-SUS) — opcional',
         done: families > 0,
         detail:
           families > 0
             ? `${families} famílias registradas — ver mapa de calor`
-            : 'Importe CSV e-SUS',
-        priority: 'high',
+            : 'Opcional: importe CSV e-SUS quando quiser indicadores por logradouro',
+        priority: 'medium',
+        optional: true,
         actionHref: families > 0 ? CHECKLIST_LINKS['families-heatmap'] : CHECKLIST_LINKS.families,
       },
       {
         id: 'esus-sync',
-        label: 'Sincronização e-SUS realizada',
+        label: 'Sincronização e-SUS — opcional',
         done: !!municipality.esusLastSyncAt,
         detail: municipality.esusLastSyncAt
           ? `Última: ${municipality.esusLastSyncAt.toLocaleString('pt-BR')}`
-          : 'Importe ou sincronize e-SUS',
+          : 'Opcional: sincronize após importar CSV e-SUS',
         priority: 'medium',
+        optional: true,
         actionHref: CHECKLIST_LINKS['esus-sync'],
       },
       {
@@ -219,16 +223,22 @@ export class DashboardService {
       },
     ];
 
-    const completed = items.filter((i) => i.done).length;
-    const criticalDone = items.filter((i) => i.priority === 'critical').every((i) => i.done);
+    const requiredItems = items.filter((i) => !i.optional);
+    const completed = requiredItems.filter((i) => i.done).length;
+    const criticalDone = requiredItems
+      .filter((i) => i.priority === 'critical')
+      .every((i) => i.done);
     const coverageDone = items.find((i) => i.id === 'coverage')?.done ?? false;
     const cadastrosBaseDone = items.find((i) => i.id === 'cadastros-base')?.done ?? false;
 
     return {
       items,
       completed,
-      total: items.length,
-      progressPct: Math.round((completed / items.length) * 100),
+      total: requiredItems.length,
+      progressPct:
+        requiredItems.length > 0
+          ? Math.round((completed / requiredItems.length) * 100)
+          : 0,
       readyForHomologation: criticalDone && coverageDone,
       readyForPainting: cadastrosBaseDone && assigned === 0,
     };
@@ -241,7 +251,7 @@ export class DashboardService {
       [
         item.label,
         item.done ? 'concluido' : 'pendente',
-        item.priority,
+        item.optional ? 'opcional' : item.priority,
         item.detail,
       ]
         .map((v) => escape(v))

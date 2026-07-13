@@ -170,9 +170,11 @@ Lista de 9 itens que acompanham a implantação:
 4. ACS vinculados às microáreas
 5. Cobertura territorial ≥ 80%
 6. Bairros atribuídos às ruas (≥ 50%)
-7. Dados de famílias (e-SUS)
-8. Sincronização e-SUS realizada
+7. Dados de famílias (e-SUS) — **opcional**
+8. Sincronização e-SUS — **opcional**
 9. Mapa homologado pela SMS
+
+O percentual do checklist **não exige** os itens 7 e 8 para a entrega operacional.
 
 ## 5.5 Próximos passos (painel guia)
 
@@ -184,7 +186,7 @@ No topo do Dashboard, o painel **Próximos passos** orienta o fluxo do dia a dia
 | Mapa zerado, dados prontos | Abrir o mapa e começar a pintura territorial |
 | Cobertura abaixo de 80% | Continuar pintando com barra de progresso |
 | Famílias importadas + pintura | Ver mapa de calor (`/mapa?heatmap=1`) |
-| Sem dados e-SUS | Importar CSV em Cadastros → Município |
+| Sem dados e-SUS | Opcional — importar em Cadastros → Município quando quiser calor no mapa |
 | Pronto para homologação | Guia em Administração → Homologação |
 
 <div class="info-box">

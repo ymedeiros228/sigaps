@@ -43,7 +43,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | G4 | Entrega zerada: seed sem pintura, admin preparar entrega, mapa limpo | [x] |
 | G5 | Checklist `readyForPainting` + status de entrega no Admin | [x] |
 | G2 | Homologação SMS (aceite formal A6) | [ ] reunião humana |
-| G3 | Popular famílias via CSV e-SUS | [x] Rodadas 1–3: import + calor no mapa |
+| G3 | Popular famílias via CSV e-SUS | [x] opcional — não bloqueia entrega |
 
 ### Sprint 21 — Rodada 5 de melhorias — ✅ Concluída
 
