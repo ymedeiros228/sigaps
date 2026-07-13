@@ -35,6 +35,7 @@ const CHECKLIST_LINKS: Record<string, string> = {
   coverage: '/mapa',
   neighborhoods: '/cadastros?secao=bairros',
   families: '/cadastros?secao=municipio',
+  'families-heatmap': '/mapa?heatmap=1',
   'esus-sync': '/cadastros?secao=municipio',
   homologation: '/admin?tab=homologacao',
 };
@@ -189,9 +190,12 @@ export class DashboardService {
         id: 'families',
         label: 'Dados de famílias (e-SUS)',
         done: families > 0,
-        detail: families > 0 ? `${families} famílias registradas` : 'Importe CSV e-SUS',
+        detail:
+          families > 0
+            ? `${families} famílias registradas — ver mapa de calor`
+            : 'Importe CSV e-SUS',
         priority: 'high',
-        actionHref: CHECKLIST_LINKS.families,
+        actionHref: families > 0 ? CHECKLIST_LINKS['families-heatmap'] : CHECKLIST_LINKS.families,
       },
       {
         id: 'esus-sync',

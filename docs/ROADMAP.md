@@ -64,7 +64,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | R2.3 | Dashboard: passos explícitos para homologação | [x] |
 | R2.4 | Polish brush: cursor e classe CSS ao arrastar | [x] |
 
-### Sprint 20 — Rodada 3 de melhorias — 🟡 Em andamento
+### Sprint 20 — Rodada 3 de melhorias — ✅ Concluída
 
 | Item | Descrição | Status |
 |------|-----------|--------|
@@ -72,6 +72,15 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | R3.2 | Legenda: famílias por microárea + link `/mapa?heatmap=1` | [x] |
 | R3.3 | Dashboard: alerta mapa de calor quando há famílias e pintura | [x] |
 | R3.4 | Toolbar: toggle famílias com total e dica e-SUS | [x] |
+
+### Sprint 20 — Rodada 4 de melhorias — ✅ Concluída
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| R4.1 | Atalhos P/E/S e Esc documentados no painel de pintura | [x] |
+| R4.2 | Apagar brush end-to-end (arrastar na rua colorida) | [x] |
+| R4.3 | Checklist: famílias concluídas linkam `/mapa?heatmap=1` | [x] |
+| R4.4 | E2E: apagar brush, atalho S, heatmap via query | [x] |
 
 ---
 

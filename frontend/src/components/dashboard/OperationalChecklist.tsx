@@ -44,6 +44,13 @@ export function OperationalChecklistCard({ municipalityId }: { municipalityId: s
   return <ChecklistContent checklist={data} onExportCsv={downloadCsv} csvLoading={csvLoading} />;
 }
 
+function checklistItemHref(item: OperationalChecklist['items'][number]): string | undefined {
+  if (!item.actionHref) return undefined;
+  if (item.id === 'families' && item.done) return item.actionHref;
+  if (!item.done) return item.actionHref;
+  return undefined;
+}
+
 function ChecklistContent({
   checklist,
   onExportCsv,
@@ -99,11 +106,13 @@ function ChecklistContent({
         )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {checklist.items.map((item) => (
+          {checklist.items.map((item) => {
+            const href = checklistItemHref(item);
+            return (
             <Box
               key={item.id}
-              component={item.actionHref && !item.done ? RouterLink : 'div'}
-              to={item.actionHref && !item.done ? item.actionHref : undefined}
+              component={href ? RouterLink : 'div'}
+              to={href}
               sx={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -116,7 +125,7 @@ function ChecklistContent({
                 bgcolor: item.done
                   ? alpha(theme.palette.success.main, 0.06)
                   : alpha(theme.palette.warning.main, 0.04),
-                ...(item.actionHref && !item.done
+                ...(href
                   ? {
                       '&:hover': {
                         bgcolor: alpha(theme.palette.primary.main, 0.08),
@@ -138,11 +147,12 @@ function ChecklistContent({
                   {item.detail}
                 </Typography>
               </Box>
-              {item.actionHref && !item.done && (
+              {href && (
                 <OpenInNew fontSize="small" color="action" sx={{ mt: 0.3, opacity: 0.6 }} />
               )}
             </Box>
-          ))}
+          );
+          })}
         </Box>
       </CardContent>
     </Card>

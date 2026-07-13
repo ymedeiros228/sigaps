@@ -194,7 +194,9 @@ export function PaintGuidePanel({
   };
 
   const paintStatus = eraserMode
-    ? 'Toque e arraste na rua colorida para apagar'
+    ? paintScope === 'brush'
+      ? 'Arraste na rua colorida para apagar o trecho'
+      : 'Toque na rua colorida para apagar'
     : mapPanEnabled
       ? 'Arraste o mapa — desative Mover para pintar'
       : paintScope === 'whole'
@@ -811,8 +813,8 @@ export function PaintGuidePanel({
                     sx={{ display: 'block', mt: 1.25, textAlign: 'center' }}
                   >
                     {paintMode
-                      ? 'S sair do modo pintar'
-                      : 'P pintar · E apagar'}
+                      ? 'S ou Esc sair do modo pintar'
+                      : 'P pintar · E apagar · S ou Esc sair'}
                   </Typography>
                 )}
               </>

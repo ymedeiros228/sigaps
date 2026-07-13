@@ -289,8 +289,9 @@ export function SigapsMap() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-      if ((e.key === 's' || e.key === 'S') && paintMode) {
+      if ((e.key === 's' || e.key === 'S' || e.key === 'Escape') && paintMode) {
         setPaintMode(false);
+        useMapStore.getState().setPaintGuideCollapsed(true);
         setSnackbar({ message: 'Modo pintar desativado', severity: 'info' });
         return;
       }
@@ -313,7 +314,7 @@ export function SigapsMap() {
         store.setMapPanEnabled(false);
         setPaintMode(true);
         useMapStore.getState().setPaintGuideCollapsed(false);
-        setSnackbar({ message: 'Modo apagar — toque na rua colorida', severity: 'info' });
+        setSnackbar({ message: 'Modo apagar — arraste na rua colorida', severity: 'info' });
       }
     };
     window.addEventListener('keydown', onKey);
