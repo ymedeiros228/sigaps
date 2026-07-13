@@ -9,6 +9,6 @@ Pacote de **código-fonte legado** para Jonas Almeida Medeiros.
 
 **Download em produção:** https://sigaps-api.onrender.com/downloads/sigaps-legado-passagem-franca.zip
 
-Gerado em 2026-07-13 · commit `68db19c` · ~13.4 MB
+Gerado em 2026-07-13 · commit `d5dc01b` · ~13.4 MB
 
 Regenerar: `bash scripts/package-entrega-jonas.sh`
