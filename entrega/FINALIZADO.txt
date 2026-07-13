@@ -1,0 +1,15 @@
+SIGAPS — Entrega de software finalizada para Passagem Franca/MA
+================================================================
+
+Data: 2026-07-13
+Commit: 68db19ce517c9a71f3a0e1bca67e620fd5ef561f
+Cliente: Jonas Almeida Medeiros — Enfermeiro APS
+
+Critérios atendidos:
+- Sistema em produção: https://sigaps-api.onrender.com/mapa
+- Pintura brush/apagar estável; mapa zerado para decisão territorial do enfermeiro
+- Dashboard e checklist operacionais corrigidos
+- Manual de entrega atualizado (docs/manual/MANUAL_ENTREGA.md)
+- Homologação SMS e e-SUS: etapas futuras/opcionais (não bloqueiam entrega)
+
+Este arquivo autoriza o script scripts/package-entrega-jonas.sh a gerar o ZIP do código-fonte.

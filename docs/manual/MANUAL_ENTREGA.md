@@ -104,6 +104,18 @@ A tela de login apresenta a identidade visual do município, campos de e-mail e 
 | Enfermeiro | jonas@passagemfranca.ma.gov.br | Sigaps@2026 | Operação diária |
 | ACS | acs@passagemfranca.ma.gov.br | Sigaps@2026 | Consulta microárea |
 
+## 3.4 Código-fonte legado (ZIP)
+
+Após a **entrega finalizada** do software, o pacote completo do código-fonte fica disponível para download:
+
+| Item | Valor |
+|------|-------|
+| **URL** | https://sigaps-api.onrender.com/downloads/sigaps-legado-passagem-franca.zip |
+| **Conteúdo** | Backend, frontend, documentação, scripts e Docker (sem senhas de produção) |
+| **Uso** | Auditoria, evolução futura ou execução local — veja `LEIA-ME.md` dentro do ZIP |
+
+O uso diário da APS continua pelo site em produção (seção 3.1); o ZIP é o **legado técnico** da entrega.
+
 <div class="warning-box">
 
 **Importante:** Altere as senhas padrão após a homologação oficial. O administrador pode redefinir senhas em **Administração → Usuários**.

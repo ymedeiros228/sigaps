@@ -53,6 +53,14 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | R5.2 | Manual: seções Próximos passos, e-SUS/calor e homologação SMS | [x] |
 | R5.3 | ROADMAP: Sprint 19 fechado (exc. G2) | [x] |
 
+### Entrega legado Jonas — ✅ Concluída
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| L1 | `entrega/FINALIZADO.txt` — gate de empacotamento | [x] |
+| L2 | `scripts/package-entrega-jonas.sh` — ZIP do código-fonte | [x] |
+| L3 | `downloads/` + `/downloads/` no site em produção | [x] |
+
 ### Sprint 20 — Rodada 1 de melhorias — ✅ Concluída
 
 | Item | Descrição | Status |
