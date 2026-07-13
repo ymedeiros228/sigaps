@@ -140,4 +140,15 @@ export class AdminController {
   ) {
     return this.admin.resetPassword(municipalityId, userId, dto.password, req.user.id);
   }
+
+  @Post('municipality/:municipalityId/prepare-delivery')
+  @ApiOperation({
+    summary: 'Zerar pintura do mapa para entrega (mantém cadastros)',
+  })
+  prepareForDelivery(
+    @Param('municipalityId') municipalityId: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.admin.prepareForDelivery(municipalityId, req.user.id);
+  }
 }

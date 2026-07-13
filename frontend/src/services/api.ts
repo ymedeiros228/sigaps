@@ -767,6 +767,14 @@ export const adminApi = {
     api.post(`/admin/municipality/${municipalityId}/users/${userId}/reset-password`, {
       password,
     }),
+  prepareForDelivery: (municipalityId: string) =>
+    api.post<{
+      ok: boolean;
+      clearedStreets: number;
+      clearedPaintZones: number;
+      homologationRevoked: boolean;
+      message: string;
+    }>(`/admin/municipality/${municipalityId}/prepare-delivery`),
 };
 
 export const integrationsApi = {

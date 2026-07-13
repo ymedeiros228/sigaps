@@ -127,6 +127,7 @@ export function AdminPage() {
   const [pendingBackup, setPendingBackup] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [auditExportLoading, setAuditExportLoading] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
 
   const canAccess = canAccessAdmin(user?.role);
   const ready = canAccess && !!municipalityId;
@@ -239,6 +240,19 @@ export function AdminPage() {
     onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
   });
 
+  const prepareDeliveryMutation = useMutation({
+    mutationFn: () => adminApi.prepareForDelivery(municipalityId!).then((r) => r.data),
+    onSuccess: (res) => {
+      setDeliveryOpen(false);
+      void queryClient.invalidateQueries();
+      setMessage({
+        type: 'success',
+        text: res.message,
+      });
+    },
+    onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
+  });
+
   const loadBackupFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -314,6 +328,31 @@ export function AdminPage() {
 
       {!isLoading && overview && tab === 'resumo' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {(overview.counts.assignedStreets > 0 ||
+            overview.counts.paintZones > 0) && (
+            <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'success.main' }}>
+              <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  Preparar entrega ao usuário
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Zera toda a pintura do mapa (ruas e círculos) e revoga homologação, se houver.
+                  Mantém UBS, ACS, microáreas e malha viária — o Jonas começa a pintar do zero.
+                </Typography>
+                <Box>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={() => setDeliveryOpen(true)}
+                    disabled={prepareDeliveryMutation.isPending}
+                  >
+                    Zerar mapa para entrega
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
           <Box
             sx={{
               display: 'grid',
@@ -780,6 +819,40 @@ export function AdminPage() {
       {tab === 'homologacao' && municipalityId && (
         <AdminHomologationTab municipalityId={municipalityId} />
       )}
+
+      <Dialog open={deliveryOpen} onClose={() => setDeliveryOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning color="warning" />
+          Zerar mapa para entrega?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Esta ação remove{' '}
+            <strong>
+              {overview?.counts.assignedStreets ?? 0} pintura(s) de rua
+            </strong>
+            {overview && overview.counts.paintZones > 0
+              ? ` e ${overview.counts.paintZones} círculo(s) de pintura`
+              : ''}
+            . Os cadastros permanecem intactos.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Use antes de entregar o sistema ao enfermeiro para que ele comece a territorialização do
+            zero, com os dados já mapeados.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeliveryOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={prepareDeliveryMutation.isPending}
+            onClick={() => prepareDeliveryMutation.mutate()}
+          >
+            {prepareDeliveryMutation.isPending ? 'Preparando…' : 'Confirmar entrega zerada'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>

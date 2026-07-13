@@ -401,7 +401,18 @@ export function PaintGuidePanel({
               <Alert severity="info" sx={{ borderRadius: 2 }}>
                 Carregando ruas do município. Aguarde alguns segundos.
               </Alert>
-            ) : (
+            ) : paintedCount === 0 ? (
+              <Alert severity="success" sx={{ borderRadius: 2, mb: 1.25 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Mapa zerado — pronto para você decidir a pintura
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Escolha a cor do ACS abaixo e pinte rua por rua no território real. Os cadastros já
+                  estão prontos; a territorialização é sua decisão.
+                </Typography>
+              </Alert>
+            ) : null}
+            {streetCount > 0 && (
               <>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
                   Cores do ACS

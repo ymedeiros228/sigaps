@@ -8,6 +8,8 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
+import { clearMunicipalityPaint } from '../../common/utils/clear-municipality-paint.util';
+import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -271,5 +273,60 @@ export class AdminService {
     });
 
     return { ok: true };
+  }
+
+  async prepareForDelivery(municipalityId: string, actorId: string) {
+    const municipality = await this.prisma.municipality.findUnique({
+      where: { id: municipalityId },
+      select: {
+        id: true,
+        name: true,
+        mapHomologatedAt: true,
+        mapHomologatedBy: true,
+      },
+    });
+    if (!municipality) throw new NotFoundException('Município não encontrado');
+
+    const cleared = await clearMunicipalityPaint(this.prisma, municipalityId);
+
+    let homologationRevoked = false;
+    if (municipality.mapHomologatedAt) {
+      await this.prisma.municipality.update({
+        where: { id: municipalityId },
+        data: {
+          mapHomologatedAt: null,
+          mapHomologatedBy: null,
+          mapHomologationNotes: null,
+        },
+      });
+      homologationRevoked = true;
+    }
+
+    await this.audit.log({
+      userId: actorId,
+      entityType: 'municipality',
+      entityId: municipalityId,
+      action: 'PREPARE_DELIVERY',
+      beforeData: {
+        mapHomologatedAt: municipality.mapHomologatedAt,
+        mapHomologatedBy: municipality.mapHomologatedBy,
+      },
+      afterData: {
+        clearedStreets: cleared.clearedStreets,
+        clearedPaintZones: cleared.clearedPaintZones,
+        homologationRevoked,
+      },
+    });
+
+    invalidateDashboardIndicators(municipalityId);
+
+    return {
+      ok: true,
+      clearedStreets: cleared.clearedStreets,
+      clearedPaintZones: cleared.clearedPaintZones,
+      homologationRevoked,
+      message:
+        'Mapa zerado para entrega. Cadastros (UBS, ACS, microáreas, ruas) foram mantidos.',
+    };
   }
 }

@@ -2,8 +2,9 @@ import { Alert, Box, Button, LinearProgress, Typography } from '@mui/material';
 import {
   CheckCircle,
   FamilyRestroom,
-  FormatPaint,
+  MapOutlined,
   PictureAsPdf,
+  Storage,
   Verified,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
@@ -43,6 +44,14 @@ export function DashboardNextSteps({
   const coverageGoal = 80;
   const coverageGap = Math.max(0, coverageGoal - coverage);
 
+  const criticalDataItems =
+    checklist?.items.filter(
+      (item) => item.priority === 'critical' && item.id !== 'coverage',
+    ) ?? [];
+  const dataReady =
+    streets > 0 && criticalDataItems.length > 0 && criticalDataItems.every((item) => item.done);
+  const pendingData = criticalDataItems.filter((item) => !item.done);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
       {ready && isAdmin && (
@@ -71,19 +80,70 @@ export function DashboardNextSteps({
         </Alert>
       )}
 
-      {streets > 0 && coverage < coverageGoal && (
+      {pendingData.length > 0 && (
         <Alert
-          severity={coverage >= 50 ? 'info' : 'warning'}
-          icon={<FormatPaint />}
+          severity="warning"
+          icon={<Storage />}
+          action={
+            <Button
+              component={RouterLink}
+              to="/cadastros"
+              color="inherit"
+              size="small"
+              variant="outlined"
+            >
+              Ver cadastros
+            </Button>
+          }
+          sx={{ borderRadius: 2, alignItems: 'flex-start' }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Preparar dados antes da pintura
+          </Typography>
+          <Typography variant="caption" color="text.secondary" component="div">
+            {pendingData.map((item) => (
+              <span key={item.id} style={{ display: 'block' }}>
+                • {item.label}: {item.detail}
+              </span>
+            ))}
+          </Typography>
+        </Alert>
+      )}
+
+      {dataReady && coverage === 0 && (
+        <Alert
+          severity="success"
+          icon={<MapOutlined />}
           action={
             <Button component={RouterLink} to="/mapa" color="inherit" size="small" variant="outlined">
-              Pintar mapa
+              Abrir mapa
+            </Button>
+          }
+          sx={{ borderRadius: 2, alignItems: 'center' }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Cadastros prontos — mapa zerado para você pintar
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            Ruas, microáreas e ACS já estão no sistema. A decisão territorial (quem pinta o quê) é
+            sua — comece quando quiser no mapa.
+          </Typography>
+        </Alert>
+      )}
+
+      {streets > 0 && coverage > 0 && coverage < coverageGoal && (
+        <Alert
+          severity="info"
+          icon={<MapOutlined />}
+          action={
+            <Button component={RouterLink} to="/mapa" color="inherit" size="small" variant="outlined">
+              Ver mapa
             </Button>
           }
           sx={{ borderRadius: 2, alignItems: 'flex-start' }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.75 }}>
-            Cobertura territorial: {coverage}% (meta {coverageGoal}%)
+            Seu progresso de pintura: {coverage}% (meta {coverageGoal}% para homologação)
           </Typography>
           <LinearProgress
             variant="determinate"
@@ -93,7 +153,7 @@ export function DashboardNextSteps({
           <Typography variant="caption" color="text.secondary">
             {coverageGap > 0
               ? `Faltam cerca de ${coverageGap} pontos percentuais para a homologação do mapa oficial.`
-              : 'Continue pintando ruas até atingir a meta.'}
+              : 'Continue no seu ritmo até atingir a meta.'}
           </Typography>
         </Alert>
       )}
@@ -116,7 +176,8 @@ export function DashboardNextSteps({
           sx={{ borderRadius: 2, alignItems: 'center' }}
         >
           <Typography variant="body2">
-            Importe o CSV do <strong>e-SUS</strong> para popular famílias e habitantes por logradouro.
+            Importe o CSV do <strong>e-SUS</strong> para popular famílias e habitantes por logradouro
+            (opcional para pintar, útil para indicadores).
           </Typography>
         </Alert>
       )}

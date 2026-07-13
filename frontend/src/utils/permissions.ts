@@ -91,6 +91,7 @@ export function formatAuditAction(action: string, entityType: string): string {
     UPDATE_DEMOGRAPHICS: 'Atualizou famílias/habitantes de',
     UNASSIGN_MICROAREA: 'Removeu pintura da rua',
     CLEAR_STREET_ASSIGNMENTS: 'Limpou todas as pinturas',
+    PREPARE_DELIVERY: 'Preparou mapa zerado para entrega de',
     CREATE: 'Cadastrou',
     UPDATE: 'Atualizou',
     DELETE: 'Removeu',

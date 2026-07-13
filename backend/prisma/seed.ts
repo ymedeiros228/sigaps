@@ -3,6 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { copyFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { importStreetsFromBundledGeoJson } from '../src/common/utils/bundled-streets.import';
+import { clearMunicipalityPaint } from '../src/common/utils/clear-municipality-paint.util';
 
 const prisma = new PrismaClient();
 
@@ -14,6 +15,14 @@ function ensureMunicipalityLogo() {
   mkdirSync(destDir, { recursive: true });
   copyFileSync(src, dest);
 }
+
+const TEMPLATE_ACS = [
+  { cpf: '11122233344', name: 'Ana Paula Santos', phone: '(99) 98888-0001', email: 'acs@passagemfranca.ma.gov.br' },
+  { cpf: '22233344455', name: 'Carlos Eduardo Lima', phone: '(99) 98888-0002' },
+  { cpf: '33344455566', name: 'Maria José Oliveira', phone: '(99) 98888-0003' },
+  { cpf: '44455566677', name: 'Roberto Ferreira', phone: '(99) 98888-0004' },
+  { cpf: '55566677788', name: 'Fernanda Costa', phone: '(99) 98888-0005' },
+];
 
 async function main() {
   ensureMunicipalityLogo();
@@ -104,44 +113,48 @@ async function main() {
     skipDuplicates: true,
   });
 
-  const acs1 = await prisma.acs.upsert({
-    where: { cpf: '11122233344' },
-    create: {
-      name: 'Ana Paula Santos',
-      cpf: '11122233344',
-      phone: '(99) 98888-0001',
-      municipalityId: municipality.id,
-      status: 'ATIVO',
-    },
-    update: {},
-  });
+  for (let i = 0; i < TEMPLATE_ACS.length; i++) {
+    const template = TEMPLATE_ACS[i];
+    const acs = await prisma.acs.upsert({
+      where: { cpf: template.cpf },
+      create: {
+        name: template.name,
+        cpf: template.cpf,
+        phone: template.phone,
+        municipalityId: municipality.id,
+        status: 'ATIVO',
+      },
+      update: { name: template.name, phone: template.phone, status: 'ATIVO' },
+    });
 
-  await prisma.microarea.update({
-    where: { id: microareas[0].id },
-    data: { ubsId: ubs.id, acsId: acs1.id },
-  });
+    await prisma.microarea.update({
+      where: { id: microareas[i].id },
+      data: { ubsId: ubs.id, acsId: acs.id },
+    });
 
-  const acsUser = await prisma.user.upsert({
-    where: { email: 'acs@passagemfranca.ma.gov.br' },
-    create: {
-      email: 'acs@passagemfranca.ma.gov.br',
-      passwordHash,
-      name: 'Ana Paula Santos',
-      role: UserRole.ACS,
-      municipalityId: municipality.id,
-    },
-    update: {
-      passwordHash,
-      municipalityId: municipality.id,
-      role: UserRole.ACS,
-      name: 'Ana Paula Santos',
-    },
-  });
-
-  await prisma.acs.update({
-    where: { id: acs1.id },
-    data: { userId: acsUser.id },
-  });
+    if (template.email) {
+      const acsUser = await prisma.user.upsert({
+        where: { email: template.email },
+        create: {
+          email: template.email,
+          passwordHash,
+          name: template.name,
+          role: UserRole.ACS,
+          municipalityId: municipality.id,
+        },
+        update: {
+          passwordHash,
+          municipalityId: municipality.id,
+          role: UserRole.ACS,
+          name: template.name,
+        },
+      });
+      await prisma.acs.update({
+        where: { id: acs.id },
+        data: { userId: acsUser.id },
+      });
+    }
+  }
 
   const removedDemo = await prisma.street.deleteMany({
     where: { municipalityId: municipality.id, osmId: null },
@@ -167,8 +180,18 @@ async function main() {
     console.log(`Ruas OSM já no banco: ${streetCount}`);
   }
 
+  const cleared = await clearMunicipalityPaint(prisma, municipality.id);
+  if (cleared.clearedStreets > 0 || cleared.clearedPaintZones > 0) {
+    console.log(
+      `Mapa zerado para entrega: ${cleared.clearedStreets} ruas e ${cleared.clearedPaintZones} círculos removidos`,
+    );
+  } else {
+    console.log('Mapa já estava sem pintura — cadastros prontos para o usuário pintar.');
+  }
+
   console.log('Seed concluído!');
   console.log(`Município: ${municipality.name} (${municipality.id})`);
+  console.log('5 microáreas com ACS template vinculados (mapa zerado).');
   console.log('Usuários: jonas@passagemfranca.ma.gov.br (enfermeiro) / admin@passagemfranca.ma.gov.br (admin) — Sigaps@2026');
 }
 
