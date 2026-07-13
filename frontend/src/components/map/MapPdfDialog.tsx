@@ -46,9 +46,16 @@ interface MapPdfDialogProps {
   onClose: () => void;
   mapContainerRef: RefObject<HTMLElement | null>;
   microareas: Microarea[];
+  homologReview?: boolean;
 }
 
-export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: MapPdfDialogProps) {
+export function MapPdfDialog({
+  open,
+  onClose,
+  mapContainerRef,
+  microareas,
+  homologReview = false,
+}: MapPdfDialogProps) {
   const municipalityId = useAppStore((s) => s.municipalityId);
   const [format, setFormat] = useState<PdfFormat>('a4');
   const [neighborhoodId, setNeighborhoodId] = useState<string>('');
@@ -242,6 +249,13 @@ export function MapPdfDialog({ open, onClose, mapContainerRef, microareas }: Map
           Gera mapa oficial com satélite, áreas coloridas, legenda em tabela,
           detalhamento de ruas, escala e QR Code — pronto para impressão A3/A4.
         </Typography>
+
+        {homologReview && (
+          <Alert severity="info" data-testid="pdf-homolog-review-hint">
+            <strong>Revisão para homologação SMS:</strong> confira cores, limites e nomes antes de
+            imprimir em A3. Depois registre o aceite em Admin → Homologação.
+          </Alert>
+        )}
 
         {paintedCount === 0 && (
           <Alert severity="warning">

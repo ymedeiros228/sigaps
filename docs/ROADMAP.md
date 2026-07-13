@@ -45,7 +45,7 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | G2 | Homologação SMS (aceite formal A6) | [ ] |
 | G3 | Popular famílias via CSV e-SUS | [~] Rodada 1: matching + UX import |
 
-### Sprint 20 — Rodada 1 de melhorias — 🟡 Em andamento
+### Sprint 20 — Rodada 1 de melhorias — ✅ Concluída
 
 | Item | Descrição | Status |
 |------|-----------|--------|
@@ -54,6 +54,15 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 | R1.3 | Dashboard: alertas e-SUS + invalidação cache pós-import | [x] |
 | R1.4 | E2E: modo arrastar (brush) e rua inteira | [x] |
 | R1.5 | Aviso quando Mover bloqueia pintura no mapa | [x] |
+
+### Sprint 20 — Rodada 2 de melhorias — 🟡 Em andamento
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| R2.1 | Guia de homologação SMS (wizard 3 passos no Admin) | [x] |
+| R2.2 | Link `/mapa?pdf=1&homolog=1` abre PDF com dica de revisão | [x] |
+| R2.3 | Dashboard: passos explícitos para homologação | [x] |
+| R2.4 | Polish brush: cursor e classe CSS ao arrastar | [x] |
 
 ---
 

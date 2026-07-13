@@ -70,16 +70,17 @@ export function DashboardNextSteps({
               size="small"
               variant="outlined"
             >
-              Homologar mapa
+              Guia de homologação
             </Button>
           }
-          sx={{ borderRadius: 2, alignItems: 'center' }}
+          sx={{ borderRadius: 2, alignItems: 'flex-start' }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             Pronto para homologação pela SMS
           </Typography>
           <Typography variant="caption" sx={{ display: 'block' }} color="text.secondary">
-            Gere o PDF A3, leve à secretaria e registre o aceite em Administração → Homologação.
+            1) Gere o PDF A3 no mapa · 2) Leve à reunião da SMS · 3) Registre o aceite em
+            Administração → Homologação.
           </Typography>
         </Alert>
       )}

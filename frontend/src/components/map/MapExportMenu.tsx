@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState, type RefObject } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
 import {
   Button,
   Menu,
@@ -25,6 +25,7 @@ import {
   PictureAsPdf,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { geoApi, type Microarea } from '../../services/api';
 import { streetsToSvg } from '../../utils/mapSvgExport';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -57,6 +58,18 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [homologReview, setHomologReview] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('pdf') !== '1') return;
+    setPdfOpen(true);
+    setHomologReview(searchParams.get('homolog') === '1');
+    const next = new URLSearchParams(searchParams);
+    next.delete('pdf');
+    next.delete('homolog');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const onImportSuccess = (res: { imported: number; updated: number; skipped: number }) => {
     if (municipalityId) {
@@ -371,6 +384,7 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
             onClose={() => setPdfOpen(false)}
             mapContainerRef={mapContainerRef}
             microareas={microareas}
+            homologReview={homologReview}
           />
         </Suspense>
       )}

@@ -120,8 +120,15 @@ export function StreetsLayer({
     container.classList.toggle('sigaps-map-painting', paintMode);
     container.classList.toggle('sigaps-map-eraser', paintMode && eraserMode);
     container.classList.toggle('sigaps-map-selecting', !paintMode);
-    return () => container.classList.remove('sigaps-map-painting', 'sigaps-map-eraser', 'sigaps-map-selecting');
-  }, [map, paintMode, eraserMode]);
+    container.classList.toggle('sigaps-map-brushing', !!brushPreview);
+    return () =>
+      container.classList.remove(
+        'sigaps-map-painting',
+        'sigaps-map-eraser',
+        'sigaps-map-selecting',
+        'sigaps-map-brushing',
+      );
+  }, [map, paintMode, eraserMode, brushPreview]);
 
   useEffect(() => {
     const finishBrush = () => {
