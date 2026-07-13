@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { loginAsAdmin } from './helpers';
 
 async function openMapAndWaitStreets(page: import('@playwright/test').Page) {
   await page.getByTestId('nav-mapa').click();
@@ -25,7 +24,7 @@ async function enterPaintWithMicroarea01(page: import('@playwright/test').Page) 
 
 test.describe('Pintura no mapa', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
+    await page.goto('/');
   });
 
   test('painel de pintura expande e seleciona microárea', async ({ page }) => {
