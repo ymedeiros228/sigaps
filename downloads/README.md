@@ -7,7 +7,7 @@ Pacote de **código-fonte legado** para Jonas Almeida Medeiros.
 | [sigaps-legado-passagem-franca.zip](sigaps-legado-passagem-franca.zip) | Última versão empacotada |
 | `sigaps-legado-passagem-franca-2026-07-13.zip` | Build datado de 2026-07-13 |
 
-**Download direto (ZIP):** https://sigaps-api.onrender.com/entrega/sigaps-legado-passagem-franca.zip
+**Download direto (ZIP):** https://sigaps-api.onrender.com/sigaps-legado-passagem-franca.zip
 
 **Página auxiliar:** https://sigaps-api.onrender.com/downloads/
 

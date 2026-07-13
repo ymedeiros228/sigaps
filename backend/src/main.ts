@@ -16,6 +16,26 @@ function serveUploadSubdir(app: NestExpressApplication, subdir: string) {
   }
 }
 
+const LEGACY_ZIP_FILENAME = 'sigaps-legado-passagem-franca.zip';
+
+function serveLegacyZip(publicDir: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const zipPaths = new Set([
+      `/${LEGACY_ZIP_FILENAME}`,
+      `/entrega/${LEGACY_ZIP_FILENAME}`,
+      `/downloads/${LEGACY_ZIP_FILENAME}`,
+    ]);
+    if (!zipPaths.has(req.path)) return next();
+    const file = join(publicDir, 'downloads', LEGACY_ZIP_FILENAME);
+    if (!existsSync(file)) return next();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${LEGACY_ZIP_FILENAME}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(file);
+  };
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
@@ -60,6 +80,8 @@ async function bootstrap() {
 
   const publicDir = join(process.cwd(), 'public');
   if (existsSync(publicDir)) {
+    app.use(serveLegacyZip(publicDir));
+
     const apiPrefixes = [
       '/health',
       '/auth',

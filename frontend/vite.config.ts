@@ -35,6 +35,11 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [
+          /^\/entrega\//,
+          /^\/downloads\//,
+          /\.zip$/,
+        ],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
