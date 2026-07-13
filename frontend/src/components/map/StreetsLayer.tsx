@@ -341,10 +341,22 @@ export function StreetsLayer({
   const unassignedStyle = (feature?: GeoJSON.Feature): PathOptions => {
     const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
     return {
+      color: isDirt ? '#c4a35a' : '#546e7a',
+      weight: isDirt ? 5 : 4,
+      opacity: isDirt ? 0.8 : 0.55,
+      dashArray: isDirt ? '4 8' : '6 6',
+      lineCap: 'round',
+      lineJoin: 'round',
+    };
+  };
+
+  const dragPreviewStyle = (feature?: GeoJSON.Feature): PathOptions => {
+    const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
+    return {
       color: isDirt ? '#c4a35a' : activeColor,
       weight: isDirt ? 6 : 7,
-      opacity: isDirt ? 0.85 : 0.65,
-      dashArray: isDirt ? '4 8' : '8 6',
+      opacity: 0.85,
+      dashArray: '4 4',
       lineCap: 'round',
       lineJoin: 'round',
     };
@@ -513,7 +525,7 @@ export function StreetsLayer({
         <GeoJSON
           key={`drag-preview-${paintVisualVersion}-${activeColor}`}
           data={fc(dragPreview)}
-          style={unassignedStyle}
+          style={dragPreviewStyle}
           interactive={false}
         />
       )}

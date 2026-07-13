@@ -115,7 +115,9 @@ export function MapLegend({
           <Typography variant="caption" color="text.secondary">
             {loading
               ? 'Carregando…'
-              : `${stats.paintedTotal} pintada(s) no município · ${stats.paintedViewport}/${streets.length} na tela`}
+              : paintMode && stats.paintedTotal === 0
+                ? `Nenhuma rua pintada ainda · ${streets.length} na tela (cinza = sem pintura)`
+                : `${stats.paintedTotal} pintada(s) no município · ${stats.paintedViewport}/${streets.length} na tela`}
           </Typography>
         </Box>
         <IconButton size="small">{open ? <ExpandLess /> : <ExpandMore />}</IconButton>

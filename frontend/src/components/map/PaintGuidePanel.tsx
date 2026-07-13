@@ -542,6 +542,17 @@ export function PaintGuidePanel({
                   </Box>
                 )}
 
+                {paintMode && eraserMode && paintedCount === 0 && (
+                  <Alert severity="warning" sx={{ borderRadius: 2, mb: 1.25 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Nenhuma rua pintada para apagar
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Ruas cinza no mapa ainda não têm microárea. Use <strong>Pintar</strong> primeiro.
+                    </Typography>
+                  </Alert>
+                )}
+
                 {streetCount > 0 && (
                   <Box sx={{ display: 'flex', gap: 0.75, mb: paintMode ? 0 : 1.5, flexWrap: 'wrap' }}>
                     <ToggleButtonGroup

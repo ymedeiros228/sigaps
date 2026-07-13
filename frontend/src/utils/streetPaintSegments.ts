@@ -372,7 +372,7 @@ export function buildStreetMapFeatures(
         ...baseProps,
         id: `${street.id}:gap:${keySuffix}:${gap.start}`,
         side,
-        color: ctx.activeColor,
+        color: '#888888',
         hasMicroarea: false,
         isPartial: true,
       },
@@ -444,7 +444,10 @@ export function buildStreetMapFeatures(
       painted.push(feature);
     }
   } else if (feature.properties.dragPending) {
-    dragPreview.push(feature);
+    dragPreview.push({
+      ...feature,
+      properties: { ...feature.properties, color: ctx.activeColor },
+    });
   } else if (dual && ctx.paintMode) {
     for (const side of ['LEFT', 'RIGHT'] as StreetPaintSide[]) {
       unpainted.push({
