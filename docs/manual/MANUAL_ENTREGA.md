@@ -168,13 +168,13 @@ Lista de 9 itens que acompanham a implantação:
 2. Microáreas cadastradas
 3. UBS cadastradas
 4. ACS vinculados às microáreas
-5. Cobertura territorial ≥ 80%
+5. Cobertura territorial ≥ 80% — **pós-entrega** (Jonas pinta no mapa)
 6. Bairros atribuídos às ruas (≥ 50%)
 7. Dados de famílias (e-SUS) — **opcional**
 8. Sincronização e-SUS — **opcional**
-9. Mapa homologado pela SMS
+9. Mapa homologado pela SMS — **pós-pintura**
 
-O percentual do checklist **não exige** os itens 7 e 8 para a entrega operacional.
+O percentual do checklist mede só a **entrega do software** (itens 1–4 e 6). Itens 5, 7, 8 e 9 não reduzem esse número.
 
 ## 5.5 Próximos passos (painel guia)
 

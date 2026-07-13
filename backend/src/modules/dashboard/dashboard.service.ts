@@ -18,6 +18,8 @@ export interface OperationalChecklistItem {
   actionHref?: string;
   /** Não entra no % de progresso da entrega (ex.: e-SUS opcional). */
   optional?: boolean;
+  /** Etapa do Jonas/SMS após o software entregue (pintura, homologação). */
+  postDelivery?: boolean;
 }
 
 export interface OperationalChecklist {
@@ -176,8 +178,9 @@ export class DashboardService {
         id: 'coverage',
         label: 'Cobertura territorial ≥ 80%',
         done: coverage >= 80,
-        detail: `${coverage}% das ruas pintadas`,
+        detail: `${coverage}% pintado — meta do Jonas após a entrega do sistema`,
         priority: 'high',
+        postDelivery: true,
         actionHref: CHECKLIST_LINKS.coverage,
       },
       {
@@ -217,15 +220,16 @@ export class DashboardService {
         done: !!municipality.mapHomologatedAt,
         detail: municipality.mapHomologatedAt
           ? `Homologado em ${municipality.mapHomologatedAt.toLocaleDateString('pt-BR')}`
-          : 'Registre em Admin → Homologação',
+          : 'Após pintura: registre o aceite em Admin → Homologação',
         priority: 'high',
+        postDelivery: true,
         actionHref: CHECKLIST_LINKS.homologation,
       },
     ];
 
-    const requiredItems = items.filter((i) => !i.optional);
-    const completed = requiredItems.filter((i) => i.done).length;
-    const criticalDone = requiredItems
+    const deliveryItems = items.filter((i) => !i.optional && !i.postDelivery);
+    const completed = deliveryItems.filter((i) => i.done).length;
+    const criticalDone = deliveryItems
       .filter((i) => i.priority === 'critical')
       .every((i) => i.done);
     const coverageDone = items.find((i) => i.id === 'coverage')?.done ?? false;
@@ -234,10 +238,10 @@ export class DashboardService {
     return {
       items,
       completed,
-      total: requiredItems.length,
+      total: deliveryItems.length,
       progressPct:
-        requiredItems.length > 0
-          ? Math.round((completed / requiredItems.length) * 100)
+        deliveryItems.length > 0
+          ? Math.round((completed / deliveryItems.length) * 100)
           : 0,
       readyForHomologation: criticalDone && coverageDone,
       readyForPainting: cadastrosBaseDone && assigned === 0,
@@ -251,7 +255,7 @@ export class DashboardService {
       [
         item.label,
         item.done ? 'concluido' : 'pendente',
-        item.optional ? 'opcional' : item.priority,
+        item.optional ? 'opcional' : item.postDelivery ? 'pos-entrega' : item.priority,
         item.detail,
       ]
         .map((v) => escape(v))

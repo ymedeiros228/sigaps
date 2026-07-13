@@ -106,13 +106,15 @@ function ChecklistContent({
         )}
 
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-          Itens marcados como opcional não entram no percentual de entrega.
+          Percentual da <strong>entrega do software</strong> (cadastros e dados). Pintura, homologação e
+          e-SUS não reduzem este número — são etapas do Jonas/SMS depois.
         </Typography>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {checklist.items.map((item) => {
             const href = checklistItemHref(item);
             const optionalPending = item.optional && !item.done;
+            const postDeliveryPending = item.postDelivery && !item.done;
             return (
             <Box
               key={item.id}
@@ -129,10 +131,10 @@ function ChecklistContent({
                 color: 'inherit',
                 bgcolor: item.done
                   ? alpha(theme.palette.success.main, 0.06)
-                  : optionalPending
+                  : optionalPending || postDeliveryPending
                     ? alpha(theme.palette.divider, 0.06)
                     : alpha(theme.palette.warning.main, 0.04),
-                opacity: optionalPending ? 0.85 : 1,
+                opacity: optionalPending || postDeliveryPending ? 0.85 : 1,
                 ...(href
                   ? {
                       '&:hover': {
@@ -154,6 +156,9 @@ function ChecklistContent({
                   </Typography>
                   {item.optional && (
                     <Chip size="small" label="Opcional" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                  )}
+                  {item.postDelivery && (
+                    <Chip size="small" label="Pós-entrega" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                   )}
                 </Box>
                 <Typography variant="caption" color="text.secondary">
