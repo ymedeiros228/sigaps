@@ -61,5 +61,6 @@ done
 
 echo "==> Playwright"
 export PLAYWRIGHT_BASE_URL="http://127.0.0.1:${FRONTEND_PORT}"
+export E2E_API_URL="http://127.0.0.1:${BACKEND_PORT}"
 npx playwright install chromium --with-deps
 npm run test:e2e

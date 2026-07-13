@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { E2E_ADMIN, loginAsAdmin } from './helpers';
+import { E2E_ADMIN } from './helpers';
 
 test.describe('Autenticação', () => {
   test('exibe formulário de login', async ({ page }) => {
@@ -11,7 +11,16 @@ test.describe('Autenticação', () => {
   });
 
   test('login com credenciais válidas abre o dashboard', async ({ page }) => {
-    await loginAsAdmin(page);
+    await page.goto('/login');
+    await page.getByTestId('login-email').fill(E2E_ADMIN.email);
+    await page.getByTestId('login-password').fill(E2E_ADMIN.password);
+    const loginResponse = page.waitForResponse(
+      (res) => res.url().includes('/auth/login') && res.request().method() === 'POST',
+      { timeout: 45_000 },
+    );
+    await page.getByTestId('login-submit').click();
+    const response = await loginResponse;
+    expect(response.ok(), `login falhou: ${response.status()}`).toBeTruthy();
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
@@ -27,31 +36,5 @@ test.describe('Autenticação', () => {
   test('rota protegida redireciona para login', async ({ page }) => {
     await page.goto('/mapa');
     await expect(page).toHaveURL(/\/login/);
-  });
-});
-
-test.describe('Sessão autenticada', () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-  });
-
-  test('navega para o mapa', async ({ page }) => {
-    await page.getByTestId('nav-mapa').click();
-    await expect(page).toHaveURL(/\/mapa/);
-    await expect(page.locator('.leaflet-container')).toBeVisible({ timeout: 30_000 });
-  });
-
-  test('navega para cadastros', async ({ page }) => {
-    await page.getByTestId('nav-cadastros').click();
-    await expect(page).toHaveURL(/\/cadastros/);
-    await expect(page.getByRole('heading', { name: /Cadastros/i })).toBeVisible();
-  });
-
-  test('busca no mapa aceita texto', async ({ page }) => {
-    await page.getByTestId('nav-mapa').click();
-    await expect(page.locator('.leaflet-container')).toBeVisible({ timeout: 30_000 });
-    const search = page.getByRole('combobox', { name: /Buscar rua/i });
-    await search.fill('rua');
-    await expect(search).toHaveValue('rua');
   });
 });
