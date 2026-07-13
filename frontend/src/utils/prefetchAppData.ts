@@ -91,6 +91,16 @@ export function prefetchMapData(queryClient: QueryClient, municipalityId: string
 }
 
 let dashboardInvalidateTimer: ReturnType<typeof setTimeout> | null = null;
+let microareasInvalidateTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function scheduleMicroareasInvalidate(queryClient: QueryClient, municipalityId: string) {
+  if (microareasInvalidateTimer) clearTimeout(microareasInvalidateTimer);
+  microareasInvalidateTimer = setTimeout(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
+    microareasInvalidateTimer = null;
+  }, 4000);
+}
 
 export function scheduleDashboardInvalidate(queryClient: QueryClient, municipalityId?: string) {
   if (dashboardInvalidateTimer) clearTimeout(dashboardInvalidateTimer);

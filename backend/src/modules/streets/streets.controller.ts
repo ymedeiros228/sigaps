@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -34,6 +35,7 @@ export class StreetsController {
   constructor(private readonly streetsService: StreetsService) {}
 
   @Get('municipality/:municipalityId')
+  @SkipThrottle()
   @ApiOperation({ summary: 'Listar ruas do município (paginado)' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'microareaId', required: false })

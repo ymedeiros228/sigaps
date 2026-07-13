@@ -43,7 +43,7 @@ import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtP
 import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
 import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
-import { scheduleDashboardInvalidate } from '../../utils/prefetchAppData';
+import { scheduleDashboardInvalidate, scheduleMicroareasInvalidate } from '../../utils/prefetchAppData';
 import {
   patchStreetsMicroarea,
   clearAllStreetsMicroarea,
@@ -58,7 +58,7 @@ import { MapTileLayerController } from './MapTileLayerController';
 import { MapCursorCoordsTracker } from './MapCursorCoords';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
-const DRAG_PAINT_THROTTLE_MS = 100;
+const DRAG_PAINT_THROTTLE_MS = 300;
 
 type PaintUndoAction =
   | {
@@ -232,19 +232,10 @@ export function SigapsMap() {
 
   const refreshMicroareaVisuals = useCallback((options?: { rebuildEnvelopes?: boolean }) => {
     if (!municipalityId) return;
-    void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
+    scheduleMicroareasInvalidate(queryClient, municipalityId);
     if (options?.rebuildEnvelopes) {
       void microareasApi.rebuildEnvelopes(municipalityId).catch(() => undefined);
     }
-    void queryClient.refetchQueries({
-      queryKey: queryKeys.microareas(municipalityId),
-      type: 'active',
-    });
-    void queryClient.refetchQueries({
-      queryKey: queryKeys.microareaEnvelopes(municipalityId),
-      type: 'active',
-    });
   }, [municipalityId, queryClient]);
 
   const scheduleEnvelopeRebuild = useCallback(() => {
@@ -739,7 +730,7 @@ export function SigapsMap() {
       }
       patchStreetInMapCache(queryClient, municipalityId, updated);
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+      scheduleMicroareasInvalidate(queryClient, municipalityId);
       scheduleEnvelopeRebuild();
       if (selectedStreet?.id === updated.id) {
         setSelectedStreet(updated);
@@ -853,7 +844,7 @@ export function SigapsMap() {
         }
       }
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+      scheduleMicroareasInvalidate(queryClient, municipalityId);
       scheduleEnvelopeRebuild();
       setLastPaintAction('Trecho removido');
     },

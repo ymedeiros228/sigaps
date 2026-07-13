@@ -32,13 +32,23 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
     return fallback;
   }
 
-  if (typeof data.message === 'string' && !isGenericEnglishMessage(data.message)) {
-    return data.message;
+  if (typeof data.message === 'string') {
+    const lower = data.message.trim().toLowerCase();
+    if (lower.includes('throttler') || lower.includes('too many requests')) {
+      return 'Muitas requisições em pouco tempo. Aguarde alguns segundos e continue pintando.';
+    }
+    if (!isGenericEnglishMessage(data.message)) {
+      return data.message;
+    }
   }
 
   if (data.message && typeof data.message === 'object') {
     const nested = data.message.message;
     if (nested && !isGenericEnglishMessage(nested)) return nested;
+  }
+
+  if (err.response?.status === 429) {
+    return 'Muitas requisições em pouco tempo. Aguarde alguns segundos e continue pintando.';
   }
 
   if (err.response?.status === 403) {

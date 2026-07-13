@@ -21,6 +21,10 @@ function friendlyMessage(status: number, raw: string | string[] | undefined): st
   const text = Array.isArray(raw) ? raw.join(', ') : (raw ?? '');
   const lower = text.trim().toLowerCase();
 
+  if (status === HttpStatus.TOO_MANY_REQUESTS || lower.includes('too many requests') || lower.includes('throttler')) {
+    return 'Muitas requisições em pouco tempo. Aguarde alguns segundos e tente novamente.';
+  }
+
   if (text && !GENERIC_EN.has(lower)) return text;
 
   switch (status) {

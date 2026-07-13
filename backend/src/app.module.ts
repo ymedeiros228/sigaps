@@ -33,7 +33,11 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: process.env.CI ? 10_000 : 120 },
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: Number(process.env.THROTTLE_LIMIT_DEFAULT ?? (process.env.CI ? 10_000 : 500)),
+      },
       { name: 'auth', ttl: 60_000, limit: process.env.CI ? 500 : 15 },
     ]),
     PrismaModule,

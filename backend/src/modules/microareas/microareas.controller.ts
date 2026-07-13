@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -24,6 +25,7 @@ export class MicroareasController {
   constructor(private readonly microareasService: MicroareasService) {}
 
   @Get('municipality/:municipalityId')
+  @SkipThrottle()
   @ApiOperation({ summary: 'Listar microáreas do município' })
   findByMunicipality(
     @Param('municipalityId') municipalityId: string,
@@ -33,6 +35,7 @@ export class MicroareasController {
   }
 
   @Get('municipality/:municipalityId/envelopes')
+  @SkipThrottle()
   @ApiOperation({ summary: 'Polígonos de todas as microáreas (PostGIS, uma query)' })
   listEnvelopes(@Param('municipalityId') municipalityId: string) {
     return this.microareasService.listEnvelopesByMunicipality(municipalityId);
