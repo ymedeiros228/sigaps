@@ -41,6 +41,7 @@ export function DashboardNextSteps({
   if (mapHomologatedAt) return null;
 
   const ready = checklist?.readyForHomologation ?? false;
+  const readyForPainting = checklist?.readyForPainting ?? false;
   const coverageGoal = 80;
   const coverageGap = Math.max(0, coverageGoal - coverage);
 
@@ -48,8 +49,6 @@ export function DashboardNextSteps({
     checklist?.items.filter(
       (item) => item.priority === 'critical' && item.id !== 'coverage',
     ) ?? [];
-  const dataReady =
-    streets > 0 && criticalDataItems.length > 0 && criticalDataItems.every((item) => item.done);
   const pendingData = criticalDataItems.filter((item) => !item.done);
 
   return (
@@ -110,7 +109,7 @@ export function DashboardNextSteps({
         </Alert>
       )}
 
-      {dataReady && coverage === 0 && (
+      {readyForPainting && coverage === 0 && (
         <Alert
           severity="success"
           icon={<MapOutlined />}

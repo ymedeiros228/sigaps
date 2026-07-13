@@ -24,6 +24,7 @@ export interface OperationalChecklist {
   total: number;
   progressPct: number;
   readyForHomologation: boolean;
+  readyForPainting: boolean;
 }
 
 const CHECKLIST_LINKS: Record<string, string> = {
@@ -154,6 +155,21 @@ export class DashboardService {
         actionHref: CHECKLIST_LINKS['acs-linked'],
       },
       {
+        id: 'cadastros-base',
+        label: 'Cadastros base prontos (mapa pode estar zerado)',
+        done:
+          streets > 0 &&
+          microareas > 0 &&
+          ubsCount > 0 &&
+          acsSemMicro === 0,
+        detail:
+          streets > 0 && microareas > 0 && ubsCount > 0 && acsSemMicro === 0
+            ? 'Ruas, UBS, microáreas e ACS OK — pintura é decisão do enfermeiro'
+            : 'Complete ruas, UBS, microáreas e vínculo ACS antes da entrega',
+        priority: 'high',
+        actionHref: CHECKLIST_LINKS.microareas,
+      },
+      {
         id: 'coverage',
         label: 'Cobertura territorial ≥ 80%',
         done: coverage >= 80,
@@ -202,6 +218,7 @@ export class DashboardService {
     const completed = items.filter((i) => i.done).length;
     const criticalDone = items.filter((i) => i.priority === 'critical').every((i) => i.done);
     const coverageDone = items.find((i) => i.id === 'coverage')?.done ?? false;
+    const cadastrosBaseDone = items.find((i) => i.id === 'cadastros-base')?.done ?? false;
 
     return {
       items,
@@ -209,6 +226,7 @@ export class DashboardService {
       total: items.length,
       progressPct: Math.round((completed / items.length) * 100),
       readyForHomologation: criticalDone && coverageDone,
+      readyForPainting: cadastrosBaseDone && assigned === 0,
     };
   }
 

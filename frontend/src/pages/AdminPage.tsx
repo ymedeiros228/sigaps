@@ -328,17 +328,51 @@ export function AdminPage() {
 
       {!isLoading && overview && tab === 'resumo' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {(overview.counts.assignedStreets > 0 ||
-            overview.counts.paintZones > 0) && (
-            <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'success.main' }}>
-              <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                  Preparar entrega ao usuário
+          <Card
+            variant="outlined"
+            sx={{
+              borderRadius: 3,
+              borderColor: overview.delivery.readyForHandoff
+                ? 'success.main'
+                : overview.delivery.dataReady
+                  ? 'info.main'
+                  : 'warning.main',
+            }}
+          >
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, flex: 1 }}>
+                  Status de entrega
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Zera toda a pintura do mapa (ruas e círculos) e revoga homologação, se houver.
-                  Mantém UBS, ACS, microáreas e malha viária — o Jonas começa a pintar do zero.
-                </Typography>
+                {overview.delivery.readyForHandoff && (
+                  <Chip size="small" color="success" label="Pronto para o Jonas" />
+                )}
+                {overview.delivery.dataReady && !overview.delivery.mapClean && (
+                  <Chip size="small" color="warning" label="Mapa com pintura" />
+                )}
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {overview.delivery.readyForHandoff
+                  ? 'Cadastros completos e mapa zerado — ideal para entregar ao enfermeiro começar a pintar do zero.'
+                  : overview.delivery.dataReady
+                    ? 'Dados base OK. Zere a pintura antes de entregar, se ainda houver ruas coloridas.'
+                    : 'Complete ruas, UBS, microáreas e vínculo ACS antes da entrega ao usuário.'}
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={overview.delivery.dataReady ? 'success' : 'default'}
+                  label={`Dados: ${overview.delivery.dataReady ? 'prontos' : 'pendentes'}`}
+                />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={overview.delivery.mapClean ? 'success' : 'warning'}
+                  label={`Mapa: ${overview.delivery.mapClean ? 'zerado' : `${overview.counts.assignedStreets} pintada(s)`}`}
+                />
+              </Box>
+              {!overview.delivery.mapClean && (
                 <Box>
                   <Button
                     variant="contained"
@@ -349,9 +383,9 @@ export function AdminPage() {
                     Zerar mapa para entrega
                   </Button>
                 </Box>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           <Box
             sx={{

@@ -402,7 +402,7 @@ export function PaintGuidePanel({
                 Carregando ruas do município. Aguarde alguns segundos.
               </Alert>
             ) : paintedCount === 0 ? (
-              <Alert severity="success" sx={{ borderRadius: 2, mb: 1.25 }}>
+              <Alert severity="success" data-testid="paint-guide-empty-map" sx={{ borderRadius: 2, mb: 1.25 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                   Mapa zerado — pronto para você decidir a pintura
                 </Typography>

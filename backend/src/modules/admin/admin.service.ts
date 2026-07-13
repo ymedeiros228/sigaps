@@ -92,6 +92,18 @@ export class AdminService {
         auditLogs: auditTotal,
         coverage: streets > 0 ? Math.round((assignedStreets / streets) * 100) : 0,
       },
+      delivery: {
+        dataReady:
+          streets > 0 && microareas > 0 && ubs > 0 && acsSemMicro === 0,
+        mapClean: assignedStreets === 0 && paintZones === 0,
+        readyForHandoff:
+          streets > 0 &&
+          microareas > 0 &&
+          ubs > 0 &&
+          acsSemMicro === 0 &&
+          assignedStreets === 0 &&
+          paintZones === 0,
+      },
       users,
       system: {
         commit,

@@ -28,6 +28,13 @@ test.describe('Pintura no mapa', () => {
     await expect(page.getByTestId('nav-dashboard')).toBeVisible({ timeout: 30_000 });
   });
 
+  test('mapa zerado exibe guia de entrega ao usuário', async ({ page }) => {
+    await openMapAndWaitStreets(page);
+    await expandPaintGuide(page);
+    await expect(page.getByTestId('paint-guide-empty-map')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/decidir a pintura/i)).toBeVisible();
+  });
+
   test('painel de pintura expande e seleciona microárea', async ({ page }) => {
     await openMapAndWaitStreets(page);
     await enterPaintWithMicroarea01(page);

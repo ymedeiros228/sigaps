@@ -39,7 +39,9 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 | Item | Descrição | Status |
 |------|-----------|--------|
-| G1 | Painel "Próximos passos" no dashboard (cobertura, e-SUS, homologação) | [x] |
+| G1 | Painel "Próximos passos" no dashboard (dados, e-SUS, homologação) | [x] |
+| G4 | Entrega zerada: seed sem pintura, admin preparar entrega, mapa limpo | [x] |
+| G5 | Checklist `readyForPainting` + status de entrega no Admin | [x] |
 | G2 | Homologação SMS (aceite formal A6) | [ ] |
 | G3 | Popular famílias via CSV e-SUS | [ ] |
 
@@ -266,7 +268,8 @@ PWA instalável, cache de geometrias para ACS em campo.
 | Prioridade imediata | Impacto |
 |---------------------|---------|
 | **Homologação PDF** | Aceite formal do mapa oficial na SMS |
-| **Popular dados reais** | Famílias via e-SUS piloto + pintura territorial |
+| **Dados prontos + mapa zerado** | Entregar cadastros OK; Jonas pinta do zero |
+| **Popular famílias e-SUS** | Indicadores por logradouro (piloto CSV) |
 | **Povoados com coordenadas** | Complementar território quando OSM/Nominatim não acham o lugar |
 
-O SIGAPS é **exclusivo para Passagem Franca/MA**. O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O próximo salto é **homologação do PDF** e **integração e-SUS completa**.
+O SIGAPS é **exclusivo para Passagem Franca/MA**. O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O sistema **prepara os dados**; a **pintura e decisão territorial são do enfermeiro**. Próximo salto: **homologação do PDF** e **dados e-SUS reais**.

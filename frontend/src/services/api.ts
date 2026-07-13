@@ -637,6 +637,7 @@ export interface OperationalChecklist {
   total: number;
   progressPct: number;
   readyForHomologation: boolean;
+  readyForPainting: boolean;
 }
 
 export interface AcsCoverageRow {
@@ -686,6 +687,11 @@ export interface AdminOverview {
     paintZones: number;
     auditLogs: number;
     coverage: number;
+  };
+  delivery: {
+    dataReady: boolean;
+    mapClean: boolean;
+    readyForHandoff: boolean;
   };
   users: AdminUser[];
   system: {

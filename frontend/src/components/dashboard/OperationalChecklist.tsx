@@ -67,6 +67,9 @@ function ChecklistContent({
           {checklist.readyForHomologation && (
             <Chip size="small" color="success" label="Pronto p/ homologação" />
           )}
+          {checklist.readyForPainting && !checklist.readyForHomologation && (
+            <Chip size="small" color="info" label="Pronto para pintar" />
+          )}
           <Chip
             size="small"
             color={checklist.progressPct >= 80 ? 'success' : 'default'}
