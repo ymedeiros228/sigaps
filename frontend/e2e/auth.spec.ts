@@ -29,7 +29,7 @@ test.describe('Autenticação', () => {
     await page.getByTestId('login-email').fill('invalido@teste.gov.br');
     await page.getByTestId('login-password').fill('senha-errada');
     await page.getByTestId('login-submit').click();
-    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: /inválid/i })).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
   });
 
