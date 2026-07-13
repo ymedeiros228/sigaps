@@ -32,7 +32,7 @@ for i in $(seq 1 90); do
     echo "API pronta."
     break
   fi
-  if [[ "$i" -eq 60 ]]; then
+  if [[ "$i" -eq 90 ]]; then
     echo "Timeout aguardando backend" >&2
     exit 1
   fi
