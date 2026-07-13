@@ -10,7 +10,7 @@
 
 A proposta descreve um **sistema GIS municipal completo** para gestão territorial das microáreas da APS. O sistema já entrega o **núcleo funcional e a maior parte das fases 2–5**: mapa real com ruas OSM, cadastros completos, pintura territorial, dashboard com relatórios, PDF oficial, PWA, integrações piloto e suporte multi-município.
 
-Pendências principais: homologação formal do PDF pela SMS, integração e-SUS automática (além do piloto CSV) e segundo município em produção.
+Pendências principais: homologação formal do PDF pela SMS e integração e-SUS automática (além do piloto CSV). O deploy em produção é exclusivo para **Passagem Franca/MA**.
 
 ---
 

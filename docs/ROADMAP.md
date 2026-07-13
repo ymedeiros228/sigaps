@@ -259,6 +259,5 @@ PWA instalável, cache de geometrias para ACS em campo.
 | **Homologação PDF** | Aceite formal do mapa oficial na SMS |
 | **Popular dados reais** | Famílias via e-SUS piloto + pintura territorial |
 | **Povoados com coordenadas** | Complementar território quando OSM/Nominatim não acham o lugar |
-| **Segundo município** | Validar escala multi-tenant em produção |
 
-O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O próximo salto é **homologação do PDF** e **integração e-SUS completa**.
+O SIGAPS é **exclusivo para Passagem Franca/MA**. O núcleo da proposta — **organizar microáreas sobre ruas reais** — está entregue. O próximo salto é **homologação do PDF** e **integração e-SUS completa**.
