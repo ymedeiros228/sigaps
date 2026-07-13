@@ -53,3 +53,33 @@ jobs:
         env:
           VITE_API_URL: https://sigaps-api.onrender.com
           VITE_DEV_AUTO_LOGIN: "false"
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: sigaps
+          POSTGRES_PASSWORD: sigaps_secret
+          POSTGRES_DB: sigaps
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sigaps -d sigaps"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Playwright full-stack e2e
+        run: bash scripts/ci-e2e.sh
+        env:
+          DATABASE_URL: postgresql://sigaps:sigaps_secret@127.0.0.1:5432/sigaps?schema=public
+          JWT_SECRET: ci-e2e-jwt-secret
+          CI: "true"

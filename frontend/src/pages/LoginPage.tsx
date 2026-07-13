@@ -291,8 +291,8 @@ export function LoginPage() {
               margin="normal"
               placeholder="seu.email@municipio.ma.gov.br"
               autoComplete="email"
-              {...register('email', { required: true })}
               slotProps={{
+                htmlInput: { 'data-testid': 'login-email' },
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
@@ -311,6 +311,7 @@ export function LoginPage() {
               autoComplete="current-password"
               {...register('password', { required: true })}
               slotProps={{
+                htmlInput: { 'data-testid': 'login-password' },
                 input: {
                   startAdornment: (
                     <InputAdornment position="start">
@@ -325,6 +326,7 @@ export function LoginPage() {
               type="submit"
               variant="contained"
               size="large"
+              data-testid="login-submit"
               sx={{ mt: 3, py: 1.4 }}
               disabled={formState.isSubmitting || autoLogging || connecting}
             >

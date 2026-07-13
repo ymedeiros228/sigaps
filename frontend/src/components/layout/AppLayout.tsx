@@ -140,9 +140,12 @@ export function AppLayout() {
             item.path === '/'
               ? location.pathname === '/' || location.pathname === '/dashboard'
               : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+          const navTestId =
+            item.path === '/' ? 'nav-dashboard' : `nav${item.path.replace(/^\//, '').replace(/\//g, '-')}`;
           return (
             <ListItemButton
               key={item.path}
+              data-testid={navTestId}
               selected={selected}
               onMouseEnter={() => {
                 if (item.path === '/cadastros' && municipalityId) {

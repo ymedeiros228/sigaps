@@ -190,6 +190,15 @@ Sistema GIS web para a Secretaria Municipal de Saúde **organizar o território 
 
 **Critério de aceite:** qualquer povoado do município pode ser cadastrado em menos de 2 minutos, mesmo sem resultado na busca automática.
 
+### Sprint 16 — Testes E2E Playwright — ✅ Concluído
+
+| Item | Descrição | Status |
+|------|-----------|--------|
+| T1 | Playwright: login, rotas protegidas, navegação mapa/cadastros | [x] |
+| T2 | CI full-stack: Postgres + migrate + seed + API + preview | [x] |
+| T3 | `data-testid` em login e navegação lateral | [x] |
+| T4 | Script `scripts/ci-e2e.sh` para reprodução local | [x] |
+
 ### Sprint 15 — Prontidão para produção — ✅ Concluído
 
 | Item | Descrição | Status |

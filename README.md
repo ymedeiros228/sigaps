@@ -126,6 +126,16 @@ npm run dev
 
 App: http://localhost:5173
 
+### Testes E2E (Playwright)
+
+Com Postgres rodando (`docker compose up postgres -d`):
+
+```bash
+bash scripts/ci-e2e.sh
+```
+
+Ou manualmente: backend em `:3000`, `npm run build && npm run preview` no frontend, depois `cd frontend && npm run test:e2e`.
+
 ### 5. Produção
 
 ```bash
