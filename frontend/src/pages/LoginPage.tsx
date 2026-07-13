@@ -291,6 +291,7 @@ export function LoginPage() {
               margin="normal"
               placeholder="seu.email@municipio.ma.gov.br"
               autoComplete="email"
+              {...register('email', { required: true })}
               slotProps={{
                 htmlInput: { 'data-testid': 'login-email' },
                 input: {
