@@ -25,6 +25,7 @@ async function enterPaintWithMicroarea01(page: import('@playwright/test').Page) 
 test.describe('Pintura no mapa', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await expect(page.getByTestId('nav-dashboard')).toBeVisible({ timeout: 30_000 });
   });
 
   test('painel de pintura expande e seleciona microárea', async ({ page }) => {
