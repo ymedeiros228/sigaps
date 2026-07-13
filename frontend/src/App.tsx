@@ -106,9 +106,11 @@ function AppRoutes() {
         <Route
           path="/cadastros"
           element={
-            <Suspense fallback={<PageLoader />}>
-              <CadastrosPage />
-            </Suspense>
+            <ErrorBoundary title="Erro ao abrir cadastros">
+              <Suspense fallback={<PageLoader />}>
+                <CadastrosPage />
+              </Suspense>
+            </ErrorBoundary>
           }
         />
         <Route

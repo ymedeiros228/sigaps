@@ -23,6 +23,7 @@ import { CadastrosModule } from './modules/cadastros/cadastros.module';
 import { PlacesModule } from './modules/places/places.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { MunicipalityScopeGuard } from './common/guards/municipality-scope.guard';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -53,6 +54,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: MunicipalityScopeGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_FILTER, useClass: PrismaExceptionFilter },
   ],

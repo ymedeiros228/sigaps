@@ -327,10 +327,21 @@ export class AcsService {
       data: { acsId: null },
     });
     if (microareaId) {
-      const microarea = await this.prisma.microarea.findUnique({
-        where: { id: microareaId },
-      });
-      if (!microarea) throw new NotFoundException('Microarea nao encontrada');
+      const [acs, microarea] = await Promise.all([
+        this.prisma.acs.findUnique({
+          where: { id: acsId },
+          select: { municipalityId: true },
+        }),
+        this.prisma.microarea.findUnique({
+          where: { id: microareaId },
+          select: { municipalityId: true },
+        }),
+      ]);
+      if (!acs) throw new NotFoundException('ACS não encontrado');
+      if (!microarea) throw new NotFoundException('Microárea não encontrada');
+      if (acs.municipalityId !== microarea.municipalityId) {
+        throw new BadRequestException('Microárea deve pertencer ao mesmo município do ACS');
+      }
       await this.prisma.microarea.update({
         where: { id: microareaId },
         data: { acsId },

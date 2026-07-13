@@ -27,6 +27,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { geoApi, type Microarea } from '../../services/api';
 import { streetsToSvg } from '../../utils/mapSvgExport';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { useAppStore } from '../../store';
 import { queryKeys } from '../../utils/queryKeys';
 const MapPdfDialog = lazy(() =>
@@ -55,6 +56,7 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
   const [pendingGeoJson, setPendingGeoJson] = useState<object | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const onImportSuccess = (res: { imported: number; updated: number; skipped: number }) => {
     if (municipalityId) {
@@ -96,72 +98,102 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
 
   const handleExportStreets = async () => {
     if (!municipalityId) return;
-    const res = await geoApi.exportStreets(municipalityId);
-    downloadBlob(
-      new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/geo+json' }),
-      'sigaps-ruas.geojson',
-    );
-    setAnchorEl(null);
+    try {
+      const res = await geoApi.exportStreets(municipalityId);
+      downloadBlob(
+        new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/geo+json' }),
+        'sigaps-ruas.geojson',
+      );
+      setExportError(null);
+      setAnchorEl(null);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err, 'Não foi possível exportar as ruas.'));
+    }
   };
 
   const handleExportKml = async () => {
     if (!municipalityId) return;
-    const res = await geoApi.exportStreetsKml(municipalityId);
-    downloadBlob(new Blob([res.data], { type: 'application/vnd.google-earth.kml+xml' }), 'sigaps-ruas.kml');
-    setAnchorEl(null);
+    try {
+      const res = await geoApi.exportStreetsKml(municipalityId);
+      downloadBlob(new Blob([res.data], { type: 'application/vnd.google-earth.kml+xml' }), 'sigaps-ruas.kml');
+      setExportError(null);
+      setAnchorEl(null);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err, 'Não foi possível exportar o KML.'));
+    }
   };
 
   const handleExportSvg = async () => {
     if (!municipalityId) return;
-    const res = await geoApi.exportStreets(municipalityId);
-    const fc = res.data as GeoJSON.FeatureCollection;
-    const features = (fc.features ?? [])
-      .filter((f) => f.geometry?.type === 'LineString')
-      .map((f) => ({
-        name: String((f.properties as { name?: string })?.name ?? 'Rua'),
-        color: String((f.properties as { microareaColor?: string })?.microareaColor ?? '#888888'),
-        coordinates: (f.geometry as GeoJSON.LineString).coordinates as [number, number][],
-      }));
-    const title = String((fc as { metadata?: { name?: string } }).metadata?.name ?? 'SIGAPS');
-    const svg = streetsToSvg(features, title);
-    downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), 'sigaps-ruas.svg');
-    setAnchorEl(null);
+    try {
+      const res = await geoApi.exportStreets(municipalityId);
+      const fc = res.data as GeoJSON.FeatureCollection;
+      const features = (fc.features ?? [])
+        .filter((f) => f.geometry?.type === 'LineString')
+        .map((f) => ({
+          name: String((f.properties as { name?: string })?.name ?? 'Rua'),
+          color: String((f.properties as { microareaColor?: string })?.microareaColor ?? '#888888'),
+          coordinates: (f.geometry as GeoJSON.LineString).coordinates as [number, number][],
+        }));
+      const title = String((fc as { metadata?: { name?: string } }).metadata?.name ?? 'SIGAPS');
+      const svg = streetsToSvg(features, title);
+      downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), 'sigaps-ruas.svg');
+      setExportError(null);
+      setAnchorEl(null);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err, 'Não foi possível exportar o SVG.'));
+    }
   };
 
   const handleExportMicroareas = async () => {
     if (!municipalityId) return;
-    const res = await geoApi.exportMicroareas(municipalityId);
-    downloadBlob(
-      new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/geo+json' }),
-      'sigaps-microareas.geojson',
-    );
-    setAnchorEl(null);
+    try {
+      const res = await geoApi.exportMicroareas(municipalityId);
+      downloadBlob(
+        new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/geo+json' }),
+        'sigaps-microareas.geojson',
+      );
+      setExportError(null);
+      setAnchorEl(null);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err, 'Não foi possível exportar as microáreas.'));
+    }
   };
 
   const handleExportPng = async () => {
     const container = mapContainerRef.current?.querySelector('.leaflet-container') as HTMLElement;
     if (!container) return;
-    const html2canvas = (await import('html2canvas')).default;
-    const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, logging: false });
-    canvas.toBlob((blob) => {
-      if (blob) downloadBlob(blob, `sigaps-mapa-${Date.now()}.png`);
-    });
-    setAnchorEl(null);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, logging: false });
+      canvas.toBlob((blob) => {
+        if (blob) downloadBlob(blob, `sigaps-mapa-${Date.now()}.png`);
+      });
+      setExportError(null);
+      setAnchorEl(null);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err, 'Não foi possível exportar a imagem PNG.'));
+    }
   };
 
   const handleExportJpeg = async () => {
     const container = mapContainerRef.current?.querySelector('.leaflet-container') as HTMLElement;
     if (!container) return;
-    const html2canvas = (await import('html2canvas')).default;
-    const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, logging: false });
-    canvas.toBlob(
-      (blob) => {
-        if (blob) downloadBlob(blob, `sigaps-mapa-${Date.now()}.jpg`);
-      },
-      'image/jpeg',
-      0.92,
-    );
-    setAnchorEl(null);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(container, { useCORS: true, allowTaint: true, logging: false });
+      canvas.toBlob(
+        (blob) => {
+          if (blob) downloadBlob(blob, `sigaps-mapa-${Date.now()}.jpg`);
+        },
+        'image/jpeg',
+        0.92,
+      );
+      setExportError(null);
+      setAnchorEl(null);
+    } catch (err) {
+      setExportError(getApiErrorMessage(err, 'Não foi possível exportar a imagem JPEG.'));
+    }
   };
 
   const openImport = (format: ImportFormat) => {
@@ -217,6 +249,11 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
       <Button size="small" variant="outlined" onClick={(e) => setAnchorEl(e.currentTarget)}>
         Arquivos
       </Button>
+      {exportError && (
+        <Alert severity="error" sx={{ mt: 1 }} onClose={() => setExportError(null)}>
+          {exportError}
+        </Alert>
+      )}
       <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={() => setAnchorEl(null)}>
         <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
           Importar

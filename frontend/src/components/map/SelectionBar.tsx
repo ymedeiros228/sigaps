@@ -12,6 +12,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import { Close, Link as LinkIcon, AutoFixOff } from '@mui/icons-material';
+import { useState } from 'react';
 import type { Microarea, Neighborhood } from '../../services/api';
 import { useMapStore } from '../../store';
 
@@ -42,6 +43,7 @@ export function SelectionBar({
 }: SelectionBarProps) {
   const theme = useTheme();
   const clearSelection = useMapStore((s) => s.clearSelection);
+  const [neighborhoodChoice, setNeighborhoodChoice] = useState('');
 
   if (count === 0) return null;
 
@@ -89,11 +91,13 @@ export function SelectionBar({
             <InputLabel>Bairro</InputLabel>
             <Select
               label="Bairro"
-              defaultValue=""
+              value={neighborhoodChoice}
               disabled={assigningNeighborhood}
               onChange={(e) => {
                 const v = e.target.value;
+                setNeighborhoodChoice(v);
                 onAssignNeighborhood(v === '' ? null : v);
+                setNeighborhoodChoice('');
               }}
             >
               <MenuItem value="">

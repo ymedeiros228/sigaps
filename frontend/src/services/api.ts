@@ -10,6 +10,9 @@ function resolveApiUrl(): string {
 
 const API_URL = resolveApiUrl();
 
+const AUTH_TOKEN_KEY = 'sigaps_token';
+const AUTH_REFRESH_KEY = 'sigaps_refresh';
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
@@ -17,18 +20,39 @@ export const api = axios.create({
 });
 
 let isRefreshing = false;
-let refreshQueue: Array<(token: string) => void> = [];
+let refreshQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
 
-function processQueue(token: string) {
-  refreshQueue.forEach((cb) => cb(token));
+function processQueue(token: string | null, error?: unknown) {
+  refreshQueue.forEach(({ resolve, reject }) => {
+    if (token) resolve(token);
+    else reject(error ?? new Error('Sessão expirada'));
+  });
   refreshQueue = [];
+}
+
+function clearAuthStorage() {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_REFRESH_KEY);
+  } catch {
+    /* storage indisponível */
+  }
+  cachedAccessToken = null;
+}
+
+function redirectToLogin() {
+  clearAuthStorage();
+  window.location.href = '/login';
 }
 
 let cachedAccessToken: string | null = null;
 
 function readTokenFromStorage(): string | null {
   try {
-    return localStorage.getItem('sigaps_token');
+    return localStorage.getItem(AUTH_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -61,18 +85,20 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const refreshToken = localStorage.getItem('sigaps_refresh');
+    const refreshToken = localStorage.getItem(AUTH_REFRESH_KEY);
     if (!refreshToken) {
-      localStorage.clear();
-      window.location.href = '/login';
+      redirectToLogin();
       return Promise.reject(error);
     }
 
     if (isRefreshing) {
-      return new Promise((resolve) => {
-        refreshQueue.push((token: string) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          resolve(api(originalRequest));
+      return new Promise((resolve, reject) => {
+        refreshQueue.push({
+          resolve: (token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(api(originalRequest));
+          },
+          reject,
         });
       });
     }
@@ -82,16 +108,16 @@ api.interceptors.response.use(
 
     try {
       const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-      localStorage.setItem('sigaps_token', data.accessToken);
-      localStorage.setItem('sigaps_refresh', data.refreshToken);
+      localStorage.setItem(AUTH_TOKEN_KEY, data.accessToken);
+      localStorage.setItem(AUTH_REFRESH_KEY, data.refreshToken);
       syncApiToken(data.accessToken);
       processQueue(data.accessToken);
       originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
       return api(originalRequest);
-    } catch {
-      localStorage.clear();
-      window.location.href = '/login';
-      return Promise.reject(error);
+    } catch (refreshError) {
+      processQueue(null, refreshError);
+      redirectToLogin();
+      return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
     }

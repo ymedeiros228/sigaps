@@ -15,6 +15,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
 import { useAuthStore, ACTIVE_MUNICIPALITY_KEY } from '../store';
+import { getApiErrorMessage } from '../utils/apiError';
 import { prefetchCadastrosData, prefetchMapData } from '../utils/prefetchAppData';
 import { waitForApiReady } from '../utils/waitForApi';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
@@ -71,8 +72,8 @@ export function LoginPage() {
         prefetchCadastrosData(queryClient, muniId);
         void prefetchMapData(queryClient, muniId);
       }
-    } catch {
-      setError('Email ou senha inválidos. Verifique suas credenciais.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Email ou senha inválidos. Verifique suas credenciais.'));
       setAutoLogging(false);
     } finally {
       setConnecting(false);

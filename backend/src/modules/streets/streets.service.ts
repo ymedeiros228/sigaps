@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
@@ -203,6 +204,10 @@ export class StreetsService {
 
     if (streets.length !== dto.streetIds.length) {
       throw new NotFoundException('Uma ou mais ruas não foram encontradas');
+    }
+
+    if (streets.some((s) => s.municipalityId !== microarea.municipalityId)) {
+      throw new ForbiddenException('Uma ou mais ruas não pertencem a este município');
     }
 
     const conflicts = streets.filter((s) => {
@@ -891,8 +896,8 @@ export class StreetsService {
   ) {
     const { bbox, page, limit, geoPrecision } = options;
     const skip = (page - 1) * limit;
-    const envelope = `ST_MakeEnvelope(${bbox.west}, ${bbox.south}, ${bbox.east}, ${bbox.north}, 4326)`;
-    const intersects = `(
+    const envelope = Prisma.sql`ST_MakeEnvelope(${bbox.west}, ${bbox.south}, ${bbox.east}, ${bbox.north}, 4326)`;
+    const intersects = Prisma.sql`(
       (s.geom IS NOT NULL AND s.geom && ${envelope})
       OR (s.geom IS NULL AND ST_Intersects(
         ST_SetSRID(ST_GeomFromGeoJSON(s.geojson::text), 4326),
@@ -900,28 +905,28 @@ export class StreetsService {
       ))
     )`;
 
-    const filters: string[] = [
-      `s.municipality_id = '${municipalityId}'::uuid`,
-      's.osm_id IS NOT NULL',
+    const filters: Prisma.Sql[] = [
+      Prisma.sql`s.municipality_id = ${municipalityId}::uuid`,
+      Prisma.sql`s.osm_id IS NOT NULL`,
       intersects,
     ];
     if (options.microareaId) {
-      filters.push(`(
-        s.microarea_id = '${options.microareaId}'::uuid
+      filters.push(Prisma.sql`(
+        s.microarea_id = ${options.microareaId}::uuid
         OR EXISTS (
           SELECT 1 FROM street_paint_segments sps
-          WHERE sps.street_id = s.id AND sps.microarea_id = '${options.microareaId}'::uuid
+          WHERE sps.street_id = s.id AND sps.microarea_id = ${options.microareaId}::uuid
         )
       )`);
     }
     if (options.neighborhoodId) {
-      filters.push(`s.neighborhood_id = '${options.neighborhoodId}'::uuid`);
+      filters.push(Prisma.sql`s.neighborhood_id = ${options.neighborhoodId}::uuid`);
     }
     if (options.search?.trim()) {
-      const q = options.search.trim().replace(/'/g, "''");
-      filters.push(`s.name ILIKE '%${q}%'`);
+      const q = `%${options.search.trim()}%`;
+      filters.push(Prisma.sql`s.name ILIKE ${q}`);
     }
-    const whereSql = filters.join(' AND ');
+    const whereSql = Prisma.join(filters, ' AND ');
 
     type BboxRow = {
       id: string;
@@ -944,7 +949,7 @@ export class StreetsService {
 
     const [rows, countResult] = await withDbRetry(() =>
       Promise.all([
-        this.prisma.$queryRawUnsafe<BboxRow[]>(`
+        this.prisma.$queryRaw<BboxRow[]>(Prisma.sql`
           SELECT s.id, s.name, s.street_type, s.microarea_id, s.neighborhood_id,
             s.osm_id, s.geojson, s.family_count, s.inhabitant_count, s.property_count,
             m.id AS ma_id, m.name AS ma_name, m.number AS ma_number, m.color AS ma_color,
@@ -956,7 +961,7 @@ export class StreetsService {
           ORDER BY s.name ASC
           LIMIT ${limit} OFFSET ${skip}
         `),
-        this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(`
+        this.prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
           SELECT COUNT(*)::bigint AS count FROM streets s WHERE ${whereSql}
         `),
       ]),
@@ -1035,6 +1040,9 @@ export class StreetsService {
       include: mapPaintSegmentInclude,
     });
     if (!street) throw new NotFoundException('Rua não encontrada');
+    if (street.municipalityId !== microarea.municipalityId) {
+      throw new ForbiddenException('Rua e microárea devem pertencer ao mesmo município');
+    }
 
     await this.ensureLegacySegments(street);
     const reloaded = await this.prisma.street.findUnique({
@@ -1119,6 +1127,17 @@ export class StreetsService {
       include: mapPaintSegmentInclude,
     });
     if (!street) throw new NotFoundException('Rua não encontrada');
+
+    if (filterMicroareaId) {
+      const microarea = await this.prisma.microarea.findUnique({
+        where: { id: filterMicroareaId },
+        select: { municipalityId: true },
+      });
+      if (!microarea) throw new NotFoundException('Microárea não encontrada');
+      if (street.municipalityId !== microarea.municipalityId) {
+        throw new ForbiddenException('Rua e microárea devem pertencer ao mesmo município');
+      }
+    }
 
     await this.ensureLegacySegments(street);
     const reloaded = await this.prisma.street.findUnique({

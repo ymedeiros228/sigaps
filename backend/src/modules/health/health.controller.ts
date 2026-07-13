@@ -26,8 +26,8 @@ export class HealthController {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { ok: true, ts: Date.now() };
-    } catch (error) {
-      return { ok: false, ts: Date.now(), error: (error as Error).message };
+    } catch {
+      return { ok: false, ts: Date.now() };
     }
   }
 
@@ -58,8 +58,8 @@ export class HealthController {
         streetsGeom: geom[0]?.has_geom === true,
         streetsGeomIndex: indexed[0]?.has_idx === true,
       };
-    } catch (error) {
-      return { ok: false, ts: Date.now(), error: (error as Error).message };
+    } catch {
+      return { ok: false, ts: Date.now() };
     }
   }
 }

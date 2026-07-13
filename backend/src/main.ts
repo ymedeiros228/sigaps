@@ -9,12 +9,21 @@ import { existsSync } from 'fs';
 import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 
+function serveUploadSubdir(app: NestExpressApplication, subdir: string) {
+  const dir = join(process.cwd(), 'uploads', subdir);
+  if (existsSync(dir)) {
+    app.useStaticAssets(dir, { prefix: `/uploads/${subdir}/` });
+  }
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
   app.use(compression());
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
+  // Apenas subpastas públicas (fotos ACS, logos). Backups NÃO são servidos estaticamente.
+  serveUploadSubdir(app, 'acs');
+  serveUploadSubdir(app, 'logos');
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -45,7 +54,9 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document);
+  if (config.get<string>('NODE_ENV') !== 'production') {
+    SwaggerModule.setup('docs', app, document);
+  }
 
   const publicDir = join(process.cwd(), 'public');
   if (existsSync(publicDir)) {
@@ -105,7 +116,9 @@ async function bootstrap() {
   const port = config.get<number>('PORT', 3000);
   await app.listen(port);
   console.log(`SIGAPS API rodando em http://localhost:${port}`);
-  console.log(`Swagger em http://localhost:${port}/docs`);
+  if (config.get<string>('NODE_ENV') !== 'production') {
+    console.log(`Swagger em http://localhost:${port}/docs`);
+  }
 }
 
 bootstrap();

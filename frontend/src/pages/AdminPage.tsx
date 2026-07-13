@@ -128,38 +128,30 @@ export function AdminPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [auditExportLoading, setAuditExportLoading] = useState(false);
 
-  if (!canAccessAdmin(user?.role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (!municipalityId) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  const canAccess = canAccessAdmin(user?.role);
+  const ready = canAccess && !!municipalityId;
 
   const { data: overview, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['admin', 'overview', municipalityId],
-    queryFn: () => adminApi.overview(municipalityId).then((r) => r.data),
+    queryFn: () => adminApi.overview(municipalityId!).then((r) => r.data),
+    enabled: ready,
   });
 
   const { data: auditData, isLoading: auditLoading } = useQuery({
     queryKey: ['admin', 'audit', municipalityId, auditPage, auditFilters],
-    queryFn: () => adminApi.audit(municipalityId, auditPage, 30, auditFilters).then((r) => r.data),
-    enabled: tab === 'auditoria',
+    queryFn: () => adminApi.audit(municipalityId!, auditPage, 30, auditFilters).then((r) => r.data),
+    enabled: ready && tab === 'auditoria',
   });
 
   const { data: autoBackupInfo, refetch: refetchAutoBackups } = useQuery({
     queryKey: ['admin', 'auto-backups', municipalityId],
-    queryFn: () => adminApi.listAutoBackups(municipalityId).then((r) => r.data),
-    enabled: tab === 'backup',
+    queryFn: () => adminApi.listAutoBackups(municipalityId!).then((r) => r.data),
+    enabled: ready && tab === 'backup',
   });
   const autoBackups = autoBackupInfo?.items ?? [];
 
   const exportMutation = useMutation({
-    mutationFn: () => adminApi.exportBackup(municipalityId).then((r) => r.data),
+    mutationFn: () => adminApi.exportBackup(municipalityId!).then((r) => r.data),
     onSuccess: (data) => {
       const name = overview?.municipality.name.replace(/\s+/g, '-').toLowerCase() ?? 'municipio';
       const date = new Date().toISOString().slice(0, 10);
@@ -171,7 +163,7 @@ export function AdminPage() {
 
   const importMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
-      adminApi.importBackup(municipalityId, payload).then((r) => r.data),
+      adminApi.importBackup(municipalityId!, payload).then((r) => r.data),
     onSuccess: (res) => {
       const parts = Object.entries(res.restored)
         .map(([k, v]) => `${v} ${k}`)
@@ -185,7 +177,7 @@ export function AdminPage() {
   });
 
   const runAutoBackupMutation = useMutation({
-    mutationFn: () => adminApi.runAutoBackup(municipalityId).then((r) => r.data),
+    mutationFn: () => adminApi.runAutoBackup(municipalityId!).then((r) => r.data),
     onSuccess: () => {
       setMessage({ type: 'success', text: 'Backup automático gerado no servidor.' });
       void refetchAutoBackups();
@@ -195,7 +187,7 @@ export function AdminPage() {
 
   const downloadAutoBackupMutation = useMutation({
     mutationFn: (filename: string) =>
-      adminApi.downloadAutoBackup(municipalityId, filename).then((r) => r.data),
+      adminApi.downloadAutoBackup(municipalityId!, filename).then((r) => r.data),
     onSuccess: (data, filename) => {
       downloadJson(data, filename);
       setMessage({ type: 'success', text: 'Backup automático baixado.' });
@@ -207,7 +199,7 @@ export function AdminPage() {
     mutationFn: (values: UserFormValues) => {
       if (editingUser) {
         return adminApi
-          .updateUser(municipalityId, editingUser.id, {
+          .updateUser(municipalityId!, editingUser.id, {
             name: values.name,
             email: values.email,
             role: values.role,
@@ -216,7 +208,7 @@ export function AdminPage() {
           .then((r) => r.data);
       }
       return adminApi
-        .createUser(municipalityId, {
+        .createUser(municipalityId!, {
           name: values.name,
           email: values.email,
           role: values.role,
@@ -239,7 +231,7 @@ export function AdminPage() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: ({ userId, password }: { userId: string; password: string }) =>
-      adminApi.resetPassword(municipalityId, userId, password),
+      adminApi.resetPassword(municipalityId!, userId, password),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] });
       setMessage({ type: 'success', text: 'Senha redefinida com sucesso.' });
@@ -260,6 +252,18 @@ export function AdminPage() {
     };
     reader.readAsText(file);
   };
+
+  if (!canAccess) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!municipalityId) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1280, mx: 'auto' }}>
