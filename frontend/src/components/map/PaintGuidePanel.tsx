@@ -737,8 +737,8 @@ export function PaintGuidePanel({
                     sx={{ display: 'block', mt: 1.25, textAlign: 'center' }}
                   >
                     {paintMode
-                      ? 'Atalhos: 1 trecho · 2 rua inteira · 3 esq · 4 dir · M mover · Ctrl+Z desfazer · X sair'
-                      : 'Atalhos: P pintar · E apagar · M mover · X sair'}
+                      ? 'Esc sair do modo pintar'
+                      : 'P pintar · E apagar'}
                   </Typography>
                 )}
               </>

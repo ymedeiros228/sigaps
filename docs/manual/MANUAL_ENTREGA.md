@@ -427,7 +427,7 @@ Esta seção descreve o **uso prático** do SIGAPS pelo enfermeiro da APS — co
 <strong>Passo 4.</strong> Toque nas ruas do território. Use <strong>Mover</strong> (ou tecla <strong>M</strong>) para arrastar o mapa sem pintar.<br>
 <strong>Passo 5.</strong> Para pintar várias ruas de uma vez, expanda <strong>Mais opções</strong> → <strong>Pintar bairro inteiro</strong> (quando as ruas já tiverem bairro cadastrado).<br>
 <strong>Passo 6.</strong> Ao terminar, clique em <strong>Guardar</strong> para minimizar o painel e conferir o resultado.<br>
-<strong>Dica:</strong> Use a <strong>busca</strong> no topo para localizar uma rua pelo nome antes de pintar. Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>1–4</strong> modos de pincel · <strong>Ctrl+Z</strong> desfazer · <strong>X</strong> sair.
+<strong>Dica:</strong> Use a <strong>busca</strong> no topo para localizar uma rua pelo nome antes de pintar. Atalhos: <strong>P</strong> pintar · <strong>E</strong> apagar · <strong>Esc</strong> sair. Modos de pincel (trecho, rua inteira, lado) ficam nos botões do painel.
 </div>
 
 ## 11.3 Cadastrar ou atualizar ACS

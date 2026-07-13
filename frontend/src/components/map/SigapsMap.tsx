@@ -275,7 +275,7 @@ export function SigapsMap() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-      if ((e.key === 'x' || e.key === 'X') && paintMode) {
+      if (e.key === 'Escape' && paintMode) {
         setPaintMode(false);
         setSnackbar({ message: 'Modo pintar desativado', severity: 'info' });
         return;
@@ -300,10 +300,6 @@ export function SigapsMap() {
         setPaintMode(true);
         useMapStore.getState().setPaintGuideCollapsed(false);
         setSnackbar({ message: 'Modo apagar — toque na rua colorida', severity: 'info' });
-      }
-      if ((e.key === 'm' || e.key === 'M') && paintMode) {
-        const store = useMapStore.getState();
-        store.setMapPanEnabled(!store.mapPanEnabled);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -950,38 +946,6 @@ export function SigapsMap() {
     }
     setLastPaintAction('Desfeito');
   }, [streets, unpaintAtPointMutation, paintAtPointMutation]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        handleUndo();
-        return;
-      }
-
-      if (!paintMode) return;
-
-      const store = useMapStore.getState();
-      if (e.key === '1') {
-        store.setPaintScope('segment');
-        store.setPaintStreetSide('FULL');
-      } else if (e.key === '2') {
-        store.setPaintScope('whole');
-        store.setPaintStreetSide('FULL');
-      } else if (e.key === '3') {
-        store.setPaintScope('segment');
-        store.setPaintStreetSide('LEFT');
-      } else if (e.key === '4') {
-        store.setPaintScope('segment');
-        store.setPaintStreetSide('RIGHT');
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [paintMode, handleUndo]);
 
   const handleDragPaintEnd = useCallback(() => {
     clearDragPaintIds();
