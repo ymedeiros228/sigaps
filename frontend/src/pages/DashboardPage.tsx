@@ -49,7 +49,6 @@ import {
 import { municipalitiesApi } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { CACHE, queryKeys } from '../utils/queryKeys';
-import { OperationalChecklistCard } from '../components/dashboard/OperationalChecklist';
 import { DashboardNextSteps } from '../components/dashboard/DashboardNextSteps';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
@@ -226,8 +225,6 @@ export function DashboardPage() {
         microareas={data.microareas}
         mapHomologatedAt={municipality?.mapHomologatedAt}
       />
-
-      <OperationalChecklistCard municipalityId={municipalityId} />
 
       {isEmpty && (
         <Alert
