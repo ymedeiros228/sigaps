@@ -93,12 +93,11 @@ export function prefetchMapData(queryClient: QueryClient, municipalityId: string
 let dashboardInvalidateTimer: ReturnType<typeof setTimeout> | null = null;
 let microareasInvalidateTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Após pintar: refetch leve e espaçado — evita tempestade de requests no arraste. */
+/** Após pintar: refetch leve e espaçado — envelopes ficam no scheduleEnvelopeRefresh (12s). */
 export function scheduleMicroareasInvalidate(queryClient: QueryClient, municipalityId: string) {
   if (microareasInvalidateTimer) clearTimeout(microareasInvalidateTimer);
   microareasInvalidateTimer = setTimeout(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
     microareasInvalidateTimer = null;
   }, 30_000);
 }

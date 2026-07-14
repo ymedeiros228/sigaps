@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import {
   Snackbar,
   Alert,
@@ -56,21 +56,42 @@ export function CadastrosProvider({ children }: { children: ReactNode }) {
   const [success, setSuccess] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; onConfirm: () => void } | null>(null);
 
+  const reportError = useCallback((e: unknown) => setError(getApiErrorMessage(e)), []);
+  const reportSuccess = useCallback((message: string) => setSuccess(message), []);
+  const confirmDelete = useCallback(
+    (label: string, onConfirm: () => void) => setConfirm({ label, onConfirm }),
+    [],
+  );
+
+  const value = useMemo(
+    () => ({
+      canManage,
+      canManageAcs: manageAcs,
+      canManagePlaces: managePlaces,
+      canDelete: deleteCadastros,
+      canDeleteAcs: deleteAcs,
+      canDeletePlaces: deletePlaces,
+      canDeleteMicroareas: deleteMicroareas,
+      reportError,
+      reportSuccess,
+      confirmDelete,
+    }),
+    [
+      canManage,
+      manageAcs,
+      managePlaces,
+      deleteCadastros,
+      deleteAcs,
+      deletePlaces,
+      deleteMicroareas,
+      reportError,
+      reportSuccess,
+      confirmDelete,
+    ],
+  );
+
   return (
-    <CadastrosContext.Provider
-      value={{
-        canManage,
-        canManageAcs: manageAcs,
-        canManagePlaces: managePlaces,
-        canDelete: deleteCadastros,
-        canDeleteAcs: deleteAcs,
-        canDeletePlaces: deletePlaces,
-        canDeleteMicroareas: deleteMicroareas,
-        reportError: (e) => setError(getApiErrorMessage(e)),
-        reportSuccess: (message) => setSuccess(message),
-        confirmDelete: (label, onConfirm) => setConfirm({ label, onConfirm }),
-      }}
-    >
+    <CadastrosContext.Provider value={value}>
       {children}
       <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError(null)}>
         <Alert severity="error" onClose={() => setError(null)} sx={{ borderRadius: 2 }}>

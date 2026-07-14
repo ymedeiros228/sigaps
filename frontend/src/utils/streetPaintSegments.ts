@@ -413,7 +413,8 @@ export function buildStreetMapFeatures(
         hasMicroarea: false,
         isPartial: true,
       },
-      geometry: displayGeometry(street, geometry, side),
+      // Gaps/unpainted: centerline (offset só nos trechos pintados e no preview).
+      geometry,
     };
     if (baseProps.dragPending) dragPreview.push(feature);
     else unpainted.push(feature);
@@ -438,11 +439,15 @@ export function buildStreetMapFeatures(
     }
 
     if (dual) {
+      const seenGaps = new Set<string>();
       for (const side of ['LEFT', 'RIGHT'] as StreetPaintSide[]) {
         const sideSegs = segmentsCoveringSide(segments, side);
         const gaps = computeUnpaintedRanges(sideSegs, maxIndex);
         for (const gap of gaps) {
-          pushUnpaintedGap(gap, side, side);
+          const key = `${gap.start}:${gap.end}`;
+          if (seenGaps.has(key)) continue;
+          seenGaps.add(key);
+          pushUnpaintedGap(gap, 'FULL', key);
         }
       }
     } else {
@@ -485,15 +490,8 @@ export function buildStreetMapFeatures(
       ...feature,
       properties: { ...feature.properties, color: ctx.activeColor },
     });
-  } else if (dual && ctx.paintMode) {
-    for (const side of ['LEFT', 'RIGHT'] as StreetPaintSide[]) {
-      unpainted.push({
-        ...feature,
-        properties: { ...feature.properties, id: `${street.id}:unpainted:${side}`, side, isPartial: true },
-        geometry: displayGeometry(street, street.geojson, side),
-      });
-    }
   } else {
+    // Dual sem pintura: uma centerline (evita 2× offset trig em ~todas as ruas OSM).
     unpainted.push(feature);
   }
 

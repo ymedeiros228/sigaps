@@ -95,7 +95,7 @@ export function StreetsLayer({
   const brushRafRef = useRef<number | null>(null);
   const brushLastVertexRef = useRef<number | null>(null);
   const brushPreviewActiveRef = useRef(false);
-  const [brushPreview, setBrushPreview] = useState<GeoJSON.Feature | null>(null);
+  const brushPreviewLayerRef = useRef<L.Polyline | null>(null);
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [mapBounds, setMapBounds] = useState(map.getBounds());
@@ -125,7 +125,6 @@ export function StreetsLayer({
     container.classList.toggle('sigaps-map-painting', paintMode);
     container.classList.toggle('sigaps-map-eraser', paintMode && eraserMode);
     container.classList.toggle('sigaps-map-selecting', !paintMode);
-    container.classList.toggle('sigaps-map-brushing', !!brushPreview);
     return () =>
       container.classList.remove(
         'sigaps-map-painting',
@@ -133,7 +132,18 @@ export function StreetsLayer({
         'sigaps-map-selecting',
         'sigaps-map-brushing',
       );
-  }, [map, paintMode, eraserMode, brushPreview]);
+  }, [map, paintMode, eraserMode]);
+
+  const clearBrushPreviewLayer = () => {
+    if (brushPreviewLayerRef.current) {
+      map.removeLayer(brushPreviewLayerRef.current);
+      brushPreviewLayerRef.current = null;
+    }
+    brushPreviewActiveRef.current = false;
+    map.getContainer().classList.remove('sigaps-map-brushing');
+  };
+
+  useEffect(() => () => clearBrushPreviewLayer(), [map]);
 
   const streetsByIdRef = useRef(new Map<string, Street>());
   streetsByIdRef.current = new Map(streets.map((street) => [street.id, street]));
@@ -149,16 +159,37 @@ export function StreetsLayer({
       eraser,
     );
     if (!geom) {
-      brushPreviewActiveRef.current = false;
-      setBrushPreview(null);
+      clearBrushPreviewLayer();
       return;
     }
+    const latlngs = (geom.coordinates as [number, number][]).map(([lng, lat]) => L.latLng(lat, lng));
+    const style: L.PolylineOptions = eraser
+      ? {
+          color: '#EF5350',
+          weight: 8,
+          opacity: 0.85,
+          dashArray: '6 6',
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false,
+        }
+      : {
+          color: activeColor,
+          weight: 9,
+          opacity: 0.9,
+          dashArray: '10 5',
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false,
+        };
+    if (!brushPreviewLayerRef.current) {
+      brushPreviewLayerRef.current = L.polyline(latlngs, style).addTo(map);
+    } else {
+      brushPreviewLayerRef.current.setLatLngs(latlngs);
+      brushPreviewLayerRef.current.setStyle(style);
+    }
     brushPreviewActiveRef.current = true;
-    setBrushPreview({
-      type: 'Feature',
-      properties: { id: session.streetId, eraser },
-      geometry: geom,
-    });
+    map.getContainer().classList.add('sigaps-map-brushing');
   };
 
   const stopBrushTracking = () => {
@@ -269,8 +300,7 @@ export function StreetsLayer({
           }
         }
         brushSessionRef.current = null;
-        brushPreviewActiveRef.current = false;
-        setBrushPreview(null);
+        clearBrushPreviewLayer();
       }
       dragActionRef.current = null;
       onDragPaintEnd();
@@ -361,28 +391,26 @@ export function StreetsLayer({
     return { painted: p, unpainted: u, dragPreview: d, hitFeatures: hits };
   }, [renderStreets, featureCtx, zoom, highlightedId, selectedIds, dragPaintIds, activeColor]);
 
-  const features = useMemo(() => [...painted, ...unpainted, ...dragPreview], [painted, unpainted, dragPreview]);
-
-  /** Hit layer: não remountar a cada cor pintada (só modo/zoom/contagem). */
+  /** Hit layer: não remountar ao trocar cor da microárea. */
   const hitLayerVersion = useMemo(
-    () => `${hitFeatures.length}:${zoom}:${paintMode ? 1 : 0}:${eraserMode ? 1 : 0}`,
-    [hitFeatures.length, zoom, paintMode, eraserMode],
+    () => `${hitFeatures.length}:${zoom}:${paintMode ? 1 : 0}:${eraserMode ? 1 : 0}:${mapPanEnabled ? 1 : 0}`,
+    [hitFeatures.length, zoom, paintMode, eraserMode, mapPanEnabled],
   );
 
-  /** Versão curta das geometrias pintadas — evita key O(n) gigante. */
-  const paintVisualVersion = useMemo(() => {
+  /** Versões curtas — pintado e cinza com keys separadas (pintar não remonta tudo). */
+  const hashFeatures = (list: typeof painted) => {
     let h = 0;
-    let n = 0;
-    for (const feature of features) {
+    for (const feature of list) {
       const p = feature.properties;
-      if (!p.hasMicroarea && !p.dragPending) continue;
-      n += 1;
       for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) | 0;
       const color = p.color ?? '';
       for (let i = 0; i < color.length; i++) h = (h * 31 + color.charCodeAt(i)) | 0;
     }
-    return `${n}:${h}`;
-  }, [features]);
+    return `${list.length}:${h}`;
+  };
+  const paintedVersion = useMemo(() => hashFeatures(painted), [painted]);
+  const unpaintedVersion = useMemo(() => hashFeatures(unpainted), [unpainted]);
+  const dragPreviewVersion = useMemo(() => hashFeatures(dragPreview), [dragPreview]);
 
   const maxFamilyCount = useMemo(
     () => Math.max(1, ...streets.map((s) => s.familyCount ?? 0)),
@@ -411,7 +439,9 @@ export function StreetsLayer({
   );
 
   const hoveredFeature = useMemo(() => {
-    if (!paintMode || mapPanEnabled || !hoveredId || !hoverLatLng || brushPreview) return null;
+    if (!paintMode || mapPanEnabled || !hoveredId || !hoverLatLng || brushSessionRef.current) {
+      return null;
+    }
     const street = streetsById.get(hoveredId);
     if (!street?.geojson) return null;
     const { lat, lng } = hoverLatLng;
@@ -445,7 +475,6 @@ export function StreetsLayer({
     paintStreetSide,
     paintScope,
     selectedMicroareaId,
-    brushPreview,
   ]);
 
   const hoverPreviewStyle = (feature?: GeoJSON.Feature): PathOptions => {
@@ -469,7 +498,7 @@ export function StreetsLayer({
     };
   };
 
-  const fc = (list: typeof features) => ({ type: 'FeatureCollection' as const, features: list });
+  const fc = (list: typeof painted) => ({ type: 'FeatureCollection' as const, features: list });
 
   const paintedHaloStyle = (): PathOptions => ({
     color: '#ffffff',
@@ -724,7 +753,7 @@ export function StreetsLayer({
     <>
       {unpainted.length > 0 && !paintMode && (
         <GeoJSON
-          key={`system-streets-${unpainted.length}-${paintVisualVersion.length}`}
+          key={`system-streets-${unpaintedVersion}`}
           data={fc(unpainted)}
           style={systemStreetStyle}
           interactive={false}
@@ -733,7 +762,7 @@ export function StreetsLayer({
 
       {unpainted.length > 0 && paintMode && (
         <GeoJSON
-          key={`unpainted-paint-${paintVisualVersion}`}
+          key={`unpainted-paint-${unpaintedVersion}`}
           data={fc(unpainted)}
           style={unassignedStyle}
           interactive={false}
@@ -742,7 +771,7 @@ export function StreetsLayer({
 
       {dragPreview.length > 0 && paintMode && !showHeatmap && (
         <GeoJSON
-          key={`drag-preview-${paintVisualVersion}-${activeColor}`}
+          key={`drag-preview-${dragPreviewVersion}-${activeColor}`}
           data={fc(dragPreview)}
           style={dragPreviewStyle}
           interactive={false}
@@ -752,13 +781,13 @@ export function StreetsLayer({
       {painted.length > 0 && (
         <>
           <GeoJSON
-            key={`painted-halo-${paintVisualVersion}`}
+            key={`painted-halo-${paintedVersion}`}
             data={fc(painted)}
             style={paintedHaloStyle}
             interactive={false}
           />
           <GeoJSON
-            key={`painted-line-${paintVisualVersion}-${paintMode}-${eraserMode}`}
+            key={`painted-line-${paintedVersion}-${paintMode}-${eraserMode}`}
             data={fc(painted)}
             style={paintedLineStyle}
             interactive={false}
@@ -775,16 +804,7 @@ export function StreetsLayer({
         />
       )}
 
-      {brushPreview && paintMode && !showHeatmap && (
-        <GeoJSON
-          key={`brush-preview-${activeColor}-${eraserMode ? 'e' : 'p'}`}
-          data={{ type: 'FeatureCollection', features: [brushPreview] } as GeoJSON.FeatureCollection}
-          style={hoverPreviewStyle}
-          interactive={false}
-        />
-      )}
-
-      {hoveredFeature && (
+      {hoveredFeature && !brushPreviewActiveRef.current && (
         <GeoJSON
           key={`hover-${hoveredId}-${paintMode}-${eraserMode}`}
           data={{ type: 'FeatureCollection', features: [hoveredFeature] } as GeoJSON.FeatureCollection}
@@ -794,7 +814,7 @@ export function StreetsLayer({
       )}
 
       <GeoJSON
-        key={`streets-hit-${selectedMicroareaId}-${mapPanEnabled}-${hitLayerVersion}`}
+        key={`streets-hit-${hitLayerVersion}`}
         data={fc(hitFeatures)}
         style={() => ({
           color: 'transparent',

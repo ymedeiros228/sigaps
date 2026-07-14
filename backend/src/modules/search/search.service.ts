@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { buildStreetSearchWhere } from '../../common/utils/street-search.util';
+import { compactLineStringGeojson } from '../../common/utils/compact-geojson';
 
 @Injectable()
 export class SearchService {
@@ -37,22 +38,30 @@ export class SearchService {
     const containsWhere = containsVariants.map((value) => ({ name: value }));
 
     const [streets, neighborhoods, places, ubs, acs, microareas] = await Promise.all([
-      this.prisma.street.findMany({
-        where: {
-          ...buildStreetSearchWhere(municipalityId, q),
-          osmId: { not: null },
-          NOT: { name: { startsWith: 'Via OSM' } },
-        },
-        take: 25,
-        select: {
-          id: true,
-          name: true,
-          streetType: true,
-          geojson: true,
-          microarea: { select: { id: true, name: true, color: true } },
-        },
-        orderBy: { name: 'asc' },
-      }),
+      this.prisma.street
+        .findMany({
+          where: {
+            ...buildStreetSearchWhere(municipalityId, q),
+            osmId: { not: null },
+            NOT: { name: { startsWith: 'Via OSM' } },
+          },
+          take: 25,
+          select: {
+            id: true,
+            name: true,
+            streetType: true,
+            geojson: true,
+            microarea: { select: { id: true, name: true, color: true } },
+          },
+          orderBy: { name: 'asc' },
+        })
+        .then((rows) =>
+          rows.map((s) => ({
+            ...s,
+            // Typeahead só precisa de geometria fina p/ flyTo — corta payload.
+            geojson: compactLineStringGeojson(s.geojson, 4),
+          })),
+        ),
       this.prisma.neighborhood.findMany({
         where: { municipalityId, OR: containsWhere },
         take: 10,

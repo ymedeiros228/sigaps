@@ -86,8 +86,8 @@ export async function cancelStreetMapQueries(
   queryClient: QueryClient,
   municipalityId: string,
 ) {
+  // Só cancela o cache full — viewport em andamento continua (não atrasa pintura).
   await queryClient.cancelQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
-  await queryClient.cancelQueries({ queryKey: ['streets-viewport', municipalityId] });
 }
 
 function buildOptimisticPaintSegments(
