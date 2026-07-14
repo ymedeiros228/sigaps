@@ -93,11 +93,15 @@ body {
 }
 
 .map-paint-panel {
-  animation: mapPanelSlideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: mapPanelSlideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.map-paint-panel--truncated {
+.map-paint-panel--collapsed {
   animation: none;
+}
+
+.map-paint-panel--active {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
 }
 
 .map-microarea-chip {
@@ -108,19 +112,22 @@ body {
   transform: translateY(-1px);
 }
 
+.map-toolbar-root--paint {
+  padding-bottom: 10px !important;
+}
 
 .map-legend-panel {
   transition: bottom 0.28s ease, opacity 0.28s ease;
 }
 
-@keyframes mapPanelSlideIn {
+@keyframes mapPanelSlideUp {
   from {
     opacity: 0;
-    transform: translateX(12px);
+    transform: translateX(-50%) translateY(16px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(-50%) translateY(0);
   }
 }
 
