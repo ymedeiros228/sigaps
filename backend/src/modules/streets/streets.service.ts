@@ -993,27 +993,23 @@ export class StreetsService {
       n_name: string | null;
     };
 
-    const [rows, countResult] = await withDbRetry(() =>
-      Promise.all([
-        this.prisma.$queryRaw<BboxRow[]>(Prisma.sql`
-          SELECT s.id, s.name, s.street_type, s.microarea_id, s.neighborhood_id,
-            s.osm_id, s.geojson, s.family_count, s.inhabitant_count, s.property_count,
-            m.id AS ma_id, m.name AS ma_name, m.number AS ma_number, m.color AS ma_color,
-            n.id AS n_id, n.name AS n_name
-          FROM streets s
-          LEFT JOIN microareas m ON m.id = s.microarea_id
-          LEFT JOIN neighborhoods n ON n.id = s.neighborhood_id
-          WHERE ${whereSql}
-          ORDER BY s.name ASC
-          LIMIT ${limit} OFFSET ${skip}
-        `),
-        this.prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
-          SELECT COUNT(*)::bigint AS count FROM streets s WHERE ${whereSql}
-        `),
-      ]),
+    // Sem COUNT(*) — FE já tem total do município via probe; COUNT espacial era o custo.
+    const rows = await withDbRetry(() =>
+      this.prisma.$queryRaw<BboxRow[]>(Prisma.sql`
+        SELECT s.id, s.name, s.street_type, s.microarea_id, s.neighborhood_id,
+          s.osm_id, s.geojson, s.family_count, s.inhabitant_count, s.property_count,
+          m.id AS ma_id, m.name AS ma_name, m.number AS ma_number, m.color AS ma_color,
+          n.id AS n_id, n.name AS n_name
+        FROM streets s
+        LEFT JOIN microareas m ON m.id = s.microarea_id
+        LEFT JOIN neighborhoods n ON n.id = s.neighborhood_id
+        WHERE ${whereSql}
+        ORDER BY s.name ASC
+        LIMIT ${limit} OFFSET ${skip}
+      `),
     );
 
-    const total = Number(countResult[0]?.count ?? 0);
+    const total = skip + rows.length + (rows.length >= limit ? 1 : 0);
     const streetIds = rows.map((s) => s.id);
     const segmentRows =
       streetIds.length > 0

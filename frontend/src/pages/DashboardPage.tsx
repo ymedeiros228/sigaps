@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -34,18 +34,6 @@ import {
   Refresh,
   Download,
 } from '@mui/icons-material';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-  Legend,
-} from 'recharts';
 import { municipalitiesApi } from '../services/api';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { CACHE, queryKeys } from '../utils/queryKeys';
@@ -56,6 +44,10 @@ import { formatAuditAction } from '../utils/permissions';
 import { dashboardApi, type AcsCoverageRow } from '../services/api';
 import { waitForApiReady } from '../utils/waitForApi';
 import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from '../utils/queryRetry';
+
+const DashboardCharts = lazy(() =>
+  import('../components/dashboard/DashboardCharts').then((m) => ({ default: m.DashboardCharts })),
+);
 
 function dashboardErrorMessage(error: unknown) {
   if (isRetryableQueryError(error)) {
@@ -277,93 +269,22 @@ export function DashboardPage() {
         ))}
       </Box>
 
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: '1fr 2fr' },
-          gap: 2,
-          mt: 3,
-        }}
+      <Suspense
+        fallback={
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress size={28} />
+          </Box>
+        }
       >
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-              Cobertura territorial
-            </Typography>
-            <Typography variant="h2" color="primary" sx={{ fontWeight: 800, lineHeight: 1 }}>
-              {data.coverage}%
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-              {data.assignedStreets} de {data.streets} ruas vinculadas a microáreas
-            </Typography>
-            <Box sx={{ height: 200 }}>
-              {data.streets === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ py: 6, textAlign: 'center' }}>
-                  Nenhuma rua cadastrada ainda. Importe ruas no mapa para ver a cobertura.
-                </Typography>
-              ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
-                    paddingAngle={3}
-                  >
-                    {pieData.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Legend />
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Ruas por microárea
-            </Typography>
-            {(data.microareasChart ?? []).length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-                Cadastre microáreas para ver a distribuição territorial.
-              </Typography>
-            ) : (
-              <>
-                {!hasPaintedMicroareas && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Nenhuma rua pintada ainda — use o mapa para vincular ruas às microáreas.
-                  </Typography>
-                )}
-              <Box sx={{ height: 280 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={microareasChart} barCategoryGap="20%">
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
-                    />
-                    <Bar dataKey="streets" name="Ruas" radius={[6, 6, 0, 0]}>
-                      {microareasChart.map((entry: { color: string }, i: number) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </Box>
+        <DashboardCharts
+          coverage={data.coverage}
+          assignedStreets={data.assignedStreets}
+          streets={data.streets}
+          pieData={pieData}
+          microareasChart={microareasChart}
+          hasPaintedMicroareas={hasPaintedMicroareas}
+        />
+      </Suspense>
 
       <Card sx={{ mt: 3 }}>
         <CardContent>

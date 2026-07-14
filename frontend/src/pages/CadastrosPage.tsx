@@ -1,5 +1,13 @@
-import { useEffect, useMemo } from 'react';
-import { Alert, Box, Breadcrumbs, Card, Link, Typography } from '@mui/material';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
+import {
+  Alert,
+  Box,
+  Breadcrumbs,
+  Card,
+  CircularProgress,
+  Link,
+  Typography,
+} from '@mui/material';
 import { Link as RouterLink, Navigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { CadastrosProvider } from '../components/cadastros/CadastrosContext';
@@ -10,16 +18,31 @@ import {
   isCadastrosSectionId,
   type CadastrosSectionId,
 } from '../components/cadastros/cadastrosConfig';
-import { MunicipalityTab } from '../components/cadastros/tabs/MunicipalityTab';
-import { UbsTab } from '../components/cadastros/tabs/UbsTab';
-import { AcsTab } from '../components/cadastros/tabs/AcsTab';
-import { NeighborhoodsTab } from '../components/cadastros/tabs/NeighborhoodsTab';
-import { PlacesTab } from '../components/cadastros/tabs/PlacesTab';
-import { MicroareasTab } from '../components/cadastros/tabs/MicroareasTab';
 import { CadastrosLoadError } from '../components/cadastros/CadastrosLoadError';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
 import { canManageAcs, canManageCadastrosSection, isAcsUser } from '../utils/permissions';
+
+const MunicipalityTab = lazy(() =>
+  import('../components/cadastros/tabs/MunicipalityTab').then((m) => ({ default: m.MunicipalityTab })),
+);
+const UbsTab = lazy(() =>
+  import('../components/cadastros/tabs/UbsTab').then((m) => ({ default: m.UbsTab })),
+);
+const AcsTab = lazy(() =>
+  import('../components/cadastros/tabs/AcsTab').then((m) => ({ default: m.AcsTab })),
+);
+const NeighborhoodsTab = lazy(() =>
+  import('../components/cadastros/tabs/NeighborhoodsTab').then((m) => ({
+    default: m.NeighborhoodsTab,
+  })),
+);
+const PlacesTab = lazy(() =>
+  import('../components/cadastros/tabs/PlacesTab').then((m) => ({ default: m.PlacesTab })),
+);
+const MicroareasTab = lazy(() =>
+  import('../components/cadastros/tabs/MicroareasTab').then((m) => ({ default: m.MicroareasTab })),
+);
 
 function defaultSectionForRole(role?: string): CadastrosSectionId {
   if (role === 'ENFERMEIRO') return 'acs';
@@ -169,13 +192,21 @@ export function CadastrosPage() {
               highlightAcs={user?.role === 'ENFERMEIRO'}
             />
             <Box sx={{ flex: 1, p: { xs: 2, sm: 3 }, minWidth: 0 }}>
-              <CadastrosContent
-                municipalityId={municipalityId}
-                section={section}
-                acsAction={acsAction}
-                onAcsActionConsumed={clearAcsAction}
-                onGoToMicroareas={() => handleSectionChange('microareas')}
-              />
+              <Suspense
+                fallback={
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                    <CircularProgress size={32} />
+                  </Box>
+                }
+              >
+                <CadastrosContent
+                  municipalityId={municipalityId}
+                  section={section}
+                  acsAction={acsAction}
+                  onAcsActionConsumed={clearAcsAction}
+                  onGoToMicroareas={() => handleSectionChange('microareas')}
+                />
+              </Suspense>
             </Box>
           </Box>
         </Card>

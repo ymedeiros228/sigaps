@@ -228,6 +228,8 @@ export function SigapsMap() {
   );
   const deferredStreets = useDeferredValue(streets);
   const mapStreets = paintMode ? streets : deferredStreets;
+  /** Legenda/painel: deferred — não compete com o Leaflet no arraste. */
+  const chromeStreets = paintMode ? deferredStreets : streets;
 
   const refreshMicroareaVisuals = useCallback((options?: { rebuildEnvelopes?: boolean }) => {
     if (!municipalityId) return;
@@ -1485,7 +1487,7 @@ export function SigapsMap() {
 
       <MapLegend
         microareas={microareas}
-        streets={streets}
+        streets={chromeStreets}
         ubsList={ubsList}
         placesList={placesList}
         loading={streetsFetching && streetCount === 0}
@@ -1512,7 +1514,7 @@ export function SigapsMap() {
       {!acsReadOnly && (
       <PaintGuidePanel
         microareas={microareas}
-        streets={streets}
+        streets={chromeStreets}
         streetCount={streetCount}
         municipalityId={municipalityId!}
         onPaintStreets={(ids) => {
@@ -1544,7 +1546,7 @@ export function SigapsMap() {
       <MapDivisionsPanel
         municipalityId={municipalityId!}
         microareas={microareas}
-        streets={streets}
+        streets={chromeStreets}
         onAssignStreets={(streetIds, microareaId) => {
           lastAssignIdsRef.current = streetIds;
           assignMutation.mutate({ streetIds, microareaId });
