@@ -67,6 +67,7 @@ body {
   animation: fadeIn 0.35s ease-out;
 }
 
+/* Fallback da barra das chips (estilo fino do painel; sx do componente refine a cor). */
 .map-microarea-chips {
   scrollbar-width: thin;
 }
@@ -75,9 +76,14 @@ body {
   height: 6px;
 }
 
-.map-microarea-chips::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
+.map-microarea-chips::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.map-microarea-chips::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .map-float-panel {

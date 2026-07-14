@@ -385,6 +385,7 @@ export function PaintGuidePanel({
         {!collapsed && (
           <Collapse in={!collapsed} timeout={280}>
           <Box
+            className="map-paint-panel-body"
             sx={{
               p: paintMode ? 1.25 : 1.75,
               pt: paintMode ? 1 : 1.25,
@@ -392,6 +393,26 @@ export function PaintGuidePanel({
               maxHeight: paintMode
                 ? { xs: 'min(26vh, 200px)', sm: 'min(28vh, 220px)' }
                 : { xs: 'min(38vh, 320px)', sm: 'min(42vh, 360px)' },
+              scrollbarWidth: 'thin',
+              scrollbarColor: `${alpha(theme.palette.text.primary, 0.35)} ${alpha(theme.palette.text.primary, 0.08)}`,
+              '&::-webkit-scrollbar': { width: 6 },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: alpha(theme.palette.text.primary, 0.08),
+                borderRadius: 999,
+                marginBlock: 6,
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: alpha(theme.palette.text.primary, 0.35),
+                borderRadius: 999,
+              },
+              '&::-webkit-scrollbar-thumb:hover': {
+                backgroundColor: alpha(theme.palette.text.primary, 0.5),
+              },
+              '&::-webkit-scrollbar-button': {
+                display: 'none',
+                width: 0,
+                height: 0,
+              },
             }}
           >
             {microareas.length === 0 ? (
@@ -447,9 +468,30 @@ export function PaintGuidePanel({
                     display: 'flex',
                     gap: 0.75,
                     overflowX: 'auto',
-                    pb: 0.5,
+                    overflowY: 'hidden',
+                    pb: 0.75,
                     mb: 1.25,
                     flexWrap: paintMode ? 'nowrap' : 'wrap',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: `${alpha(theme.palette.text.primary, 0.35)} ${alpha(theme.palette.text.primary, 0.08)}`,
+                    '&::-webkit-scrollbar': { height: 6 },
+                    '&::-webkit-scrollbar-track': {
+                      backgroundColor: alpha(theme.palette.text.primary, 0.08),
+                      borderRadius: 999,
+                      marginInline: 4,
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      backgroundColor: alpha(theme.palette.text.primary, 0.35),
+                      borderRadius: 999,
+                    },
+                    '&::-webkit-scrollbar-thumb:hover': {
+                      backgroundColor: alpha(theme.palette.text.primary, 0.5),
+                    },
+                    '&::-webkit-scrollbar-button': {
+                      display: 'none',
+                      width: 0,
+                      height: 0,
+                    },
                   }}
                 >
                   {sortedMicroareas.map((m) => {
