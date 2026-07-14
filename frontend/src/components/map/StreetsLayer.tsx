@@ -92,6 +92,9 @@ export function StreetsLayer({
   const dragActionRef = useRef<'paint' | 'unpaint' | null>(null);
   const brushSessionRef = useRef<BrushSession | null>(null);
   const brushMoveListenerRef = useRef<((e: MouseEvent | TouchEvent) => void) | null>(null);
+  const brushRafRef = useRef<number | null>(null);
+  const brushLastVertexRef = useRef<number | null>(null);
+  const brushPreviewActiveRef = useRef(false);
   const [brushPreview, setBrushPreview] = useState<GeoJSON.Feature | null>(null);
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
@@ -146,9 +149,11 @@ export function StreetsLayer({
       eraser,
     );
     if (!geom) {
+      brushPreviewActiveRef.current = false;
       setBrushPreview(null);
       return;
     }
+    brushPreviewActiveRef.current = true;
     setBrushPreview({
       type: 'Feature',
       properties: { id: session.streetId, eraser },
@@ -157,6 +162,11 @@ export function StreetsLayer({
   };
 
   const stopBrushTracking = () => {
+    if (brushRafRef.current != null) {
+      cancelAnimationFrame(brushRafRef.current);
+      brushRafRef.current = null;
+    }
+    brushLastVertexRef.current = null;
     const onMove = brushMoveListenerRef.current;
     if (!onMove) return;
     document.removeEventListener('mousemove', onMove);
@@ -186,11 +196,39 @@ export function StreetsLayer({
     );
     const next = { ...session, endLat: snapped.lat, endLng: snapped.lng, side };
     brushSessionRef.current = next;
-    updateBrushPreviewFromSession(next, street, session.action === 'unpaint');
+
+    // Só redesenha preview quando muda o vértice da polilinha (menos React/Leaflet).
+    const coords = street.geojson?.coordinates as [number, number][] | undefined;
+    let endVertex = 0;
+    if (coords && coords.length > 0) {
+      let best = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < coords.length; i++) {
+        const d = (coords[i][1] - snapped.lat) ** 2 + (coords[i][0] - snapped.lng) ** 2;
+        if (d < bestDist) {
+          bestDist = d;
+          best = i;
+        }
+      }
+      endVertex = best;
+    }
+    if (brushLastVertexRef.current === endVertex && brushPreviewActiveRef.current) return;
+    brushLastVertexRef.current = endVertex;
+
+    if (brushRafRef.current != null) return;
+    brushRafRef.current = requestAnimationFrame(() => {
+      brushRafRef.current = null;
+      const current = brushSessionRef.current;
+      if (!current) return;
+      const st = streetsByIdRef.current.get(current.streetId);
+      if (!st) return;
+      updateBrushPreviewFromSession(current, st, current.action === 'unpaint');
+    });
   };
 
   const startBrushTracking = () => {
     if (brushMoveListenerRef.current) return;
+    brushLastVertexRef.current = null;
     const onMove = (e: MouseEvent | TouchEvent) => {
       if (!brushSessionRef.current) return;
       const clientX = 'touches' in e ? e.touches[0]?.clientX : e.clientX;
@@ -231,6 +269,7 @@ export function StreetsLayer({
           }
         }
         brushSessionRef.current = null;
+        brushPreviewActiveRef.current = false;
         setBrushPreview(null);
       }
       dragActionRef.current = null;
@@ -324,41 +363,26 @@ export function StreetsLayer({
 
   const features = useMemo(() => [...painted, ...unpainted, ...dragPreview], [painted, unpainted, dragPreview]);
 
-  const interactionVersion = useMemo(
-    () =>
-      features
-        .map((feature) => {
-          const props = feature.properties;
-          return [
-            props.id,
-            props.microareaName ?? '',
-            props.hasMicroarea ? '1' : '0',
-            props.dragPending ? '1' : '0',
-            props.selected ? '1' : '0',
-            props.highlighted ? '1' : '0',
-            props.color,
-          ].join(':');
-        })
-        .join('|'),
-    [features],
+  /** Hit layer: não remountar a cada cor pintada (só modo/zoom/contagem). */
+  const hitLayerVersion = useMemo(
+    () => `${hitFeatures.length}:${zoom}:${paintMode ? 1 : 0}:${eraserMode ? 1 : 0}`,
+    [hitFeatures.length, zoom, paintMode, eraserMode],
   );
 
-  const paintVisualVersion = useMemo(
-    () =>
-      features
-        .filter((feature) => feature.properties.hasMicroarea || feature.properties.dragPending)
-        .map((feature) => {
-          const props = feature.properties;
-          return [
-            props.id,
-            props.color,
-            props.hasMicroarea ? '1' : '0',
-            props.dragPending ? '1' : '0',
-          ].join(':');
-        })
-        .join('|'),
-    [features],
-  );
+  /** Versão curta das geometrias pintadas — evita key O(n) gigante. */
+  const paintVisualVersion = useMemo(() => {
+    let h = 0;
+    let n = 0;
+    for (const feature of features) {
+      const p = feature.properties;
+      if (!p.hasMicroarea && !p.dragPending) continue;
+      n += 1;
+      for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) | 0;
+      const color = p.color ?? '';
+      for (let i = 0; i < color.length; i++) h = (h * 31 + color.charCodeAt(i)) | 0;
+    }
+    return `${n}:${h}`;
+  }, [features]);
 
   const maxFamilyCount = useMemo(
     () => Math.max(1, ...streets.map((s) => s.familyCount ?? 0)),
@@ -587,6 +611,8 @@ export function StreetsLayer({
         closestPointOnStreet(street, lat, lng);
 
       const handlePointerOver = (e: L.LeafletMouseEvent) => {
+        // Preview do brush já é atualizado pelo listener global (rAF) — evita setState/double-render.
+        if (brushSessionRef.current?.streetId === props.streetId) return;
         const raw = e.latlng;
         const { lat, lng } = snapOnStreet(raw.lat, raw.lng);
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
@@ -600,11 +626,7 @@ export function StreetsLayer({
             eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover',
           );
         layer.setTooltipContent(tooltipForPoint(lat, lng));
-        if (brushSessionRef.current?.streetId === props.streetId) {
-          const next = { ...brushSessionRef.current, endLat: lat, endLng: lng, side };
-          brushSessionRef.current = next;
-          updateBrushPreview(next);
-        } else if (dragActionRef.current && paintScope !== 'brush') {
+        if (dragActionRef.current && paintScope !== 'brush') {
           applyDragAction(lat, lng);
         }
       };
@@ -772,7 +794,7 @@ export function StreetsLayer({
       )}
 
       <GeoJSON
-        key={`streets-hit-${paintMode}-${eraserMode}-${selectedMicroareaId}-${mapPanEnabled}-${interactionVersion}`}
+        key={`streets-hit-${selectedMicroareaId}-${mapPanEnabled}-${hitLayerVersion}`}
         data={fc(hitFeatures)}
         style={() => ({
           color: 'transparent',

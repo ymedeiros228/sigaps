@@ -8,16 +8,17 @@ export function isRetryableQueryError(error: unknown) {
 
   if (code === 'ECONNABORTED' || code === 'ERR_NETWORK') return true;
   if (!status) return true;
-  if (status === 408 || status === 429) return true;
-  if (status === 500 || status === 503) return true;
+  // 429: não retry (piora o throttle). 500 genérico também costuma ser ruído.
+  if (status === 408 || status === 503) return true;
   if (status >= 502 && status <= 504) return true;
   return false;
 }
 
 export function cloudQueryRetryDelay(attemptIndex: number) {
-  return Math.min(60_000, 2_000 * 2 ** attemptIndex);
+  // 502/cold start: espera maior entre tentativas
+  return Math.min(30_000, 3_000 * 2 ** attemptIndex);
 }
 
 export function shouldRetryCloudQuery(failureCount: number, error: unknown) {
-  return failureCount < 6 && isRetryableQueryError(error);
+  return failureCount < 3 && isRetryableQueryError(error);
 }
