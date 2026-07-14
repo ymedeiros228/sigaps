@@ -211,34 +211,23 @@ export function StreetsLayer({
       if (session) {
         const street = streetsByIdRef.current.get(session.streetId);
         if (street) {
-          const eraser = session.action === 'unpaint';
-          const geom = computeBrushPreviewGeometry(
-            street,
-            session.startLat,
-            session.startLng,
-            session.endLat,
-            session.endLng,
-            session.side,
-            eraser,
-          );
-          if (geom) {
-            if (session.action === 'unpaint') {
-              onStreetUnpaintRange(
-                street,
-                session.startLat,
-                session.startLng,
-                session.endLat,
-                session.endLng,
-              );
-            } else {
-              onStreetPaintRange(
-                street,
-                session.startLat,
-                session.startLng,
-                session.endLat,
-                session.endLng,
-              );
-            }
+          // Sempre envia — clique curto também pinta (backend amplia 1 vértice).
+          if (session.action === 'unpaint') {
+            onStreetUnpaintRange(
+              street,
+              session.startLat,
+              session.startLng,
+              session.endLat,
+              session.endLng,
+            );
+          } else {
+            onStreetPaintRange(
+              street,
+              session.startLat,
+              session.startLng,
+              session.endLat,
+              session.endLng,
+            );
           }
         }
         brushSessionRef.current = null;
