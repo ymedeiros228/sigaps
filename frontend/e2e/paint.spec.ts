@@ -42,7 +42,7 @@ test.describe('Pintura no mapa', () => {
     await expect(page.getByText(/Toque nas ruas|Escolha a cor/i)).toBeVisible();
   });
 
-  test('pinta trecho de rua após busca', async ({ page }) => {
+  test('modo cortar pinta trecho com um clique', async ({ page }) => {
     await openMapAndWaitStreets(page);
 
     const search = page.getByRole('combobox', { name: /Buscar rua/i });
@@ -50,6 +50,7 @@ test.describe('Pintura no mapa', () => {
     await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
 
     await enterPaintWithMicroarea01(page);
+    await page.getByTestId('paint-mode-segment').click();
 
     const paintResponse = page.waitForResponse(
       (res) =>
@@ -65,6 +66,8 @@ test.describe('Pintura no mapa', () => {
 
     const response = await paintResponse;
     expect(response.ok(), `paint-at-point falhou: ${response.status()}`).toBeTruthy();
+    const body = (await response.request().postDataJSON()) as { scope?: string };
+    expect(body.scope).toBe('segment');
 
     await expect(
       page.getByText(/Trecho vinculado|Trecho pintado|vinculado à/i).first(),
@@ -171,7 +174,7 @@ test.describe('Pintura no mapa', () => {
     expect(response.ok(), `apagar falhou: ${response.status()}`).toBeTruthy();
   });
 
-  test('modo apagar brush envia unpaint com coordenadas de fim', async ({ page }) => {
+  test('modo apagar remove trecho com clique', async ({ page }) => {
     await openMapAndWaitStreets(page);
 
     const search = page.getByRole('combobox', { name: /Buscar rua/i });
@@ -179,24 +182,15 @@ test.describe('Pintura no mapa', () => {
     await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
 
     await enterPaintWithMicroarea01(page);
+    await page.getByTestId('paint-mode-segment').click();
 
     const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
     await expect(streetPath).toBeVisible({ timeout: 15_000 });
-    const box = await streetPath.boundingBox();
-    if (!box) throw new Error('Rua não visível no mapa');
-
-    const fromX = box.x + box.width * 0.2;
-    const toX = box.x + box.width * 0.8;
-    const y = box.y + box.height / 2;
-    await page.mouse.move(fromX, y);
-    await page.mouse.down();
-    await page.mouse.move(toX, y, { steps: 6 });
-    await page.mouse.up();
-
+    await streetPath.click({ force: true });
     await expect(page.getByText(/pintada|vinculado/i).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /^Apagar$/i }).click();
-    await expect(page.getByText(/Modo apagar|Arraste na rua colorida/i)).toBeVisible({
+    await expect(page.getByText(/Modo apagar|clique na rua colorida|Toque na rua colorida/i)).toBeVisible({
       timeout: 10_000,
     });
 
@@ -208,19 +202,10 @@ test.describe('Pintura no mapa', () => {
       { timeout: 30_000 },
     );
 
-    await page.mouse.move(fromX, y);
-    await page.mouse.down();
-    await page.mouse.move(toX, y, { steps: 6 });
-    await page.mouse.up();
+    await streetPath.click({ force: true });
 
     const response = await unpaintResponse;
-    expect(response.ok(), `apagar brush falhou: ${response.status()}`).toBeTruthy();
-    const body = (await response.request().postDataJSON()) as {
-      endLatitude?: number;
-      endLongitude?: number;
-    };
-    expect(body.endLatitude).toBeDefined();
-    expect(body.endLongitude).toBeDefined();
+    expect(response.ok(), `apagar falhou: ${response.status()}`).toBeTruthy();
   });
 
   test('atalho S sai do modo pintar', async ({ page }) => {

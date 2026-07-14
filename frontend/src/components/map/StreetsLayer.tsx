@@ -211,34 +211,24 @@ export function StreetsLayer({
       if (session) {
         const street = streetsByIdRef.current.get(session.streetId);
         if (street) {
-          const eraser = session.action === 'unpaint';
-          const geom = computeBrushPreviewGeometry(
-            street,
-            session.startLat,
-            session.startLng,
-            session.endLat,
-            session.endLng,
-            session.side,
-            eraser,
-          );
-          if (geom) {
-            if (session.action === 'unpaint') {
-              onStreetUnpaintRange(
-                street,
-                session.startLat,
-                session.startLng,
-                session.endLat,
-                session.endLng,
-              );
-            } else {
-              onStreetPaintRange(
-                street,
-                session.startLat,
-                session.startLng,
-                session.endLat,
-                session.endLng,
-              );
-            }
+          // Sempre envia o intervalo: se o arraste for curto, o mapa
+          // faz fallback e corta/pinta a partir do ponto (modo trecho).
+          if (session.action === 'unpaint') {
+            onStreetUnpaintRange(
+              street,
+              session.startLat,
+              session.startLng,
+              session.endLat,
+              session.endLng,
+            );
+          } else {
+            onStreetPaintRange(
+              street,
+              session.startLat,
+              session.startLng,
+              session.endLat,
+              session.endLng,
+            );
           }
         }
         brushSessionRef.current = null;
@@ -536,8 +526,8 @@ export function StreetsLayer({
           : paintScope === 'whole'
             ? `Pintar rua inteira: ${label}`
             : paintScope === 'brush'
-              ? `Arraste ao longo da rua${sideText}: ${label}`
-              : `Cortar e pintar trecho${sideText}: ${label}`;
+              ? `Arraste (ou clique) na rua${sideText}: ${label}`
+              : `Clique para cortar e pintar${sideText}: ${label}`;
       }
       if (segName) return `${label} — ${segName}${sideText}`;
       if (street.familyCount > 0) return `${label} — ${street.familyCount} família(s)`;
