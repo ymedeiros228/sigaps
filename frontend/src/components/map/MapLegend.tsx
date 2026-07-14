@@ -86,15 +86,18 @@ export function MapLegend({
       elevation={0}
       sx={{
         position: 'absolute',
-        bottom: paintMode && !paintGuideCollapsed ? { xs: 240, sm: 220 } : { xs: 220, sm: 200 },
+        bottom: { xs: 12, sm: 16 },
         left: { xs: 8, sm: 16 },
         zIndex: 1000,
-        minWidth: { xs: 0, sm: 220 },
-        maxWidth: { xs: 'calc(50% - 12px)', sm: 280 },
+        minWidth: { xs: 0, sm: 200 },
+        maxWidth: {
+          xs: paintMode && !paintGuideCollapsed ? 'calc(50% - 16px)' : 'calc(100% - 16px)',
+          sm: 260,
+        },
         bgcolor: glassBg,
         borderRadius: 3,
         overflow: 'hidden',
-        opacity: paintMode && !paintGuideCollapsed ? 0.92 : 1,
+        opacity: paintMode && !paintGuideCollapsed ? 0.9 : 1,
       }}
     >
       <Box
