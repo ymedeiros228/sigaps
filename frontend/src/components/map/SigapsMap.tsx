@@ -49,7 +49,6 @@ import {
   clearAllStreetsMicroarea,
   clearMicroareaStreets,
   patchStreetInMapCache,
-  cancelStreetMapQueries,
 } from '../../utils/streetsCache';
 import { countPaintedStreets } from '../../utils/streetPaintStats';
 import { streetHasPaint } from '../../utils/streetPaintSegments';
@@ -680,7 +679,7 @@ export function SigapsMap() {
       if (!municipalityId) return;
       const seq = (paintSeqByStreetRef.current.get(variables.streetId) ?? 0) + 1;
       paintSeqByStreetRef.current.set(variables.streetId, seq);
-      await cancelStreetMapQueries(queryClient, municipalityId);
+      // Sem cancelQueries: _localRev protege o otimista e evita atraso no arraste.
       const streetsKey = queryKeys.streetsMap(municipalityId);
       const cached = queryClient.getQueryData<{ items?: Street[] }>(streetsKey);
       const street =
@@ -789,7 +788,6 @@ export function SigapsMap() {
       if (!municipalityId) return;
       const seq = (paintSeqByStreetRef.current.get(variables.streetId) ?? 0) + 1;
       paintSeqByStreetRef.current.set(variables.streetId, seq);
-      await cancelStreetMapQueries(queryClient, municipalityId);
       const streetsKey = queryKeys.streetsMap(municipalityId);
       const cached = queryClient.getQueryData<{ items?: Street[] }>(streetsKey);
       const street =

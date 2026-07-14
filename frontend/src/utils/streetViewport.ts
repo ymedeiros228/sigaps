@@ -24,16 +24,37 @@ export function lineIntersectsBounds(geojson: unknown, bounds: LatLngBounds, pad
   return false;
 }
 
+function zoomBucket(zoom: number): number {
+  if (zoom < 13) return 12;
+  if (zoom < 15) return 14;
+  return 16;
+}
+
+/** Cache por array de coords + faixa de zoom (evita re-simplificar a cada paint). */
+const simplifyCache = new WeakMap<object, Map<number, unknown>>();
+
 /** Reduz pontos da linha em zoom baixo para aliviar o render. */
 export function simplifyLineGeojson(geojson: unknown, zoom: number): unknown {
   const coords = lineCoordinates(geojson);
   if (!coords || coords.length <= 2) return geojson;
 
-  let step = 1;
-  if (zoom < 13) step = 4;
-  else if (zoom < 15) step = 2;
+  const bucket = zoomBucket(zoom);
+  let byZoom = simplifyCache.get(coords as object);
+  if (!byZoom) {
+    byZoom = new Map();
+    simplifyCache.set(coords as object, byZoom);
+  }
+  const cached = byZoom.get(bucket);
+  if (cached) return cached;
 
-  if (step === 1) return geojson;
+  let step = 1;
+  if (bucket < 13) step = 4;
+  else if (bucket < 15) step = 2;
+
+  if (step === 1) {
+    byZoom.set(bucket, geojson);
+    return geojson;
+  }
 
   const simplified: LineCoords = [];
   for (let i = 0; i < coords.length; i += step) {
@@ -42,5 +63,7 @@ export function simplifyLineGeojson(geojson: unknown, zoom: number): unknown {
   const last = coords[coords.length - 1];
   if (simplified[simplified.length - 1] !== last) simplified.push(last);
 
-  return { type: 'LineString', coordinates: simplified };
+  const result = { type: 'LineString', coordinates: simplified };
+  byZoom.set(bucket, result);
+  return result;
 }

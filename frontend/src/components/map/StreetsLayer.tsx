@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { PathOptions } from 'leaflet';
@@ -24,6 +24,38 @@ import {
 const HIT_WEIGHT = 32;
 const ERASER_HIT_WEIGHT = 56;
 const VIEWPORT_CULL_MIN = 600;
+
+const PAINTED_HALO_STYLE: PathOptions = {
+  color: '#ffffff',
+  weight: 13,
+  opacity: 0.98,
+  lineCap: 'round',
+  lineJoin: 'round',
+};
+
+const systemStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
+  const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
+  return {
+    color: isDirt ? '#a67c00' : '#546e7a',
+    weight: isDirt ? 5 : 4,
+    opacity: isDirt ? 0.75 : 0.6,
+    dashArray: isDirt ? '4 7' : undefined,
+    lineCap: 'round',
+    lineJoin: 'round',
+  };
+};
+
+const unassignedStyle = (feature?: GeoJSON.Feature): PathOptions => {
+  const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
+  return {
+    color: isDirt ? '#c4a35a' : '#546e7a',
+    weight: isDirt ? 5 : 4,
+    opacity: isDirt ? 0.8 : 0.55,
+    dashArray: isDirt ? '4 8' : '6 6',
+    lineCap: 'round',
+    lineJoin: 'round',
+  };
+};
 
 interface StreetsLayerProps {
   streets: Street[];
@@ -328,16 +360,17 @@ export function StreetsLayer({
     );
   }, [streets, mapBounds, selectedIds, dragPaintIds, highlightedId]);
 
+  // activeColor fica fora: trocar chip não reconstrói ~700 features.
   const featureCtx = useMemo(
     () => ({
       highlightedId,
       selectedIds,
       dragPaintIds,
-      activeColor,
+      activeColor: '#00A86B',
       paintStreetSide,
       paintMode,
     }),
-    [highlightedId, selectedIds, dragPaintIds, activeColor, paintStreetSide, paintMode],
+    [highlightedId, selectedIds, dragPaintIds, paintStreetSide, paintMode],
   );
 
   const { painted, unpainted, dragPreview, hitFeatures } = useMemo(() => {
@@ -375,7 +408,7 @@ export function StreetsLayer({
           name: street.name,
           streetType: street.streetType ?? 'Rua',
           isDirtRoad: (street.streetType ?? '').toLowerCase().includes('terra'),
-          color: street.microarea?.color ?? activeColor,
+          color: street.microarea?.color ?? '#546e7a',
           microareaName: street.microarea?.name,
           hasMicroarea: streetHasPaint(street),
           highlighted: street.id === highlightedId,
@@ -389,7 +422,7 @@ export function StreetsLayer({
     }
 
     return { painted: p, unpainted: u, dragPreview: d, hitFeatures: hits };
-  }, [renderStreets, featureCtx, zoom, highlightedId, selectedIds, dragPaintIds, activeColor]);
+  }, [renderStreets, featureCtx, zoom, highlightedId, selectedIds, dragPaintIds]);
 
   /** Hit layer: não remountar ao trocar cor da microárea. */
   const hitLayerVersion = useMemo(
@@ -500,67 +533,54 @@ export function StreetsLayer({
 
   const fc = (list: typeof painted) => ({ type: 'FeatureCollection' as const, features: list });
 
-  const paintedHaloStyle = (): PathOptions => ({
-    color: '#ffffff',
-    weight: 13,
-    opacity: 0.98,
-    lineCap: 'round',
-    lineJoin: 'round',
-  });
+  const paintedHaloStyle = useCallback((): PathOptions => PAINTED_HALO_STYLE, []);
 
-  const paintedLineStyle = (feature?: GeoJSON.Feature): PathOptions => {
-    const props = feature?.properties as {
-      color: string;
-      highlighted: boolean;
-      selected: boolean;
-      dragPending: boolean;
-    };
-    const color = props?.dragPending ? activeColor : props?.color ?? activeColor;
-    const emphasis = props?.highlighted || props?.selected || props?.dragPending;
-    return {
-      color,
-      weight: showHeatmap ? (emphasis ? 7 : 5) : eraserMode ? 12 : emphasis ? 10 : 8,
-      opacity: showHeatmap ? 0.55 : 1,
+  const paintedLineStyle = useCallback(
+    (feature?: GeoJSON.Feature): PathOptions => {
+      const props = feature?.properties as {
+        color: string;
+        highlighted: boolean;
+        selected: boolean;
+        dragPending: boolean;
+      };
+      const color = props?.dragPending ? activeColor : props?.color ?? activeColor;
+      const emphasis = props?.highlighted || props?.selected || props?.dragPending;
+      return {
+        color,
+        weight: showHeatmap ? (emphasis ? 7 : 5) : eraserMode ? 12 : emphasis ? 10 : 8,
+        opacity: showHeatmap ? 0.55 : 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+      };
+    },
+    [activeColor, showHeatmap, eraserMode],
+  );
+
+  const dragPreviewStyle = useCallback(
+    (feature?: GeoJSON.Feature): PathOptions => {
+      const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
+      return {
+        color: isDirt ? '#c4a35a' : activeColor,
+        weight: isDirt ? 6 : 7,
+        opacity: 0.85,
+        dashArray: '4 4',
+        lineCap: 'round',
+        lineJoin: 'round',
+      };
+    },
+    [activeColor],
+  );
+
+  const hitLayerStyle = useCallback(
+    (): PathOptions => ({
+      color: 'transparent',
+      weight: eraserMode ? ERASER_HIT_WEIGHT : HIT_WEIGHT,
+      opacity: 0.001,
       lineCap: 'round',
       lineJoin: 'round',
-    };
-  };
-
-  const systemStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
-    const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
-    return {
-      color: isDirt ? '#a67c00' : '#546e7a',
-      weight: isDirt ? 5 : 4,
-      opacity: isDirt ? 0.75 : 0.6,
-      dashArray: isDirt ? '4 7' : undefined,
-      lineCap: 'round',
-      lineJoin: 'round',
-    };
-  };
-
-  const unassignedStyle = (feature?: GeoJSON.Feature): PathOptions => {
-    const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
-    return {
-      color: isDirt ? '#c4a35a' : '#546e7a',
-      weight: isDirt ? 5 : 4,
-      opacity: isDirt ? 0.8 : 0.55,
-      dashArray: isDirt ? '4 8' : '6 6',
-      lineCap: 'round',
-      lineJoin: 'round',
-    };
-  };
-
-  const dragPreviewStyle = (feature?: GeoJSON.Feature): PathOptions => {
-    const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
-    return {
-      color: isDirt ? '#c4a35a' : activeColor,
-      weight: isDirt ? 6 : 7,
-      opacity: 0.85,
-      dashArray: '4 4',
-      lineCap: 'round',
-      lineJoin: 'round',
-    };
-  };
+    }),
+    [eraserMode],
+  );
 
   const bindInteraction = (feature: GeoJSON.Feature, layer: L.Layer) => {
     const props = feature.properties as {
@@ -816,13 +836,7 @@ export function StreetsLayer({
       <GeoJSON
         key={`streets-hit-${hitLayerVersion}`}
         data={fc(hitFeatures)}
-        style={() => ({
-          color: 'transparent',
-          weight: eraserMode ? ERASER_HIT_WEIGHT : HIT_WEIGHT,
-          opacity: 0.001,
-          lineCap: 'round',
-          lineJoin: 'round',
-        })}
+        style={hitLayerStyle}
         onEachFeature={bindInteraction}
         interactive
       />

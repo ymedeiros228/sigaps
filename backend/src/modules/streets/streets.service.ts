@@ -244,9 +244,12 @@ export class StreetsService {
       data: { microareaId: dto.microareaId },
     });
 
+    const segmentRows: Prisma.StreetPaintSegmentCreateManyInput[] = [];
+    const streetIdsWithGeom: string[] = [];
     for (const street of streets) {
       const coords = streetCoords(street.geojson);
       if (coords.length < 2) continue;
+      streetIdsWithGeom.push(street.id);
       const maxIndex = coords.length - 1;
       const ranges: SegmentRange[] = isDualSideStreet(street)
         ? [
@@ -254,7 +257,28 @@ export class StreetsService {
             { startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.RIGHT },
           ]
         : [{ startIndex: 0, endIndex: maxIndex, microareaId: dto.microareaId, side: StreetPaintSide.FULL }];
-      await this.replaceStreetSegments(street.id, ranges, coords);
+      for (const range of ranges) {
+        const geojson = sliceStreetGeojson(coords, range.startIndex, range.endIndex);
+        if (!geojson) continue;
+        segmentRows.push({
+          streetId: street.id,
+          microareaId: range.microareaId,
+          startIndex: range.startIndex,
+          endIndex: range.endIndex,
+          side: range.side,
+          geojson: geojson as Prisma.InputJsonValue,
+        });
+      }
+    }
+    if (streetIdsWithGeom.length > 0) {
+      await this.prisma.$transaction([
+        this.prisma.streetPaintSegment.deleteMany({
+          where: { streetId: { in: streetIdsWithGeom } },
+        }),
+        ...(segmentRows.length > 0
+          ? [this.prisma.streetPaintSegment.createMany({ data: segmentRows })]
+          : []),
+      ]);
     }
 
     await this.prisma.auditLog.createMany({

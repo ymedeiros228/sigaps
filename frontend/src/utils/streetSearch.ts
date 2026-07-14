@@ -62,11 +62,44 @@ export function fixLineString(geojson: GeoJSON.LineString): GeoJSON.LineString {
   };
 }
 
+type StreetLocal = Street & { _localRev?: number };
+
+function prepareCacheKey(street: StreetLocal): string {
+  const segs = street.paintSegments ?? [];
+  let segSig = `${segs.length}`;
+  for (const seg of segs) {
+    segSig += `|${seg.id}:${seg.microareaId}:${seg.startIndex}:${seg.endIndex}:${seg.side}`;
+  }
+  return `${street.id}|${street._localRev ?? 0}|${street.microareaId ?? ''}|${segSig}`;
+}
+
+/** Reusa ruas já preparadas — um paint não reprocessa as ~700 geometrias. */
+const preparedStreetCache = new Map<string, Street>();
+
 export function prepareStreetsForMap(streets: Street[]): Street[] {
-  return streets
-    .filter(isMappableStreet)
-    .map((s) => ({
-      ...s,
-      geojson: fixLineString(s.geojson),
-    }));
+  const keep = new Set<string>();
+  const out: Street[] = [];
+
+  for (const street of streets) {
+    if (!isMappableStreet(street)) continue;
+    const key = prepareCacheKey(street as StreetLocal);
+    keep.add(key);
+    let prepared = preparedStreetCache.get(key);
+    if (!prepared) {
+      prepared = {
+        ...street,
+        geojson: fixLineString(street.geojson),
+      };
+      preparedStreetCache.set(key, prepared);
+    }
+    out.push(prepared);
+  }
+
+  if (preparedStreetCache.size > keep.size + 64) {
+    for (const key of preparedStreetCache.keys()) {
+      if (!keep.has(key)) preparedStreetCache.delete(key);
+    }
+  }
+
+  return out;
 }
