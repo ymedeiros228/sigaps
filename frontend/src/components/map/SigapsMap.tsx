@@ -233,18 +233,22 @@ export function SigapsMap() {
   const refreshMicroareaVisuals = useCallback((options?: { rebuildEnvelopes?: boolean }) => {
     if (!municipalityId) return;
     scheduleMicroareasInvalidate(queryClient, municipalityId);
+    // Rebuild completo só sob demanda (import/clear). Pintura já atualiza envelopes no backend.
     if (options?.rebuildEnvelopes) {
       void microareasApi.rebuildEnvelopes(municipalityId).catch(() => undefined);
     }
   }, [municipalityId, queryClient]);
 
-  const scheduleEnvelopeRebuild = useCallback(() => {
+  /** Após pintar: só refetch envelopes em cache (sem POST pesado). */
+  const scheduleEnvelopeRefresh = useCallback(() => {
     if (!municipalityId) return;
     if (envelopeTimerRef.current) clearTimeout(envelopeTimerRef.current);
     envelopeTimerRef.current = setTimeout(() => {
-      refreshMicroareaVisuals({ rebuildEnvelopes: true });
-    }, 4000);
-  }, [municipalityId, refreshMicroareaVisuals]);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.microareaEnvelopes(municipalityId),
+      });
+    }, 12_000);
+  }, [municipalityId, queryClient]);
 
   const pushUndo = useCallback((action: PaintUndoAction) => {
     if (isUndoingRef.current) return;
@@ -716,10 +720,8 @@ export function SigapsMap() {
     onSuccess: (res, variables, context) => {
       if (!municipalityId) return;
       const currentSeq = paintSeqByStreetRef.current.get(variables.streetId);
-      if (context?.seq !== currentSeq) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
-        return;
-      }
+      // Traço mais novo já está no cache — não refetchar todas as ruas.
+      if (context?.seq !== currentSeq) return;
       const updated = prepareStreetsForMap([res.data])[0];
       if (!updated) {
         setSnackbar({
@@ -731,7 +733,7 @@ export function SigapsMap() {
       patchStreetInMapCache(queryClient, municipalityId, updated);
       scheduleDashboardInvalidate(queryClient, municipalityId);
       scheduleMicroareasInvalidate(queryClient, municipalityId);
-      scheduleEnvelopeRebuild();
+      scheduleEnvelopeRefresh();
       if (selectedStreet?.id === updated.id) {
         setSelectedStreet(updated);
       }
@@ -830,10 +832,7 @@ export function SigapsMap() {
       }
       if (!municipalityId) return;
       const currentSeq = paintSeqByStreetRef.current.get(variables.streetId);
-      if (context?.seq !== currentSeq) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
-        return;
-      }
+      if (context?.seq !== currentSeq) return;
       if (res.data.street) {
         const updated = prepareStreetsForMap([res.data.street])[0];
         if (updated) {
@@ -845,7 +844,7 @@ export function SigapsMap() {
       }
       scheduleDashboardInvalidate(queryClient, municipalityId);
       scheduleMicroareasInvalidate(queryClient, municipalityId);
-      scheduleEnvelopeRebuild();
+      scheduleEnvelopeRefresh();
       setLastPaintAction('Trecho removido');
     },
     onError: (err, _variables, context) => {

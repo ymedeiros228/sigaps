@@ -212,6 +212,7 @@ export class StreetsController {
   }
 
   @Post(':id/paint-at-point')
+  @SkipThrottle()
   @Roles(
     UserRole.ENFERMEIRO,
     UserRole.COORDENADOR_APS,
@@ -238,6 +239,7 @@ export class StreetsController {
   }
 
   @Post(':id/unpaint-at-point')
+  @SkipThrottle()
   @Roles(
     UserRole.ENFERMEIRO,
     UserRole.COORDENADOR_APS,

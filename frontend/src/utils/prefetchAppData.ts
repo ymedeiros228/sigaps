@@ -93,13 +93,14 @@ export function prefetchMapData(queryClient: QueryClient, municipalityId: string
 let dashboardInvalidateTimer: ReturnType<typeof setTimeout> | null = null;
 let microareasInvalidateTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Após pintar: só refetch leve, bem espaçado — evita tempestade de requests. */
 export function scheduleMicroareasInvalidate(queryClient: QueryClient, municipalityId: string) {
   if (microareasInvalidateTimer) clearTimeout(microareasInvalidateTimer);
   microareasInvalidateTimer = setTimeout(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.microareaEnvelopes(municipalityId) });
     microareasInvalidateTimer = null;
-  }, 4000);
+  }, 30_000);
 }
 
 export function scheduleDashboardInvalidate(queryClient: QueryClient, municipalityId?: string) {
@@ -112,5 +113,5 @@ export function scheduleDashboardInvalidate(queryClient: QueryClient, municipali
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }
     dashboardInvalidateTimer = null;
-  }, 3000);
+  }, 30_000);
 }

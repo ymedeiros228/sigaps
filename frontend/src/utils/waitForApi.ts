@@ -62,11 +62,12 @@ export async function waitForApiReady(
 }
 
 /** Ping periódico enquanto o app está aberto (reduz cold start no Render). */
-export function startApiKeepAlive(intervalMs = 8 * 60 * 1000): () => void {
+/** ~10 min: Render free dorme ~15 min; ping leve evita cold start no meio da pintura. */
+export function startApiKeepAlive(intervalMs = 10 * 60 * 1000): () => void {
   if (!isCloudDeployment()) return () => {};
 
-  void pingHealth(10_000);
-  const id = window.setInterval(() => void pingHealth(10_000), intervalMs);
+  void pingHealth(8_000);
+  const id = window.setInterval(() => void pingHealth(8_000), intervalMs);
   return () => window.clearInterval(id);
 }
 
