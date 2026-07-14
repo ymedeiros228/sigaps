@@ -309,7 +309,7 @@ export function SigapsMap() {
         store.setMapPanEnabled(false);
         setPaintMode(true);
         useMapStore.getState().setPaintGuideCollapsed(false);
-        setSnackbar({ message: 'Modo apagar — clique na rua colorida', severity: 'info' });
+        setSnackbar({ message: 'Modo apagar — arraste na rua colorida', severity: 'info' });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -967,30 +967,6 @@ export function SigapsMap() {
   ) => {
     if (!paintMode || eraserMode || !selectedMicroareaId || !municipalityId) return;
     const { paintStreetSide } = useMapStore.getState();
-    const coords = streetCoords(street.geojson);
-    const startIdx = closestVertexIndex(coords, startLat, startLng);
-    const endIdx = closestVertexIndex(coords, endLat, endLng);
-    // Clique/arraste curto: corta e pinta daqui até o fim (modo trecho) — mais confiável
-    if (Math.abs(endIdx - startIdx) < 1) {
-      const side = resolveApiPaintSide(street, paintStreetSide, 'segment', startLat, startLng);
-      const vertexIndex = startIdx;
-      const apiSide = side === 'BOTH' ? detectClickSide(street, startLat, startLng) : side;
-      const dedupeKey = `cut:${street.id}:${vertexIndex}:${apiSide}`;
-      if (segmentPaintKeysRef.current.has(dedupeKey)) return;
-      segmentPaintKeysRef.current.add(dedupeKey);
-      paintAtPointMutation.mutate(
-        {
-          streetId: street.id,
-          microareaId: selectedMicroareaId,
-          latitude: startLat,
-          longitude: startLng,
-          side,
-          scope: 'segment',
-        },
-        { onSettled: () => segmentPaintKeysRef.current.delete(dedupeKey) },
-      );
-      return;
-    }
     const side = resolveApiPaintSide(street, paintStreetSide, 'brush', endLat, endLng);
     const apiSide = side === 'BOTH' ? detectClickSide(street, endLat, endLng) : side;
     const dedupeKey = `brush:${street.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
@@ -1023,22 +999,11 @@ export function SigapsMap() {
     if (!paintMode) return;
     const { paintStreetSide, eraserMode: eraser } = useMapStore.getState();
     if (!eraser) return;
-    const coords = streetCoords(street.geojson);
-    const startIdx = closestVertexIndex(coords, startLat, startLng);
-    const endIdx = closestVertexIndex(coords, endLat, endLng);
     const side = effectivePaintSide(street, endLat, endLng, paintStreetSide, 'brush', true);
     const apiSide = side === 'BOTH' ? detectClickSide(street, endLat, endLng) : side;
-    const state = paintStateAtPoint(
-      street,
-      Math.abs(endIdx - startIdx) < 1 ? startLat : endLat,
-      Math.abs(endIdx - startIdx) < 1 ? startLng : endLng,
-      side,
-    );
+    const state = paintStateAtPoint(street, endLat, endLng, side);
     if (!streetHasPaint(street) && !state.microareaId) return;
-    const shortClick = Math.abs(endIdx - startIdx) < 1;
-    const dedupeKey = shortClick
-      ? `uncut:${street.id}:${startIdx}:${apiSide}`
-      : `unbrush:${street.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
+    const dedupeKey = `unbrush:${street.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
     if (segmentPaintKeysRef.current.has(dedupeKey)) return;
     segmentPaintKeysRef.current.add(dedupeKey);
     const capturedMicroareaId = state.microareaId ?? street.microareaId ?? '';
@@ -1047,9 +1012,8 @@ export function SigapsMap() {
         streetId: street.id,
         latitude: startLat,
         longitude: startLng,
-        ...(shortClick
-          ? {}
-          : { endLatitude: endLat, endLongitude: endLng }),
+        endLatitude: endLat,
+        endLongitude: endLng,
         side: apiSide,
       },
       {

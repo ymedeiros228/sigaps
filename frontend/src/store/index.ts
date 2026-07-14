@@ -198,8 +198,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   divisionMode: false,
   divisionDraft: null,
   paintStreetSide: 'FULL' as PaintStreetSide,
-  /** Trecho/cortar por clique — modo simples e confiável para dividir a rua. */
-  paintScope: 'segment' as PaintScope,
+  paintScope: 'brush' as PaintScope,
   setPaintMode: (enabled) => {
     const state = get();
     if (enabled && !state.selectedMicroareaId) {
@@ -209,7 +208,6 @@ export const useMapStore = create<MapState>((set, get) => ({
           paintMode: enabled,
           selectedMicroareaId: microareas[0].id,
           mapPanEnabled: false,
-          paintScope: state.paintScope === 'brush' ? 'segment' : state.paintScope,
         });
         return;
       }
@@ -227,8 +225,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       paintMode: enabled ? true : get().paintMode,
       mapPanEnabled: enabled ? false : get().mapPanEnabled,
       dragPaintIds: new Set<string>(),
-      // Apagar com clique no trecho (mesmo modo cortar)
-      ...(enabled ? { paintScope: 'segment' as const, paintStreetSide: 'FULL' as const } : {}),
+      ...(enabled ? { paintScope: 'brush' as const } : {}),
     });
   },
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),
