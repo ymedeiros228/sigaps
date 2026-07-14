@@ -1296,27 +1296,21 @@ export class StreetsService {
     ranges: SegmentRange[],
     coords: ReturnType<typeof streetCoords>,
   ) {
-    const data = ranges
-      .map((range) => {
-        const geojson = sliceStreetGeojson(coords, range.startIndex, range.endIndex);
-        if (!geojson) return null;
-        return {
+    await this.prisma.streetPaintSegment.deleteMany({ where: { streetId } });
+    for (const range of ranges) {
+      const geojson = sliceStreetGeojson(coords, range.startIndex, range.endIndex);
+      if (!geojson) continue;
+      await this.prisma.streetPaintSegment.create({
+        data: {
           streetId,
           microareaId: range.microareaId,
           startIndex: range.startIndex,
           endIndex: range.endIndex,
           side: range.side,
           geojson,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row != null);
-
-    await this.prisma.$transaction([
-      this.prisma.streetPaintSegment.deleteMany({ where: { streetId } }),
-      ...(data.length > 0
-        ? [this.prisma.streetPaintSegment.createMany({ data })]
-        : []),
-    ]);
+        },
+      });
+    }
   }
 
   private async syncStreetMicroareaFromSegments(streetId: string, geojson: unknown) {

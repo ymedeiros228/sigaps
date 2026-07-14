@@ -9,8 +9,7 @@ import { useDebouncedValue } from './useDebouncedValue';
 import { CACHE, queryKeys } from '../utils/queryKeys';
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from '../utils/queryRetry';
 
-/** Acima disso carrega por bbox (viewport) — Passagem Franca ~700 usa viewport. */
-export const VIEWPORT_STREETS_THRESHOLD = 400;
+export const VIEWPORT_STREETS_THRESHOLD = 800;
 
 type StreetsMapData = { items: Street[]; total: number };
 

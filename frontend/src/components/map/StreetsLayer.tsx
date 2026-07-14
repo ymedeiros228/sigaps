@@ -21,9 +21,9 @@ import {
   type StreetMapFeature,
 } from '../../utils/streetPaintSegments';
 
-const HIT_WEIGHT = 28;
-const ERASER_HIT_WEIGHT = 44;
-const VIEWPORT_CULL_MIN = 350;
+const HIT_WEIGHT = 32;
+const ERASER_HIT_WEIGHT = 56;
+const VIEWPORT_CULL_MIN = 600;
 
 interface StreetsLayerProps {
   streets: Street[];
@@ -335,25 +335,40 @@ export function StreetsLayer({
 
   const features = useMemo(() => [...painted, ...unpainted, ...dragPreview], [painted, unpainted, dragPreview]);
 
-  /** Chaves curtas — evita remount O(n) com string gigante de ~700 ruas. */
-  const paintVisualVersion = useMemo(() => {
-    let h = 0;
-    let paintedN = 0;
-    for (const feature of features) {
-      const p = feature.properties;
-      if (!p.hasMicroarea && !p.dragPending) continue;
-      paintedN += 1;
-      for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) | 0;
-      const color = p.color ?? '';
-      for (let i = 0; i < color.length; i++) h = (h * 31 + color.charCodeAt(i)) | 0;
-    }
-    return `${paintedN}:${h}`;
-  }, [features]);
+  const interactionVersion = useMemo(
+    () =>
+      features
+        .map((feature) => {
+          const props = feature.properties;
+          return [
+            props.id,
+            props.microareaName ?? '',
+            props.hasMicroarea ? '1' : '0',
+            props.dragPending ? '1' : '0',
+            props.selected ? '1' : '0',
+            props.highlighted ? '1' : '0',
+            props.color,
+          ].join(':');
+        })
+        .join('|'),
+    [features],
+  );
 
-  /** Hit layer não precisa remountar a cada pintura — só geometria/ids e modo. */
-  const hitLayerVersion = useMemo(
-    () => `${hitFeatures.length}:${zoom}:${paintMode ? 1 : 0}:${eraserMode ? 1 : 0}`,
-    [hitFeatures.length, zoom, paintMode, eraserMode],
+  const paintVisualVersion = useMemo(
+    () =>
+      features
+        .filter((feature) => feature.properties.hasMicroarea || feature.properties.dragPending)
+        .map((feature) => {
+          const props = feature.properties;
+          return [
+            props.id,
+            props.color,
+            props.hasMicroarea ? '1' : '0',
+            props.dragPending ? '1' : '0',
+          ].join(':');
+        })
+        .join('|'),
+    [features],
   );
 
   const maxFamilyCount = useMemo(
@@ -698,7 +713,7 @@ export function StreetsLayer({
     <>
       {unpainted.length > 0 && !paintMode && (
         <GeoJSON
-          key={`system-streets-${unpainted.length}-${paintVisualVersion}`}
+          key={`system-streets-${unpainted.length}-${paintVisualVersion.length}`}
           data={fc(unpainted)}
           style={systemStreetStyle}
           interactive={false}
@@ -768,7 +783,7 @@ export function StreetsLayer({
       )}
 
       <GeoJSON
-        key={`streets-hit-${selectedMicroareaId}-${mapPanEnabled}-${hitLayerVersion}`}
+        key={`streets-hit-${paintMode}-${eraserMode}-${selectedMicroareaId}-${mapPanEnabled}-${interactionVersion}`}
         data={fc(hitFeatures)}
         style={() => ({
           color: 'transparent',
