@@ -3,8 +3,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import {
   getCachedDashboardIndicators,
+  getCachedOperationalChecklist,
   invalidateDashboardIndicators,
   setCachedDashboardIndicators,
+  setCachedOperationalChecklist,
 } from '../../common/utils/dashboard-cache.util';
 
 export { invalidateDashboardIndicators };
@@ -80,6 +82,9 @@ export class DashboardService {
   }
 
   async getOperationalChecklist(municipalityId: string): Promise<OperationalChecklist> {
+    const cached = getCachedOperationalChecklist<OperationalChecklist>(municipalityId);
+    if (cached) return cached;
+
     const municipality = await this.prisma.municipality.findUnique({
       where: { id: municipalityId },
       select: {
@@ -213,7 +218,7 @@ export class DashboardService {
       .every((i) => i.done);
     const coverageDone = items.find((i) => i.id === 'coverage')?.done ?? false;
 
-    return {
+    const result: OperationalChecklist = {
       items,
       completed,
       total: deliveryItems.length,
@@ -224,6 +229,8 @@ export class DashboardService {
       readyForHomologation: criticalDone && coverageDone,
       readyForPainting: cadastrosBaseDone && assigned === 0,
     };
+    setCachedOperationalChecklist(municipalityId, result);
+    return result;
   }
 
   private async getStreetStats(municipalityId: string) {

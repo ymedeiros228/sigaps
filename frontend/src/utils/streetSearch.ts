@@ -64,13 +64,15 @@ export function fixLineString(geojson: GeoJSON.LineString): GeoJSON.LineString {
 
 type StreetLocal = Street & { _localRev?: number };
 
-function prepareCacheKey(street: StreetLocal): string {
-  const segs = street.paintSegments ?? [];
+/** Assinatura da pintura/geometria — compartilhada com StreetsLayer cache. */
+export function streetPaintCacheKey(street: Street): string {
+  const local = street as StreetLocal;
+  const segs = local.paintSegments ?? [];
   let segSig = `${segs.length}`;
   for (const seg of segs) {
     segSig += `|${seg.id}:${seg.microareaId}:${seg.startIndex}:${seg.endIndex}:${seg.side}`;
   }
-  return `${street.id}|${street._localRev ?? 0}|${street.microareaId ?? ''}|${segSig}`;
+  return `${local.id}|${local._localRev ?? 0}|${local.microareaId ?? ''}|${segSig}`;
 }
 
 /** Reusa ruas já preparadas — um paint não reprocessa as ~700 geometrias. */
@@ -82,7 +84,7 @@ export function prepareStreetsForMap(streets: Street[]): Street[] {
 
   for (const street of streets) {
     if (!isMappableStreet(street)) continue;
-    const key = prepareCacheKey(street as StreetLocal);
+    const key = streetPaintCacheKey(street);
     keep.add(key);
     let prepared = preparedStreetCache.get(key);
     if (!prepared) {

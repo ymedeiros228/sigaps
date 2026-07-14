@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
@@ -1152,7 +1153,12 @@ export class StreetsService {
     ranges = mergeAdjacentSegments(ranges);
 
     const microareaIdSynced = syncStreetMicroareaId(ranges, maxIndex);
-    await this.replaceStreetSegments(streetId, ranges, coords, microareaIdSynced);
+    const segmentRows = await this.replaceStreetSegments(
+      streetId,
+      ranges,
+      coords,
+      microareaIdSynced,
+    );
 
     void this.audit.log({
       userId,
@@ -1170,11 +1176,31 @@ export class StreetsService {
     ]);
     invalidateDashboardIndicators(working.municipalityId);
 
-    const updated = await this.prisma.street.findUnique({
-      where: { id: streetId },
-      include: mapPaintSegmentInclude,
-    });
-    return this.serializeStreetForApi(updated!, undefined, false);
+    const microareaRef = {
+      id: microarea.id,
+      name: microarea.name,
+      number: microarea.number,
+      color: microarea.color,
+    };
+    const paintSegments = await this.hydrateSegmentMicroareas(segmentRows, [
+      microareaRef,
+      ...working.paintSegments.map((s) => s.microarea).filter(Boolean),
+    ]);
+    const streetMicroarea =
+      microareaIdSynced === microarea.id
+        ? microareaRef
+        : paintSegments.find((s) => s.microareaId === microareaIdSynced)?.microarea ?? null;
+
+    return this.serializeStreetForApi(
+      {
+        ...working,
+        microareaId: microareaIdSynced,
+        microarea: streetMicroarea,
+        paintSegments,
+      },
+      undefined,
+      false,
+    );
   }
 
   async unpaintAtPoint(
@@ -1270,7 +1296,12 @@ export class StreetsService {
     const affected = new Set<string>([removed.microareaId]);
     ranges = mergeAdjacentSegments(ranges);
     const microareaIdSynced = syncStreetMicroareaId(ranges, maxIndex);
-    await this.replaceStreetSegments(streetId, ranges, coords, microareaIdSynced);
+    const segmentRows = await this.replaceStreetSegments(
+      streetId,
+      ranges,
+      coords,
+      microareaIdSynced,
+    );
 
     void this.audit.log({
       userId,
@@ -1283,13 +1314,25 @@ export class StreetsService {
     void this.updateAffectedEnvelopes(affected);
     invalidateDashboardIndicators(working.municipalityId);
 
-    const updated = await this.prisma.street.findUnique({
-      where: { id: streetId },
-      include: mapPaintSegmentInclude,
-    });
+    const paintSegments = await this.hydrateSegmentMicroareas(
+      segmentRows,
+      working.paintSegments.map((s) => s.microarea).filter(Boolean),
+    );
+    const streetMicroarea =
+      paintSegments.find((s) => s.microareaId === microareaIdSynced)?.microarea ?? null;
+
     return {
       cleared: true,
-      street: this.serializeStreetForApi(updated!, undefined, false),
+      street: this.serializeStreetForApi(
+        {
+          ...working,
+          microareaId: microareaIdSynced,
+          microarea: streetMicroarea,
+          paintSegments,
+        },
+        undefined,
+        false,
+      ),
     };
   }
 
@@ -1344,6 +1387,36 @@ export class StreetsService {
     return true;
   }
 
+  private async hydrateSegmentMicroareas(
+    rows: Array<{
+      id: string;
+      streetId: string;
+      microareaId: string;
+      startIndex: number;
+      endIndex: number;
+      side: StreetPaintSide;
+      geojson: Prisma.InputJsonValue;
+    }>,
+    seed: Array<{ id: string; name: string; number: number; color: string } | null | undefined>,
+  ) {
+    const maById = new Map<string, { id: string; name: string; number: number; color: string }>();
+    for (const m of seed) {
+      if (m) maById.set(m.id, m);
+    }
+    const missing = [...new Set(rows.map((r) => r.microareaId))].filter((id) => !maById.has(id));
+    if (missing.length > 0) {
+      const fetched = await this.prisma.microarea.findMany({
+        where: { id: { in: missing } },
+        select: segmentMicroareaSelect,
+      });
+      for (const m of fetched) maById.set(m.id, m);
+    }
+    return rows.map((row) => ({
+      ...row,
+      microarea: maById.get(row.microareaId) ?? null,
+    }));
+  }
+
   private async replaceStreetSegments(
     streetId: string,
     ranges: SegmentRange[],
@@ -1355,12 +1428,13 @@ export class StreetsService {
         const geojson = sliceStreetGeojson(coords, range.startIndex, range.endIndex);
         if (!geojson) return null;
         return {
+          id: randomUUID(),
           streetId,
           microareaId: range.microareaId,
           startIndex: range.startIndex,
           endIndex: range.endIndex,
           side: range.side,
-          geojson,
+          geojson: geojson as Prisma.InputJsonValue,
         };
       })
       .filter((row): row is NonNullable<typeof row> => row != null);
@@ -1380,6 +1454,7 @@ export class StreetsService {
         : []),
     ];
     await this.prisma.$transaction(ops);
+    return data;
   }
 
   private async syncStreetMicroareaFromSegments(streetId: string, geojson: unknown) {

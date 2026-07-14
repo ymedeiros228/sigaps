@@ -5,7 +5,7 @@ import type { PathOptions } from 'leaflet';
 import type { Street } from '../../services/api';
 import { useAppStore, useMapStore } from '../../store';
 import { isValidLineString } from '../../utils/geojsonSafe';
-import { formatStreetLabel } from '../../utils/streetSearch';
+import { formatStreetLabel, streetPaintCacheKey } from '../../utils/streetSearch';
 import { familyHeatColor } from '../../utils/geo';
 import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetViewport';
 import {
@@ -128,18 +128,21 @@ export function StreetsLayer({
   const brushLastVertexRef = useRef<number | null>(null);
   const brushPreviewActiveRef = useRef(false);
   const brushPreviewLayerRef = useRef<L.Polyline | null>(null);
+  const hoverPreviewLayerRef = useRef<L.Polyline | null>(null);
+  const featureCacheRef = useRef(
+    new Map<
+      string,
+      {
+        painted: StreetMapFeature[];
+        unpainted: StreetMapFeature[];
+        dragPreview: StreetMapFeature[];
+        hitGeom: GeoJSON.LineString;
+      }
+    >(),
+  );
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [mapBounds, setMapBounds] = useState(map.getBounds());
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [hoverLatLng, setHoverLatLng] = useState<{ lat: number; lng: number } | null>(null);
-
-  useEffect(() => {
-    if (!paintMode) {
-      setHoveredId(null);
-      setHoverLatLng(null);
-    }
-  }, [paintMode]);
 
   useEffect(() => {
     const onZoom = () => setZoom(map.getZoom());
@@ -175,7 +178,79 @@ export function StreetsLayer({
     map.getContainer().classList.remove('sigaps-map-brushing');
   };
 
-  useEffect(() => () => clearBrushPreviewLayer(), [map]);
+  const clearHoverPreviewLayer = () => {
+    if (hoverPreviewLayerRef.current) {
+      map.removeLayer(hoverPreviewLayerRef.current);
+      hoverPreviewLayerRef.current = null;
+    }
+  };
+
+  const syncHoverPreviewLayer = (
+    street: Street,
+    lat: number,
+    lng: number,
+    eraser: boolean,
+  ) => {
+    const { paintStreetSide: sideMode, paintScope: scope, selectedMicroareaId: maId } =
+      useMapStore.getState();
+    const side = effectivePaintSide(street, lat, lng, sideMode, scope, eraser);
+    const state = paintStateAtPoint(street, lat, lng, side);
+    if (eraser && !state.microareaId && !streetHasPaint(street)) {
+      clearHoverPreviewLayer();
+      return;
+    }
+    const geom = computePaintPreviewGeometry(
+      street,
+      lat,
+      lng,
+      eraser ? null : maId,
+      side,
+      scope,
+      eraser,
+    );
+    if (!geom) {
+      clearHoverPreviewLayer();
+      return;
+    }
+    const latlngs = (geom.coordinates as [number, number][]).map(([x, y]) => L.latLng(y, x));
+    const style: L.PolylineOptions = eraser
+      ? {
+          color: '#EF5350',
+          weight: 8,
+          opacity: 0.85,
+          dashArray: '6 6',
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false,
+        }
+      : {
+          color: activeColor,
+          weight: 9,
+          opacity: 0.9,
+          dashArray: '10 5',
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false,
+        };
+    if (!hoverPreviewLayerRef.current) {
+      hoverPreviewLayerRef.current = L.polyline(latlngs, style).addTo(map);
+    } else {
+      hoverPreviewLayerRef.current.setLatLngs(latlngs);
+      hoverPreviewLayerRef.current.setStyle(style);
+    }
+  };
+
+  useEffect(
+    () => () => {
+      clearBrushPreviewLayer();
+      clearHoverPreviewLayer();
+    },
+    [map],
+  );
+
+  useEffect(() => {
+    if (!paintMode || mapPanEnabled) clearHoverPreviewLayer();
+  }, [paintMode, mapPanEnabled, map]);
 
   const streetsByIdRef = useRef(new Map<string, Street>());
   streetsByIdRef.current = new Map(streets.map((street) => [street.id, street]));
@@ -360,17 +435,17 @@ export function StreetsLayer({
     );
   }, [streets, mapBounds, selectedIds, dragPaintIds, highlightedId]);
 
-  // activeColor fica fora: trocar chip não reconstrói ~700 features.
+  // Selection flags aplicados depois — cache só depende de pintura/modo/zoom.
   const featureCtx = useMemo(
     () => ({
-      highlightedId,
-      selectedIds,
-      dragPaintIds,
+      highlightedId: null as string | null,
+      selectedIds: new Set<string>(),
+      dragPaintIds: new Set<string>(),
       activeColor: '#00A86B',
       paintStreetSide,
       paintMode,
     }),
-    [highlightedId, selectedIds, dragPaintIds, paintStreetSide, paintMode],
+    [paintStreetSide, paintMode],
   );
 
   const { painted, unpainted, dragPreview, hitFeatures } = useMemo(() => {
@@ -378,28 +453,50 @@ export function StreetsLayer({
     const u: StreetMapFeature[] = [];
     const d: StreetMapFeature[] = [];
     const hits: StreetMapFeature[] = [];
+    const zoomBucket = zoom < 13 ? 12 : zoom < 15 ? 14 : 16;
+    const modeKey = `${paintMode ? 1 : 0}:${paintStreetSide}:${zoomBucket}`;
+    const cache = featureCacheRef.current;
+    const keep = new Set<string>();
 
     for (const street of renderStreets) {
       if (!isValidLineString(street.geojson)) continue;
-      const built = buildStreetMapFeatures(street, featureCtx);
-      for (const f of built.painted) {
-        p.push({
-          ...f,
-          geometry: simplifyLineGeojson(f.geometry, zoom) as GeoJSON.LineString,
-        });
+      const paintKey = streetPaintCacheKey(street);
+      const cacheKey = `${paintKey}|${modeKey}`;
+      keep.add(cacheKey);
+
+      let cached = cache.get(cacheKey);
+      if (!cached) {
+        const built = buildStreetMapFeatures(street, featureCtx);
+        cached = {
+          painted: built.painted.map((f) => ({
+            ...f,
+            geometry: simplifyLineGeojson(f.geometry, zoom) as GeoJSON.LineString,
+          })),
+          unpainted: built.unpainted.map((f) => ({
+            ...f,
+            geometry: simplifyLineGeojson(f.geometry, zoom) as GeoJSON.LineString,
+          })),
+          dragPreview: built.dragPreview.map((f) => ({
+            ...f,
+            geometry: simplifyLineGeojson(f.geometry, zoom) as GeoJSON.LineString,
+          })),
+          hitGeom: simplifyLineGeojson(street.geojson, zoom) as GeoJSON.LineString,
+        };
+        cache.set(cacheKey, cached);
       }
-      for (const f of built.unpainted) {
-        u.push({
+
+      const highlighted = street.id === highlightedId;
+      const selected = selectedIds.has(street.id);
+      const dragPending = dragPaintIds.has(street.id);
+      const withFlags = (list: StreetMapFeature[]) =>
+        list.map((f) => ({
           ...f,
-          geometry: simplifyLineGeojson(f.geometry, zoom) as GeoJSON.LineString,
-        });
-      }
-      for (const f of built.dragPreview) {
-        d.push({
-          ...f,
-          geometry: simplifyLineGeojson(f.geometry, zoom) as GeoJSON.LineString,
-        });
-      }
+          properties: { ...f.properties, highlighted, selected, dragPending },
+        }));
+
+      p.push(...withFlags(cached.painted));
+      u.push(...withFlags(cached.unpainted));
+      d.push(...withFlags(cached.dragPreview));
       hits.push({
         type: 'Feature',
         properties: {
@@ -411,18 +508,33 @@ export function StreetsLayer({
           color: street.microarea?.color ?? '#546e7a',
           microareaName: street.microarea?.name,
           hasMicroarea: streetHasPaint(street),
-          highlighted: street.id === highlightedId,
-          selected: selectedIds.has(street.id),
-          dragPending: dragPaintIds.has(street.id),
+          highlighted,
+          selected,
+          dragPending,
           familyCount: street.familyCount ?? 0,
           isPartial: false,
         },
-        geometry: simplifyLineGeojson(street.geojson, zoom) as GeoJSON.LineString,
+        geometry: cached.hitGeom,
       });
     }
 
+    if (cache.size > keep.size + 80) {
+      for (const key of cache.keys()) {
+        if (!keep.has(key)) cache.delete(key);
+      }
+    }
+
     return { painted: p, unpainted: u, dragPreview: d, hitFeatures: hits };
-  }, [renderStreets, featureCtx, zoom, highlightedId, selectedIds, dragPaintIds]);
+  }, [
+    renderStreets,
+    featureCtx,
+    zoom,
+    highlightedId,
+    selectedIds,
+    dragPaintIds,
+    paintMode,
+    paintStreetSide,
+  ]);
 
   /** Hit layer: não remountar ao trocar cor da microárea. */
   const hitLayerVersion = useMemo(
@@ -438,6 +550,9 @@ export function StreetsLayer({
       for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) | 0;
       const color = p.color ?? '';
       for (let i = 0; i < color.length; i++) h = (h * 31 + color.charCodeAt(i)) | 0;
+      if (p.highlighted) h = (h * 31 + 1) | 0;
+      if (p.selected) h = (h * 31 + 2) | 0;
+      if (p.dragPending) h = (h * 31 + 3) | 0;
     }
     return `${list.length}:${h}`;
   };
@@ -470,66 +585,6 @@ export function StreetsLayer({
     () => new Map(streets.map((street) => [street.id, street])),
     [streets],
   );
-
-  const hoveredFeature = useMemo(() => {
-    if (!paintMode || mapPanEnabled || !hoveredId || !hoverLatLng || brushSessionRef.current) {
-      return null;
-    }
-    const street = streetsById.get(hoveredId);
-    if (!street?.geojson) return null;
-    const { lat, lng } = hoverLatLng;
-    const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
-    const state = paintStateAtPoint(street, lat, lng, side);
-    if (eraserMode && !state.microareaId && !streetHasPaint(street)) return null;
-
-    const previewGeom = computePaintPreviewGeometry(
-      street,
-      lat,
-      lng,
-      eraserMode ? null : selectedMicroareaId,
-      side,
-      paintScope,
-      eraserMode,
-    );
-    if (!previewGeom) return null;
-
-    return {
-      type: 'Feature' as const,
-      properties: { id: hoveredId, eraser: eraserMode },
-      geometry: previewGeom,
-    };
-  }, [
-    paintMode,
-    mapPanEnabled,
-    eraserMode,
-    hoveredId,
-    hoverLatLng,
-    streetsById,
-    paintStreetSide,
-    paintScope,
-    selectedMicroareaId,
-  ]);
-
-  const hoverPreviewStyle = (feature?: GeoJSON.Feature): PathOptions => {
-    if ((feature?.properties as { eraser?: boolean })?.eraser) {
-      return {
-        color: '#EF5350',
-        weight: 8,
-        opacity: 0.85,
-        dashArray: '6 6',
-        lineCap: 'round',
-        lineJoin: 'round',
-      };
-    }
-    return {
-      color: activeColor,
-      weight: 9,
-      opacity: 0.9,
-      dashArray: '10 5',
-      lineCap: 'round',
-      lineJoin: 'round',
-    };
-  };
 
   const fc = (list: typeof painted) => ({ type: 'FeatureCollection' as const, features: list });
 
@@ -667,8 +722,7 @@ export function StreetsLayer({
         const side = effectivePaintSide(street, lat, lng, paintStreetSide, paintScope, eraserMode);
         const state = paintStateAtPoint(street, lat, lng, side);
         if (eraserMode && !streetHasPaint(street) && !state.microareaId) return;
-        setHoveredId(props.streetId);
-        setHoverLatLng({ lat, lng });
+        syncHoverPreviewLayer(street, lat, lng, eraserMode);
         path
           .getElement()
           ?.classList.add(
@@ -682,8 +736,7 @@ export function StreetsLayer({
 
       const handlePointerOut = () => {
         if (brushSessionRef.current?.streetId === props.streetId) return;
-        setHoveredId(null);
-        setHoverLatLng(null);
+        clearHoverPreviewLayer();
         path.getElement()?.classList.remove('sigaps-street-hover', 'sigaps-street-eraser-hover');
       };
 
@@ -708,6 +761,7 @@ export function StreetsLayer({
               action: 'unpaint',
             };
             brushSessionRef.current = session;
+            clearHoverPreviewLayer();
             startBrushTracking();
             updateBrushPreview(session);
             return;
@@ -724,6 +778,7 @@ export function StreetsLayer({
             action: 'paint',
           };
           brushSessionRef.current = session;
+          clearHoverPreviewLayer();
           startBrushTracking();
           updateBrushPreview(session);
           return;
@@ -820,15 +875,6 @@ export function StreetsLayer({
           key={`heat-${heatFeatures.length}-${maxFamilyCount}-overlay`}
           data={fc(heatFeatures)}
           style={heatLineStyle}
-          interactive={false}
-        />
-      )}
-
-      {hoveredFeature && !brushPreviewActiveRef.current && (
-        <GeoJSON
-          key={`hover-${hoveredId}-${paintMode}-${eraserMode}`}
-          data={{ type: 'FeatureCollection', features: [hoveredFeature] } as GeoJSON.FeatureCollection}
-          style={hoverPreviewStyle}
           interactive={false}
         />
       )}

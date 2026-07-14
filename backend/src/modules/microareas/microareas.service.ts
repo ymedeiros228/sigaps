@@ -49,7 +49,6 @@ export class MicroareasService {
           select: {
             id: true,
             name: true,
-            geojson: true,
             lengthMeters: true,
           },
         },
