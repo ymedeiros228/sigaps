@@ -137,6 +137,8 @@ export function SigapsMap() {
   const unpaintingIdsRef = useRef<Set<string>>(new Set());
   const segmentPaintKeysRef = useRef<Set<string>>(new Set());
   const paintSeqByStreetRef = useRef<Map<string, number>>(new Map());
+  /** Snapshot da rua no início do traço brush — live + rollback usam isto. */
+  const brushBaseByStreetRef = useRef(new Map<string, Street>());
   const lastDragPaintRef = useRef<Map<string, number>>(new Map());
   const undoStackRef = useRef<PaintUndoAction[]>([]);
   const isUndoingRef = useRef(false);
@@ -724,10 +726,20 @@ export function SigapsMap() {
       const street =
         cached?.items?.find((s) => s.id === variables.streetId) ??
         streets.find((s) => s.id === variables.streetId);
-      const previousStreet = street ? { ...street } : undefined;
+      const scope = (variables.scope ?? 'segment') as PaintScope;
+      const brushBase = scope === 'brush' ? brushBaseByStreetRef.current.get(variables.streetId) : undefined;
+      // Se o traço já pintou ao vivo, o rollback volta ao snapshot do pointerdown.
+      const previousStreet = brushBase
+        ? { ...brushBase }
+        : street
+          ? { ...street }
+          : undefined;
       const ma = getMicroarea(variables.microareaId);
       if (street && ma) {
-        const scope = (variables.scope ?? 'segment') as PaintScope;
+        // Brush já aplicou tinta no arraste — não re-simula a partir do estado intermediário.
+        if (scope === 'brush' && brushBase) {
+          return { previousStreet, seq };
+        }
         const optimistic =
           scope === 'brush' &&
           variables.endLatitude != null &&
@@ -798,10 +810,11 @@ export function SigapsMap() {
         microareaId: variables.microareaId,
       });
     },
-    onError: (err, _variables, context) => {
+    onError: (err, variables, context) => {
       if (context?.previousStreet && municipalityId) {
         patchStreetInMapCache(queryClient, municipalityId, context.previousStreet);
       }
+      brushBaseByStreetRef.current.delete(variables.streetId);
       setSnackbar({
         message: getApiErrorMessage(err, 'Não foi possível pintar o trecho da rua.'),
         severity: 'warning',
@@ -841,24 +854,33 @@ export function SigapsMap() {
       const street =
         cached?.items?.find((s) => s.id === variables.streetId) ??
         streets.find((s) => s.id === variables.streetId);
-      const previousStreet = street ? { ...street } : undefined;
+      const isBrush =
+        variables.endLatitude != null && variables.endLongitude != null;
+      const brushBase = isBrush ? brushBaseByStreetRef.current.get(variables.streetId) : undefined;
+      const previousStreet = brushBase
+        ? { ...brushBase }
+        : street
+          ? { ...street }
+          : undefined;
       if (street) {
-        const optimistic =
-          variables.endLatitude != null && variables.endLongitude != null
-            ? simulateUnpaintRange(
-                street,
-                variables.latitude,
-                variables.longitude,
-                variables.endLatitude,
-                variables.endLongitude,
-                (variables.side ?? 'FULL') as ApiPaintSide,
-              )
-            : simulateUnpaintAtPoint(
-                street,
-                variables.latitude,
-                variables.longitude,
-                (variables.side ?? 'FULL') as ApiPaintSide,
-              );
+        if (isBrush && brushBase) {
+          return { previousStreet, seq };
+        }
+        const optimistic = isBrush
+          ? simulateUnpaintRange(
+              street,
+              variables.latitude,
+              variables.longitude,
+              variables.endLatitude!,
+              variables.endLongitude!,
+              (variables.side ?? 'FULL') as ApiPaintSide,
+            )
+          : simulateUnpaintAtPoint(
+              street,
+              variables.latitude,
+              variables.longitude,
+              (variables.side ?? 'FULL') as ApiPaintSide,
+            );
         if (optimistic) {
           patchStreetInMapCache(queryClient, municipalityId, optimistic);
         }
@@ -870,6 +892,7 @@ export function SigapsMap() {
         if (context?.previousStreet && municipalityId) {
           patchStreetInMapCache(queryClient, municipalityId, context.previousStreet);
         }
+        brushBaseByStreetRef.current.delete(variables.streetId);
         setSnackbar({
           message: 'Não há pintura neste trecho para apagar.',
           severity: 'info',
@@ -1013,16 +1036,47 @@ export function SigapsMap() {
     );
   }, [paintMode, eraserMode, selectedMicroareaId, municipalityId, paintAtPointMutation, unpaintAtPointMutation, pushUndo]);
 
+  const brushStrokeLive = useCallback(
+    (
+      street: Street,
+      startLat: number,
+      startLng: number,
+      endLat: number,
+      endLng: number,
+      side: ApiPaintSide | 'LEFT' | 'RIGHT' | 'FULL',
+      action: 'paint' | 'unpaint',
+    ) => {
+      if (!municipalityId) return;
+      if (!brushBaseByStreetRef.current.has(street.id)) {
+        brushBaseByStreetRef.current.set(street.id, {
+          ...street,
+          paintSegments: street.paintSegments ? [...street.paintSegments] : [],
+        });
+      }
+      const base = brushBaseByStreetRef.current.get(street.id)!;
+      if (action === 'paint') {
+        if (!selectedMicroareaId) return;
+        const ma = getMicroarea(selectedMicroareaId);
+        if (!ma) return;
+        const optimistic = simulatePaintRange(base, ma, startLat, startLng, endLat, endLng, side);
+        if (optimistic) patchStreetInMapCache(queryClient, municipalityId, optimistic);
+        return;
+      }
+      const optimistic = simulateUnpaintRange(base, startLat, startLng, endLat, endLng, side);
+      if (optimistic) patchStreetInMapCache(queryClient, municipalityId, optimistic);
+    },
+    [municipalityId, selectedMicroareaId, getMicroarea, queryClient],
+  );
+
   const paintStreetRange = useCallback((
     street: Street,
     startLat: number,
     startLng: number,
     endLat: number,
     endLng: number,
+    side: ApiPaintSide | 'LEFT' | 'RIGHT' | 'FULL',
   ) => {
     if (!paintMode || eraserMode || !selectedMicroareaId || !municipalityId) return;
-    const { paintStreetSide } = useMapStore.getState();
-    const side = resolveApiPaintSide(street, paintStreetSide, 'brush', endLat, endLng);
     const apiSide = side === 'BOTH' ? detectClickSide(street, endLat, endLng) : side;
     const dedupeKey = `brush:${street.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
     if (segmentPaintKeysRef.current.has(dedupeKey)) return;
@@ -1035,11 +1089,14 @@ export function SigapsMap() {
         longitude: startLng,
         endLatitude: endLat,
         endLongitude: endLng,
-        side,
+        side: apiSide,
         scope: 'brush',
       },
       {
-        onSettled: () => segmentPaintKeysRef.current.delete(dedupeKey),
+        onSettled: () => {
+          segmentPaintKeysRef.current.delete(dedupeKey);
+          brushBaseByStreetRef.current.delete(street.id);
+        },
       },
     );
   }, [paintMode, eraserMode, selectedMicroareaId, municipalityId, paintAtPointMutation]);
@@ -1050,13 +1107,13 @@ export function SigapsMap() {
     startLng: number,
     endLat: number,
     endLng: number,
+    side: ApiPaintSide | 'LEFT' | 'RIGHT' | 'FULL',
   ) => {
     if (!paintMode) return;
-    const { paintStreetSide, eraserMode: eraser } = useMapStore.getState();
+    const { eraserMode: eraser } = useMapStore.getState();
     if (!eraser) return;
-    const side = effectivePaintSide(street, endLat, endLng, paintStreetSide, 'brush', true);
     const apiSide = side === 'BOTH' ? detectClickSide(street, endLat, endLng) : side;
-    const state = paintStateAtPoint(street, endLat, endLng, side);
+    const state = paintStateAtPoint(street, endLat, endLng, apiSide);
     if (!streetHasPaint(street) && !state.microareaId) return;
     const dedupeKey = `unbrush:${street.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
     if (segmentPaintKeysRef.current.has(dedupeKey)) return;
@@ -1086,7 +1143,10 @@ export function SigapsMap() {
             scope: 'brush',
           });
         },
-        onSettled: () => segmentPaintKeysRef.current.delete(dedupeKey),
+        onSettled: () => {
+          segmentPaintKeysRef.current.delete(dedupeKey);
+          brushBaseByStreetRef.current.delete(street.id);
+        },
       },
     );
   }, [paintMode, unpaintAtPointMutation, pushUndo]);
@@ -1726,6 +1786,7 @@ export function SigapsMap() {
               onStreetClick={handleStreetClick}
               onStreetPaint={paintStreet}
               onStreetUnpaint={unpaintStreet}
+              onStreetBrushLive={brushStrokeLive}
               onStreetPaintRange={paintStreetRange}
               onStreetUnpaintRange={unpaintStreetRange}
               onPaintBlocked={handlePaintBlocked}

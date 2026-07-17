@@ -62,12 +62,23 @@ interface StreetsLayerProps {
   onStreetClick: (street: Street, multiSelect?: boolean) => void;
   onStreetPaint: (street: Street, latitude: number, longitude: number) => void;
   onStreetUnpaint: (street: Street, latitude: number, longitude: number) => void;
+  /** Atualiza tinta local enquanto arrasta (sem API). */
+  onStreetBrushLive: (
+    street: Street,
+    startLat: number,
+    startLng: number,
+    endLat: number,
+    endLng: number,
+    side: StreetPaintSide,
+    action: 'paint' | 'unpaint',
+  ) => void;
   onStreetPaintRange: (
     street: Street,
     startLat: number,
     startLng: number,
     endLat: number,
     endLng: number,
+    side: StreetPaintSide,
   ) => void;
   onStreetUnpaintRange: (
     street: Street,
@@ -75,6 +86,7 @@ interface StreetsLayerProps {
     startLng: number,
     endLat: number,
     endLng: number,
+    side: StreetPaintSide,
   ) => void;
   onPaintBlocked?: (reason: 'pan') => void;
   onDragPaintEnd: () => void;
@@ -102,6 +114,7 @@ function StreetsLayerComponent({
   onStreetClick,
   onStreetPaint,
   onStreetUnpaint,
+  onStreetBrushLive,
   onStreetPaintRange,
   onStreetUnpaintRange,
   onPaintBlocked,
@@ -245,6 +258,26 @@ function StreetsLayerComponent({
   }, [streets]);
 
   const brushContainerRectRef = useRef<DOMRect | null>(null);
+  const brushLiveFnRef = useRef(onStreetBrushLive);
+  const paintRangeFnRef = useRef(onStreetPaintRange);
+  const unpaintRangeFnRef = useRef(onStreetUnpaintRange);
+  const dragEndFnRef = useRef(onDragPaintEnd);
+  brushLiveFnRef.current = onStreetBrushLive;
+  paintRangeFnRef.current = onStreetPaintRange;
+  unpaintRangeFnRef.current = onStreetUnpaintRange;
+  dragEndFnRef.current = onDragPaintEnd;
+
+  const emitBrushLive = (session: BrushSession, street: Street) => {
+    brushLiveFnRef.current(
+      street,
+      session.startLat,
+      session.startLng,
+      session.endLat,
+      session.endLng,
+      session.side,
+      session.action,
+    );
+  };
 
   const updateBrushPreviewFromSession = (session: BrushSession, street: Street, eraser: boolean) => {
     const geom = computeBrushPreviewGeometryByIndex(
@@ -259,21 +292,20 @@ function StreetsLayerComponent({
       return;
     }
     const latlngs = (geom.coordinates as [number, number][]).map(([lng, lat]) => L.latLng(lat, lng));
+    // Tinta sólida — o usuário precisa ver a pintura acompanhar o arraste, não um tracejado.
     const style: L.PolylineOptions = eraser
       ? {
           color: '#EF5350',
-          weight: 8,
-          opacity: 0.85,
-          dashArray: '6 6',
+          weight: 12,
+          opacity: 0.95,
           lineCap: 'round',
           lineJoin: 'round',
           interactive: false,
         }
       : {
           color: activeColor,
-          weight: 9,
-          opacity: 0.9,
-          dashArray: '10 5',
+          weight: 12,
+          opacity: 0.98,
           lineCap: 'round',
           lineJoin: 'round',
           interactive: false,
@@ -336,6 +368,8 @@ function StreetsLayerComponent({
       const st = streetsByIdRef.current.get(current.streetId);
       if (!st) return;
       updateBrushPreviewFromSession(current, st, current.action === 'unpaint');
+      // Tinta no cache enquanto arrasta — não espera o mouseup.
+      emitBrushLive(current, st);
     });
   };
 
@@ -363,22 +397,24 @@ function StreetsLayerComponent({
       if (session) {
         const street = streetsByIdRef.current.get(session.streetId);
         if (street) {
-          // Sempre envia — clique curto também pinta (backend amplia 1 vértice).
+          // Commit com o mesmo lado do preview (não recalcula no mouseup).
           if (session.action === 'unpaint') {
-            onStreetUnpaintRange(
+            unpaintRangeFnRef.current(
               street,
               session.startLat,
               session.startLng,
               session.endLat,
               session.endLng,
+              session.side,
             );
           } else {
-            onStreetPaintRange(
+            paintRangeFnRef.current(
               street,
               session.startLat,
               session.startLng,
               session.endLat,
               session.endLng,
+              session.side,
             );
           }
         }
@@ -386,18 +422,18 @@ function StreetsLayerComponent({
         clearBrushPreviewLayer();
       }
       dragActionRef.current = null;
-      onDragPaintEnd();
+      dragEndFnRef.current();
     };
     window.addEventListener('mouseup', finishBrush);
     window.addEventListener('touchend', finishBrush);
     window.addEventListener('touchcancel', finishBrush);
     return () => {
-      stopBrushTracking();
+      // Não chama stopBrushTracking aqui: re-render não pode matar o traço no meio.
       window.removeEventListener('mouseup', finishBrush);
       window.removeEventListener('touchend', finishBrush);
       window.removeEventListener('touchcancel', finishBrush);
     };
-  }, [onDragPaintEnd, onStreetPaintRange, onStreetUnpaintRange]);
+  }, []);
 
   const renderStreets = useMemo(() => {
     if (streets.length < VIEWPORT_CULL_MIN) return streets;
@@ -477,7 +513,10 @@ function StreetsLayerComponent({
             ...f,
             geometry: simplifyLineGeojson(f.geometry, zoom) as GeoJSON.LineString,
           })),
-          hitGeom: simplifyLineGeojson(street.geojson, zoom) as GeoJSON.LineString,
+          // Hit em modo pintura usa geometria completa — simplify atrasa o início do traço.
+          hitGeom: (paintMode
+            ? street.geojson
+            : simplifyLineGeojson(street.geojson, zoom)) as GeoJSON.LineString,
         };
         cache.set(cacheKey, cached);
       }
@@ -555,11 +594,15 @@ function StreetsLayerComponent({
     paintStreetSide,
   ]);
 
-  /** Hit layer: estável em eraser/pan — style/handlers já leem o store. */
-  const hitLayerVersion = useMemo(
-    () => `${hitFeatures.length}:${zoom}:${paintMode ? 1 : 0}`,
-    [hitFeatures.length, zoom, paintMode],
-  );
+  /** Hit layer: remonta quando o conjunto de ruas do viewport muda (não só o count). */
+  const hitLayerVersion = useMemo(() => {
+    let h = 0;
+    for (const feature of hitFeatures) {
+      const id = String(feature.properties.streetId ?? feature.properties.id ?? '');
+      for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+    }
+    return `${hitFeatures.length}:${h}:${zoom}:${paintMode ? 1 : 0}`;
+  }, [hitFeatures, zoom, paintMode]);
 
   useEffect(() => {
     if (!map.getPane('streetsHit')) {
@@ -746,7 +789,7 @@ function StreetsLayerComponent({
       });
     }
 
-    if (paintMode && !mapPanEnabled) {
+    if (paintMode) {
       const applyDragAction = (lat: number, lng: number) => {
         const street = getStreet();
         if (!street) return;
@@ -758,12 +801,16 @@ function StreetsLayerComponent({
       };
 
       const handlePointerOver = (e: L.LeafletMouseEvent) => {
-        // Preview do brush já é atualizado pelo listener global (rAF) — evita setState/double-render.
         if (brushSessionRef.current?.streetId === props.streetId) return;
+        const storeNow = useMapStore.getState();
+        if (storeNow.mapPanEnabled) {
+          const ctx = pointerPaintContext(e.latlng.lat, e.latlng.lng);
+          if (ctx) layer.setTooltipContent(ctx.tooltip);
+          return;
+        }
         const street = getStreet();
         if (!street) return;
-        const raw = e.latlng;
-        const snapped = closestPointAndVertexOnStreet(street, raw.lat, raw.lng);
+        const snapped = closestPointAndVertexOnStreet(street, e.latlng.lat, e.latlng.lng);
         const ctx = pointerPaintContext(snapped.lat, snapped.lng);
         if (!ctx) return;
         if (ctx.store.eraserMode && !streetHasPaint(street) && !ctx.state.microareaId) return;
@@ -787,9 +834,13 @@ function StreetsLayerComponent({
 
       const handlePointerDown = (e: L.LeafletMouseEvent) => {
         stopMapEvent(e);
+        const store = useMapStore.getState();
+        if (store.mapPanEnabled) {
+          onPaintBlocked?.('pan');
+          return;
+        }
         const street = getStreet();
         if (!street) return;
-        const store = useMapStore.getState();
         const snapped = closestPointAndVertexOnStreet(street, e.latlng.lat, e.latlng.lng);
         const { lat, lng, vertexIndex } = snapped;
         const side = effectivePaintSide(
@@ -821,6 +872,7 @@ function StreetsLayerComponent({
             clearHoverPreviewLayer();
             startBrushTracking();
             updateBrushPreviewFromSession(session, street, true);
+            emitBrushLive(session, street);
             return;
           }
           if (!store.selectedMicroareaId) return;
@@ -840,6 +892,7 @@ function StreetsLayerComponent({
           clearHoverPreviewLayer();
           startBrushTracking();
           updateBrushPreviewFromSession(session, street, false);
+          emitBrushLive(session, street);
           return;
         }
 
@@ -861,18 +914,6 @@ function StreetsLayerComponent({
       layer.on('touchstart', handlePointerDown as L.LeafletEventHandlerFn);
       layer.on('touchmove', handlePointerOver as L.LeafletEventHandlerFn);
       layer.on('click', stopMapEvent);
-      return;
-    }
-
-    if (paintMode && mapPanEnabled) {
-      layer.on('mousedown', (e: L.LeafletMouseEvent) => {
-        stopMapEvent(e);
-        onPaintBlocked?.('pan');
-      });
-      layer.on('mouseover', (e: L.LeafletMouseEvent) => {
-        const ctx = pointerPaintContext(e.latlng.lat, e.latlng.lng);
-        if (ctx) layer.setTooltipContent(ctx.tooltip);
-      });
       return;
     }
 
