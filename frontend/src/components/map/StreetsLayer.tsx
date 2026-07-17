@@ -439,10 +439,11 @@ export function StreetsLayer({
         selectedIds.has(street.id) ||
         dragPaintIds.has(street.id) ||
         street.id === highlightedId ||
-        streetHasPaint(street) ||
+        // Em modo pintura, só o viewport (evita manter ~todas as pintadas).
+        (!paintMode && streetHasPaint(street)) ||
         lineIntersectsBounds(street.geojson, mapBounds),
     );
-  }, [streets, mapBounds, selectedIds, dragPaintIds, highlightedId]);
+  }, [streets, mapBounds, selectedIds, dragPaintIds, highlightedId, paintMode]);
 
   // Selection flags aplicados depois — cache só depende de pintura/modo/zoom.
   const featureCtx = useMemo(
@@ -457,6 +458,21 @@ export function StreetsLayer({
     [paintStreetSide, paintMode],
   );
 
+  /** Cache por rua: um traço só reconstrói a rua dirty, não as ~700. */
+  const streetFeatureStateRef = useRef(
+    new Map<
+      string,
+      {
+        cacheKey: string;
+        flagKey: string;
+        painted: StreetMapFeature[];
+        unpainted: StreetMapFeature[];
+        dragPreview: StreetMapFeature[];
+        hit: StreetMapFeature;
+      }
+    >(),
+  );
+
   const { painted, unpainted, dragPreview, hitFeatures } = useMemo(() => {
     const p: StreetMapFeature[] = [];
     const u: StreetMapFeature[] = [];
@@ -465,13 +481,16 @@ export function StreetsLayer({
     const zoomBucket = zoom < 13 ? 12 : zoom < 15 ? 14 : 16;
     const modeKey = `${paintMode ? 1 : 0}:${paintStreetSide}:${zoomBucket}`;
     const cache = featureCacheRef.current;
+    const streetState = streetFeatureStateRef.current;
     const keep = new Set<string>();
+    const keepStreet = new Set<string>();
 
     for (const street of renderStreets) {
       if (!isValidLineString(street.geojson)) continue;
       const paintKey = streetPaintCacheKey(street);
       const cacheKey = `${paintKey}|${modeKey}`;
       keep.add(cacheKey);
+      keepStreet.add(street.id);
 
       let cached = cache.get(cacheKey);
       if (!cached) {
@@ -497,39 +516,58 @@ export function StreetsLayer({
       const highlighted = street.id === highlightedId;
       const selected = selectedIds.has(street.id);
       const dragPending = dragPaintIds.has(street.id);
-      const withFlags = (list: StreetMapFeature[]) =>
-        list.map((f) => ({
-          ...f,
-          properties: { ...f.properties, highlighted, selected, dragPending },
-        }));
+      const flagKey = `${highlighted ? 1 : 0}${selected ? 1 : 0}${dragPending ? 1 : 0}`;
 
-      p.push(...withFlags(cached.painted));
-      u.push(...withFlags(cached.unpainted));
-      d.push(...withFlags(cached.dragPreview));
-      hits.push({
-        type: 'Feature',
-        properties: {
-          id: street.id,
-          streetId: street.id,
-          name: street.name,
-          streetType: street.streetType ?? 'Rua',
-          isDirtRoad: (street.streetType ?? '').toLowerCase().includes('terra'),
-          color: street.microarea?.color ?? '#546e7a',
-          microareaName: street.microarea?.name,
-          hasMicroarea: streetHasPaint(street),
-          highlighted,
-          selected,
-          dragPending,
-          familyCount: street.familyCount ?? 0,
-          isPartial: false,
-        },
-        geometry: cached.hitGeom,
-      });
+      let state = streetState.get(street.id);
+      if (!state || state.cacheKey !== cacheKey || state.flagKey !== flagKey) {
+        const withFlags = (list: StreetMapFeature[]) =>
+          list.map((f) => ({
+            ...f,
+            properties: { ...f.properties, highlighted, selected, dragPending },
+          }));
+        state = {
+          cacheKey,
+          flagKey,
+          painted: withFlags(cached.painted),
+          unpainted: withFlags(cached.unpainted),
+          dragPreview: withFlags(cached.dragPreview),
+          hit: {
+            type: 'Feature',
+            properties: {
+              id: street.id,
+              streetId: street.id,
+              name: street.name,
+              streetType: street.streetType ?? 'Rua',
+              isDirtRoad: (street.streetType ?? '').toLowerCase().includes('terra'),
+              color: street.microarea?.color ?? '#546e7a',
+              microareaName: street.microarea?.name,
+              hasMicroarea: streetHasPaint(street),
+              highlighted,
+              selected,
+              dragPending,
+              familyCount: street.familyCount ?? 0,
+              isPartial: false,
+            },
+            geometry: cached.hitGeom,
+          },
+        };
+        streetState.set(street.id, state);
+      }
+
+      p.push(...state.painted);
+      u.push(...state.unpainted);
+      d.push(...state.dragPreview);
+      hits.push(state.hit);
     }
 
     if (cache.size > keep.size + 80) {
       for (const key of cache.keys()) {
         if (!keep.has(key)) cache.delete(key);
+      }
+    }
+    if (streetState.size > keepStreet.size + 80) {
+      for (const id of streetState.keys()) {
+        if (!keepStreet.has(id)) streetState.delete(id);
       }
     }
 

@@ -1197,6 +1197,7 @@ export class StreetsService {
         ? microareaRef
         : paintSegments.find((s) => s.microareaId === microareaIdSynced)?.microarea ?? null;
 
+    // Sem geojson na resposta: o frontend já tem a geometria em cache (payload menor).
     return this.serializeStreetForApi(
       {
         ...working,
@@ -1206,6 +1207,7 @@ export class StreetsService {
       },
       undefined,
       false,
+      true,
     );
   }
 
@@ -1338,6 +1340,7 @@ export class StreetsService {
         },
         undefined,
         false,
+        true,
       ),
     };
   }
@@ -1346,6 +1349,7 @@ export class StreetsService {
     street: Record<string, unknown>,
     geoPrecision?: number,
     mapOnly = false,
+    leanPaint = false,
   ) {
     const paintSegments = (street.paintSegments as Array<Record<string, unknown>> | undefined)?.map(
       (seg) => ({
@@ -1354,14 +1358,19 @@ export class StreetsService {
         endIndex: seg.endIndex,
         side: seg.side,
         microareaId: seg.microareaId,
-        geojson: compactLineStringGeojson(seg.geojson, geoPrecision),
+        ...(leanPaint
+          ? {}
+          : { geojson: compactLineStringGeojson(seg.geojson, geoPrecision) }),
         microarea: seg.microarea,
       }),
     );
 
+    const { geojson: streetGeojson, ...streetRest } = street;
     return {
-      ...street,
-      geojson: compactLineStringGeojson(street.geojson, geoPrecision),
+      ...streetRest,
+      ...(leanPaint
+        ? {}
+        : { geojson: compactLineStringGeojson(streetGeojson, geoPrecision) }),
       osmId: (street.osmId as bigint | null | undefined)?.toString?.() ?? street.osmId ?? null,
       paintSegments,
       ...(mapOnly

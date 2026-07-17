@@ -38,8 +38,8 @@ import { FamilyBulkImportDialog } from './FamilyBulkImportDialog';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
 import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
-import { fixLineString, prepareStreetsForMap } from '../../utils/streetSearch';
-import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, simulatePaintRange, simulateUnpaintAtPoint, simulateUnpaintRange, closestVertexIndex, streetCoords } from '../../utils/streetPaintSegments';
+import { fixLineString, paintGeometryEqual, prepareStreetsForMap } from '../../utils/streetSearch';
+import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, simulatePaintRange, simulateUnpaintAtPoint, simulateUnpaintRange, closestVertexIndex, streetCoords, sliceStreetGeojson } from '../../utils/streetPaintSegments';
 import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
 import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
@@ -58,6 +58,24 @@ import { MapCursorCoordsTracker } from './MapCursorCoords';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
 const DRAG_PAINT_THROTTLE_MS = 300;
+
+/** Resposta lean do paint/unpaint: reconstitui geojson a partir da rua em cache. */
+function hydratePaintedStreet(updated: Street, base: Street): Street {
+  const coords = streetCoords(base.geojson);
+  return {
+    ...base,
+    ...updated,
+    geojson: base.geojson,
+    lengthMeters: base.lengthMeters,
+    paintSegments: (updated.paintSegments ?? []).map((seg) => {
+      if (seg.geojson?.coordinates?.length) return seg;
+      return {
+        ...seg,
+        geojson: sliceStreetGeojson(coords, seg.startIndex, seg.endIndex) ?? base.geojson,
+      };
+    }),
+  };
+}
 
 type PaintUndoAction =
   | {
@@ -726,15 +744,24 @@ export function SigapsMap() {
       const currentSeq = paintSeqByStreetRef.current.get(variables.streetId);
       // Traço mais novo já está no cache — não refetchar todas as ruas.
       if (context?.seq !== currentSeq) return;
-      const updated = prepareStreetsForMap([res.data])[0];
-      if (!updated) {
+      const streetsKey = queryKeys.streetsMap(municipalityId);
+      const cached = queryClient.getQueryData<{ items?: Street[] }>(streetsKey);
+      const base =
+        cached?.items?.find((s) => s.id === variables.streetId) ??
+        streets.find((s) => s.id === variables.streetId);
+      if (!base) {
         setSnackbar({
           message: 'Pintura salva, mas a rua não pôde ser atualizada no mapa.',
           severity: 'warning',
         });
         return;
       }
-      patchStreetInMapCache(queryClient, municipalityId, updated);
+      const hydrated = hydratePaintedStreet(res.data, base);
+      const updated = prepareStreetsForMap([hydrated])[0] ?? hydrated;
+      // Geometria já bate com o otimista → evita segundo remount do mapa.
+      if (!paintGeometryEqual(base, updated)) {
+        patchStreetInMapCache(queryClient, municipalityId, updated);
+      }
       scheduleDashboardInvalidate(queryClient, municipalityId);
       scheduleMicroareasInvalidate(queryClient, municipalityId);
       scheduleEnvelopeRefresh();
@@ -837,9 +864,18 @@ export function SigapsMap() {
       const currentSeq = paintSeqByStreetRef.current.get(variables.streetId);
       if (context?.seq !== currentSeq) return;
       if (res.data.street) {
-        const updated = prepareStreetsForMap([res.data.street])[0];
-        if (updated) {
-          patchStreetInMapCache(queryClient, municipalityId, updated);
+        const streetsKey = queryKeys.streetsMap(municipalityId);
+        const cached = queryClient.getQueryData<{ items?: Street[] }>(streetsKey);
+        const base =
+          cached?.items?.find((s) => s.id === variables.streetId) ??
+          streets.find((s) => s.id === variables.streetId) ??
+          context?.previousStreet;
+        if (base) {
+          const hydrated = hydratePaintedStreet(res.data.street, base);
+          const updated = prepareStreetsForMap([hydrated])[0] ?? hydrated;
+          if (!paintGeometryEqual(base, updated)) {
+            patchStreetInMapCache(queryClient, municipalityId, updated);
+          }
           if (selectedStreet?.id === updated.id) {
             setSelectedStreet(updated);
           }

@@ -64,19 +64,46 @@ export function fixLineString(geojson: GeoJSON.LineString): GeoJSON.LineString {
 
 type StreetLocal = Street & { _localRev?: number };
 
-/** Assinatura da pintura/geometria — compartilhada com StreetsLayer cache. */
+/**
+ * Assinatura da geometria pintada (sem id de segmento / _localRev).
+ * Assim o onSuccess com UUIDs novos não invalida o cache do Leaflet.
+ */
 export function streetPaintCacheKey(street: Street): string {
   const local = street as StreetLocal;
   const segs = local.paintSegments ?? [];
   let segSig = `${segs.length}`;
   for (const seg of segs) {
-    segSig += `|${seg.id}:${seg.microareaId}:${seg.startIndex}:${seg.endIndex}:${seg.side}`;
+    segSig += `|${seg.microareaId}:${seg.startIndex}:${seg.endIndex}:${seg.side}`;
   }
-  return `${local.id}|${local._localRev ?? 0}|${local.microareaId ?? ''}|${segSig}`;
+  return `${local.id}|${local.microareaId ?? ''}|${segSig}`;
+}
+
+/** Compara só a geometria da pintura (ignora ids de segmento). */
+export function paintGeometryEqual(a: Street, b: Street): boolean {
+  if ((a.microareaId ?? null) !== (b.microareaId ?? null)) return false;
+  const as = [...(a.paintSegments ?? [])].sort(
+    (x, y) => x.startIndex - y.startIndex || String(x.side).localeCompare(String(y.side)),
+  );
+  const bs = [...(b.paintSegments ?? [])].sort(
+    (x, y) => x.startIndex - y.startIndex || String(x.side).localeCompare(String(y.side)),
+  );
+  if (as.length !== bs.length) return false;
+  for (let i = 0; i < as.length; i++) {
+    if (
+      as[i].startIndex !== bs[i].startIndex ||
+      as[i].endIndex !== bs[i].endIndex ||
+      as[i].side !== bs[i].side ||
+      as[i].microareaId !== bs[i].microareaId
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Reusa ruas já preparadas — um paint não reprocessa as ~700 geometrias. */
 const preparedStreetCache = new Map<string, Street>();
+let lastPreparedOut: Street[] | null = null;
 
 export function prepareStreetsForMap(streets: Street[]): Street[] {
   const keep = new Set<string>();
@@ -103,5 +130,14 @@ export function prepareStreetsForMap(streets: Street[]): Street[] {
     }
   }
 
+  // Mesma identidade de ruas → devolve o array anterior (evita useMemo em cascata).
+  if (
+    lastPreparedOut &&
+    lastPreparedOut.length === out.length &&
+    lastPreparedOut.every((s, i) => s === out[i])
+  ) {
+    return lastPreparedOut;
+  }
+  lastPreparedOut = out;
   return out;
 }

@@ -18,10 +18,19 @@ export function lineIntersectsBounds(geojson: unknown, bounds: LatLngBounds, pad
   const west = bounds.getWest() - padding;
   const east = bounds.getEast() + padding;
 
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
   for (const [lng, lat] of coords) {
     if (lat >= south && lat <= north && lng >= west && lng <= east) return true;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
   }
-  return false;
+  // Linha cruza o viewport sem vértice dentro (avenida longa).
+  return !(maxLat < south || minLat > north || maxLng < west || minLng > east);
 }
 
 function zoomBucket(zoom: number): number {

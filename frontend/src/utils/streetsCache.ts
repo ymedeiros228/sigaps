@@ -62,7 +62,11 @@ export function mergeStreetsById(existing: Street[] | undefined, incoming: Stree
 function patchStreetList(items: Street[], street: Street): Street[] {
   const idx = items.findIndex((s) => s.id === street.id);
   if (idx < 0) return [...items, street];
-  return items.map((s) => (s.id === street.id ? { ...s, ...street } : s));
+  const merged = { ...items[idx], ...street };
+  if (merged === items[idx]) return items;
+  const next = items.slice();
+  next[idx] = merged;
+  return next;
 }
 
 function updateStreetsMapCache(
