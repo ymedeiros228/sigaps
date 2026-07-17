@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { PathOptions } from 'leaflet';
-import type { Street } from '../../services/api';
+import type { Street, StreetPaintSide } from '../../services/api';
 import { useAppStore, useMapStore } from '../../store';
 import { isValidLineString } from '../../utils/geojsonSafe';
 import { formatStreetLabel, streetPaintCacheKey } from '../../utils/streetSearch';
@@ -10,8 +10,8 @@ import { familyHeatColor } from '../../utils/geo';
 import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetViewport';
 import {
   buildStreetMapFeatures,
-  closestPointOnStreet,
-  computeBrushPreviewGeometry,
+  closestPointAndVertexOnStreet,
+  computeBrushPreviewGeometryByIndex,
   computePaintPreviewGeometry,
   effectivePaintSide,
   isDualSideStreet,
@@ -86,7 +86,9 @@ type BrushSession = {
   startLng: number;
   endLat: number;
   endLng: number;
-  side: ReturnType<typeof effectivePaintSide>;
+  startIndex: number;
+  endIndex: number;
+  side: StreetPaintSide;
   action: 'paint' | 'unpaint';
 };
 
@@ -95,7 +97,7 @@ function stopMapEvent(e: L.LeafletMouseEvent) {
   if (e.originalEvent) L.DomEvent.preventDefault(e.originalEvent);
 }
 
-export function StreetsLayer({
+function StreetsLayerComponent({
   streets,
   onStreetClick,
   onStreetPaint,
@@ -184,29 +186,7 @@ export function StreetsLayer({
     }
   };
 
-  const syncHoverPreviewLayer = (
-    street: Street,
-    lat: number,
-    lng: number,
-    eraser: boolean,
-  ) => {
-    const { paintStreetSide: sideMode, paintScope: scope, selectedMicroareaId: maId } =
-      useMapStore.getState();
-    const side = effectivePaintSide(street, lat, lng, sideMode, scope, eraser);
-    const state = paintStateAtPoint(street, lat, lng, side);
-    if (eraser && !state.microareaId && !streetHasPaint(street)) {
-      clearHoverPreviewLayer();
-      return;
-    }
-    const geom = computePaintPreviewGeometry(
-      street,
-      lat,
-      lng,
-      eraser ? null : maId,
-      side,
-      scope,
-      eraser,
-    );
+  const applyHoverPreviewGeometry = (geom: GeoJSON.LineString | null, eraser: boolean) => {
     if (!geom) {
       clearHoverPreviewLayer();
       return;
@@ -264,13 +244,13 @@ export function StreetsLayer({
     }
   }, [streets]);
 
+  const brushContainerRectRef = useRef<DOMRect | null>(null);
+
   const updateBrushPreviewFromSession = (session: BrushSession, street: Street, eraser: boolean) => {
-    const geom = computeBrushPreviewGeometry(
+    const geom = computeBrushPreviewGeometryByIndex(
       street,
-      session.startLat,
-      session.startLng,
-      session.endLat,
-      session.endLng,
+      session.startIndex,
+      session.endIndex,
       session.side,
       eraser,
     );
@@ -314,6 +294,7 @@ export function StreetsLayer({
       brushRafRef.current = null;
     }
     brushLastVertexRef.current = null;
+    brushContainerRectRef.current = null;
     const onMove = brushMoveListenerRef.current;
     if (!onMove) return;
     document.removeEventListener('mousemove', onMove);
@@ -327,40 +308,25 @@ export function StreetsLayer({
     const street = streetsByIdRef.current.get(session.streetId);
     if (!street) return;
 
-    const container = map.getContainer();
-    const rect = container.getBoundingClientRect();
+    let rect = brushContainerRectRef.current;
+    if (!rect) {
+      rect = map.getContainer().getBoundingClientRect();
+      brushContainerRectRef.current = rect;
+    }
     const point = L.point(clientX - rect.left, clientY - rect.top);
     const latlng = map.containerPointToLatLng(point);
-    const snapped = closestPointOnStreet(street, latlng.lat, latlng.lng);
-    const { paintStreetSide, paintScope, eraserMode } = useMapStore.getState();
-    const side = effectivePaintSide(
-      street,
-      snapped.lat,
-      snapped.lng,
-      paintStreetSide,
-      paintScope,
-      eraserMode,
-    );
-    const next = { ...session, endLat: snapped.lat, endLng: snapped.lng, side };
+    const snapped = closestPointAndVertexOnStreet(street, latlng.lat, latlng.lng);
+    // Lado fixo no pointerdown — não recalcula side/state a cada move.
+    const next: BrushSession = {
+      ...session,
+      endLat: snapped.lat,
+      endLng: snapped.lng,
+      endIndex: snapped.vertexIndex,
+    };
     brushSessionRef.current = next;
 
-    // Só redesenha preview quando muda o vértice da polilinha (menos React/Leaflet).
-    const coords = street.geojson?.coordinates as [number, number][] | undefined;
-    let endVertex = 0;
-    if (coords && coords.length > 0) {
-      let best = 0;
-      let bestDist = Infinity;
-      for (let i = 0; i < coords.length; i++) {
-        const d = (coords[i][1] - snapped.lat) ** 2 + (coords[i][0] - snapped.lng) ** 2;
-        if (d < bestDist) {
-          bestDist = d;
-          best = i;
-        }
-      }
-      endVertex = best;
-    }
-    if (brushLastVertexRef.current === endVertex && brushPreviewActiveRef.current) return;
-    brushLastVertexRef.current = endVertex;
+    if (brushLastVertexRef.current === snapped.vertexIndex && brushPreviewActiveRef.current) return;
+    brushLastVertexRef.current = snapped.vertexIndex;
 
     if (brushRafRef.current != null) return;
     brushRafRef.current = requestAnimationFrame(() => {
@@ -376,6 +342,7 @@ export function StreetsLayer({
   const startBrushTracking = () => {
     if (brushMoveListenerRef.current) return;
     brushLastVertexRef.current = null;
+    brushContainerRectRef.current = map.getContainer().getBoundingClientRect();
     const onMove = (e: MouseEvent | TouchEvent) => {
       if (!brushSessionRef.current) return;
       const clientX = 'touches' in e ? e.touches[0]?.clientX : e.clientX;
@@ -465,6 +432,7 @@ export function StreetsLayer({
       {
         cacheKey: string;
         flagKey: string;
+        visualKey: string;
         painted: StreetMapFeature[];
         unpainted: StreetMapFeature[];
         dragPreview: StreetMapFeature[];
@@ -472,6 +440,7 @@ export function StreetsLayer({
       }
     >(),
   );
+  const visibleStreetIdsRef = useRef(new Set<string>());
 
   const { painted, unpainted, dragPreview, hitFeatures } = useMemo(() => {
     const p: StreetMapFeature[] = [];
@@ -517,9 +486,10 @@ export function StreetsLayer({
       const selected = selectedIds.has(street.id);
       const dragPending = dragPaintIds.has(street.id);
       const flagKey = `${highlighted ? 1 : 0}${selected ? 1 : 0}${dragPending ? 1 : 0}`;
+      const visualKey = `${cacheKey}|${flagKey}`;
 
       let state = streetState.get(street.id);
-      if (!state || state.cacheKey !== cacheKey || state.flagKey !== flagKey) {
+      if (!state || state.visualKey !== visualKey) {
         const withFlags = (list: StreetMapFeature[]) =>
           list.map((f) => ({
             ...f,
@@ -528,6 +498,7 @@ export function StreetsLayer({
         state = {
           cacheKey,
           flagKey,
+          visualKey,
           painted: withFlags(cached.painted),
           unpainted: withFlags(cached.unpainted),
           dragPreview: withFlags(cached.dragPreview),
@@ -570,6 +541,7 @@ export function StreetsLayer({
         if (!keepStreet.has(id)) streetState.delete(id);
       }
     }
+    visibleStreetIdsRef.current = keepStreet;
 
     return { painted: p, unpainted: u, dragPreview: d, hitFeatures: hits };
   }, [
@@ -700,9 +672,9 @@ export function StreetsLayer({
     const path = layer as L.Path;
     const label = formatStreetLabel({ name: props.name, streetType: props.streetType });
 
-    const tooltipForPoint = (lat: number, lng: number) => {
+    const pointerPaintContext = (lat: number, lng: number) => {
       const street = getStreet();
-      if (!street) return label;
+      if (!street) return null;
       const store = useMapStore.getState();
       const side = effectivePaintSide(
         street,
@@ -711,29 +683,44 @@ export function StreetsLayer({
         store.paintStreetSide,
         store.paintScope,
         store.eraserMode,
-      );
+      ) as StreetPaintSide;
       const state = paintStateAtPoint(street, lat, lng, side);
+      const geom = store.paintMode
+        ? computePaintPreviewGeometry(
+            street,
+            lat,
+            lng,
+            store.eraserMode ? null : store.selectedMicroareaId,
+            side,
+            store.paintScope,
+            store.eraserMode,
+          )
+        : null;
       const segName = state.segment?.microarea?.name ?? street.microarea?.name;
-      const sideText = isDualSideStreet(street) ? ` (${sideLabel(side as 'LEFT' | 'RIGHT' | 'FULL')})` : '';
+      const sideText = isDualSideStreet(street) ? ` (${sideLabel(side)})` : '';
+      let tooltip = label;
       if (store.paintMode) {
         if (store.eraserMode) {
-          return state.microareaId
+          tooltip = state.microareaId
             ? `Apagar trecho${sideText}: ${label}`
             : `${label} — não pintado aqui`;
+        } else {
+          const togglesToUnpaint =
+            !!store.selectedMicroareaId && state.microareaId === store.selectedMicroareaId;
+          tooltip = togglesToUnpaint
+            ? `Despintar trecho${sideText}: ${label}`
+            : store.paintScope === 'whole'
+              ? `Pintar rua inteira: ${label}`
+              : store.paintScope === 'brush'
+                ? `Arraste ao longo da rua${sideText}: ${label}`
+                : `Cortar e pintar trecho${sideText}: ${label}`;
         }
-        const togglesToUnpaint =
-          !!store.selectedMicroareaId && state.microareaId === store.selectedMicroareaId;
-        return togglesToUnpaint
-          ? `Despintar trecho${sideText}: ${label}`
-          : store.paintScope === 'whole'
-            ? `Pintar rua inteira: ${label}`
-            : store.paintScope === 'brush'
-              ? `Arraste ao longo da rua${sideText}: ${label}`
-              : `Cortar e pintar trecho${sideText}: ${label}`;
+      } else if (segName) {
+        tooltip = `${label} — ${segName}${sideText}`;
+      } else if (street.familyCount > 0) {
+        tooltip = `${label} — ${street.familyCount} família(s)`;
       }
-      if (segName) return `${label} — ${segName}${sideText}`;
-      if (street.familyCount > 0) return `${label} — ${street.familyCount} família(s)`;
-      return label;
+      return { street, store, side, state, geom, tooltip };
     };
 
     const streetAtBind = getStreet()!;
@@ -753,7 +740,7 @@ export function StreetsLayer({
         offset: [0, 0],
       });
     } else {
-      layer.bindTooltip(tooltipForPoint(0, 0), {
+      layer.bindTooltip(label, {
         sticky: true,
         className: paintMode ? 'paint-tooltip' : 'street-tooltip',
       });
@@ -770,39 +757,25 @@ export function StreetsLayer({
         }
       };
 
-      const snapOnStreet = (lat: number, lng: number) => {
-        const street = getStreet();
-        if (!street) return { lat, lng };
-        return closestPointOnStreet(street, lat, lng);
-      };
-
       const handlePointerOver = (e: L.LeafletMouseEvent) => {
         // Preview do brush já é atualizado pelo listener global (rAF) — evita setState/double-render.
         if (brushSessionRef.current?.streetId === props.streetId) return;
         const street = getStreet();
         if (!street) return;
-        const store = useMapStore.getState();
         const raw = e.latlng;
-        const { lat, lng } = snapOnStreet(raw.lat, raw.lng);
-        const side = effectivePaintSide(
-          street,
-          lat,
-          lng,
-          store.paintStreetSide,
-          store.paintScope,
-          store.eraserMode,
-        );
-        const state = paintStateAtPoint(street, lat, lng, side);
-        if (store.eraserMode && !streetHasPaint(street) && !state.microareaId) return;
-        syncHoverPreviewLayer(street, lat, lng, store.eraserMode);
+        const snapped = closestPointAndVertexOnStreet(street, raw.lat, raw.lng);
+        const ctx = pointerPaintContext(snapped.lat, snapped.lng);
+        if (!ctx) return;
+        if (ctx.store.eraserMode && !streetHasPaint(street) && !ctx.state.microareaId) return;
+        applyHoverPreviewGeometry(ctx.geom, ctx.store.eraserMode);
         path
           .getElement()
           ?.classList.add(
-            store.eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover',
+            ctx.store.eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover',
           );
-        layer.setTooltipContent(tooltipForPoint(lat, lng));
-        if (dragActionRef.current && store.paintScope !== 'brush') {
-          applyDragAction(lat, lng);
+        layer.setTooltipContent(ctx.tooltip);
+        if (dragActionRef.current && ctx.store.paintScope !== 'brush') {
+          applyDragAction(snapped.lat, snapped.lng);
         }
       };
 
@@ -817,8 +790,8 @@ export function StreetsLayer({
         const street = getStreet();
         if (!street) return;
         const store = useMapStore.getState();
-        const raw = e.latlng;
-        const { lat, lng } = snapOnStreet(raw.lat, raw.lng);
+        const snapped = closestPointAndVertexOnStreet(street, e.latlng.lat, e.latlng.lng);
+        const { lat, lng, vertexIndex } = snapped;
         const side = effectivePaintSide(
           street,
           lat,
@@ -826,7 +799,7 @@ export function StreetsLayer({
           store.paintStreetSide,
           store.paintScope,
           store.eraserMode,
-        );
+        ) as StreetPaintSide;
         const state = paintStateAtPoint(street, lat, lng, side);
 
         if (store.paintScope === 'brush') {
@@ -839,6 +812,8 @@ export function StreetsLayer({
               startLng: lng,
               endLat: lat,
               endLng: lng,
+              startIndex: vertexIndex,
+              endIndex: vertexIndex,
               side,
               action: 'unpaint',
             };
@@ -856,6 +831,8 @@ export function StreetsLayer({
             startLng: lng,
             endLat: lat,
             endLng: lng,
+            startIndex: vertexIndex,
+            endIndex: vertexIndex,
             side,
             action: 'paint',
           };
@@ -893,7 +870,8 @@ export function StreetsLayer({
         onPaintBlocked?.('pan');
       });
       layer.on('mouseover', (e: L.LeafletMouseEvent) => {
-        layer.setTooltipContent(tooltipForPoint(e.latlng.lat, e.latlng.lng));
+        const ctx = pointerPaintContext(e.latlng.lat, e.latlng.lng);
+        if (ctx) layer.setTooltipContent(ctx.tooltip);
       });
       return;
     }
@@ -935,58 +913,18 @@ export function StreetsLayer({
     if (!map.hasLayer(groups.unpainted)) groups.unpainted.addTo(map);
     if (!map.hasLayer(groups.drag)) groups.drag.addTo(map);
 
-    type Bucket = {
-      painted: StreetMapFeature[];
-      unpainted: StreetMapFeature[];
-      drag: StreetMapFeature[];
-    };
-    const byStreet = new Map<string, Bucket>();
-    const ensure = (streetId: string): Bucket => {
-      let b = byStreet.get(streetId);
-      if (!b) {
-        b = { painted: [], unpainted: [], drag: [] };
-        byStreet.set(streetId, b);
-      }
-      return b;
-    };
-    for (const f of painted) ensure(f.properties.streetId).painted.push(f);
-    for (const f of unpainted) ensure(f.properties.streetId).unpainted.push(f);
-    for (const f of dragPreview) ensure(f.properties.streetId).drag.push(f);
-
-    const nextKeys = new Map<string, string>();
     const toLatLngs = (geom: GeoJSON.LineString) =>
       (geom.coordinates as [number, number][]).map(([lng, lat]) => L.latLng(lat, lng));
-
-    const featureKey = (list: StreetMapFeature[]) => {
-      let h = 0;
-      for (const f of list) {
-        const p = f.properties;
-        for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) | 0;
-        const color = p.color ?? '';
-        for (let i = 0; i < color.length; i++) h = (h * 31 + color.charCodeAt(i)) | 0;
-        const coords = f.geometry?.coordinates;
-        if (Array.isArray(coords) && coords.length > 0) {
-          h = (h * 31 + coords.length) | 0;
-          const first = coords[0] as [number, number];
-          const last = coords[coords.length - 1] as [number, number];
-          h = (h * 31 + Math.round(first[0] * 1e5) + Math.round(first[1] * 1e5)) | 0;
-          h = (h * 31 + Math.round(last[0] * 1e5) + Math.round(last[1] * 1e5)) | 0;
-        }
-      }
-      return `${list.length}:${h}`;
-    };
-
     const nonInteractive = { interactive: false as const };
+    const styleKey = `${activeColor}|${eraserMode ? 1 : 0}`;
+    const visible = visibleStreetIdsRef.current;
+    const streetState = streetFeatureStateRef.current;
 
-    for (const [streetId, bucket] of byStreet) {
-      const key = [
-        featureKey(bucket.painted),
-        featureKey(bucket.unpainted),
-        featureKey(bucket.drag),
-        activeColor,
-        eraserMode ? 1 : 0,
-      ].join('|');
-      nextKeys.set(streetId, key);
+    // Só ruas dirty / estilo alterado — sem reagrupar nem re-hash das ~700.
+    for (const streetId of visible) {
+      const bucket = streetState.get(streetId);
+      if (!bucket) continue;
+      const key = `${bucket.visualKey}|${styleKey}`;
       if (visualKeyByStreetRef.current.get(streetId) === key) continue;
 
       const old = visualLayersByStreetRef.current.get(streetId);
@@ -1016,7 +954,7 @@ export function StreetsLayer({
         groups.unpainted.addLayer(line);
         created.push(line);
       }
-      for (const f of bucket.drag) {
+      for (const f of bucket.dragPreview) {
         const line = L.polyline(toLatLngs(f.geometry), {
           ...dragPreviewStyle(f),
           ...nonInteractive,
@@ -1029,7 +967,7 @@ export function StreetsLayer({
     }
 
     for (const streetId of [...visualKeyByStreetRef.current.keys()]) {
-      if (nextKeys.has(streetId)) continue;
+      if (visible.has(streetId)) continue;
       const old = visualLayersByStreetRef.current.get(streetId);
       if (old) {
         for (const layer of old) {
@@ -1103,6 +1041,8 @@ export function StreetsLayer({
     </>
   );
 }
+
+export const StreetsLayer = memo(StreetsLayerComponent);
 
 export function MapCenterController() {
   const map = useMap();

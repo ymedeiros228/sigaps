@@ -131,10 +131,6 @@ export function SigapsMap() {
   const [undoCount, setUndoCount] = useState(0);
   const [importFailed, setImportFailed] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
-  const [mapCursorCoords, setMapCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const handleCursorMove = useCallback((lat: number | null, lng: number | null) => {
-    setMapCursorCoords(lat != null && lng != null ? { lat, lng } : null);
-  }, []);
   const streetsAutoRetryCount = useRef(0);
   const pendingPaintRef = useRef<Set<string>>(new Set());
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
@@ -272,11 +268,31 @@ export function SigapsMap() {
     }, 12_000);
   }, [municipalityId, queryClient]);
 
+  const undoUiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPaintUiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingLastPaintActionRef = useRef<string | null>(null);
+
   const pushUndo = useCallback((action: PaintUndoAction) => {
     if (isUndoingRef.current) return;
     undoStackRef.current.push(action);
     if (undoStackRef.current.length > 40) undoStackRef.current.shift();
-    setUndoCount(undoStackRef.current.length);
+    // Durante pintura rápida, não re-renderiza o painel a cada traço.
+    if (undoUiTimerRef.current) return;
+    undoUiTimerRef.current = setTimeout(() => {
+      undoUiTimerRef.current = null;
+      setUndoCount(undoStackRef.current.length);
+    }, 200);
+  }, []);
+
+  const queueLastPaintAction = useCallback((msg: string) => {
+    pendingLastPaintActionRef.current = msg;
+    if (lastPaintUiTimerRef.current) return;
+    lastPaintUiTimerRef.current = setTimeout(() => {
+      lastPaintUiTimerRef.current = null;
+      if (pendingLastPaintActionRef.current != null) {
+        setLastPaintAction(pendingLastPaintActionRef.current);
+      }
+    }, 200);
   }, []);
 
   const paintStateSyncedRef = useRef<string | null>(null);
@@ -769,7 +785,7 @@ export function SigapsMap() {
         setSelectedStreet(updated);
       }
       const ma = getMicroarea(variables.microareaId);
-      setLastPaintAction(ma ? `Trecho vinculado à ${ma.name}` : 'Trecho pintado');
+      queueLastPaintAction(ma ? `Trecho vinculado à ${ma.name}` : 'Trecho pintado');
       pushUndo({
         type: 'paint',
         streetId: variables.streetId,
@@ -884,7 +900,7 @@ export function SigapsMap() {
       scheduleDashboardInvalidate(queryClient, municipalityId);
       scheduleMicroareasInvalidate(queryClient, municipalityId);
       scheduleEnvelopeRefresh();
-      setLastPaintAction('Trecho removido');
+      queueLastPaintAction('Trecho removido');
     },
     onError: (err, _variables, context) => {
       if (context?.previousStreet && municipalityId) {
@@ -1520,8 +1536,6 @@ export function SigapsMap() {
         selectedCount={selectedStreetIds.size}
         onImportFamilies={acsReadOnly ? undefined : () => setFamilyImportOpen(true)}
         readOnly={acsReadOnly}
-        cursorLatitude={mapCursorCoords?.lat ?? null}
-        cursorLongitude={mapCursorCoords?.lng ?? null}
       />
 
       <MapLegend
@@ -1575,8 +1589,6 @@ export function SigapsMap() {
         onMinimized={() =>
           setSnackbar({ message: 'Pronto! Suas ruas foram salvas.', severity: 'success' })
         }
-        cursorLatitude={mapCursorCoords?.lat ?? null}
-        cursorLongitude={mapCursorCoords?.lng ?? null}
         undoCount={undoCount}
         onUndo={handleUndo}
       />
@@ -1697,7 +1709,7 @@ export function SigapsMap() {
           maxZoom={19}
         >
           <MapInteractionController />
-          <MapCursorCoordsTracker onMove={handleCursorMove} />
+          <MapCursorCoordsTracker />
           {useViewport && <MapBoundsReporter onBounds={onBounds} />}
           <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />

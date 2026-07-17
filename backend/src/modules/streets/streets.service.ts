@@ -1145,13 +1145,25 @@ export class StreetsService {
       Number.isFinite(endLatitude) &&
       Number.isFinite(endLongitude);
 
+    const brushStartIndex = wantsBrushPaint
+      ? closestVertexIndex(coords, latitude, longitude)
+      : vertexIndex;
+    const brushEndIndex = wantsBrushPaint
+      ? closestVertexIndex(coords, endLatitude!, endLongitude!)
+      : vertexIndex;
+
     for (const side of sidesToPaint) {
       if (wantsFullLengthPaint) {
         ranges = applyFullSidePaint(ranges, microareaId, side, maxIndex);
       } else if (wantsBrushPaint) {
-        const startIndex = closestVertexIndex(coords, latitude, longitude);
-        const endIndex = closestVertexIndex(coords, endLatitude!, endLongitude!);
-        ranges = applyPaintRange(ranges, startIndex, endIndex, microareaId, side, maxIndex);
+        ranges = applyPaintRange(
+          ranges,
+          brushStartIndex,
+          brushEndIndex,
+          microareaId,
+          side,
+          maxIndex,
+        );
       } else {
         ranges = applyPaintOnSide(ranges, vertexIndex, microareaId, side, maxIndex);
       }

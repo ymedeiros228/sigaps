@@ -64,18 +64,25 @@ export function fixLineString(geojson: GeoJSON.LineString): GeoJSON.LineString {
 
 type StreetLocal = Street & { _localRev?: number };
 
+/** Cache por identidade do objeto — prepare + StreetsLayer não recalculam a string. */
+const paintKeyByStreet = new WeakMap<Street, string>();
+
 /**
  * Assinatura da geometria pintada (sem id de segmento / _localRev).
  * Assim o onSuccess com UUIDs novos não invalida o cache do Leaflet.
  */
 export function streetPaintCacheKey(street: Street): string {
+  const cached = paintKeyByStreet.get(street);
+  if (cached) return cached;
   const local = street as StreetLocal;
   const segs = local.paintSegments ?? [];
   let segSig = `${segs.length}`;
   for (const seg of segs) {
     segSig += `|${seg.microareaId}:${seg.startIndex}:${seg.endIndex}:${seg.side}`;
   }
-  return `${local.id}|${local.microareaId ?? ''}|${segSig}`;
+  const key = `${local.id}|${local.microareaId ?? ''}|${segSig}`;
+  paintKeyByStreet.set(street, key);
+  return key;
 }
 
 /** Compara só a geometria da pintura (ignora ids de segmento). */

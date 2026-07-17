@@ -1,23 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useMapEvents } from 'react-leaflet';
+import { setMapCursorCoords } from '../../utils/mapCursorCoordsStore';
 
-type MapCursorCoordsTrackerProps = {
-  onMove: (latitude: number | null, longitude: number | null) => void;
-};
-
-/** Coordenadas do cursor com rAF — evita setState a cada mousemove no mapa inteiro. */
-export function MapCursorCoordsTracker({ onMove }: MapCursorCoordsTrackerProps) {
-  const onMoveRef = useRef(onMove);
+/** Atualiza store externo com rAF — zero setState no SigapsMap. */
+export function MapCursorCoordsTracker() {
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<{ lat: number | null; lng: number | null } | null>(null);
-
-  useEffect(() => {
-    onMoveRef.current = onMove;
-  }, [onMove]);
 
   useEffect(
     () => () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      setMapCursorCoords(null, null);
     },
     [],
   );
@@ -27,7 +20,9 @@ export function MapCursorCoordsTracker({ onMove }: MapCursorCoordsTrackerProps) 
     const pending = pendingRef.current;
     pendingRef.current = null;
     if (!pending) return;
-    onMoveRef.current(pending.lat, pending.lng);
+    // Durante o traço do pincel, não gasta ciclos no label.
+    if (document.querySelector('.sigaps-map-brushing')) return;
+    setMapCursorCoords(pending.lat, pending.lng);
   };
 
   useMapEvents({
@@ -40,7 +35,7 @@ export function MapCursorCoordsTracker({ onMove }: MapCursorCoordsTrackerProps) 
       pendingRef.current = { lat: null, lng: null };
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
-      onMoveRef.current(null, null);
+      setMapCursorCoords(null, null);
     },
   });
 

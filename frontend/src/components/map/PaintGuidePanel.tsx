@@ -41,6 +41,7 @@ import { ConfirmDialog } from '../common/ConfirmDialog';
 import { sortMicroareas } from '../../utils/sortMicroareas';
 import { countPaintedStreets, countStreetsForMicroarea } from '../../utils/streetPaintStats';
 import { streetHasPaint } from '../../utils/streetPaintSegments';
+import { MapCursorCoordsLabel } from './MapCursorCoordsLabel';
 
 interface PaintGuidePanelProps {
   microareas: Microarea[];
@@ -58,8 +59,6 @@ interface PaintGuidePanelProps {
   lastAction?: string | null;
   onMicroareaCreated?: (id: string) => void;
   onMinimized?: () => void;
-  cursorLatitude?: number | null;
-  cursorLongitude?: number | null;
   undoCount?: number;
   onUndo?: () => void;
 }
@@ -80,8 +79,6 @@ export function PaintGuidePanel({
   lastAction,
   onMicroareaCreated,
   onMinimized,
-  cursorLatitude = null,
-  cursorLongitude = null,
   undoCount = 0,
   onUndo,
 }: PaintGuidePanelProps) {
@@ -132,12 +129,6 @@ export function PaintGuidePanel({
     : selectedMicroarea?.color ?? theme.palette.primary.main;
 
   const canPaint = streetCount > 0 && !!selectedMicroareaId && !eraserMode;
-
-  const hasCursorCoords =
-    cursorLatitude != null &&
-    cursorLongitude != null &&
-    Number.isFinite(cursorLatitude) &&
-    Number.isFinite(cursorLongitude);
 
   const { data: neighborhoods = [] } = useQuery({
     queryKey: queryKeys.neighborhoods(municipalityId),
@@ -837,21 +828,19 @@ export function PaintGuidePanel({
                   </Typography>
                 )}
 
-                {paintMode && hasCursorCoords && (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{
-                      display: 'block',
-                      mt: 1,
-                      textAlign: 'center',
-                      fontFamily: 'monospace',
-                      fontWeight: 600,
-                      letterSpacing: 0.2,
+                {paintMode && (
+                  <MapCursorCoordsLabel
+                    emptyText=""
+                    typographyProps={{
+                      color: 'text.secondary',
+                      sx: {
+                        display: 'block',
+                        mt: 1,
+                        textAlign: 'center',
+                        fontWeight: 600,
+                      },
                     }}
-                  >
-                    {cursorLatitude!.toFixed(5)}, {cursorLongitude!.toFixed(5)}
-                  </Typography>
+                  />
                 )}
 
                 {streetCount > 0 && (

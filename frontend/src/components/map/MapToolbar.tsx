@@ -29,6 +29,7 @@ import { MapExportMenu } from './MapExportMenu';
 import { StreetSearchBar, type StreetSearchOption } from './StreetSearchBar';
 import { canImportStreets } from '../../utils/permissions';
 import { countPaintedStreets, countStreetsWithFamilyData, sumFamiliesOnStreets } from '../../utils/streetPaintStats';
+import { MapCursorCoordsLabel } from './MapCursorCoordsLabel';
 import type { RefObject } from 'react';
 import type { Microarea, Street } from '../../services/api';
 
@@ -43,8 +44,6 @@ interface MapToolbarProps {
   onSearchSelect: (option: StreetSearchOption) => void;
   onImportFamilies?: () => void;
   readOnly?: boolean;
-  cursorLatitude?: number | null;
-  cursorLongitude?: number | null;
 }
 
 const panelSx = {
@@ -68,8 +67,6 @@ export function MapToolbar({
   onSearchSelect,
   onImportFamilies,
   readOnly = false,
-  cursorLatitude = null,
-  cursorLongitude = null,
 }: MapToolbarProps) {
   const theme = useTheme();
   const municipalityId = useAppStore((s) => s.municipalityId);
@@ -110,9 +107,6 @@ export function MapToolbar({
   const glassBg = theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.88)
     : alpha('#fff', 0.92);
-
-  const hasCursorCoords =
-    cursorLatitude != null && cursorLongitude != null && Number.isFinite(cursorLatitude) && Number.isFinite(cursorLongitude);
 
   return (
     <Paper
@@ -308,15 +302,7 @@ export function MapToolbar({
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
             Coordenadas do cursor
           </Typography>
-          <Typography
-            variant="caption"
-            component="span"
-            sx={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: 0.2 }}
-          >
-            {hasCursorCoords
-              ? `${cursorLatitude!.toFixed(5)}, ${cursorLongitude!.toFixed(5)}`
-              : 'Passe o mouse no mapa'}
-          </Typography>
+          <MapCursorCoordsLabel />
         </Box>
       </Box>
       )}

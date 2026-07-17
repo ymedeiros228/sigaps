@@ -8,19 +8,21 @@ export function streetCoords(geojson: GeoJSON.LineString): Coord[] {
   return (geojson?.coordinates ?? []) as Coord[];
 }
 
-/** Ponto mais próximo na polilinha da rua (para o pincel seguir o traço ao arrastar). */
-export function closestPointOnStreet(
+/** Ponto + vértice mais próximos na polilinha (uma passagem — hot path do pincel). */
+export function closestPointAndVertexOnStreet(
   street: Street,
   latitude: number,
   longitude: number,
-): { lat: number; lng: number } {
+): { lat: number; lng: number; vertexIndex: number } {
   const coords = streetCoords(street.geojson);
-  if (coords.length === 0) return { lat: latitude, lng: longitude };
-  if (coords.length === 1) return { lat: coords[0][1], lng: coords[0][0] };
+  if (coords.length === 0) return { lat: latitude, lng: longitude, vertexIndex: 0 };
+  if (coords.length === 1) return { lat: coords[0][1], lng: coords[0][0], vertexIndex: 0 };
 
   let bestLat = coords[0][1];
   let bestLng = coords[0][0];
   let bestDist = Infinity;
+  let bestSeg = 0;
+  let bestT = 0;
 
   for (let i = 0; i < coords.length - 1; i++) {
     const [lng1, lat1] = coords[i];
@@ -40,9 +42,23 @@ export function closestPointOnStreet(
       bestDist = d;
       bestLat = lat;
       bestLng = lng;
+      bestSeg = i;
+      bestT = t;
     }
   }
-  return { lat: bestLat, lng: bestLng };
+
+  const vertexIndex = bestT < 0.5 ? bestSeg : bestSeg + 1;
+  return { lat: bestLat, lng: bestLng, vertexIndex };
+}
+
+/** Ponto mais próximo na polilinha da rua (para o pincel seguir o traço ao arrastar). */
+export function closestPointOnStreet(
+  street: Street,
+  latitude: number,
+  longitude: number,
+): { lat: number; lng: number } {
+  const { lat, lng } = closestPointAndVertexOnStreet(street, latitude, longitude);
+  return { lat, lng };
 }
 
 export function isDualSideStreet(street: Street): boolean {
@@ -1067,25 +1083,20 @@ export function computePaintPreviewGeometry(
   return null;
 }
 
-/** Preview do traço enquanto arrasta no modo brush. */
-export function computeBrushPreviewGeometry(
+/** Preview do traço por índices já calculados (evita re-scan no mousemove). */
+export function computeBrushPreviewGeometryByIndex(
   street: Street,
-  startLatitude: number,
-  startLongitude: number,
-  endLatitude: number,
-  endLongitude: number,
-  requestedSide: ApiPaintSide | StreetPaintSide,
+  startIndex: number,
+  endIndex: number,
+  paintSide: StreetPaintSide,
   eraserMode: boolean,
 ): GeoJSON.LineString | null {
   const coords = streetCoords(street.geojson);
   const maxIndex = coords.length - 1;
   if (maxIndex < 1) return null;
 
-  const side = normalizePaintSide(street, requestedSide);
-  const paintSide = side === 'BOTH' ? detectClickSide(street, endLatitude, endLongitude) : (side as StreetPaintSide);
-
-  let lo = closestVertexIndex(coords, startLatitude, startLongitude);
-  let hi = closestVertexIndex(coords, endLatitude, endLongitude);
+  let lo = startIndex;
+  let hi = endIndex;
   if (lo === hi) {
     if (hi < maxIndex) hi += 1;
     else if (lo > 0) lo -= 1;
@@ -1099,13 +1110,38 @@ export function computeBrushPreviewGeometry(
     const covering = segmentsCoveringSide(segments, paintSide).find(
       (s) => s.startIndex <= lo && s.endIndex >= hi,
     );
-    if (!covering && !segments.some((s) => s.startIndex <= hi && s.endIndex >= lo && s.side === paintSide)) {
+    if (
+      !covering &&
+      !segments.some((s) => s.startIndex <= hi && s.endIndex >= lo && s.side === paintSide)
+    ) {
       return null;
     }
   }
 
   const geom = sliceStreetGeojson(coords, lo, hi);
   return geom ? offsetLineForSide(geom, paintSide) : null;
+}
+
+/** Preview do traço enquanto arrasta no modo brush. */
+export function computeBrushPreviewGeometry(
+  street: Street,
+  startLatitude: number,
+  startLongitude: number,
+  endLatitude: number,
+  endLongitude: number,
+  requestedSide: ApiPaintSide | StreetPaintSide,
+  eraserMode: boolean,
+): GeoJSON.LineString | null {
+  const coords = streetCoords(street.geojson);
+  if (coords.length < 2) return null;
+
+  const side = normalizePaintSide(street, requestedSide);
+  const paintSide =
+    side === 'BOTH' ? detectClickSide(street, endLatitude, endLongitude) : (side as StreetPaintSide);
+
+  const lo = closestVertexIndex(coords, startLatitude, startLongitude);
+  const hi = closestVertexIndex(coords, endLatitude, endLongitude);
+  return computeBrushPreviewGeometryByIndex(street, lo, hi, paintSide, eraserMode);
 }
 
 function normalizeBrushIndices(

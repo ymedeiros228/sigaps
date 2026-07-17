@@ -59,13 +59,34 @@ export function mergeStreetsById(existing: Street[] | undefined, incoming: Stree
   return Array.from(byId.values());
 }
 
+/** Índice id→posição por array de items (evita findIndex O(n) a cada traço). */
+const streetIndexByItems = new WeakMap<Street[], Map<string, number>>();
+
+function getStreetIndexMap(items: Street[]): Map<string, number> {
+  let index = streetIndexByItems.get(items);
+  if (!index) {
+    index = new Map(items.map((s, i) => [s.id, i]));
+    streetIndexByItems.set(items, index);
+  }
+  return index;
+}
+
 function patchStreetList(items: Street[], street: Street): Street[] {
-  const idx = items.findIndex((s) => s.id === street.id);
-  if (idx < 0) return [...items, street];
+  const index = getStreetIndexMap(items);
+  const idx = index.get(street.id);
+  if (idx == null) {
+    const next = [...items, street];
+    const nextIndex = new Map(index);
+    nextIndex.set(street.id, items.length);
+    streetIndexByItems.set(next, nextIndex);
+    return next;
+  }
   const merged = { ...items[idx], ...street };
   if (merged === items[idx]) return items;
   const next = items.slice();
   next[idx] = merged;
+  // Mesmos ids/posições — reutiliza o índice.
+  streetIndexByItems.set(next, index);
   return next;
 }
 
@@ -80,10 +101,16 @@ function updateStreetsMapCache(
   };
 
   queryClient.setQueryData<StreetsMapData>(queryKeys.streetsMap(municipalityId), apply);
-  queryClient.setQueriesData<StreetsMapData>(
-    { queryKey: ['streets-viewport', municipalityId] },
-    apply,
-  );
+  // Só toca viewport se existir (Passagem Franca full-load não precisa).
+  const viewportQueries = queryClient.getQueriesData<StreetsMapData>({
+    queryKey: ['streets-viewport', municipalityId],
+  });
+  if (viewportQueries.length > 0) {
+    queryClient.setQueriesData<StreetsMapData>(
+      { queryKey: ['streets-viewport', municipalityId] },
+      apply,
+    );
+  }
 }
 
 export async function cancelStreetMapQueries(
