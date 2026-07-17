@@ -831,7 +831,7 @@ function rangesToPaintSegments(
     const ma = microareaLookup.get(r.microareaId);
     const geojson = sliceStreetGeojson(coords, r.startIndex, r.endIndex) ?? street.geojson;
     return {
-      id: `sim:${street.id}:${i}:${r.side}:${r.startIndex}`,
+      id: `sim:${street.id}:${i}:${r.side}:${r.startIndex}:${r.endIndex}`,
       startIndex: r.startIndex,
       endIndex: r.endIndex,
       side: r.side,

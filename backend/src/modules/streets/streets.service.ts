@@ -1076,13 +1076,23 @@ export class StreetsService {
     endLatitude?: number,
     endLongitude?: number,
   ) {
-    const microarea = await this.prisma.microarea.findUnique({ where: { id: microareaId } });
+    const [microarea, street] = await Promise.all([
+      this.prisma.microarea.findUnique({
+        where: { id: microareaId },
+        select: {
+          id: true,
+          name: true,
+          number: true,
+          color: true,
+          municipalityId: true,
+        },
+      }),
+      this.prisma.street.findUnique({
+        where: { id: streetId },
+        include: mapPaintSegmentInclude,
+      }),
+    ]);
     if (!microarea) throw new NotFoundException('Microárea não encontrada');
-
-    const street = await this.prisma.street.findUnique({
-      where: { id: streetId },
-      include: mapPaintSegmentInclude,
-    });
     if (!street) throw new NotFoundException('Rua não encontrada');
     if (street.municipalityId !== microarea.municipalityId) {
       throw new ForbiddenException('Rua e microárea devem pertencer ao mesmo município');

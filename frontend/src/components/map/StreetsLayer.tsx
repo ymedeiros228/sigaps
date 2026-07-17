@@ -252,7 +252,17 @@ export function StreetsLayer({
   }, [paintMode, mapPanEnabled, map]);
 
   const streetsByIdRef = useRef(new Map<string, Street>());
-  streetsByIdRef.current = new Map(streets.map((street) => [street.id, street]));
+  useEffect(() => {
+    const mapById = streetsByIdRef.current;
+    const seen = new Set<string>();
+    for (const street of streets) {
+      seen.add(street.id);
+      mapById.set(street.id, street);
+    }
+    for (const id of [...mapById.keys()]) {
+      if (!seen.has(id)) mapById.delete(id);
+    }
+  }, [streets]);
 
   const updateBrushPreviewFromSession = (session: BrushSession, street: Street, eraser: boolean) => {
     const geom = computeBrushPreviewGeometry(
@@ -535,11 +545,18 @@ export function StreetsLayer({
     paintStreetSide,
   ]);
 
-  /** Hit layer: não remountar ao trocar cor da microárea. */
+  /** Hit layer: estável em eraser/pan — style/handlers já leem o store. */
   const hitLayerVersion = useMemo(
-    () => `${hitFeatures.length}:${zoom}:${paintMode ? 1 : 0}:${eraserMode ? 1 : 0}:${mapPanEnabled ? 1 : 0}`,
-    [hitFeatures.length, zoom, paintMode, eraserMode, mapPanEnabled],
+    () => `${hitFeatures.length}:${zoom}:${paintMode ? 1 : 0}`,
+    [hitFeatures.length, zoom, paintMode],
   );
+
+  useEffect(() => {
+    if (!map.getPane('streetsHit')) {
+      const pane = map.createPane('streetsHit');
+      pane.style.zIndex = '450';
+    }
+  }, [map]);
 
   /** Versões curtas — pintado e cinza com keys separadas (pintar não remonta tudo). */
   const hashFeatures = (list: typeof painted) => {
@@ -626,6 +643,7 @@ export function StreetsLayer({
       opacity: 0.001,
       lineCap: 'round',
       lineJoin: 'round',
+      pane: 'streetsHit',
     }),
     [eraserMode],
   );
@@ -908,9 +926,19 @@ export function StreetsLayer({
         for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) | 0;
         const color = p.color ?? '';
         for (let i = 0; i < color.length; i++) h = (h * 31 + color.charCodeAt(i)) | 0;
+        const coords = f.geometry?.coordinates;
+        if (Array.isArray(coords) && coords.length > 0) {
+          h = (h * 31 + coords.length) | 0;
+          const first = coords[0] as [number, number];
+          const last = coords[coords.length - 1] as [number, number];
+          h = (h * 31 + Math.round(first[0] * 1e5) + Math.round(first[1] * 1e5)) | 0;
+          h = (h * 31 + Math.round(last[0] * 1e5) + Math.round(last[1] * 1e5)) | 0;
+        }
       }
       return `${list.length}:${h}`;
     };
+
+    const nonInteractive = { interactive: false as const };
 
     for (const [streetId, bucket] of byStreet) {
       const key = [
@@ -936,19 +964,25 @@ export function StreetsLayer({
       const created: L.Layer[] = [];
       for (const f of bucket.painted) {
         const latlngs = toLatLngs(f.geometry);
-        const halo = L.polyline(latlngs, paintedHaloStyle());
-        const line = L.polyline(latlngs, paintedLineStyle(f));
+        const halo = L.polyline(latlngs, { ...paintedHaloStyle(), ...nonInteractive });
+        const line = L.polyline(latlngs, { ...paintedLineStyle(f), ...nonInteractive });
         groups.halo.addLayer(halo);
         groups.painted.addLayer(line);
         created.push(halo, line);
       }
       for (const f of bucket.unpainted) {
-        const line = L.polyline(toLatLngs(f.geometry), unassignedStyle(f));
+        const line = L.polyline(toLatLngs(f.geometry), {
+          ...unassignedStyle(f),
+          ...nonInteractive,
+        });
         groups.unpainted.addLayer(line);
         created.push(line);
       }
       for (const f of bucket.drag) {
-        const line = L.polyline(toLatLngs(f.geometry), dragPreviewStyle(f));
+        const line = L.polyline(toLatLngs(f.geometry), {
+          ...dragPreviewStyle(f),
+          ...nonInteractive,
+        });
         groups.drag.addLayer(line);
         created.push(line);
       }

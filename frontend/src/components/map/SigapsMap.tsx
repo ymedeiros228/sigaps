@@ -114,6 +114,9 @@ export function SigapsMap() {
   const [importFailed, setImportFailed] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
   const [mapCursorCoords, setMapCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const handleCursorMove = useCallback((lat: number | null, lng: number | null) => {
+    setMapCursorCoords(lat != null && lng != null ? { lat, lng } : null);
+  }, []);
   const streetsAutoRetryCount = useRef(0);
   const pendingPaintRef = useRef<Set<string>>(new Set());
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
@@ -1658,11 +1661,7 @@ export function SigapsMap() {
           maxZoom={19}
         >
           <MapInteractionController />
-          <MapCursorCoordsTracker
-            onMove={(lat, lng) =>
-              setMapCursorCoords(lat != null && lng != null ? { lat, lng } : null)
-            }
-          />
+          <MapCursorCoordsTracker onMove={handleCursorMove} />
           {useViewport && <MapBoundsReporter onBounds={onBounds} />}
           <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />
