@@ -62,16 +62,6 @@ interface StreetsLayerProps {
   onStreetClick: (street: Street, multiSelect?: boolean) => void;
   onStreetPaint: (street: Street, latitude: number, longitude: number) => void;
   onStreetUnpaint: (street: Street, latitude: number, longitude: number) => void;
-  /** Atualiza tinta local enquanto arrasta (sem API). */
-  onStreetBrushLive: (
-    street: Street,
-    startLat: number,
-    startLng: number,
-    endLat: number,
-    endLng: number,
-    side: StreetPaintSide,
-    action: 'paint' | 'unpaint',
-  ) => void;
   onStreetPaintRange: (
     street: Street,
     startLat: number,
@@ -114,7 +104,6 @@ function StreetsLayerComponent({
   onStreetClick,
   onStreetPaint,
   onStreetUnpaint,
-  onStreetBrushLive,
   onStreetPaintRange,
   onStreetUnpaintRange,
   onPaintBlocked,
@@ -258,26 +247,12 @@ function StreetsLayerComponent({
   }, [streets]);
 
   const brushContainerRectRef = useRef<DOMRect | null>(null);
-  const brushLiveFnRef = useRef(onStreetBrushLive);
   const paintRangeFnRef = useRef(onStreetPaintRange);
   const unpaintRangeFnRef = useRef(onStreetUnpaintRange);
   const dragEndFnRef = useRef(onDragPaintEnd);
-  brushLiveFnRef.current = onStreetBrushLive;
   paintRangeFnRef.current = onStreetPaintRange;
   unpaintRangeFnRef.current = onStreetUnpaintRange;
   dragEndFnRef.current = onDragPaintEnd;
-
-  const emitBrushLive = (session: BrushSession, street: Street) => {
-    brushLiveFnRef.current(
-      street,
-      session.startLat,
-      session.startLng,
-      session.endLat,
-      session.endLng,
-      session.side,
-      session.action,
-    );
-  };
 
   const updateBrushPreviewFromSession = (session: BrushSession, street: Street, eraser: boolean) => {
     const geom = computeBrushPreviewGeometryByIndex(
@@ -368,8 +343,6 @@ function StreetsLayerComponent({
       const st = streetsByIdRef.current.get(current.streetId);
       if (!st) return;
       updateBrushPreviewFromSession(current, st, current.action === 'unpaint');
-      // Tinta no cache enquanto arrasta — não espera o mouseup.
-      emitBrushLive(current, st);
     });
   };
 
@@ -872,7 +845,6 @@ function StreetsLayerComponent({
             clearHoverPreviewLayer();
             startBrushTracking();
             updateBrushPreviewFromSession(session, street, true);
-            emitBrushLive(session, street);
             return;
           }
           if (!store.selectedMicroareaId) return;
@@ -892,7 +864,6 @@ function StreetsLayerComponent({
           clearHoverPreviewLayer();
           startBrushTracking();
           updateBrushPreviewFromSession(session, street, false);
-          emitBrushLive(session, street);
           return;
         }
 

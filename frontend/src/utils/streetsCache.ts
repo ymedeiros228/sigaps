@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { Microarea, Street, StreetPaintSegment, StreetPaintSide } from '../services/api';
 import { queryKeys } from './queryKeys';
+import { paintGeometryEqual } from './streetSearch';
 import { isDualSideStreet, streetCoords } from './streetPaintSegments';
 
 type StreetsMapData = {
@@ -170,6 +171,10 @@ export function patchStreetInMapCache(
   municipalityId: string,
   street: Street,
 ) {
+  const streetsKey = queryKeys.streetsMap(municipalityId);
+  const cached = queryClient.getQueryData<StreetsMapData>(streetsKey);
+  const existing = cached?.items?.find((s) => s.id === street.id);
+  if (existing && paintGeometryEqual(existing, street)) return;
   const stamped: StreetWithLocalRev = { ...street, _localRev: Date.now() };
   updateStreetsMapCache(queryClient, municipalityId, (items) => patchStreetList(items, stamped));
 }
