@@ -5,7 +5,7 @@ import type { Microarea, Street, Ubs, Place } from '../../services/api';
 import { useMapStore } from '../../store';
 import { familyHeatColor } from '../../utils/geo';
 import { sortMicroareas } from '../../utils/sortMicroareas';
-import { countPaintedStreets, streetBelongsToMicroarea, sumFamiliesForMicroarea } from '../../utils/streetPaintStats';
+import { countPaintedStreets, resolveMicroareaStreetCount, resolvePaintedStreetCount, streetBelongsToMicroarea, sumFamiliesForMicroarea } from '../../utils/streetPaintStats';
 
 interface MapLegendProps {
   microareas: Microarea[];
@@ -62,9 +62,9 @@ export function MapLegend({
       }
     }
     const paintedViewport = countPaintedStreets(streets);
-    const paintedTotal = microareas.reduce(
-      (sum, microarea) => sum + (microarea._count?.streets ?? 0),
-      0,
+    const paintedTotal = resolvePaintedStreetCount(
+      streets,
+      microareas.reduce((sum, microarea) => sum + (microarea._count?.streets ?? 0), 0),
     );
     const coverage =
       streets.length > 0 ? Math.round((paintedViewport / streets.length) * 100) : 0;
@@ -137,7 +137,7 @@ export function MapLegend({
           />
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
             {sortedMicroareas.map((m) => {
-              const count = m._count?.streets ?? stats.byMicroareaViewport.get(m.id) ?? 0;
+              const count = resolveMicroareaStreetCount(streets, m.id, m._count?.streets);
               const families = stats.totalFamilies > 0 ? sumFamiliesForMicroarea(streets, m.id) : 0;
               const canClear = (paintMode || eraserMode) && count > 0 && !!onClearMicroarea;
               return (

@@ -39,7 +39,7 @@ import { AddMicroareaDialog } from './AddMicroareaDialog';
 import { ClearPaintDialog } from './ClearPaintDialog';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { sortMicroareas } from '../../utils/sortMicroareas';
-import { countPaintedStreets, countStreetsForMicroarea } from '../../utils/streetPaintStats';
+import { countPaintedStreets, resolveMicroareaStreetCount } from '../../utils/streetPaintStats';
 import { streetHasPaint } from '../../utils/streetPaintSegments';
 import { MapCursorCoordsLabel } from './MapCursorCoordsLabel';
 
@@ -110,7 +110,7 @@ export function PaintGuidePanel({
   const selectedMicroarea = microareas.find((m) => m.id === selectedMicroareaId);
   const paintedCount = useMemo(() => countPaintedStreets(streets), [streets]);
   const selectedMicroareaPaintedCount = selectedMicroareaId
-    ? countStreetsForMicroarea(streets, selectedMicroareaId)
+    ? resolveMicroareaStreetCount(streets, selectedMicroareaId)
     : 0;
   const unpaintedDirtRoadIds = streets
     .filter(
@@ -487,7 +487,7 @@ export function PaintGuidePanel({
                 >
                   {sortedMicroareas.map((m) => {
                     const selected = m.id === selectedMicroareaId;
-                    const count = m._count?.streets ?? countStreetsForMicroarea(streets, m.id);
+                    const count = resolveMicroareaStreetCount(streets, m.id, m._count?.streets);
                     const tip = m.acs?.name ? `${m.name} — ACS ${m.acs.name}` : m.name;
                     return (
                       <Tooltip key={m.id} title={tip} arrow placement="top">

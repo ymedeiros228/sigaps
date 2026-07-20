@@ -43,7 +43,7 @@ import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtP
 import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
 import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
-import { scheduleDashboardInvalidate, scheduleMicroareasInvalidate } from '../../utils/prefetchAppData';
+import { scheduleDashboardInvalidate, scheduleMicroareasInvalidate, invalidateMicroareasNow } from '../../utils/prefetchAppData';
 import {
   patchStreetsMicroarea,
   clearAllStreetsMicroarea,
@@ -253,7 +253,11 @@ export function SigapsMap() {
 
   const refreshMicroareaVisuals = useCallback((options?: { rebuildEnvelopes?: boolean }) => {
     if (!municipalityId) return;
-    scheduleMicroareasInvalidate(queryClient, municipalityId);
+    if (options?.rebuildEnvelopes) {
+      invalidateMicroareasNow(queryClient, municipalityId);
+    } else {
+      scheduleMicroareasInvalidate(queryClient, municipalityId);
+    }
     // Rebuild completo só sob demanda (import/clear). Pintura já atualiza envelopes no backend.
     if (options?.rebuildEnvelopes) {
       void microareasApi.rebuildEnvelopes(municipalityId).catch(() => undefined);
@@ -935,7 +939,7 @@ export function SigapsMap() {
         }
       }
       scheduleDashboardInvalidate(queryClient, municipalityId);
-      scheduleMicroareasInvalidate(queryClient, municipalityId);
+      invalidateMicroareasNow(queryClient, municipalityId);
       scheduleEnvelopeRefresh();
       queueLastPaintAction('Trecho removido');
     },
@@ -1617,7 +1621,7 @@ export function SigapsMap() {
 
       <MapLegend
         microareas={microareas}
-        streets={chromeStreets}
+        streets={streets}
         ubsList={ubsList}
         placesList={placesList}
         loading={streetsFetching && streetCount === 0}
@@ -1644,7 +1648,7 @@ export function SigapsMap() {
       {!acsReadOnly && (
       <PaintGuidePanel
         microareas={microareas}
-        streets={chromeStreets}
+        streets={streets}
         streetCount={streetCount}
         municipalityId={municipalityId!}
         onPaintStreets={(ids) => {

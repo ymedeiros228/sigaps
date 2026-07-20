@@ -11,6 +11,21 @@ export function countStreetsForMicroarea(streets: Street[], microareaId: string)
   return streets.filter((s) => streetBelongsToMicroarea(s, microareaId)).length;
 }
 
+/** Contagem ao vivo do cache de ruas; cai no _count da API só antes do mapa carregar. */
+export function resolveMicroareaStreetCount(
+  streets: Street[],
+  microareaId: string,
+  apiCount?: number,
+): number {
+  if (streets.length > 0) return countStreetsForMicroarea(streets, microareaId);
+  return apiCount ?? 0;
+}
+
+export function resolvePaintedStreetCount(streets: Street[], apiTotal?: number): number {
+  if (streets.length > 0) return countPaintedStreets(streets);
+  return apiTotal ?? 0;
+}
+
 export function countPaintedStreets(streets: Street[]): number {
   return streets.filter(streetHasPaint).length;
 }

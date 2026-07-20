@@ -102,6 +102,15 @@ export function scheduleMicroareasInvalidate(queryClient: QueryClient, municipal
   }, 30_000);
 }
 
+/** Após apagar pintura: atualiza _count das microáreas sem esperar o debounce de 30s. */
+export function invalidateMicroareasNow(queryClient: QueryClient, municipalityId: string) {
+  if (microareasInvalidateTimer) {
+    clearTimeout(microareasInvalidateTimer);
+    microareasInvalidateTimer = null;
+  }
+  void queryClient.invalidateQueries({ queryKey: queryKeys.microareas(municipalityId) });
+}
+
 export function scheduleDashboardInvalidate(queryClient: QueryClient, municipalityId?: string) {
   if (dashboardInvalidateTimer) clearTimeout(dashboardInvalidateTimer);
   dashboardInvalidateTimer = setTimeout(() => {
