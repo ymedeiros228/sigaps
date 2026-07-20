@@ -243,7 +243,7 @@ export class GeoService {
       SELECT id, name, number, color,
         ST_AsGeoJSON(envelope_geom)::text AS geojson
       FROM microareas
-      WHERE municipality_id = ${municipalityId}::uuid
+      WHERE municipality_id = ${municipalityId}
         AND envelope_geom IS NOT NULL
       ORDER BY number ASC
     `;

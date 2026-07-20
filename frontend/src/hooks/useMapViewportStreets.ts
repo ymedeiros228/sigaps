@@ -9,7 +9,10 @@ import { useDebouncedValue } from './useDebouncedValue';
 import { CACHE, queryKeys } from '../utils/queryKeys';
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from '../utils/queryRetry';
 
+/** Acima disso o FE considera “mapa grande” (UI/probe). */
 export const VIEWPORT_STREETS_THRESHOLD = 800;
+/** Só ativa carregamento por bbox acima deste total — evita quebrar municípios ~800–1200 ruas. */
+export const VIEWPORT_LOAD_ACTIVATE_ABOVE = 1200;
 
 type StreetsMapData = { items: Street[]; total: number };
 
@@ -88,7 +91,16 @@ export function useMapViewportStreets(municipalityId: string | null) {
   });
 
   const streetsTotal = probeQuery.data?.total ?? 0;
-  const useViewport = streetsTotal > VIEWPORT_STREETS_THRESHOLD;
+  const useViewport =
+    streetsTotal > VIEWPORT_STREETS_THRESHOLD &&
+    streetsTotal > VIEWPORT_LOAD_ACTIVATE_ABOVE;
+  const [viewportFallback, setViewportFallback] = useState(false);
+
+  useEffect(() => {
+    setViewportFallback(false);
+  }, [municipalityId]);
+
+  const effectiveUseViewport = useViewport && !viewportFallback;
 
   useEffect(() => {
     if (!municipalityId) return;
@@ -98,7 +110,7 @@ export function useMapViewportStreets(municipalityId: string | null) {
   const fullQuery = useQuery({
     queryKey: queryKeys.streetsMap(municipalityId!),
     queryFn: () => fetchAllMapStreets(municipalityId!),
-    enabled: !!municipalityId && probeQuery.isSuccess && !useViewport,
+    enabled: !!municipalityId && probeQuery.isSuccess && !effectiveUseViewport,
     staleTime: CACHE.streets,
     gcTime: 15 * 60_000,
     retry: (count, err) => shouldRetryCloudQuery(count, err),
@@ -113,7 +125,7 @@ export function useMapViewportStreets(municipalityId: string | null) {
       );
       return existing ?? { items: [] as Street[], total: streetsTotal };
     },
-    enabled: !!municipalityId && probeQuery.isSuccess && useViewport,
+    enabled: !!municipalityId && probeQuery.isSuccess && effectiveUseViewport,
     staleTime: Infinity,
     gcTime: 15 * 60_000,
     refetchOnMount: false,
@@ -124,7 +136,7 @@ export function useMapViewportStreets(municipalityId: string | null) {
   const viewportQuery = useQuery({
     queryKey: ['streets-viewport', municipalityId, boundsStable],
     queryFn: () => fetchViewportStreets(municipalityId!, debouncedBounds!),
-    enabled: !!municipalityId && useViewport && !!debouncedBounds,
+    enabled: !!municipalityId && effectiveUseViewport && !!debouncedBounds,
     staleTime: 5_000,
     gcTime: 5 * 60_000,
     retry: (count, err) => shouldRetryCloudQuery(count, err),
@@ -132,23 +144,29 @@ export function useMapViewportStreets(municipalityId: string | null) {
   });
 
   useEffect(() => {
-    if (!municipalityId || !useViewport || !viewportQuery.data) return;
+    if (viewportQuery.isError && useViewport && !viewportFallback) {
+      setViewportFallback(true);
+    }
+  }, [viewportQuery.isError, useViewport, viewportFallback]);
+
+  useEffect(() => {
+    if (!municipalityId || !effectiveUseViewport || !viewportQuery.data) return;
     const key = queryKeys.streetsMap(municipalityId);
     queryClient.setQueryData<StreetsMapData>(key, (old) => ({
       total: streetsTotal,
       items: mergeViewportStreets(old?.items, viewportQuery.data.items),
     }));
-  }, [municipalityId, useViewport, viewportQuery.data, streetsTotal, queryClient]);
+  }, [municipalityId, effectiveUseViewport, viewportQuery.data, streetsTotal, queryClient]);
 
-  const streetsData = useViewport ? viewportCacheQuery.data : fullQuery.data;
+  const streetsData = effectiveUseViewport ? viewportCacheQuery.data : fullQuery.data;
   const isLoading =
     probeQuery.isLoading ||
-    (useViewport
+    (effectiveUseViewport
       ? viewportCacheQuery.isLoading && !(viewportCacheQuery.data as StreetsMapData | undefined)?.items?.length
       : fullQuery.isLoading);
-  const isFetching = useViewport ? viewportQuery.isFetching : fullQuery.isFetching;
-  const isError = useViewport ? viewportQuery.isError : fullQuery.isError;
-  const refetch = useViewport ? viewportQuery.refetch : fullQuery.refetch;
+  const isFetching = effectiveUseViewport ? viewportQuery.isFetching : fullQuery.isFetching;
+  const isError = effectiveUseViewport ? viewportQuery.isError && !viewportFallback : fullQuery.isError;
+  const refetch = effectiveUseViewport ? viewportQuery.refetch : fullQuery.refetch;
 
   const onBounds = useCallback((bounds: LatLngBounds) => {
     setMapBounds(bounds);
@@ -157,7 +175,7 @@ export function useMapViewportStreets(municipalityId: string | null) {
   return {
     streetsData,
     streetsTotal,
-    useViewport,
+    useViewport: effectiveUseViewport,
     isLoading,
     isFetching,
     isError,

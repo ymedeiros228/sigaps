@@ -889,7 +889,7 @@ export class StreetsService {
         FROM microareas m
         JOIN streets ms ON ms.microarea_id = m.id
         CROSS JOIN streets s
-        WHERE s.id = ${streetId}::uuid
+        WHERE s.id = ${streetId}
           AND ms.geom IS NOT NULL
           AND s.geom IS NOT NULL
           AND m.municipality_id = s.municipality_id
@@ -943,30 +943,35 @@ export class StreetsService {
     const { bbox, page, limit, geoPrecision } = options;
     const skip = (page - 1) * limit;
     const envelope = Prisma.sql`ST_MakeEnvelope(${bbox.west}, ${bbox.south}, ${bbox.east}, ${bbox.north}, 4326)`;
-    const intersects = Prisma.sql`(
-      (s.geom IS NOT NULL AND s.geom && ${envelope})
-      OR (s.geom IS NULL AND ST_Intersects(
-        ST_SetSRID(ST_GeomFromGeoJSON(s.geojson::text), 4326),
-        ${envelope}
-      ))
+    // Preferir coluna geom (GIST); fallback geojson só quando geom ausente.
+    const intersects = Prisma.sql`ST_Intersects(
+      COALESCE(
+        s.geom,
+        CASE
+          WHEN s.geojson IS NOT NULL AND jsonb_typeof(s.geojson::jsonb) = 'object'
+          THEN ST_SetSRID(ST_GeomFromGeoJSON(s.geojson::text), 4326)
+          ELSE NULL
+        END
+      ),
+      ${envelope}
     )`;
 
     const filters: Prisma.Sql[] = [
-      Prisma.sql`s.municipality_id = ${municipalityId}::uuid`,
+      Prisma.sql`s.municipality_id = ${municipalityId}`,
       Prisma.sql`s.osm_id IS NOT NULL`,
       intersects,
     ];
     if (options.microareaId) {
       filters.push(Prisma.sql`(
-        s.microarea_id = ${options.microareaId}::uuid
+        s.microarea_id = ${options.microareaId}
         OR EXISTS (
           SELECT 1 FROM street_paint_segments sps
-          WHERE sps.street_id = s.id AND sps.microarea_id = ${options.microareaId}::uuid
+          WHERE sps.street_id = s.id AND sps.microarea_id = ${options.microareaId}
         )
       )`);
     }
     if (options.neighborhoodId) {
-      filters.push(Prisma.sql`s.neighborhood_id = ${options.neighborhoodId}::uuid`);
+      filters.push(Prisma.sql`s.neighborhood_id = ${options.neighborhoodId}`);
     }
     if (options.search?.trim()) {
       const q = `%${options.search.trim()}%`;

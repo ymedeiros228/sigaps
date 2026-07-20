@@ -73,7 +73,7 @@ export class MicroareasService {
         Array<{ geojson: string | null }>
       >`
         SELECT ST_AsGeoJSON(envelope_geom)::text as geojson
-        FROM microareas WHERE id = ${id}::uuid
+        FROM microareas WHERE id = ${id}
       `;
       if (!result[0]?.geojson) return null;
       return JSON.parse(result[0].geojson);
@@ -100,7 +100,7 @@ export class MicroareasService {
           ST_X(ST_Centroid(m.envelope_geom)) AS label_lng,
           ST_Y(ST_Centroid(m.envelope_geom)) AS label_lat
         FROM microareas m
-        WHERE m.municipality_id = ${municipalityId}::uuid
+        WHERE m.municipality_id = ${municipalityId}
           AND m.envelope_geom IS NOT NULL
           AND EXISTS (
             SELECT 1 FROM streets s WHERE s.microarea_id = m.id
@@ -145,7 +145,7 @@ export class MicroareasService {
       await this.prisma.$executeRaw`
         UPDATE microareas
         SET envelope_geom = NULL
-        WHERE municipality_id = ${municipalityId}::uuid
+        WHERE municipality_id = ${municipalityId}
           AND NOT EXISTS (
             SELECT 1 FROM streets s WHERE s.microarea_id = microareas.id
           )

@@ -119,7 +119,17 @@ async function bootstrap() {
       fallthrough: true,
       maxAge: '365d',
       setHeaders: (res, filePath) => {
-        if (filePath.endsWith('index.html')) {
+        const base = filePath.replace(/\\/g, '/');
+        if (base.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          return;
+        }
+        // SW/workbox desatualizado quebra o mapa após deploy (chunks 404).
+        if (
+          base.endsWith('/sw.js') ||
+          base.endsWith('sw.js') ||
+          base.includes('workbox-')
+        ) {
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
       },

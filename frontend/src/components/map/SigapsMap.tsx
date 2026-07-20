@@ -130,6 +130,7 @@ export function SigapsMap() {
   const [lastPaintAction, setLastPaintAction] = useState<string | null>(null);
   const [undoCount, setUndoCount] = useState(0);
   const [importFailed, setImportFailed] = useState(false);
+  const [importPolling, setImportPolling] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
   const streetsAutoRetryCount = useRef(0);
   const pendingPaintRef = useRef<Set<string>>(new Set());
@@ -563,7 +564,15 @@ export function SigapsMap() {
     },
     onSuccess: (res) => {
       const status = res.data?.status;
-      if (status === 'in_progress') return;
+      if (status === 'in_progress') {
+        setImportPolling(true);
+        setSnackbar({
+          message: 'Importação de ruas em andamento. Aguarde…',
+          severity: 'info',
+        });
+        return;
+      }
+      setImportPolling(false);
 
       queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId!) });
       const imported = res.data?.imported ?? 0;
@@ -585,6 +594,7 @@ export function SigapsMap() {
       }
     },
     onError: (err) => {
+      setImportPolling(false);
       setImportFailed(true);
       setSnackbar({
         message: getApiErrorMessage(
@@ -597,14 +607,18 @@ export function SigapsMap() {
   });
 
   useEffect(() => {
-    if (!importMutation.isPending || streetCount > 0) return;
+    if ((!importMutation.isPending && !importPolling) || streetCount > 0) {
+      if (streetCount > 0) setImportPolling(false);
+      return;
+    }
     const timer = window.setInterval(() => {
       if (municipalityId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.streetsMap(municipalityId) });
+        void queryClient.invalidateQueries({ queryKey: ['streets-probe', municipalityId] });
       }
-    }, 20000);
+    }, 8000);
     return () => window.clearInterval(timer);
-  }, [importMutation.isPending, streetCount, municipalityId, queryClient]);
+  }, [importMutation.isPending, importPolling, streetCount, municipalityId, queryClient]);
 
   useEffect(() => {
     if (!municipalityId || streetCount > 0 || streetsFetching || importMutation.isPending) return;
@@ -1566,10 +1580,11 @@ export function SigapsMap() {
   const importing = importMutation.isPending;
   const showEmptyOverlay =
     !importing &&
+    !importPolling &&
     !streetsFetching &&
     !streetsAutoRetrying &&
     streetCount === 0 &&
-    (importFailed || streetsLoadError);
+    (importFailed || !!streetsLoadError);
 
   if (!municipalityId) {
     return (
