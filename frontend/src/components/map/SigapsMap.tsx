@@ -39,7 +39,7 @@ import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../u
 import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, paintGeometryEqual, prepareStreetsForMap } from '../../utils/streetSearch';
-import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, simulatePaintRange, simulateUnpaintAtPoint, simulateUnpaintRange, closestVertexIndex, streetCoords, sliceStreetGeojson } from '../../utils/streetPaintSegments';
+import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, simulatePaintRange, simulateUnpaintAtPoint, simulateUnpaintRange, closestVertexIndex, streetCoords, sliceStreetGeojson, densifyStreetForMicro } from '../../utils/streetPaintSegments';
 import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
 import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
@@ -71,17 +71,18 @@ function isLargeMeshNoticeDismissed(municipalityId: string | null): boolean {
 
 /** Resposta lean do paint/unpaint: reconstitui geojson a partir da rua em cache. */
 function hydratePaintedStreet(updated: Street, base: Street): Street {
-  const coords = streetCoords(base.geojson);
+  const coords = streetCoords(updated.geojson ?? base.geojson);
+  const geojson = updated.geojson ?? base.geojson;
   return {
     ...base,
     ...updated,
-    geojson: base.geojson,
-    lengthMeters: base.lengthMeters,
+    geojson,
+    lengthMeters: updated.lengthMeters ?? base.lengthMeters,
     paintSegments: (updated.paintSegments ?? []).map((seg) => {
       if (seg.geojson?.coordinates?.length) return seg;
       return {
         ...seg,
-        geojson: sliceStreetGeojson(coords, seg.startIndex, seg.endIndex) ?? base.geojson,
+        geojson: sliceStreetGeojson(coords, seg.startIndex, seg.endIndex) ?? geojson,
       };
     }),
   };
@@ -1091,15 +1092,20 @@ export function SigapsMap() {
     side: ApiPaintSide | 'LEFT' | 'RIGHT' | 'FULL',
   ) => {
     if (!paintMode || eraserMode || !selectedMicroareaId || !municipalityId) return;
-    const apiSide = side === 'BOTH' ? detectClickSide(street, endLat, endLng) : side;
-    const dedupeKey = `brush:${street.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
+    const dense = densifyStreetForMicro(street);
+    if (dense !== street) {
+      patchStreetInMapCache(queryClient, municipalityId, dense);
+    }
+    const working = dense;
+    const apiSide = side === 'BOTH' ? detectClickSide(working, endLat, endLng) : side;
+    const dedupeKey = `brush:${working.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
     if (segmentPaintKeysRef.current.has(dedupeKey)) return;
     segmentPaintKeysRef.current.add(dedupeKey);
     const brushBase = {
-      ...street,
-      paintSegments: street.paintSegments ? [...street.paintSegments] : [],
+      ...working,
+      paintSegments: working.paintSegments ? [...working.paintSegments] : [],
     };
-    brushBaseByStreetRef.current.set(street.id, brushBase);
+    brushBaseByStreetRef.current.set(working.id, brushBase);
     const ma = getMicroarea(selectedMicroareaId);
     if (ma) {
       const optimistic = simulatePaintRange(
@@ -1115,7 +1121,7 @@ export function SigapsMap() {
     }
     paintAtPointMutation.mutate(
       {
-        streetId: street.id,
+        streetId: working.id,
         microareaId: selectedMicroareaId,
         latitude: startLat,
         longitude: startLng,
@@ -1127,7 +1133,7 @@ export function SigapsMap() {
       {
         onSettled: () => {
           segmentPaintKeysRef.current.delete(dedupeKey);
-          brushBaseByStreetRef.current.delete(street.id);
+          brushBaseByStreetRef.current.delete(working.id);
         },
       },
     );
@@ -1144,18 +1150,23 @@ export function SigapsMap() {
     if (!paintMode) return;
     const { eraserMode: eraser } = useMapStore.getState();
     if (!eraser) return;
-    const apiSide = side === 'BOTH' ? detectClickSide(street, endLat, endLng) : side;
-    const state = paintStateAtPoint(street, endLat, endLng, apiSide);
-    if (!streetHasPaint(street) && !state.microareaId) return;
-    const dedupeKey = `unbrush:${street.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
+    const dense = densifyStreetForMicro(street);
+    if (dense !== street && municipalityId) {
+      patchStreetInMapCache(queryClient, municipalityId, dense);
+    }
+    const working = dense;
+    const apiSide = side === 'BOTH' ? detectClickSide(working, endLat, endLng) : side;
+    const state = paintStateAtPoint(working, endLat, endLng, apiSide);
+    if (!streetHasPaint(working) && !state.microareaId) return;
+    const dedupeKey = `unbrush:${working.id}:${startLat}:${startLng}:${endLat}:${endLng}:${apiSide}`;
     if (segmentPaintKeysRef.current.has(dedupeKey)) return;
     segmentPaintKeysRef.current.add(dedupeKey);
-    const capturedMicroareaId = state.microareaId ?? street.microareaId ?? '';
+    const capturedMicroareaId = state.microareaId ?? working.microareaId ?? '';
     const brushBase = {
-      ...street,
-      paintSegments: street.paintSegments ? [...street.paintSegments] : [],
+      ...working,
+      paintSegments: working.paintSegments ? [...working.paintSegments] : [],
     };
-    brushBaseByStreetRef.current.set(street.id, brushBase);
+    brushBaseByStreetRef.current.set(working.id, brushBase);
     const optimistic = simulateUnpaintRange(
       brushBase,
       startLat,
@@ -1169,7 +1180,7 @@ export function SigapsMap() {
     }
     unpaintAtPointMutation.mutate(
       {
-        streetId: street.id,
+        streetId: working.id,
         latitude: startLat,
         longitude: startLng,
         endLatitude: endLat,
@@ -1181,7 +1192,7 @@ export function SigapsMap() {
           if (!res.data.cleared) return;
           pushUndo({
             type: 'unpaint',
-            streetId: street.id,
+            streetId: working.id,
             latitude: startLat,
             longitude: startLng,
             endLatitude: endLat,
@@ -1193,7 +1204,7 @@ export function SigapsMap() {
         },
         onSettled: () => {
           segmentPaintKeysRef.current.delete(dedupeKey);
-          brushBaseByStreetRef.current.delete(street.id);
+          brushBaseByStreetRef.current.delete(working.id);
         },
       },
     );

@@ -15,6 +15,7 @@ import {
   edgeEndpointLatLng,
   isEdgePaintedOnSide,
   microPaintSideForScope,
+  densifyStreetForMicro,
   computeBrushPreviewGeometryByIndex,
   computePaintPreviewGeometry,
   effectivePaintSide,
@@ -805,12 +806,22 @@ function StreetsLayerComponent({
     if (paintMode) {
       const commitMicroEdge = (street: Street, lo: number, hi: number, side: StreetPaintSide) => {
         const store = useMapStore.getState();
-        const endpoints = edgeEndpointLatLng(street, lo, hi);
-        const state = paintStateAtPoint(street, endpoints.startLat, endpoints.startLng, side);
+        // Densifica a rua (~18 m por tracinho) para o clique pintar só um pedacinho.
+        const dense = densifyStreetForMicro(street);
+        if (dense !== street) {
+          streetsByIdRef.current.set(street.id, dense);
+        }
+        const working = streetsByIdRef.current.get(street.id) ?? dense;
+        // Re-mapeia índices se a geometria mudou (edgeLo/Hi já vêm densificados do feature).
+        const maxIndex = Math.max(0, streetCoords(working.geojson).length - 1);
+        const safeLo = Math.max(0, Math.min(lo, maxIndex - 1));
+        const safeHi = Math.max(safeLo + 1, Math.min(hi, maxIndex));
+        const endpoints = edgeEndpointLatLng(working, safeLo, safeHi);
+        const state = paintStateAtPoint(working, endpoints.startLat, endpoints.startLng, side);
         if (store.eraserMode) {
-          if (!streetHasPaint(street) && !state.microareaId) return;
+          if (!streetHasPaint(working) && !state.microareaId) return;
           onStreetUnpaintRange(
-            street,
+            working,
             endpoints.startLat,
             endpoints.startLng,
             endpoints.endLat,
@@ -820,10 +831,10 @@ function StreetsLayerComponent({
           return;
         }
         if (!store.selectedMicroareaId) return;
-        const painted = isEdgePaintedOnSide(street, lo, hi, side);
+        const painted = isEdgePaintedOnSide(working, safeLo, safeHi, side);
         if (painted && state.microareaId === store.selectedMicroareaId) {
           onStreetUnpaintRange(
-            street,
+            working,
             endpoints.startLat,
             endpoints.startLng,
             endpoints.endLat,
@@ -834,7 +845,7 @@ function StreetsLayerComponent({
         }
         if (painted) return;
         onStreetPaintRange(
-          street,
+          working,
           endpoints.startLat,
           endpoints.startLng,
           endpoints.endLat,

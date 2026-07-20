@@ -58,6 +58,59 @@ export function closestVertexIndex(coords: Coord[], latitude: number, longitude:
   return best;
 }
 
+/** Distância aproximada em metros entre dois pontos WGS84. */
+export function haversineMeters(a: Coord, b: Coord): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const [lng1, lat1] = a;
+  const [lng2, lat2] = b;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+/** Espaçamento máximo entre vértices no modo micro (~um tracinho). */
+export const MICRO_CHUNK_METERS = 18;
+
+/**
+ * Densifica a polilinha para nenhum trecho passar de maxMeters.
+ * Retorna mapa oldIndex → newIndex dos vértices originais.
+ */
+export function densifyLineString(
+  coords: Coord[],
+  maxMeters = MICRO_CHUNK_METERS,
+): { coords: Coord[]; oldToNew: number[] } {
+  if (coords.length < 2) return { coords: [...coords], oldToNew: coords.map((_, i) => i) };
+  const out: Coord[] = [[coords[0][0], coords[0][1]]];
+  const oldToNew: number[] = [0];
+  for (let i = 0; i < coords.length - 1; i++) {
+    const a = coords[i];
+    const b = coords[i + 1];
+    const dist = haversineMeters(a, b);
+    const steps = Math.max(1, Math.ceil(dist / maxMeters));
+    for (let s = 1; s < steps; s++) {
+      const t = s / steps;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+    out.push([b[0], b[1]]);
+    oldToNew.push(out.length - 1);
+  }
+  return { coords: out, oldToNew };
+}
+
+export function remapSegmentIndices(
+  ranges: SegmentRange[],
+  oldToNew: number[],
+): SegmentRange[] {
+  return ranges.map((r) => ({
+    ...r,
+    startIndex: oldToNew[Math.min(r.startIndex, oldToNew.length - 1)] ?? r.startIndex,
+    endIndex: oldToNew[Math.min(r.endIndex, oldToNew.length - 1)] ?? r.endIndex,
+  }));
+}
+
 export function computeUnpaintedRanges(
   segments: Array<{ startIndex: number; endIndex: number }>,
   maxIndex: number,

@@ -608,7 +608,7 @@ export function PaintGuidePanel({
                     </ToggleButtonGroup>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
                       {brushMode === 'micro-left' || brushMode === 'micro-right'
-                        ? 'Clique em um tracinho cinza por vez — só aquele pedacinho pinta.'
+                        ? 'Cada clique pinta só um tracinho curto (~18 m). Zoom aproxime se precisar.'
                         : brushMode === 'whole'
                           ? 'Um clique colorirá a rua toda (ambos os lados em avenidas).'
                           : brushMode === 'whole-left' || brushMode === 'whole-right'

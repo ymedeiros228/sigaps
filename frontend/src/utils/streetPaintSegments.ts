@@ -51,6 +51,66 @@ export function closestPointAndVertexOnStreet(
   return { lat: bestLat, lng: bestLng, vertexIndex };
 }
 
+/** Distância aproximada em metros entre dois pontos WGS84. */
+export function haversineMeters(a: Coord, b: Coord): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const [lng1, lat1] = a;
+  const [lng2, lat2] = b;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+/** Espaçamento máximo entre vértices no modo micro (~um tracinho visual). */
+export const MICRO_CHUNK_METERS = 18;
+
+export function densifyLineString(
+  coords: Coord[],
+  maxMeters = MICRO_CHUNK_METERS,
+): { coords: Coord[]; oldToNew: number[] } {
+  if (coords.length < 2) return { coords: [...coords], oldToNew: coords.map((_, i) => i) };
+  const out: Coord[] = [[coords[0][0], coords[0][1]]];
+  const oldToNew: number[] = [0];
+  for (let i = 0; i < coords.length - 1; i++) {
+    const a = coords[i];
+    const b = coords[i + 1];
+    const dist = haversineMeters(a, b);
+    const steps = Math.max(1, Math.ceil(dist / maxMeters));
+    for (let s = 1; s < steps; s++) {
+      const t = s / steps;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+    out.push([b[0], b[1]]);
+    oldToNew.push(out.length - 1);
+  }
+  return { coords: out, oldToNew };
+}
+
+/** Densifica a geometria da rua para o modo micro (tracinhos ~18 m). */
+export function densifyStreetForMicro(street: Street): Street {
+  const coords = streetCoords(street.geojson);
+  const { coords: dense, oldToNew } = densifyLineString(coords);
+  if (dense.length === coords.length) return street;
+  const paintSegments = (street.paintSegments ?? []).map((seg) => {
+    const startIndex = oldToNew[Math.min(seg.startIndex, oldToNew.length - 1)] ?? seg.startIndex;
+    const endIndex = oldToNew[Math.min(seg.endIndex, oldToNew.length - 1)] ?? seg.endIndex;
+    return {
+      ...seg,
+      startIndex,
+      endIndex,
+      geojson: sliceStreetGeojson(dense, startIndex, endIndex) ?? seg.geojson,
+    };
+  });
+  return {
+    ...street,
+    geojson: { type: 'LineString', coordinates: dense },
+    paintSegments,
+  };
+}
+
 /** Trecho entre dois vértices consecutivos — base do modo micro pintura. */
 export function closestEdgeOnStreet(
   street: Street,
@@ -183,7 +243,7 @@ export function closestVertexIndex(coords: Coord[], latitude: number, longitude:
 
 const PAINT_HIT_METERS = 28;
 
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function haversineLatLngMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -212,12 +272,12 @@ function distancePointToSegmentMeters(
   const dx = bx - ax;
   const dy = by - ay;
   const len2 = dx * dx + dy * dy;
-  if (len2 < 1e-12) return haversineMeters(plat, plng, aLat, aLng);
+  if (len2 < 1e-12) return haversineLatLngMeters(plat, plng, aLat, aLng);
   let t = ((px - ax) * dx + (py - ay) * dy) / len2;
   t = Math.max(0, Math.min(1, t));
   const projLat = ay + t * dy;
   const projLng = (ax + t * dx) / cos;
-  return haversineMeters(plat, plng, projLat, projLng);
+  return haversineLatLngMeters(plat, plng, projLat, projLng);
 }
 
 export function distanceToLineStringMeters(
@@ -450,19 +510,21 @@ export function buildStreetMapFeatures(
   const dragPreview: StreetMapFeature[] = [];
 
   const dual = isDualSideStreet(street);
+  const baseStreet =
+    ctx.splitUnpaintedEdges ? densifyStreetForMicro(street) : street;
   const baseProps = {
-    streetId: street.id,
-    name: street.name,
-    streetType: street.streetType ?? 'Rua',
-    isDirtRoad: (street.streetType ?? '').toLowerCase().includes('terra'),
-    highlighted: street.id === ctx.highlightedId,
-    selected: ctx.selectedIds.has(street.id),
-    dragPending: ctx.dragPaintIds.has(street.id),
-    familyCount: street.familyCount ?? 0,
+    streetId: baseStreet.id,
+    name: baseStreet.name,
+    streetType: baseStreet.streetType ?? 'Rua',
+    isDirtRoad: (baseStreet.streetType ?? '').toLowerCase().includes('terra'),
+    highlighted: baseStreet.id === ctx.highlightedId,
+    selected: ctx.selectedIds.has(baseStreet.id),
+    dragPending: ctx.dragPaintIds.has(baseStreet.id),
+    familyCount: baseStreet.familyCount ?? 0,
   };
 
-  const segments = street.paintSegments ?? [];
-  const coords = streetCoords(street.geojson);
+  const segments = baseStreet.paintSegments ?? [];
+  const coords = streetCoords(baseStreet.geojson);
   const maxIndex = coords.length - 1;
 
   const pushUnpaintedGap = (
@@ -475,12 +537,12 @@ export function buildStreetMapFeatures(
     const pushEdge = (lo: number, hi: number, edgeKey: string) => {
       const raw = sliceStreetGeojson(coords, lo, hi);
       if (!raw) return;
-      const geometry = displayGeometry(street, raw, displaySide);
+      const geometry = displayGeometry(baseStreet, raw, displaySide);
       const feature: StreetMapFeature = {
         type: 'Feature',
         properties: {
           ...baseProps,
-          id: `${street.id}:gap:${keySuffix}:${edgeKey}`,
+          id: `${baseStreet.id}:gap:${keySuffix}:${edgeKey}`,
           side: displaySide,
           edgeLo: lo,
           edgeHi: hi,
@@ -510,7 +572,7 @@ export function buildStreetMapFeatures(
         type: 'Feature',
         properties: {
           ...baseProps,
-          id: `${street.id}:${seg.id}`,
+          id: `${baseStreet.id}:${seg.id}`,
           segmentId: seg.id,
           side: seg.side,
           color: seg.microarea?.color ?? ctx.activeColor,
@@ -518,7 +580,7 @@ export function buildStreetMapFeatures(
           hasMicroarea: true,
           isPartial: true,
         },
-        geometry: displayGeometry(street, seg.geojson, seg.side),
+        geometry: displayGeometry(baseStreet, seg.geojson, seg.side),
       });
     }
 
@@ -547,14 +609,14 @@ export function buildStreetMapFeatures(
     type: 'Feature',
     properties: {
       ...baseProps,
-      id: street.id,
+      id: baseStreet.id,
       side: 'FULL',
-      color: street.microarea?.color ?? ctx.activeColor,
-      microareaName: street.microarea?.name,
-      hasMicroarea: !!street.microareaId,
+      color: baseStreet.microarea?.color ?? ctx.activeColor,
+      microareaName: baseStreet.microarea?.name,
+      hasMicroarea: !!baseStreet.microareaId,
       isPartial: false,
     },
-    geometry: street.geojson,
+    geometry: baseStreet.geojson,
   };
 
   if (feature.properties.hasMicroarea) {
@@ -562,8 +624,8 @@ export function buildStreetMapFeatures(
       for (const side of ['LEFT', 'RIGHT'] as StreetPaintSide[]) {
         painted.push({
           ...feature,
-          properties: { ...feature.properties, id: `${street.id}:${side}`, side },
-          geometry: displayGeometry(street, street.geojson, side),
+          properties: { ...feature.properties, id: `${baseStreet.id}:${side}`, side },
+          geometry: displayGeometry(baseStreet, baseStreet.geojson, side),
         });
       }
     } else {
@@ -583,13 +645,13 @@ export function buildStreetMapFeatures(
         ...feature,
         properties: {
           ...feature.properties,
-          id: `${street.id}:edge:${displaySide}:${i}`,
+          id: `${baseStreet.id}:edge:${displaySide}:${i}`,
           side: displaySide,
           edgeLo: i,
           edgeHi: i + 1,
           isPartial: true,
         },
-        geometry: displayGeometry(street, raw, displaySide),
+        geometry: displayGeometry(baseStreet, raw, displaySide),
       });
     }
   } else {

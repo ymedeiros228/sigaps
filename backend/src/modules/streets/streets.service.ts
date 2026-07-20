@@ -11,10 +11,12 @@ import {
   applyUnpaintOnSide,
   applyUnpaintRange,
   closestVertexIndex,
+  densifyLineString,
   expandFullSegmentsForDualSide,
   isDualSideStreet,
   mergeAdjacentSegments,
   normalizePaintSide,
+  remapSegmentIndices,
   sliceStreetGeojson,
   streetCoords,
   syncStreetMicroareaId,
@@ -1114,17 +1116,31 @@ export class StreetsService {
       working = reloaded;
     }
 
-    const coords = streetCoords(working.geojson);
-    const maxIndex = coords.length - 1;
+    const rawCoords = streetCoords(working.geojson);
+    const densified = densifyLineString(rawCoords);
+    let coords = densified.coords;
+    let maxIndex = coords.length - 1;
     if (maxIndex < 1) throw new BadRequestException('Geometria da rua inválida para pintura parcial');
 
-    const vertexIndex = closestVertexIndex(coords, latitude, longitude);
     let ranges: SegmentRange[] = working.paintSegments.map((s) => ({
       startIndex: s.startIndex,
       endIndex: s.endIndex,
       microareaId: s.microareaId,
       side: s.side,
     }));
+
+    const geometryChanged = densified.coords.length !== rawCoords.length;
+    if (geometryChanged) {
+      ranges = remapSegmentIndices(ranges, densified.oldToNew);
+      const denseGeojson = { type: 'LineString' as const, coordinates: densified.coords };
+      await this.prisma.street.update({
+        where: { id: streetId },
+        data: { geojson: denseGeojson as Prisma.InputJsonValue },
+      });
+      working = { ...working, geojson: denseGeojson };
+    }
+
+    const vertexIndex = closestVertexIndex(coords, latitude, longitude);
 
     const paintMode = normalizePaintSide(working, requestedSide);
     if (isDualSideStreet(working) && ranges.some((r) => r.side === StreetPaintSide.FULL)) {
@@ -1214,7 +1230,7 @@ export class StreetsService {
         ? microareaRef
         : paintSegments.find((s) => s.microareaId === microareaIdSynced)?.microarea ?? null;
 
-    // Sem geojson na resposta: o frontend já tem a geometria em cache (payload menor).
+    // Com densificação, devolve geojson para o frontend alinhar os tracinhos.
     return this.serializeStreetForApi(
       {
         ...working,
@@ -1224,7 +1240,7 @@ export class StreetsService {
       },
       undefined,
       false,
-      true,
+      !geometryChanged,
     );
   }
 
@@ -1266,17 +1282,31 @@ export class StreetsService {
       working = reloaded;
     }
 
-    const coords = streetCoords(working.geojson);
+    const rawCoords = streetCoords(working.geojson);
+    const densified = densifyLineString(rawCoords);
+    let coords = densified.coords;
     const maxIndex = coords.length - 1;
     if (maxIndex < 1) return { cleared: false };
 
-    const vertexIndex = closestVertexIndex(coords, latitude, longitude);
     let ranges: SegmentRange[] = working.paintSegments.map((s) => ({
       startIndex: s.startIndex,
       endIndex: s.endIndex,
       microareaId: s.microareaId,
       side: s.side,
     }));
+
+    const geometryChanged = densified.coords.length !== rawCoords.length;
+    if (geometryChanged) {
+      ranges = remapSegmentIndices(ranges, densified.oldToNew);
+      const denseGeojson = { type: 'LineString' as const, coordinates: densified.coords };
+      await this.prisma.street.update({
+        where: { id: streetId },
+        data: { geojson: denseGeojson as Prisma.InputJsonValue },
+      });
+      working = { ...working, geojson: denseGeojson };
+    }
+
+    const vertexIndex = closestVertexIndex(coords, latitude, longitude);
 
     const unpaintSide = normalizePaintSide(working, requestedSide);
     if (unpaintSide === 'BOTH') {
@@ -1357,7 +1387,7 @@ export class StreetsService {
         },
         undefined,
         false,
-        true,
+        !geometryChanged,
       ),
     };
   }
