@@ -11,6 +11,8 @@ import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetVie
 import {
   buildStreetMapFeatures,
   closestPointAndVertexOnStreet,
+  closestEdgeOnStreet,
+  edgeEndpointLatLng,
   computeBrushPreviewGeometryByIndex,
   computePaintPreviewGeometry,
   effectivePaintSide,
@@ -119,6 +121,7 @@ function StreetsLayerComponent({
   const showHeatmap = useMapStore((s) => s.showHeatmap);
   const microareas = useAppStore((s) => s.microareas);
   const paintStreetSide = useMapStore((s) => s.paintStreetSide);
+  const paintScope = useMapStore((s) => s.paintScope);
   const mapPanEnabled = useMapStore((s) => s.mapPanEnabled);
   const addDragPaintId = useMapStore((s) => s.addDragPaintId);
   const activeColor = eraserMode
@@ -430,8 +433,9 @@ function StreetsLayerComponent({
       activeColor: '#00A86B',
       paintStreetSide,
       paintMode,
+      splitUnpaintedEdges: paintMode && paintScope === 'micro',
     }),
-    [paintStreetSide, paintMode],
+    [paintStreetSide, paintMode, paintScope],
   );
 
   /** Cache por rua: um traço só reconstrói a rua dirty, não as ~700. */
@@ -457,7 +461,7 @@ function StreetsLayerComponent({
     const d: StreetMapFeature[] = [];
     const hits: StreetMapFeature[] = [];
     const zoomBucket = zoom < 13 ? 12 : zoom < 15 ? 14 : 16;
-    const modeKey = `${paintMode ? 1 : 0}:${paintStreetSide}:${zoomBucket}`;
+    const modeKey = `${paintMode ? 1 : 0}:${paintScope}:${paintStreetSide}:${zoomBucket}`;
     const cache = featureCacheRef.current;
     const streetState = streetFeatureStateRef.current;
     const keep = new Set<string>();
@@ -727,9 +731,11 @@ function StreetsLayerComponent({
             ? `Despintar trecho${sideText}: ${label}`
             : store.paintScope === 'whole'
               ? `Pintar rua inteira: ${label}`
-              : store.paintScope === 'brush'
-                ? `Arraste ao longo da rua${sideText}: ${label}`
-                : `Cortar e pintar trecho${sideText}: ${label}`;
+              : store.paintScope === 'micro'
+                ? `Micro pintura${sideText}: clique no tracinho — ${label}`
+                : store.paintScope === 'brush'
+                  ? `Arraste ao longo da rua${sideText}: ${label}`
+                  : `Cortar e pintar trecho${sideText}: ${label}`;
         }
       } else if (segName) {
         tooltip = `${label} — ${segName}${sideText}`;
@@ -794,7 +800,7 @@ function StreetsLayerComponent({
             ctx.store.eraserMode ? 'sigaps-street-eraser-hover' : 'sigaps-street-hover',
           );
         layer.setTooltipContent(ctx.tooltip);
-        if (dragActionRef.current && ctx.store.paintScope !== 'brush') {
+        if (dragActionRef.current && ctx.store.paintScope !== 'brush' && ctx.store.paintScope !== 'micro') {
           applyDragAction(snapped.lat, snapped.lng);
         }
       };
@@ -825,6 +831,44 @@ function StreetsLayerComponent({
           store.eraserMode,
         ) as StreetPaintSide;
         const state = paintStateAtPoint(street, lat, lng, side);
+
+        if (store.paintScope === 'micro') {
+          const edge = closestEdgeOnStreet(street, lat, lng);
+          const endpoints = edgeEndpointLatLng(street, edge.lo, edge.hi);
+          if (store.eraserMode) {
+            if (!streetHasPaint(street) && !state.microareaId) return;
+            onStreetUnpaintRange(
+              street,
+              endpoints.startLat,
+              endpoints.startLng,
+              endpoints.endLat,
+              endpoints.endLng,
+              side,
+            );
+            return;
+          }
+          if (!store.selectedMicroareaId) return;
+          if (state.microareaId === store.selectedMicroareaId) {
+            onStreetUnpaintRange(
+              street,
+              endpoints.startLat,
+              endpoints.startLng,
+              endpoints.endLat,
+              endpoints.endLng,
+              side,
+            );
+            return;
+          }
+          onStreetPaintRange(
+            street,
+            endpoints.startLat,
+            endpoints.startLng,
+            endpoints.endLat,
+            endpoints.endLng,
+            side,
+          );
+          return;
+        }
 
         if (store.paintScope === 'brush') {
           if (store.eraserMode) {

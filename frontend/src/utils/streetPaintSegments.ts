@@ -51,6 +51,53 @@ export function closestPointAndVertexOnStreet(
   return { lat: bestLat, lng: bestLng, vertexIndex };
 }
 
+/** Trecho entre dois vértices consecutivos — base do modo micro pintura. */
+export function closestEdgeOnStreet(
+  street: Street,
+  latitude: number,
+  longitude: number,
+): { lat: number; lng: number; lo: number; hi: number } {
+  const coords = streetCoords(street.geojson);
+  if (coords.length < 2) return { lat: latitude, lng: longitude, lo: 0, hi: 0 };
+  let bestLat = coords[0][1];
+  let bestLng = coords[0][0];
+  let bestDist = Infinity;
+  let bestSeg = 0;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const [lng1, lat1] = coords[i];
+    const [lng2, lat2] = coords[i + 1];
+    const dx = lng2 - lng1;
+    const dy = lat2 - lat1;
+    const lenSq = dx * dx + dy * dy;
+    let t = 0;
+    if (lenSq > 0) {
+      t = ((longitude - lng1) * dx + (latitude - lat1) * dy) / lenSq;
+      t = Math.max(0, Math.min(1, t));
+    }
+    const lat = lat1 + t * dy;
+    const lng = lng1 + t * dx;
+    const d = (lat - latitude) ** 2 + (lng - longitude) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      bestLat = lat;
+      bestLng = lng;
+      bestSeg = i;
+    }
+  }
+  return { lat: bestLat, lng: bestLng, lo: bestSeg, hi: bestSeg + 1 };
+}
+
+export function edgeEndpointLatLng(
+  street: Street,
+  lo: number,
+  hi: number,
+): { startLat: number; startLng: number; endLat: number; endLng: number } {
+  const coords = streetCoords(street.geojson);
+  const [startLng, startLat] = coords[lo] ?? coords[0];
+  const [endLng, endLat] = coords[hi] ?? coords[coords.length - 1];
+  return { startLat, startLng, endLat, endLng };
+}
+
 /** Ponto mais próximo na polilinha da rua (para o pincel seguir o traço ao arrastar). */
 export function closestPointOnStreet(
   street: Street,
@@ -390,6 +437,8 @@ export function buildStreetMapFeatures(
     activeColor: string;
     paintStreetSide?: PaintStreetSide;
     paintMode?: boolean;
+    /** Modo micro: cada tracinho cinza = um trecho clicável. */
+    splitUnpaintedEdges?: boolean;
   },
 ): { painted: StreetMapFeature[]; unpainted: StreetMapFeature[]; dragPreview: StreetMapFeature[] } {
   const painted: StreetMapFeature[] = [];
@@ -417,23 +466,33 @@ export function buildStreetMapFeatures(
     side: StreetPaintSide,
     keySuffix: string,
   ) => {
-    const geometry = sliceStreetGeojson(coords, gap.start, gap.end);
-    if (!geometry) return;
-    const feature: StreetMapFeature = {
-      type: 'Feature',
-      properties: {
-        ...baseProps,
-        id: `${street.id}:gap:${keySuffix}:${gap.start}`,
-        side,
-        color: '#888888',
-        hasMicroarea: false,
-        isPartial: true,
-      },
-      // Gaps/unpainted: centerline (offset só nos trechos pintados e no preview).
-      geometry,
+    const pushEdge = (lo: number, hi: number, edgeKey: string) => {
+      const geometry = sliceStreetGeojson(coords, lo, hi);
+      if (!geometry) return;
+      const feature: StreetMapFeature = {
+        type: 'Feature',
+        properties: {
+          ...baseProps,
+          id: `${street.id}:gap:${keySuffix}:${edgeKey}`,
+          side,
+          color: '#888888',
+          hasMicroarea: false,
+          isPartial: true,
+        },
+        geometry,
+      };
+      if (baseProps.dragPending) dragPreview.push(feature);
+      else unpainted.push(feature);
     };
-    if (baseProps.dragPending) dragPreview.push(feature);
-    else unpainted.push(feature);
+
+    if (ctx.splitUnpaintedEdges && gap.end - gap.start >= 1) {
+      for (let i = gap.start; i < gap.end; i++) {
+        pushEdge(i, i + 1, `${gap.start}:${gap.end}:${i}`);
+      }
+      return;
+    }
+
+    pushEdge(gap.start, gap.end, `${gap.start}:${gap.end}`);
   };
 
   if (segments.length > 0) {
@@ -506,6 +565,20 @@ export function buildStreetMapFeatures(
       ...feature,
       properties: { ...feature.properties, color: ctx.activeColor },
     });
+  } else if (ctx.splitUnpaintedEdges && maxIndex >= 1) {
+    for (let i = 0; i < maxIndex; i++) {
+      const geometry = sliceStreetGeojson(coords, i, i + 1);
+      if (!geometry) continue;
+      unpainted.push({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          id: `${street.id}:edge:${i}`,
+          isPartial: true,
+        },
+        geometry,
+      });
+    }
   } else {
     // Dual sem pintura: uma centerline (evita 2× offset trig em ~todas as ruas OSM).
     unpainted.push(feature);
@@ -1049,10 +1122,11 @@ export function computePaintPreviewGeometry(
     return isDualSideStreet(street) ? offsetLineForSide(street.geojson, paintSide) : street.geojson;
   }
 
-  if (scope === 'brush') {
-    const lo = Math.max(0, vertexIndex - 1);
-    const hi = Math.min(maxIndex, vertexIndex + 1);
-    const geom = sliceStreetGeojson(coords, lo, hi);
+  if (scope === 'brush' || scope === 'micro') {
+    const edge = scope === 'micro'
+      ? closestEdgeOnStreet(street, latitude, longitude)
+      : { lo: Math.max(0, vertexIndex - 1), hi: Math.min(maxIndex, vertexIndex + 1) };
+    const geom = sliceStreetGeojson(coords, edge.lo, edge.hi);
     return geom ? offsetLineForSide(geom, paintSide) : null;
   }
 

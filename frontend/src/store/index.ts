@@ -198,7 +198,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   divisionMode: false,
   divisionDraft: null,
   paintStreetSide: 'FULL' as PaintStreetSide,
-  paintScope: 'brush' as PaintScope,
+  paintScope: 'micro' as PaintScope,
   setPaintMode: (enabled) => {
     const state = get();
     if (enabled && !state.selectedMicroareaId) {
@@ -225,7 +225,6 @@ export const useMapStore = create<MapState>((set, get) => ({
       paintMode: enabled ? true : get().paintMode,
       mapPanEnabled: enabled ? false : get().mapPanEnabled,
       dragPaintIds: new Set<string>(),
-      ...(enabled ? { paintScope: 'brush' as const } : {}),
     });
   },
   setSelectedMicroarea: (id) => set({ selectedMicroareaId: id }),

@@ -997,7 +997,7 @@ export function SigapsMap() {
   const paintStreet = useCallback((street: Street, latitude: number, longitude: number) => {
     if (!paintMode || eraserMode || !selectedMicroareaId || !municipalityId) return;
     const { paintStreetSide, paintScope } = useMapStore.getState();
-    if (paintScope === 'brush') return;
+    if (paintScope === 'brush' || paintScope === 'micro') return;
     const side = resolveApiPaintSide(street, paintStreetSide, paintScope, latitude, longitude);
     const state = paintStateAtPoint(street, latitude, longitude, side);
     if (state.microareaId === selectedMicroareaId) {
@@ -1174,7 +1174,7 @@ export function SigapsMap() {
   const unpaintStreet = useCallback((street: Street, latitude: number, longitude: number) => {
     if (!paintMode) return;
     const { paintStreetSide, paintScope, eraserMode: eraser } = useMapStore.getState();
-    if (eraser && paintScope === 'brush') return;
+    if (eraser && (paintScope === 'brush' || paintScope === 'micro')) return;
     if (eraser && paintScope === 'whole') {
       if (!streetHasPaint(street)) return;
       unassignMutation.mutate([street.id]);

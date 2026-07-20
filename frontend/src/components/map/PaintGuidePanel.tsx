@@ -25,6 +25,7 @@ import {
   DeleteSweep,
   UnfoldLess,
   ContentCut,
+  LooksOne,
 } from '@mui/icons-material';
 import { useState, useMemo, type MouseEvent } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
@@ -186,39 +187,57 @@ export function PaintGuidePanel({
   const paintStatus = eraserMode
     ? paintScope === 'brush'
       ? 'Arraste na rua colorida para apagar o trecho'
-      : 'Toque na rua colorida para apagar'
+      : paintScope === 'micro'
+        ? 'Clique no tracinho colorido para apagar um trecho'
+        : 'Toque na rua colorida para apagar'
     : mapPanEnabled
       ? 'Arraste o mapa — desative Mover para pintar'
       : paintScope === 'whole'
         ? 'Um clique pinta a rua inteira'
-        : paintScope === 'brush'
+        : paintScope === 'micro'
           ? paintStreetSide === 'LEFT'
-            ? 'Clique e arraste ao longo da rua (lado esquerdo)'
+            ? 'Clique em cada tracinho cinza — lado esquerdo, um de cada vez'
             : paintStreetSide === 'RIGHT'
-              ? 'Clique e arraste ao longo da rua (lado direito)'
+              ? 'Clique em cada tracinho cinza — lado direito, um de cada vez'
               : selectedMicroarea
-                ? `Arraste na rua para pintar · ${selectedMicroarea.name}`
+                ? `Micro pintura: clique nos tracinhos · ${selectedMicroarea.name}`
                 : 'Escolha uma cor abaixo'
-          : paintStreetSide === 'LEFT'
-            ? 'Clique para definir trechos no lado esquerdo'
-            : paintStreetSide === 'RIGHT'
-              ? 'Clique para definir trechos no lado direito'
-              : selectedMicroarea
-                ? `Dividir: clique na rua para cortar · ${selectedMicroarea.name}`
-                : 'Escolha uma cor abaixo';
+          : paintScope === 'brush'
+            ? paintStreetSide === 'LEFT'
+              ? 'Clique e arraste ao longo da rua (lado esquerdo)'
+              : paintStreetSide === 'RIGHT'
+                ? 'Clique e arraste ao longo da rua (lado direito)'
+                : selectedMicroarea
+                  ? `Arraste na rua para pintar · ${selectedMicroarea.name}`
+                  : 'Escolha uma cor abaixo'
+            : paintStreetSide === 'LEFT'
+              ? 'Clique para definir trechos no lado esquerdo'
+              : paintStreetSide === 'RIGHT'
+                ? 'Clique para definir trechos no lado direito'
+                : selectedMicroarea
+                  ? `Dividir: clique na rua para cortar · ${selectedMicroarea.name}`
+                  : 'Escolha uma cor abaixo';
 
-  const brushMode =
+  type PaintModeUi = 'micro' | 'micro-left' | 'micro-right' | 'whole' | 'left' | 'right' | 'brush' | 'segment';
+
+  const brushMode: PaintModeUi =
     paintScope === 'whole'
       ? 'whole'
-      : paintStreetSide === 'LEFT'
-        ? 'left'
-        : paintStreetSide === 'RIGHT'
-          ? 'right'
-          : paintScope === 'brush'
-            ? 'brush'
-            : 'segment';
+      : paintScope === 'micro' && paintStreetSide === 'LEFT'
+        ? 'micro-left'
+        : paintScope === 'micro' && paintStreetSide === 'RIGHT'
+          ? 'micro-right'
+          : paintScope === 'micro'
+            ? 'micro'
+            : paintStreetSide === 'LEFT'
+              ? 'left'
+              : paintStreetSide === 'RIGHT'
+                ? 'right'
+                : paintScope === 'brush'
+                  ? 'brush'
+                  : 'segment';
 
-  const handleBrushMode = (mode: 'brush' | 'segment' | 'whole' | 'left' | 'right') => {
+  const handleBrushMode = (mode: PaintModeUi) => {
     if (mode === 'whole') {
       setPaintScope('whole');
       setPaintStreetSide('FULL');
@@ -227,6 +246,21 @@ export function PaintGuidePanel({
     if (mode === 'segment') {
       setPaintScope('segment');
       setPaintStreetSide('FULL');
+      return;
+    }
+    if (mode === 'micro') {
+      setPaintScope('micro');
+      setPaintStreetSide('FULL');
+      return;
+    }
+    if (mode === 'micro-left') {
+      setPaintScope('micro');
+      setPaintStreetSide('LEFT');
+      return;
+    }
+    if (mode === 'micro-right') {
+      setPaintScope('micro');
+      setPaintStreetSide('RIGHT');
       return;
     }
     if (mode === 'left') {
@@ -573,25 +607,40 @@ export function PaintGuidePanel({
                       fullWidth
                       value={brushMode}
                       onChange={(_e, value) => value && handleBrushMode(value)}
-                      sx={{ mb: 0.75 }}
+                      sx={{ mb: 0.5 }}
                     >
-                      <ToggleButton value="brush" data-testid="paint-mode-brush" sx={{ py: 0.65, gap: 0.4, fontWeight: 700, flex: 1.2 }}>
-                        <Brush sx={{ fontSize: 16 }} />
-                        Arrastar
+                      <ToggleButton value="micro" data-testid="paint-mode-micro" sx={{ py: 0.65, gap: 0.4, fontWeight: 700, flex: 1.1 }}>
+                        <LooksOne sx={{ fontSize: 16 }} />
+                        Micro
+                      </ToggleButton>
+                      <ToggleButton value="micro-left" sx={{ py: 0.65, fontWeight: 700, flex: 0.85, fontSize: '0.72rem' }}>
+                        Micro E
+                      </ToggleButton>
+                      <ToggleButton value="micro-right" sx={{ py: 0.65, fontWeight: 700, flex: 0.85, fontSize: '0.72rem' }}>
+                        Micro D
                       </ToggleButton>
                       <ToggleButton value="whole" data-testid="paint-mode-whole" sx={{ py: 0.65, fontWeight: 700, flex: 1 }}>
                         Rua inteira
                       </ToggleButton>
-                      <ToggleButton value="left" sx={{ py: 0.65, fontWeight: 700, flex: 0.8 }}>
-                        Esquerdo
+                    </ToggleButtonGroup>
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      fullWidth
+                      value={brushMode === 'left' || brushMode === 'right' ? brushMode : ''}
+                      onChange={(_e, value) => value && handleBrushMode(value)}
+                      sx={{ mb: 0.75 }}
+                    >
+                      <ToggleButton value="left" sx={{ py: 0.55, fontWeight: 700, flex: 1 }}>
+                        Esquerdo (arrastar)
                       </ToggleButton>
-                      <ToggleButton value="right" sx={{ py: 0.65, fontWeight: 700, flex: 0.8 }}>
-                        Direito
+                      <ToggleButton value="right" sx={{ py: 0.55, fontWeight: 700, flex: 1 }}>
+                        Direito (arrastar)
                       </ToggleButton>
                     </ToggleButtonGroup>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
-                      {brushMode === 'brush'
-                        ? 'Clique num ponto da rua e arraste — a pintura cresce ao longo do traço. Solte para salvar.'
+                      {brushMode === 'micro' || brushMode === 'micro-left' || brushMode === 'micro-right'
+                        ? 'Clique em cada tracinho cinza da rua — pinta um trecho por vez. Ideal para dividir microáreas.'
                         : brushMode === 'whole'
                           ? 'Um clique colorirá a rua toda com a cor selecionada.'
                           : brushMode === 'left' || brushMode === 'right'
@@ -604,16 +653,20 @@ export function PaintGuidePanel({
                           exclusive
                           size="small"
                           fullWidth
-                          value={paintScope === 'segment' ? 'segment' : ''}
-                          onChange={(_e, value) => value && handleBrushMode('segment')}
+                          value={brushMode === 'brush' || brushMode === 'segment' ? brushMode : ''}
+                          onChange={(_e, value) => value && handleBrushMode(value)}
                         >
+                          <ToggleButton value="brush" data-testid="paint-mode-brush" sx={{ py: 0.5, gap: 0.4, fontWeight: 600, flex: 1 }}>
+                            <Brush sx={{ fontSize: 15 }} />
+                            Arrastar
+                          </ToggleButton>
                           <ToggleButton value="segment" sx={{ py: 0.5, gap: 0.4, fontWeight: 600, flex: 1 }}>
                             <ContentCut sx={{ fontSize: 15 }} />
-                            Dividir trecho (avançado)
+                            Dividir trecho
                           </ToggleButton>
                         </ToggleButtonGroup>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.35 }}>
-                          Modo antigo: cada clique corta a rua num ponto. Use só se precisar de divisão exata.
+                          Arrastar: clique e puxe ao longo da rua. Dividir: cada clique corta num ponto (modo antigo).
                         </Typography>
                       </Box>
                     )}

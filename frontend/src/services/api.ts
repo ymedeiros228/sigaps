@@ -168,7 +168,7 @@ export interface CadastrosSummary {
 
 export type StreetPaintSide = 'FULL' | 'LEFT' | 'RIGHT';
 export type PaintStreetSide = 'FULL' | 'LEFT' | 'RIGHT';
-export type PaintScope = 'segment' | 'whole' | 'brush';
+export type PaintScope = 'segment' | 'whole' | 'brush' | 'micro';
 /** Lado enviado à API ao pintar rua inteira em via de mão dupla */
 export type ApiPaintSide = PaintStreetSide | 'BOTH';
 
