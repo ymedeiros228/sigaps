@@ -58,6 +58,16 @@ import { MapCursorCoordsTracker } from './MapCursorCoords';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
 const DRAG_PAINT_THROTTLE_MS = 120;
+const LARGE_MESH_NOTICE_KEY = 'sigaps_large_mesh_notice_dismissed';
+
+function isLargeMeshNoticeDismissed(municipalityId: string | null): boolean {
+  if (!municipalityId) return false;
+  try {
+    return localStorage.getItem(`${LARGE_MESH_NOTICE_KEY}:${municipalityId}`) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /** Resposta lean do paint/unpaint: reconstitui geojson a partir da rua em cache. */
 function hydratePaintedStreet(updated: Street, base: Street): Street {
@@ -132,6 +142,9 @@ export function SigapsMap() {
   const [importFailed, setImportFailed] = useState(false);
   const [importPolling, setImportPolling] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
+  const [largeMeshNoticeDismissed, setLargeMeshNoticeDismissed] = useState(() =>
+    isLargeMeshNoticeDismissed(municipalityId),
+  );
   const streetsAutoRetryCount = useRef(0);
   const pendingPaintRef = useRef<Set<string>>(new Set());
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
@@ -229,6 +242,21 @@ export function SigapsMap() {
       setMicroareas(microareasData);
     }
   }, [microareasData, setMicroareas]);
+
+  useEffect(() => {
+    setLargeMeshNoticeDismissed(isLargeMeshNoticeDismissed(municipalityId));
+  }, [municipalityId]);
+
+  const dismissLargeMeshNotice = useCallback(() => {
+    if (municipalityId) {
+      try {
+        localStorage.setItem(`${LARGE_MESH_NOTICE_KEY}:${municipalityId}`, '1');
+      } catch {
+        /* storage indisponível */
+      }
+    }
+    setLargeMeshNoticeDismissed(true);
+  }, [municipalityId]);
 
   const {
     streetsData,
@@ -1743,9 +1771,10 @@ export function SigapsMap() {
           onImport={() => void handleRetryLoadStreets()}
         />
       )}
-      {streetsTotal > VIEWPORT_STREETS_THRESHOLD && (
+      {streetsTotal > VIEWPORT_STREETS_THRESHOLD && !largeMeshNoticeDismissed && (
         <Alert
           severity="info"
+          onClose={dismissLargeMeshNotice}
           sx={{
             position: 'absolute',
             top: 80,
