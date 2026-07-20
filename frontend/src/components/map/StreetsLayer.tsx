@@ -13,6 +13,8 @@ import {
   closestPointAndVertexOnStreet,
   closestEdgeOnStreet,
   edgeEndpointLatLng,
+  isEdgePaintedOnSide,
+  microPaintSideForScope,
   computeBrushPreviewGeometryByIndex,
   computePaintPreviewGeometry,
   effectivePaintSide,
@@ -20,6 +22,9 @@ import {
   paintStateAtPoint,
   sideLabel,
   streetHasPaint,
+  sliceStreetGeojson,
+  streetCoords,
+  offsetLineForSide,
   type StreetMapFeature,
 } from '../../utils/streetPaintSegments';
 
@@ -434,6 +439,7 @@ function StreetsLayerComponent({
       paintStreetSide,
       paintMode,
       splitUnpaintedEdges: paintMode && paintScope === 'micro',
+      microSide: paintMode && paintScope === 'micro' ? microPaintSideForScope(paintStreetSide) : undefined,
     }),
     [paintStreetSide, paintMode, paintScope],
   );
@@ -461,7 +467,7 @@ function StreetsLayerComponent({
     const d: StreetMapFeature[] = [];
     const hits: StreetMapFeature[] = [];
     const zoomBucket = zoom < 13 ? 12 : zoom < 15 ? 14 : 16;
-    const modeKey = `${paintMode ? 1 : 0}:${paintScope}:${paintStreetSide}:${zoomBucket}`;
+    const modeKey = `${paintMode ? 1 : 0}:${paintScope}:${paintStreetSide}:${eraserMode ? 1 : 0}:${zoomBucket}`;
     const cache = featureCacheRef.current;
     const streetState = streetFeatureStateRef.current;
     const keep = new Set<string>();
@@ -544,7 +550,23 @@ function StreetsLayerComponent({
       p.push(...state.painted);
       u.push(...state.unpainted);
       d.push(...state.dragPreview);
-      hits.push(state.hit);
+
+      if (paintMode && paintScope === 'micro') {
+        const microHits = eraserMode ? state.painted : state.unpainted;
+        for (const feature of microHits) {
+          hits.push({
+            ...feature,
+            properties: {
+              ...feature.properties,
+              highlighted,
+              selected,
+              dragPending,
+            },
+          });
+        }
+      } else {
+        hits.push(state.hit);
+      }
     }
 
     if (cache.size > keep.size + 80) {
@@ -569,6 +591,8 @@ function StreetsLayerComponent({
     dragPaintIds,
     paintMode,
     paintStreetSide,
+    paintScope,
+    eraserMode,
   ]);
 
   /** Hit layer: remonta quando o conjunto de ruas do viewport muda (não só o count). */
@@ -578,8 +602,8 @@ function StreetsLayerComponent({
       const id = String(feature.properties.streetId ?? feature.properties.id ?? '');
       for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
     }
-    return `${hitFeatures.length}:${h}:${zoom}:${paintMode ? 1 : 0}`;
-  }, [hitFeatures, zoom, paintMode]);
+    return `${hitFeatures.length}:${h}:${zoom}:${paintMode ? 1 : 0}:${paintScope}:${eraserMode ? 1 : 0}`;
+  }, [hitFeatures, zoom, paintMode, paintScope, eraserMode]);
 
   useEffect(() => {
     if (!map.getPane('streetsHit')) {
@@ -669,13 +693,14 @@ function StreetsLayerComponent({
   const hitLayerStyle = useCallback(
     (): PathOptions => ({
       color: 'transparent',
-      weight: eraserMode ? ERASER_HIT_WEIGHT : HIT_WEIGHT,
+      weight:
+        paintScope === 'micro' ? 28 : eraserMode ? ERASER_HIT_WEIGHT : HIT_WEIGHT,
       opacity: 0.001,
       lineCap: 'round',
       lineJoin: 'round',
       pane: 'streetsHit',
     }),
-    [eraserMode],
+    [eraserMode, paintScope],
   );
 
   const bindInteraction = (feature: GeoJSON.Feature, layer: L.Layer) => {
@@ -684,6 +709,9 @@ function StreetsLayerComponent({
       streetId: string;
       name: string;
       streetType: string;
+      edgeLo?: number;
+      edgeHi?: number;
+      side?: StreetPaintSide;
     };
     // Sempre a rua atual do cache — hit layer permanece montado após paint.
     const getStreet = () => streetsByIdRef.current.get(props.streetId);
@@ -705,8 +733,13 @@ function StreetsLayerComponent({
         store.eraserMode,
       ) as StreetPaintSide;
       const state = paintStateAtPoint(street, lat, lng, side);
-      const geom = store.paintMode
-        ? computePaintPreviewGeometry(
+      let geom: GeoJSON.LineString | null = null;
+      if (store.paintMode) {
+        if (store.paintScope === 'micro' && props.edgeLo != null && props.edgeHi != null) {
+          const raw = sliceStreetGeojson(streetCoords(street.geojson), props.edgeLo, props.edgeHi);
+          geom = raw ? offsetLineForSide(raw, side as StreetPaintSide) : null;
+        } else {
+          geom = computePaintPreviewGeometry(
             street,
             lat,
             lng,
@@ -714,8 +747,9 @@ function StreetsLayerComponent({
             side,
             store.paintScope,
             store.eraserMode,
-          )
-        : null;
+          );
+        }
+      }
       const segName = state.segment?.microarea?.name ?? street.microarea?.name;
       const sideText = isDualSideStreet(street) ? ` (${sideLabel(side)})` : '';
       let tooltip = label;
@@ -769,6 +803,46 @@ function StreetsLayerComponent({
     }
 
     if (paintMode) {
+      const commitMicroEdge = (street: Street, lo: number, hi: number, side: StreetPaintSide) => {
+        const store = useMapStore.getState();
+        const endpoints = edgeEndpointLatLng(street, lo, hi);
+        const state = paintStateAtPoint(street, endpoints.startLat, endpoints.startLng, side);
+        if (store.eraserMode) {
+          if (!streetHasPaint(street) && !state.microareaId) return;
+          onStreetUnpaintRange(
+            street,
+            endpoints.startLat,
+            endpoints.startLng,
+            endpoints.endLat,
+            endpoints.endLng,
+            side,
+          );
+          return;
+        }
+        if (!store.selectedMicroareaId) return;
+        const painted = isEdgePaintedOnSide(street, lo, hi, side);
+        if (painted && state.microareaId === store.selectedMicroareaId) {
+          onStreetUnpaintRange(
+            street,
+            endpoints.startLat,
+            endpoints.startLng,
+            endpoints.endLat,
+            endpoints.endLng,
+            side,
+          );
+          return;
+        }
+        if (painted) return;
+        onStreetPaintRange(
+          street,
+          endpoints.startLat,
+          endpoints.startLng,
+          endpoints.endLat,
+          endpoints.endLng,
+          side,
+        );
+      };
+
       const applyDragAction = (lat: number, lng: number) => {
         const street = getStreet();
         if (!street) return;
@@ -833,40 +907,12 @@ function StreetsLayerComponent({
         const state = paintStateAtPoint(street, lat, lng, side);
 
         if (store.paintScope === 'micro') {
+          if (props.edgeLo != null && props.edgeHi != null) {
+            commitMicroEdge(street, props.edgeLo, props.edgeHi, side);
+            return;
+          }
           const edge = closestEdgeOnStreet(street, lat, lng);
-          const endpoints = edgeEndpointLatLng(street, edge.lo, edge.hi);
-          if (store.eraserMode) {
-            if (!streetHasPaint(street) && !state.microareaId) return;
-            onStreetUnpaintRange(
-              street,
-              endpoints.startLat,
-              endpoints.startLng,
-              endpoints.endLat,
-              endpoints.endLng,
-              side,
-            );
-            return;
-          }
-          if (!store.selectedMicroareaId) return;
-          if (state.microareaId === store.selectedMicroareaId) {
-            onStreetUnpaintRange(
-              street,
-              endpoints.startLat,
-              endpoints.startLng,
-              endpoints.endLat,
-              endpoints.endLng,
-              side,
-            );
-            return;
-          }
-          onStreetPaintRange(
-            street,
-            endpoints.startLat,
-            endpoints.startLng,
-            endpoints.endLat,
-            endpoints.endLng,
-            side,
-          );
+          commitMicroEdge(street, edge.lo, edge.hi, side);
           return;
         }
 

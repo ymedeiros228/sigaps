@@ -415,6 +415,8 @@ export type StreetMapFeature = {
     dragPending: boolean;
     familyCount: number;
     isPartial: boolean;
+    edgeLo?: number;
+    edgeHi?: number;
   };
   geometry: GeoJSON.LineString;
 };
@@ -439,6 +441,8 @@ export function buildStreetMapFeatures(
     paintMode?: boolean;
     /** Modo micro: cada tracinho cinza = um trecho clicável. */
     splitUnpaintedEdges?: boolean;
+    /** Lado ativo no micro (E/D) — tracinhos deslocados para o lado correto. */
+    microSide?: StreetPaintSide;
   },
 ): { painted: StreetMapFeature[]; unpainted: StreetMapFeature[]; dragPreview: StreetMapFeature[] } {
   const painted: StreetMapFeature[] = [];
@@ -466,15 +470,20 @@ export function buildStreetMapFeatures(
     side: StreetPaintSide,
     keySuffix: string,
   ) => {
+    const displaySide =
+      ctx.microSide && ctx.microSide !== 'FULL' ? ctx.microSide : side;
     const pushEdge = (lo: number, hi: number, edgeKey: string) => {
-      const geometry = sliceStreetGeojson(coords, lo, hi);
-      if (!geometry) return;
+      const raw = sliceStreetGeojson(coords, lo, hi);
+      if (!raw) return;
+      const geometry = displayGeometry(street, raw, displaySide);
       const feature: StreetMapFeature = {
         type: 'Feature',
         properties: {
           ...baseProps,
           id: `${street.id}:gap:${keySuffix}:${edgeKey}`,
-          side,
+          side: displaySide,
+          edgeLo: lo,
+          edgeHi: hi,
           color: '#888888',
           hasMicroarea: false,
           isPartial: true,
@@ -514,15 +523,15 @@ export function buildStreetMapFeatures(
     }
 
     if (dual) {
-      const seenGaps = new Set<string>();
-      for (const side of ['LEFT', 'RIGHT'] as StreetPaintSide[]) {
+      const sidesToShow: StreetPaintSide[] =
+        ctx.microSide && ctx.microSide !== 'FULL'
+          ? [ctx.microSide]
+          : ['LEFT', 'RIGHT'];
+      for (const side of sidesToShow) {
         const sideSegs = segmentsCoveringSide(segments, side);
         const gaps = computeUnpaintedRanges(sideSegs, maxIndex);
         for (const gap of gaps) {
-          const key = `${gap.start}:${gap.end}`;
-          if (seenGaps.has(key)) continue;
-          seenGaps.add(key);
-          pushUnpaintedGap(gap, 'FULL', key);
+          pushUnpaintedGap(gap, side, `${side}:${gap.start}:${gap.end}`);
         }
       }
     } else {
@@ -566,17 +575,21 @@ export function buildStreetMapFeatures(
       properties: { ...feature.properties, color: ctx.activeColor },
     });
   } else if (ctx.splitUnpaintedEdges && maxIndex >= 1) {
+    const displaySide = ctx.microSide && ctx.microSide !== 'FULL' ? ctx.microSide : 'FULL';
     for (let i = 0; i < maxIndex; i++) {
-      const geometry = sliceStreetGeojson(coords, i, i + 1);
-      if (!geometry) continue;
+      const raw = sliceStreetGeojson(coords, i, i + 1);
+      if (!raw) continue;
       unpainted.push({
         ...feature,
         properties: {
           ...feature.properties,
-          id: `${street.id}:edge:${i}`,
+          id: `${street.id}:edge:${displaySide}:${i}`,
+          side: displaySide,
+          edgeLo: i,
+          edgeHi: i + 1,
           isPartial: true,
         },
-        geometry,
+        geometry: displayGeometry(street, raw, displaySide),
       });
     }
   } else {
@@ -645,18 +658,36 @@ export function resolveApiPaintSide(
   street: Street,
   paintStreetSide: PaintStreetSide,
   paintScope: PaintScope,
-  latitude: number,
-  longitude: number,
+  _latitude: number,
+  _longitude: number,
 ): ApiPaintSide | StreetPaintSide {
   if (paintScope === 'whole') {
+    if (paintStreetSide === 'LEFT') return 'LEFT';
+    if (paintStreetSide === 'RIGHT') return 'RIGHT';
     if (isDualSideStreet(street)) return 'BOTH';
     return 'FULL';
   }
   if (paintStreetSide === 'LEFT') return 'LEFT';
   if (paintStreetSide === 'RIGHT') return 'RIGHT';
-  if (isDualSideStreet(street)) {
-    return detectClickSide(street, latitude, longitude);
-  }
+  if (isDualSideStreet(street)) return 'FULL';
+  return 'FULL';
+}
+
+/** Trecho [lo, hi] já pintado no lado pedido? */
+export function isEdgePaintedOnSide(
+  street: Street,
+  lo: number,
+  hi: number,
+  side: StreetPaintSide,
+): boolean {
+  const segs = segmentsCoveringSide(street.paintSegments ?? [], side);
+  return segs.some((s) => s.startIndex <= lo && s.endIndex >= hi);
+}
+
+export function microPaintSideForScope(
+  paintStreetSide: PaintStreetSide,
+): StreetPaintSide {
+  if (paintStreetSide === 'LEFT' || paintStreetSide === 'RIGHT') return paintStreetSide;
   return 'FULL';
 }
 
@@ -683,11 +714,17 @@ export function effectivePaintSide(
 ): ApiPaintSide | StreetPaintSide {
   if (!isDualSideStreet(street)) return 'FULL';
   if (eraserMode) {
+    if (paintScope === 'micro' && paintStreetSide !== 'FULL') return paintStreetSide;
     return detectClickSide(street, latitude, longitude);
   }
-  if (paintScope === 'whole') return 'BOTH';
+  if (paintScope === 'whole') {
+    if (paintStreetSide === 'LEFT') return 'LEFT';
+    if (paintStreetSide === 'RIGHT') return 'RIGHT';
+    return 'BOTH';
+  }
   if (paintStreetSide === 'LEFT') return 'LEFT';
   if (paintStreetSide === 'RIGHT') return 'RIGHT';
+  if (paintScope === 'micro') return isDualSideStreet(street) ? paintStreetSide : 'FULL';
   return detectClickSide(street, latitude, longitude);
 }
 
@@ -1118,16 +1155,31 @@ export function computePaintPreviewGeometry(
 
   if (!microareaId) return null;
 
-  if (scope === 'whole' || side === 'BOTH') {
-    return isDualSideStreet(street) ? offsetLineForSide(street.geojson, paintSide) : street.geojson;
+  if (scope === 'whole') {
+    if (paintSide === 'LEFT' || paintSide === 'RIGHT') {
+      return offsetLineForSide(street.geojson, paintSide);
+    }
+    if (side === 'BOTH') {
+      return isDualSideStreet(street)
+        ? offsetLineForSide(street.geojson, detectClickSide(street, latitude, longitude))
+        : street.geojson;
+    }
+    return street.geojson;
   }
 
   if (scope === 'brush' || scope === 'micro') {
-    const edge = scope === 'micro'
-      ? closestEdgeOnStreet(street, latitude, longitude)
-      : { lo: Math.max(0, vertexIndex - 1), hi: Math.min(maxIndex, vertexIndex + 1) };
-    const geom = sliceStreetGeojson(coords, edge.lo, edge.hi);
-    return geom ? offsetLineForSide(geom, paintSide) : null;
+    const edge =
+      scope === 'micro'
+        ? closestEdgeOnStreet(street, latitude, longitude)
+        : { lo: Math.max(0, vertexIndex - 1), hi: Math.min(maxIndex, vertexIndex + 1) };
+    const raw = sliceStreetGeojson(coords, edge.lo, edge.hi);
+    if (!raw) return null;
+    if (scope === 'micro' && side !== 'BOTH') {
+      if (isEdgePaintedOnSide(street, edge.lo, edge.hi, paintSide as StreetPaintSide)) {
+        return null;
+      }
+    }
+    return offsetLineForSide(raw, paintSide);
   }
 
   let ranges = streetToRanges(street);
