@@ -197,7 +197,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   mapPanEnabled: true,
   divisionMode: false,
   divisionDraft: null,
-  paintStreetSide: 'FULL' as PaintStreetSide,
+  paintStreetSide: 'LEFT' as PaintStreetSide,
   paintScope: 'micro' as PaintScope,
   setPaintMode: (enabled) => {
     const state = get();

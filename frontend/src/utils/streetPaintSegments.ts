@@ -687,8 +687,8 @@ export function isEdgePaintedOnSide(
 export function microPaintSideForScope(
   paintStreetSide: PaintStreetSide,
 ): StreetPaintSide {
-  if (paintStreetSide === 'LEFT' || paintStreetSide === 'RIGHT') return paintStreetSide;
-  return 'FULL';
+  if (paintStreetSide === 'RIGHT') return 'RIGHT';
+  return 'LEFT';
 }
 
 export function detectClickSide(street: Street, latitude: number, longitude: number): StreetPaintSide {
@@ -1144,6 +1144,14 @@ export function computePaintPreviewGeometry(
   const paintSide = side === 'BOTH' ? detectClickSide(street, latitude, longitude) : (side as StreetPaintSide);
 
   if (eraserMode) {
+    if (scope === 'micro') {
+      const edge = closestEdgeOnStreet(street, latitude, longitude);
+      const raw = sliceStreetGeojson(coords, edge.lo, edge.hi);
+      if (!raw) return null;
+      const paintSideTyped = paintSide as StreetPaintSide;
+      if (!isEdgePaintedOnSide(street, edge.lo, edge.hi, paintSideTyped)) return null;
+      return offsetLineForSide(raw, paintSideTyped);
+    }
     const segments = street.paintSegments ?? [];
     const covering = segmentsCoveringSide(segments, paintSide).find(
       (s) => s.startIndex <= vertexIndex && s.endIndex >= vertexIndex,
@@ -1174,12 +1182,15 @@ export function computePaintPreviewGeometry(
         : { lo: Math.max(0, vertexIndex - 1), hi: Math.min(maxIndex, vertexIndex + 1) };
     const raw = sliceStreetGeojson(coords, edge.lo, edge.hi);
     if (!raw) return null;
-    if (scope === 'micro' && side !== 'BOTH') {
-      if (isEdgePaintedOnSide(street, edge.lo, edge.hi, paintSide as StreetPaintSide)) {
+    const paintSideTyped = paintSide as StreetPaintSide;
+    if (scope === 'micro') {
+      if (eraserMode) {
+        if (!isEdgePaintedOnSide(street, edge.lo, edge.hi, paintSideTyped)) return null;
+      } else if (side !== 'BOTH' && isEdgePaintedOnSide(street, edge.lo, edge.hi, paintSideTyped)) {
         return null;
       }
     }
-    return offsetLineForSide(raw, paintSide);
+    return offsetLineForSide(raw, paintSideTyped);
   }
 
   let ranges = streetToRanges(street);
