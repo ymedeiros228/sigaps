@@ -201,7 +201,7 @@ export function PaintGuidePanel({
             : paintStreetSide === 'RIGHT'
               ? 'Clique em cada tracinho cinza do lado direito'
               : selectedMicroarea
-                ? `Clique nos tracinhos cinza · ${selectedMicroarea.name}`
+                ? `Ruas comuns: tracinho por tracinho · ${selectedMicroarea.name}`
                 : 'Escolha uma cor abaixo'
           : 'Escolha um modo de pintura abaixo';
 
@@ -588,16 +588,22 @@ export function PaintGuidePanel({
                       onChange={(_e, value) => value && handleBrushMode(value)}
                       sx={{ mb: 0.5 }}
                     >
-                      <ToggleButton value="micro" data-testid="paint-mode-micro" sx={{ py: 0.65, gap: 0.4, fontWeight: 700, flex: 1 }}>
-                        <LooksOne sx={{ fontSize: 16 }} />
-                        Micro
-                      </ToggleButton>
-                      <ToggleButton value="micro-left" sx={{ py: 0.65, fontWeight: 700, flex: 0.9, fontSize: '0.72rem' }}>
-                        Micro E
-                      </ToggleButton>
-                      <ToggleButton value="micro-right" sx={{ py: 0.65, fontWeight: 700, flex: 0.9, fontSize: '0.72rem' }}>
-                        Micro D
-                      </ToggleButton>
+                      <Tooltip title="Ruas comuns e estradas de terra — um tracinho cinza por vez (largura inteira)" arrow placement="top">
+                        <ToggleButton value="micro" data-testid="paint-mode-micro" sx={{ py: 0.65, gap: 0.4, fontWeight: 700, flex: 1 }}>
+                          <LooksOne sx={{ fontSize: 16 }} />
+                          Trecho
+                        </ToggleButton>
+                      </Tooltip>
+                      <Tooltip title="Avenidas com dois lados — trecho a trecho, só esquerdo" arrow placement="top">
+                        <ToggleButton value="micro-left" sx={{ py: 0.65, fontWeight: 700, flex: 0.9, fontSize: '0.72rem' }}>
+                          Micro E
+                        </ToggleButton>
+                      </Tooltip>
+                      <Tooltip title="Avenidas com dois lados — trecho a trecho, só direito" arrow placement="top">
+                        <ToggleButton value="micro-right" sx={{ py: 0.65, fontWeight: 700, flex: 0.9, fontSize: '0.72rem' }}>
+                          Micro D
+                        </ToggleButton>
+                      </Tooltip>
                     </ToggleButtonGroup>
                     <ToggleButtonGroup
                       exclusive
@@ -618,9 +624,11 @@ export function PaintGuidePanel({
                       </ToggleButton>
                     </ToggleButtonGroup>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
-                      {brushMode === 'micro' || brushMode === 'micro-left' || brushMode === 'micro-right'
-                        ? 'Clique em cada tracinho cinza — um trecho por vez. Ideal para dividir microáreas.'
-                        : brushMode === 'whole'
+                      {brushMode === 'micro'
+                        ? 'Para ruas comuns: clique em cada tracinho cinza — pinta aquele pedaço na largura inteira.'
+                        : brushMode === 'micro-left' || brushMode === 'micro-right'
+                          ? 'Para avenidas: clique nos tracinhos cinza de um lado só — ideal para dividir microáreas.'
+                          : brushMode === 'whole'
                           ? 'Um clique colorirá a rua toda (ambos os lados em avenidas).'
                           : brushMode === 'whole-left' || brushMode === 'whole-right'
                             ? 'Um clique pinta aquele lado da rua do início ao fim.'
