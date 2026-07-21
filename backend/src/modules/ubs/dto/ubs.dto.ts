@@ -1,10 +1,17 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import { toText } from '../../../common/utils/to-text.util';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+} from 'class-validator';
 
 function normalizeCnesCode(value: unknown): string | undefined {
   if (value === '' || value === null || value === undefined) return undefined;
-  const digits = String(value).replace(/\D/g, '');
+  const digits = toText(value).replace(/\D/g, '');
   return digits.length > 0 ? digits.slice(0, 7) : undefined;
 }
 

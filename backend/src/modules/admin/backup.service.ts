@@ -1,8 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { toText } from '../../common/utils/to-text.util';
 
 const BACKUP_VERSION = 1;
 const AUTO_BACKUP_RETENTION = 4;
@@ -35,33 +40,41 @@ export class BackupService {
     });
     if (!municipality) throw new NotFoundException('Município não encontrado');
 
-    const [neighborhoods, ubs, acs, microareas, streets, paintZones, users, auditLogs] =
-      await Promise.all([
-        this.prisma.neighborhood.findMany({ where: { municipalityId } }),
-        this.prisma.ubs.findMany({ where: { municipalityId } }),
-        this.prisma.acs.findMany({ where: { municipalityId } }),
-        this.prisma.microarea.findMany({ where: { municipalityId } }),
-        this.prisma.street.findMany({ where: { municipalityId } }),
-        this.prisma.microareaPaintZone.findMany({ where: { municipalityId } }),
-        this.prisma.user.findMany({
-          where: { municipalityId },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            isActive: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        }),
-        this.prisma.auditLog.findMany({
-          where: { user: { municipalityId } },
-          orderBy: { createdAt: 'desc' },
-          take: 1000,
-          include: { user: { select: { id: true, name: true, email: true } } },
-        }),
-      ]);
+    const [
+      neighborhoods,
+      ubs,
+      acs,
+      microareas,
+      streets,
+      paintZones,
+      users,
+      auditLogs,
+    ] = await Promise.all([
+      this.prisma.neighborhood.findMany({ where: { municipalityId } }),
+      this.prisma.ubs.findMany({ where: { municipalityId } }),
+      this.prisma.acs.findMany({ where: { municipalityId } }),
+      this.prisma.microarea.findMany({ where: { municipalityId } }),
+      this.prisma.street.findMany({ where: { municipalityId } }),
+      this.prisma.microareaPaintZone.findMany({ where: { municipalityId } }),
+      this.prisma.user.findMany({
+        where: { municipalityId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.auditLog.findMany({
+        where: { user: { municipalityId } },
+        orderBy: { createdAt: 'desc' },
+        take: 1000,
+        include: { user: { select: { id: true, name: true, email: true } } },
+      }),
+    ]);
 
     return {
       format: 'sigaps-backup',
@@ -114,14 +127,18 @@ export class BackupService {
 
   async importBackup(municipalityId: string, payload: Record<string, unknown>) {
     if (payload.format !== 'sigaps-backup') {
-      throw new BadRequestException('Arquivo inválido: não é um backup SIGAPS.');
+      throw new BadRequestException(
+        'Arquivo inválido: não é um backup SIGAPS.',
+      );
     }
     if (payload.municipalityId !== municipalityId) {
       throw new BadRequestException('Este backup pertence a outro município.');
     }
     const version = Number(payload.version ?? 0);
     if (version !== BACKUP_VERSION) {
-      throw new BadRequestException(`Versão de backup não suportada: ${version}`);
+      throw new BadRequestException(
+        `Versão de backup não suportada: ${version}`,
+      );
     }
 
     const data = payload.data as Record<string, unknown[]> | undefined;
@@ -132,10 +149,19 @@ export class BackupService {
     });
     if (!municipality) throw new NotFoundException('Município não encontrado');
 
-    const stats = { neighborhoods: 0, ubs: 0, acs: 0, microareas: 0, streets: 0, paintZones: 0 };
+    const stats = {
+      neighborhoods: 0,
+      ubs: 0,
+      acs: 0,
+      microareas: 0,
+      streets: 0,
+      paintZones: 0,
+    };
 
     await this.prisma.$transaction(async (tx) => {
-      for (const row of (data.neighborhoods ?? []) as Array<Record<string, unknown>>) {
+      for (const row of (data.neighborhoods ?? []) as Array<
+        Record<string, unknown>
+      >) {
         await tx.neighborhood.upsert({
           where: { id: row.id as string },
           create: {
@@ -202,7 +228,9 @@ export class BackupService {
         data: { acsId: null },
       });
 
-      for (const row of (data.microareas ?? []) as Array<Record<string, unknown>>) {
+      for (const row of (data.microareas ?? []) as Array<
+        Record<string, unknown>
+      >) {
         await tx.microarea.upsert({
           where: { id: row.id as string },
           create: {
@@ -231,12 +259,14 @@ export class BackupService {
         stats.microareas++;
       }
 
-      for (const row of (data.streets ?? []) as Array<Record<string, unknown>>) {
+      for (const row of (data.streets ?? []) as Array<
+        Record<string, unknown>
+      >) {
         const osmRaw = row.osmId;
         const osmId =
           osmRaw === null || osmRaw === undefined
             ? null
-            : BigInt(String(osmRaw));
+            : BigInt(toText(osmRaw));
 
         await tx.street.upsert({
           where: { id: row.id as string },
@@ -271,7 +301,9 @@ export class BackupService {
         stats.streets++;
       }
 
-      for (const row of (data.paintZones ?? []) as Array<Record<string, unknown>>) {
+      for (const row of (data.paintZones ?? []) as Array<
+        Record<string, unknown>
+      >) {
         await tx.microareaPaintZone.upsert({
           where: { id: row.id as string },
           create: {
@@ -336,7 +368,9 @@ export class BackupService {
             };
           }),
       );
-      const sorted = items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const sorted = items.sort((a, b) =>
+        b.createdAt.localeCompare(a.createdAt),
+      );
       return {
         lastAutoBackupAt: sorted[0]?.createdAt ?? null,
         items: sorted,
@@ -346,7 +380,11 @@ export class BackupService {
     } catch {
       return {
         lastAutoBackupAt: null,
-        items: [] as Array<{ filename: string; sizeBytes: number; createdAt: string }>,
+        items: [] as Array<{
+          filename: string;
+          sizeBytes: number;
+          createdAt: string;
+        }>,
         retentionNote:
           'Backups automáticos ficam no disco do servidor (efêmero no Render free). Baixe periodicamente.',
       };
@@ -371,12 +409,21 @@ export class BackupService {
   }
 
   private async pruneAutoBackups(municipalityId: string) {
-    const retention = Number(process.env.AUTO_BACKUP_RETENTION ?? AUTO_BACKUP_RETENTION);
-    const maxKeep = Number.isFinite(retention) && retention > 0 ? retention : AUTO_BACKUP_RETENTION;
+    const retention = Number(
+      process.env.AUTO_BACKUP_RETENTION ?? AUTO_BACKUP_RETENTION,
+    );
+    const maxKeep =
+      Number.isFinite(retention) && retention > 0
+        ? retention
+        : AUTO_BACKUP_RETENTION;
     const listing = await this.listAutoBackups(municipalityId);
     const excess = listing.items.slice(maxKeep);
     await Promise.all(
-      excess.map((item) => unlink(join(this.autoBackupDir(municipalityId), item.filename)).catch(() => {})),
+      excess.map((item) =>
+        unlink(join(this.autoBackupDir(municipalityId), item.filename)).catch(
+          () => {},
+        ),
+      ),
     );
   }
 
