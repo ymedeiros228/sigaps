@@ -136,6 +136,13 @@ bash scripts/ci-e2e.sh
 
 Ou manualmente: backend em `:3000`, `npm run build && npm run preview` no frontend, depois `cd frontend && npm run test:e2e`.
 
+### Lint
+
+- Backend: `npm run lint` **apenas verifica** (não altera arquivos); use `npm run lint:fix` para corrigir automaticamente.
+- Frontend: `npm run lint` (Oxlint).
+
+> O backend carrega variáveis do `backend/.env` ou, na ausência dele, do `.env` da raiz — então o `cp .env.example .env` na raiz já é suficiente para rodar a partir de `backend/`.
+
 ### 5. Produção
 
 ```bash

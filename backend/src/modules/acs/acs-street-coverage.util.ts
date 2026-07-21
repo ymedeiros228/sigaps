@@ -34,7 +34,10 @@ export function normalizeStreetCoverageText(value: string) {
 
 export function stripStreetTypePrefix(value: string) {
   const normalized = normalizeStreetCoverageText(value);
-  const prefixRegex = new RegExp(`^(?:${STREET_TYPE_PREFIXES.join('|')})\\s+`, 'i');
+  const prefixRegex = new RegExp(
+    `^(?:${STREET_TYPE_PREFIXES.join('|')})\\s+`,
+    'i',
+  );
   return normalized.replace(prefixRegex, '').trim();
 }
 
@@ -49,7 +52,12 @@ export function splitStreetCoverageText(value?: string | null) {
     : prepared.split(/\s*,\s*/);
   return unique(
     pieces
-      .map((piece) => piece.trim().replace(/^[-–—]+\s*/, '').trim())
+      .map((piece) =>
+        piece
+          .trim()
+          .replace(/^[-–—]+\s*/, '')
+          .trim(),
+      )
       .filter((piece) => piece.length > 1),
   );
 }
@@ -60,7 +68,10 @@ export function buildStreetCoverageVariants(value: string) {
   return unique([normalized, stripped]).filter((item) => item.length >= 3);
 }
 
-export function buildStreetSearchKeys(street: { name: string; streetType?: string | null }) {
+export function buildStreetSearchKeys(street: {
+  name: string;
+  streetType?: string | null;
+}) {
   return unique([
     ...buildStreetCoverageVariants(street.name),
     ...buildStreetCoverageVariants(`${street.streetType ?? ''} ${street.name}`),
@@ -81,7 +92,12 @@ export type StreetRefMatchResult =
   | { status: 'unmatched' };
 
 export function buildStreetRefCatalog(
-  streets: Array<{ id: string; name: string; streetType?: string | null; microareaId?: string | null }>,
+  streets: Array<{
+    id: string;
+    name: string;
+    streetType?: string | null;
+    microareaId?: string | null;
+  }>,
 ): StreetRefCatalogEntry[] {
   return streets.map((street) => ({
     ...street,
@@ -90,7 +106,10 @@ export function buildStreetRefCatalog(
 }
 
 /** Casa referência de logradouro (e-SUS, CSV) com ruas do município. */
-export function matchStreetRef(ref: string, catalog: StreetRefCatalogEntry[]): StreetRefMatchResult {
+export function matchStreetRef(
+  ref: string,
+  catalog: StreetRefCatalogEntry[],
+): StreetRefMatchResult {
   const refVariants = buildStreetCoverageVariants(ref);
   const exact = new Map<string, StreetRefCatalogEntry>();
   for (const entry of catalog) {
@@ -111,7 +130,9 @@ export function matchStreetRef(ref: string, catalog: StreetRefCatalogEntry[]): S
       refVariants.some(
         (variant) =>
           variant.length >= 4 &&
-          entry.searchKeys.some((key) => key.includes(variant) || variant.includes(key)),
+          entry.searchKeys.some(
+            (key) => key.includes(variant) || variant.includes(key),
+          ),
       )
     ) {
       partial.set(entry.id, entry);

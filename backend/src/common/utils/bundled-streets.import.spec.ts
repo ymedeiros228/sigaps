@@ -37,8 +37,8 @@ describe('importStreetsFromBundledGeoJson', () => {
     );
 
     const upsert = jest.fn((args: unknown) => args);
-    const deleteMany = jest.fn(async () => ({ count: 0 }));
-    const transaction = jest.fn(async (ops: unknown[]) => ops);
+    const deleteMany = jest.fn(() => Promise.resolve({ count: 0 }));
+    const transaction = jest.fn((ops: unknown[]) => Promise.resolve(ops));
     const prisma = {
       street: {
         upsert,
@@ -90,8 +90,8 @@ describe('importStreetsFromBundledGeoJson', () => {
     );
 
     const upsert = jest.fn((args: unknown) => args);
-    const deleteMany = jest.fn(async () => ({ count: 0 }));
-    const transaction = jest.fn(async (ops: unknown[]) => ops);
+    const deleteMany = jest.fn(() => Promise.resolve({ count: 0 }));
+    const transaction = jest.fn((ops: unknown[]) => Promise.resolve(ops));
     const prisma = {
       street: {
         upsert,

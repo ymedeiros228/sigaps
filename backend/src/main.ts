@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import type { ServerResponse } from 'http';
 import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 
@@ -30,7 +31,10 @@ function serveLegacyZip(publicDir: string) {
     const file = join(publicDir, 'downloads', LEGACY_ZIP_FILENAME);
     if (!existsSync(file)) return next();
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${LEGACY_ZIP_FILENAME}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${LEGACY_ZIP_FILENAME}"`,
+    );
     res.setHeader('Cache-Control', 'no-store');
     res.sendFile(file);
   };
@@ -118,7 +122,7 @@ async function bootstrap() {
       index: false,
       fallthrough: true,
       maxAge: '365d',
-      setHeaders: (res, filePath) => {
+      setHeaders: (res: ServerResponse, filePath: string) => {
         const base = filePath.replace(/\\/g, '/');
         if (base.endsWith('index.html')) {
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -154,4 +158,4 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+void bootstrap();

@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Header, Param, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { UserRole } from '@prisma/client';
@@ -138,7 +150,12 @@ export class AdminController {
     @Body() dto: ResetPasswordDto,
     @Req() req: { user: { id: string } },
   ) {
-    return this.admin.resetPassword(municipalityId, userId, dto.password, req.user.id);
+    return this.admin.resetPassword(
+      municipalityId,
+      userId,
+      dto.password,
+      req.user.id,
+    );
   }
 
   @Post('municipality/:municipalityId/prepare-delivery')

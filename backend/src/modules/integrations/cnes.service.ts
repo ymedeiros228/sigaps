@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { toText } from '../../common/utils/to-text.util';
 
 export type CnesLookupResult = {
   cnesCode: string;
@@ -36,15 +37,24 @@ export class CnesService {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = (await res.json()) as Record<string, unknown>;
-      const nome =
-        String(data.nome_fantasia ?? data.no_fantasia ?? data.nome ?? data.razao_social ?? '').trim();
-      const municipio = String(data.nome_municipio ?? data.municipio ?? '').trim();
-      const uf = String(data.sigla_uf ?? data.uf ?? '').trim();
-      const logradouro = String(data.endereco ?? data.logradouro ?? data.no_logradouro ?? '').trim();
-      const numero = String(data.numero ?? data.nu_numero ?? '').trim();
-      const bairro = String(data.bairro ?? data.no_bairro ?? '').trim();
-      const address = [logradouro, numero, bairro].filter(Boolean).join(', ') || 'Endereço não informado';
-      const telefone = String(data.telefone ?? data.nu_telefone ?? '').trim() || undefined;
+      const nome = toText(
+        data.nome_fantasia ??
+          data.no_fantasia ??
+          data.nome ??
+          data.razao_social,
+      ).trim();
+      const municipio = toText(data.nome_municipio ?? data.municipio).trim();
+      const uf = toText(data.sigla_uf ?? data.uf).trim();
+      const logradouro = toText(
+        data.endereco ?? data.logradouro ?? data.no_logradouro,
+      ).trim();
+      const numero = toText(data.numero ?? data.nu_numero).trim();
+      const bairro = toText(data.bairro ?? data.no_bairro).trim();
+      const address =
+        [logradouro, numero, bairro].filter(Boolean).join(', ') ||
+        'Endereço não informado';
+      const telefone =
+        toText(data.telefone ?? data.nu_telefone).trim() || undefined;
       const status = data.status ?? data.situacao;
 
       return {
@@ -54,11 +64,17 @@ export class CnesService {
         municipality: municipio,
         uf,
         phone: telefone,
-        active: status === 1 || status === '1' || status === true || status === 'ATIVO',
+        active:
+          status === 1 ||
+          status === '1' ||
+          status === true ||
+          status === 'ATIVO',
         source: 'api',
       };
     } catch (error) {
-      this.logger.warn(`Falha na consulta CNES ${code}: ${(error as Error).message}`);
+      this.logger.warn(
+        `Falha na consulta CNES ${code}: ${(error as Error).message}`,
+      );
       return {
         cnesCode: code,
         name: `CNES ${code}`,

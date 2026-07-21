@@ -1,3 +1,9 @@
+/*
+ * `status` é o código HTTP numérico (HttpException.getStatus()) comparado com
+ * membros do enum HttpStatus — comparação válida e legível. A regra
+ * no-unsafe-enum-comparison é desligada apenas neste arquivo por isso.
+ */
+/* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import {
   ArgumentsHost,
   Catch,
@@ -17,11 +23,18 @@ const GENERIC_EN = new Set([
   'unauthorized',
 ]);
 
-function friendlyMessage(status: number, raw: string | string[] | undefined): string {
+function friendlyMessage(
+  status: number,
+  raw: string | string[] | undefined,
+): string {
   const text = Array.isArray(raw) ? raw.join(', ') : (raw ?? '');
   const lower = text.trim().toLowerCase();
 
-  if (status === HttpStatus.TOO_MANY_REQUESTS || lower.includes('too many requests') || lower.includes('throttler')) {
+  if (
+    status === HttpStatus.TOO_MANY_REQUESTS ||
+    lower.includes('too many requests') ||
+    lower.includes('throttler')
+  ) {
     return 'Muitas requisições em pouco tempo. Aguarde alguns segundos e tente novamente.';
   }
 

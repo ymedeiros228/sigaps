@@ -11,7 +11,9 @@ export class CadastrosController {
   constructor(private readonly cadastrosService: CadastrosService) {}
 
   @Get('municipality/:municipalityId')
-  @ApiOperation({ summary: 'Pacote completo para a tela de Cadastros (1 request)' })
+  @ApiOperation({
+    summary: 'Pacote completo para a tela de Cadastros (1 request)',
+  })
   getBundle(
     @Param('municipalityId') municipalityId: string,
     @Req() req: { user: { id: string; role: string } },

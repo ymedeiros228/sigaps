@@ -1,3 +1,5 @@
+import { toText } from './to-text.util';
+
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -14,8 +16,8 @@ export function featureCollectionToKml(
     .filter((f) => f.geometry?.type === 'LineString')
     .map((feature) => {
       const props = (feature.properties ?? {}) as Record<string, unknown>;
-      const name = escapeXml(String(props.name ?? 'Rua'));
-      const microarea = props.microareaName ? String(props.microareaName) : '';
+      const name = escapeXml(toText(props.name, 'Rua'));
+      const microarea = toText(props.microareaName);
       const coords = (feature.geometry as GeoJSON.LineString).coordinates
         .map(([lng, lat]) => `${lng},${lat},0`)
         .join(' ');

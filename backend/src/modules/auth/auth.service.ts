@@ -19,7 +19,9 @@ export class AuthService {
       include: {
         acsProfile: {
           include: {
-            microarea: { select: { id: true, name: true, number: true, color: true } },
+            microarea: {
+              select: { id: true, name: true, number: true, color: true },
+            },
           },
         },
       },
@@ -66,7 +68,7 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     try {
-      const payload = this.jwt.verify(refreshToken, {
+      const payload = this.jwt.verify<{ sub: string }>(refreshToken, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
       });
       const user = await this.prisma.user.findUnique({

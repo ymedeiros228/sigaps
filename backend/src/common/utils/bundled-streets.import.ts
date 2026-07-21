@@ -1,10 +1,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import type { PrismaClient } from '@prisma/client';
-import {
-  fixLineStringCoordinates,
-  isValidBrazilCoord,
-} from './geojson.util';
+import { fixLineStringCoordinates, isValidBrazilCoord } from './geojson.util';
 import { inferStreetType, resolveOsmStreetName } from './osm-street.util';
 
 type StreetFeature = GeoJSON.Feature<
@@ -45,13 +42,20 @@ export async function importStreetsFromBundledGeoJson(
 ) {
   const path = bundledPath(municipalityName, state);
   if (!path) {
-    return { imported: 0, skipped: 0, total: 0, source: 'bundled' as const, path: null };
+    return {
+      imported: 0,
+      skipped: 0,
+      total: 0,
+      source: 'bundled' as const,
+      path: null,
+    };
   }
 
   const raw = readFileSync(path, 'utf8');
   const geojson = JSON.parse(raw) as GeoJSON.FeatureCollection;
   const features = (geojson.features ?? []).filter(
-    (f): f is StreetFeature => f.type === 'Feature' && f.geometry?.type === 'LineString',
+    (f): f is StreetFeature =>
+      f.type === 'Feature' && f.geometry?.type === 'LineString',
   );
 
   const toUpsert: Array<{
@@ -74,7 +78,9 @@ export async function importStreetsFromBundledGeoJson(
     const name = resolveOsmStreetName(
       {
         ...(feature.properties.name ? { name: feature.properties.name } : {}),
-        ...(feature.properties.highway ? { highway: feature.properties.highway } : {}),
+        ...(feature.properties.highway
+          ? { highway: feature.properties.highway }
+          : {}),
       },
       osmIdRaw,
     );

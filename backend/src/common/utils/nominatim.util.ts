@@ -8,7 +8,10 @@ export type NominatimResult = {
 };
 
 function nominatimBaseUrl(configured?: string): string {
-  return (configured?.trim() || 'https://nominatim.openstreetmap.org').replace(/\/$/, '');
+  return (configured?.trim() || 'https://nominatim.openstreetmap.org').replace(
+    /\/$/,
+    '',
+  );
 }
 
 export async function searchNominatim(
@@ -47,7 +50,8 @@ export async function searchNominatim(
     const url = `${nominatimBaseUrl(options.nominatimUrl)}/search?${params}`;
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'SIGAPS/1.0 (gestao APS; contato@passagemfranca.ma.gov.br)',
+        'User-Agent':
+          'SIGAPS/1.0 (gestao APS; contato@passagemfranca.ma.gov.br)',
         Accept: 'application/json',
       },
       signal: AbortSignal.timeout(20_000),
@@ -77,7 +81,10 @@ export async function searchNominatim(
 
   const parts = [q];
   const lowerQ = q.toLowerCase();
-  if (options.municipalityName && !lowerQ.includes(options.municipalityName.toLowerCase())) {
+  if (
+    options.municipalityName &&
+    !lowerQ.includes(options.municipalityName.toLowerCase())
+  ) {
     parts.push(options.municipalityName);
   }
   if (options.state && !lowerQ.includes(options.state.toLowerCase())) {
@@ -89,7 +96,9 @@ export async function searchNominatim(
   if (primary.length > 0) return primary;
 
   if (options.municipalityName) {
-    const fallback = await runSearch(`${q}, ${options.municipalityName}, Maranhão, Brasil`);
+    const fallback = await runSearch(
+      `${q}, ${options.municipalityName}, Maranhão, Brasil`,
+    );
     if (fallback.length > 0) return fallback;
   }
 

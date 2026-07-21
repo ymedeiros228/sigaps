@@ -33,7 +33,11 @@ export function isDualSideStreet(street: {
   return street.osmId != null;
 }
 
-export function sliceStreetGeojson(coords: Coord[], startIndex: number, endIndex: number) {
+export function sliceStreetGeojson(
+  coords: Coord[],
+  startIndex: number,
+  endIndex: number,
+) {
   const start = Math.max(0, Math.min(startIndex, endIndex));
   const end = Math.min(coords.length - 1, Math.max(startIndex, endIndex));
   if (end - start < 1) return null;
@@ -43,7 +47,11 @@ export function sliceStreetGeojson(coords: Coord[], startIndex: number, endIndex
   };
 }
 
-export function closestVertexIndex(coords: Coord[], latitude: number, longitude: number) {
+export function closestVertexIndex(
+  coords: Coord[],
+  latitude: number,
+  longitude: number,
+) {
   if (coords.length === 0) return 0;
   let best = 0;
   let bestDist = Infinity;
@@ -82,7 +90,8 @@ export function densifyLineString(
   coords: Coord[],
   maxMeters = MICRO_CHUNK_METERS,
 ): { coords: Coord[]; oldToNew: number[] } {
-  if (coords.length < 2) return { coords: [...coords], oldToNew: coords.map((_, i) => i) };
+  if (coords.length < 2)
+    return { coords: [...coords], oldToNew: coords.map((_, i) => i) };
   const out: Coord[] = [[coords[0][0], coords[0][1]]];
   const oldToNew: number[] = [0];
   for (let i = 0; i < coords.length - 1; i++) {
@@ -106,7 +115,8 @@ export function remapSegmentIndices(
 ): SegmentRange[] {
   return ranges.map((r) => ({
     ...r,
-    startIndex: oldToNew[Math.min(r.startIndex, oldToNew.length - 1)] ?? r.startIndex,
+    startIndex:
+      oldToNew[Math.min(r.startIndex, oldToNew.length - 1)] ?? r.startIndex,
     endIndex: oldToNew[Math.min(r.endIndex, oldToNew.length - 1)] ?? r.endIndex,
   }));
 }
@@ -131,7 +141,9 @@ export function computeUnpaintedRanges(
   return ranges.filter((r) => r.end - r.start >= 1);
 }
 
-export function expandFullSegmentsForDualSide(ranges: SegmentRange[]): SegmentRange[] {
+export function expandFullSegmentsForDualSide(
+  ranges: SegmentRange[],
+): SegmentRange[] {
   const out: SegmentRange[] = [];
   for (const range of ranges) {
     if (range.side === StreetPaintSide.FULL) {
@@ -262,7 +274,9 @@ export function applyPaintOnSide(
 
   if (sideRanges.length === 0) {
     const gaps = computeUnpaintedRanges([], maxIndex);
-    const gap = gaps.find((g) => g.start <= vertexIndex && g.end >= vertexIndex);
+    const gap = gaps.find(
+      (g) => g.start <= vertexIndex && g.end >= vertexIndex,
+    );
     if (gap && gap.end - Math.max(gap.start, vertexIndex) >= 1) {
       sideRanges.push({
         startIndex: Math.max(gap.start, vertexIndex),
@@ -282,7 +296,9 @@ export function applyPaintOnSide(
 
     if (!containing) {
       const gaps = computeUnpaintedRanges(sideRanges, maxIndex);
-      const gap = gaps.find((g) => g.start <= vertexIndex && g.end >= vertexIndex);
+      const gap = gaps.find(
+        (g) => g.start <= vertexIndex && g.end >= vertexIndex,
+      );
       if (gap && gap.end - Math.max(gap.start, vertexIndex) >= 1) {
         sideRanges.push({
           startIndex: Math.max(gap.start, vertexIndex),
@@ -339,7 +355,9 @@ export function applyUnpaintOnSide(
   };
 }
 
-export function mergeAdjacentSegments(segments: SegmentRange[]): SegmentRange[] {
+export function mergeAdjacentSegments(
+  segments: SegmentRange[],
+): SegmentRange[] {
   if (segments.length === 0) return [];
   const sorted = [...segments].sort((a, b) => {
     if (a.side !== b.side) return a.side.localeCompare(b.side);
@@ -408,7 +426,8 @@ export function normalizePaintSide(
 ): StreetPaintSide | 'BOTH' {
   if (!isDualSideStreet(street)) return StreetPaintSide.FULL;
   if (requested === 'BOTH') return 'BOTH';
-  if (requested === 'FULL') return isDualSideStreet(street) ? 'BOTH' : StreetPaintSide.FULL;
+  if (requested === 'FULL')
+    return isDualSideStreet(street) ? 'BOTH' : StreetPaintSide.FULL;
   if (requested === 'LEFT') return StreetPaintSide.LEFT;
   if (requested === 'RIGHT') return StreetPaintSide.RIGHT;
   return StreetPaintSide.LEFT;

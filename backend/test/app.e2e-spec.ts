@@ -19,7 +19,8 @@ describe('SIGAPS API (e2e)', () => {
   beforeAll(async () => {
     process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'sigaps-e2e-test-secret';
     process.env.DATABASE_URL =
-      process.env.DATABASE_URL ?? 'postgresql://sigaps:sigaps@127.0.0.1:5432/sigaps_test';
+      process.env.DATABASE_URL ??
+      'postgresql://sigaps:sigaps@127.0.0.1:5432/sigaps_test';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -48,16 +49,18 @@ describe('SIGAPS API (e2e)', () => {
       .get('/health')
       .expect(200)
       .expect((res) => {
-        expect(res.body.ok).toBe(true);
-        expect(typeof res.body.ts).toBe('number');
+        const body = res.body as { ok: boolean; ts: number };
+        expect(body.ok).toBe(true);
+        expect(typeof body.ts).toBe('number');
       });
   });
 
   it('GET /health/postgis não expõe mensagem de erro em falha', async () => {
     const res = await request(app.getHttpServer()).get('/health/postgis');
+    const body = res.body as { ok: boolean; error?: unknown };
     expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(false);
-    expect(res.body.error).toBeUndefined();
+    expect(body.ok).toBe(false);
+    expect(body.error).toBeUndefined();
   });
 
   it('POST /auth/login rejeita corpo inválido', () => {

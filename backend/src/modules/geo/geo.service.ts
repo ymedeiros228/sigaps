@@ -3,9 +3,12 @@ import { kml } from '@tmcw/togeojson';
 import { DOMParser } from '@xmldom/xmldom';
 import { PrismaService } from '../../prisma/prisma.service';
 import { featureCollectionToKml } from '../../common/utils/geojson-to-kml.util';
+import { toText } from '../../common/utils/to-text.util';
 import { ImportGeoJsonDto } from './dto/import-geojson.dto';
 
-type LineFeature = GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString>;
+type LineFeature = GeoJSON.Feature<
+  GeoJSON.LineString | GeoJSON.MultiLineString
+>;
 
 @Injectable()
 export class GeoService {
@@ -14,11 +17,15 @@ export class GeoService {
   constructor(private readonly prisma: PrismaService) {}
 
   async importGeoJson(municipalityId: string, dto: ImportGeoJsonDto) {
-    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
+    await this.prisma.municipality.findUniqueOrThrow({
+      where: { id: municipalityId },
+    });
 
     const features = this.extractLineFeatures(dto.geojson);
     if (!features.length) {
-      throw new BadRequestException('Nenhuma geometria LineString encontrada no GeoJSON');
+      throw new BadRequestException(
+        'Nenhuma geometria LineString encontrada no GeoJSON',
+      );
     }
 
     const microareas = await this.prisma.microarea.findMany({
@@ -44,15 +51,19 @@ export class GeoService {
         }
 
         const props = (feature.properties ?? {}) as Record<string, unknown>;
-        const name = String(
-          props.name ?? props.nome ?? props.NOME ?? props.street ?? 'Via importada',
+        const name = toText(
+          props.name ?? props.nome ?? props.NOME ?? props.street,
+          'Via importada',
         );
         const streetType = props.streetType
-          ? String(props.streetType)
+          ? toText(props.streetType)
           : this.inferStreetType(name);
         const microareaId = this.resolveMicroareaId(props, microareas);
         const neighborhoodId = this.resolveNeighborhoodId(props, neighborhoods);
-        const geojson = { type: 'LineString' as const, coordinates: line.coordinates };
+        const geojson = {
+          type: 'LineString' as const,
+          coordinates: line.coordinates,
+        };
 
         if (dto.updateByName) {
           const existing = await this.prisma.street.findFirst({
@@ -90,19 +101,31 @@ export class GeoService {
     if (microareas.length) {
       const affected = new Set(
         features
-          .map((f) => this.resolveMicroareaId((f.properties ?? {}) as Record<string, unknown>, microareas))
+          .map((f) =>
+            this.resolveMicroareaId(
+              (f.properties ?? {}) as Record<string, unknown>,
+              microareas,
+            ),
+          )
           .filter(Boolean),
       );
       for (const id of affected) {
-        await this.prisma.$executeRaw`SELECT update_microarea_envelope(${id}::uuid)`;
+        await this.prisma
+          .$executeRaw`SELECT update_microarea_envelope(${id}::uuid)`;
       }
     }
 
-    this.logger.log(`GeoJSON import: ${imported} novas, ${updated} atualizadas, ${skipped} ignoradas`);
+    this.logger.log(
+      `GeoJSON import: ${imported} novas, ${updated} atualizadas, ${skipped} ignoradas`,
+    );
     return { imported, updated, skipped, total: features.length };
   }
 
-  async importKml(municipalityId: string, kmlContent: string, updateByName = false) {
+  async importKml(
+    municipalityId: string,
+    kmlContent: string,
+    updateByName = false,
+  ) {
     const dom = new DOMParser().parseFromString(kmlContent, 'text/xml');
     const geojson = kml(dom) as GeoJSON.FeatureCollection;
     return this.importGeoJson(municipalityId, { geojson, updateByName });
@@ -116,9 +139,7 @@ export class GeoService {
       (globalThis as { self: typeof globalThis }).self = globalThis;
     }
     const shpModule = await import('shpjs');
-    const shp = (shpModule.default ?? shpModule) as (
-      input: Buffer,
-    ) => Promise<GeoJSON.FeatureCollection | GeoJSON.FeatureCollection[]>;
+    const shp = shpModule.default ?? shpModule;
     return shp(buffer);
   }
 
@@ -148,7 +169,11 @@ export class GeoService {
     });
   }
 
-  async importCsv(municipalityId: string, csvContent: string, updateByName = false) {
+  async importCsv(
+    municipalityId: string,
+    csvContent: string,
+    updateByName = false,
+  ) {
     const rows = this.parseCsvRows(csvContent);
     if (!rows.length) {
       throw new BadRequestException('CSV vazio ou formato inválido');
@@ -167,7 +192,8 @@ export class GeoService {
           microareaName: row.microarea_name ?? row.microarea,
           microareaNumber: row.microarea_number,
           neighborhood: row.bairro ?? row.neighborhood ?? row.neighborhood_name,
-          neighborhoodName: row.bairro ?? row.neighborhood ?? row.neighborhood_name,
+          neighborhoodName:
+            row.bairro ?? row.neighborhood ?? row.neighborhood_name,
         },
         geometry: { type: 'LineString', coordinates: coords },
       });
@@ -192,7 +218,9 @@ export class GeoService {
         ...(microareaId ? { microareaId } : {}),
       },
       include: {
-        microarea: { select: { id: true, name: true, number: true, color: true } },
+        microarea: {
+          select: { id: true, name: true, number: true, color: true },
+        },
         neighborhood: { select: { id: true, name: true } },
       },
       orderBy: { name: 'asc' },
@@ -258,10 +286,13 @@ export class GeoService {
           number: r.number,
           color: r.color,
         },
-        geometry: JSON.parse(r.geojson!),
+        geometry: JSON.parse(r.geojson!) as GeoJSON.Geometry,
       }));
 
-    return { type: 'FeatureCollection', features } satisfies GeoJSON.FeatureCollection;
+    return {
+      type: 'FeatureCollection',
+      features,
+    } satisfies GeoJSON.FeatureCollection;
   }
 
   async exportKml(municipalityId: string, microareaId?: string) {
@@ -277,7 +308,8 @@ export class GeoService {
     if (geojson.type === 'FeatureCollection') {
       return (geojson.features ?? []).filter(
         (f): f is LineFeature =>
-          f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString',
+          f.geometry?.type === 'LineString' ||
+          f.geometry?.type === 'MultiLineString',
       );
     }
     if (
@@ -287,7 +319,9 @@ export class GeoService {
     ) {
       return [geojson as LineFeature];
     }
-    throw new BadRequestException('GeoJSON deve ser Feature ou FeatureCollection');
+    throw new BadRequestException(
+      'GeoJSON deve ser Feature ou FeatureCollection',
+    );
   }
 
   private toLineStrings(
@@ -307,7 +341,8 @@ export class GeoService {
     if (typeof props.microareaId === 'string') return props.microareaId;
     if (typeof props.microareaName === 'string') {
       return microareas.find(
-        (m) => m.name.toLowerCase() === String(props.microareaName).toLowerCase(),
+        (m) =>
+          m.name.toLowerCase() === String(props.microareaName).toLowerCase(),
       )?.id;
     }
     if (props.microareaNumber != null) {
@@ -328,7 +363,7 @@ export class GeoService {
       props.neighborhoodName ??
       props.neighborhood_name;
     if (!raw) return undefined;
-    const q = String(raw).trim().toLowerCase();
+    const q = toText(raw).trim().toLowerCase();
     const exact = neighborhoods.find((n) => n.name.toLowerCase() === q);
     if (exact) return exact.id;
     const partial = neighborhoods.find((n) => n.name.toLowerCase().includes(q));
@@ -338,7 +373,8 @@ export class GeoService {
   private inferStreetType(name: string) {
     const lower = name.toLowerCase();
     if (lower.includes('avenida') || lower.startsWith('av ')) return 'Avenida';
-    if (lower.includes('travessa') || lower.startsWith('tv ')) return 'Travessa';
+    if (lower.includes('travessa') || lower.startsWith('tv '))
+      return 'Travessa';
     if (lower.includes('rodovia')) return 'Rodovia';
     return 'Rua';
   }
@@ -348,13 +384,24 @@ export class GeoService {
     if (lines.length < 1) return [];
 
     const delimiter = lines[0].includes(';') ? ';' : ',';
-    const headers = this.parseCsvLine(lines[0], delimiter).map((h) => h.trim().toLowerCase());
+    const headers = this.parseCsvLine(lines[0], delimiter).map((h) =>
+      h.trim().toLowerCase(),
+    );
     const hasHeader = headers.some((h) =>
       ['name', 'nome', 'lon1', 'lat1', 'coordinates'].includes(h),
     );
 
     const startIdx = hasHeader ? 1 : 0;
-    const defaultHeaders = ['name', 'street_type', 'lon1', 'lat1', 'lon2', 'lat2', 'microarea_name', 'bairro'];
+    const defaultHeaders = [
+      'name',
+      'street_type',
+      'lon1',
+      'lat1',
+      'lon2',
+      'lat2',
+      'microarea_name',
+      'bairro',
+    ];
     const cols = hasHeader ? headers : defaultHeaders;
 
     const rows: Array<Record<string, string>> = [];

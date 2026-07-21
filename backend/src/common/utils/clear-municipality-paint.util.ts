@@ -30,7 +30,9 @@ export async function clearMunicipalityPaint(
     data: { microareaId: null },
   });
 
-  const zones = await prisma.microareaPaintZone.deleteMany({ where: { municipalityId } });
+  const zones = await prisma.microareaPaintZone.deleteMany({
+    where: { municipalityId },
+  });
 
   const microareas = await prisma.microarea.findMany({
     where: { municipalityId },

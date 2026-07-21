@@ -13,7 +13,10 @@ export function maskCpfValue(cpf: string): string {
   return `***.***.***-${d.slice(-2)}`;
 }
 
-export function maskCpfField(cpf: string | null | undefined, role?: string): string | null | undefined {
+export function maskCpfField(
+  cpf: string | null | undefined,
+  role?: string,
+): string | null | undefined {
   if (cpf == null) return cpf;
   return shouldMaskCpf(role) ? maskCpfValue(cpf) : cpf;
 }

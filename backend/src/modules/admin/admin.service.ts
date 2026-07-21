@@ -54,7 +54,9 @@ export class AdminService {
       this.prisma.acs.count({ where: { municipalityId } }),
       this.prisma.microarea.count({ where: { municipalityId } }),
       this.prisma.street.count({ where: { municipalityId } }),
-      this.prisma.street.count({ where: { municipalityId, microareaId: { not: null } } }),
+      this.prisma.street.count({
+        where: { municipalityId, microareaId: { not: null } },
+      }),
       this.prisma.microareaPaintZone.count({ where: { municipalityId } }),
       this.prisma.auditLog.count({ where: { user: { municipalityId } } }),
       this.prisma.user.count({ where: { municipalityId, isActive: true } }),
@@ -90,7 +92,8 @@ export class AdminService {
         assignedStreets,
         paintZones,
         auditLogs: auditTotal,
-        coverage: streets > 0 ? Math.round((assignedStreets / streets) * 100) : 0,
+        coverage:
+          streets > 0 ? Math.round((assignedStreets / streets) * 100) : 0,
       },
       delivery: {
         dataReady:
@@ -138,7 +141,9 @@ export class AdminService {
       to?: string;
     },
   ) {
-    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
+    await this.prisma.municipality.findUniqueOrThrow({
+      where: { id: municipalityId },
+    });
     const items = await this.audit.findForExport(municipalityId, filters);
 
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
@@ -177,10 +182,18 @@ export class AdminService {
     return user;
   }
 
-  async createUser(municipalityId: string, dto: CreateUserDto, actorId: string) {
-    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
+  async createUser(
+    municipalityId: string,
+    dto: CreateUserDto,
+    actorId: string,
+  ) {
+    await this.prisma.municipality.findUniqueOrThrow({
+      where: { id: municipalityId },
+    });
 
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) {
       throw new ConflictException('Já existe um usuário com este e-mail.');
     }
@@ -225,12 +238,17 @@ export class AdminService {
     const before = await this.findUserInMunicipality(municipalityId, userId);
 
     if (dto.email && dto.email !== before.email) {
-      const dup = await this.prisma.user.findUnique({ where: { email: dto.email } });
-      if (dup) throw new ConflictException('Já existe um usuário com este e-mail.');
+      const dup = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+      if (dup)
+        throw new ConflictException('Já existe um usuário com este e-mail.');
     }
 
     if (userId === actorId && dto.isActive === false) {
-      throw new BadRequestException('Você não pode desativar sua própria conta.');
+      throw new BadRequestException(
+        'Você não pode desativar sua própria conta.',
+      );
     }
 
     const user = await this.prisma.user.update({

@@ -31,7 +31,9 @@ export class AuditService {
         },
       });
     } catch (error) {
-      this.logger.warn(`Auditoria não registrada (${entry.entityType}/${entry.entityId}): ${(error as Error).message}`);
+      this.logger.warn(
+        `Auditoria não registrada (${entry.entityType}/${entry.entityId}): ${(error as Error).message}`,
+      );
       return null;
     }
   }
@@ -92,9 +94,7 @@ export class AuditService {
     return this.prisma.auditLog.findMany({
       take: limit,
       orderBy: { createdAt: 'desc' },
-      where: municipalityId
-        ? { user: { municipalityId } }
-        : undefined,
+      where: municipalityId ? { user: { municipalityId } } : undefined,
       include: {
         user: { select: { id: true, name: true, role: true } },
       },

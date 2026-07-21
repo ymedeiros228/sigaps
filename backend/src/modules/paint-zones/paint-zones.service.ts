@@ -12,7 +12,9 @@ export class PaintZonesService {
       where: { municipalityId },
       orderBy: { createdAt: 'asc' },
       include: {
-        microarea: { select: { id: true, name: true, color: true, number: true } },
+        microarea: {
+          select: { id: true, name: true, color: true, number: true },
+        },
       },
     });
   }
@@ -25,10 +27,14 @@ export class PaintZonesService {
       throw new NotFoundException('Microárea não encontrada.');
     }
 
-    const geojson = circle([dto.centerLng, dto.centerLat], dto.radiusMeters / 1000, {
-      steps: 64,
-      units: 'kilometers',
-    }).geometry;
+    const geojson = circle(
+      [dto.centerLng, dto.centerLat],
+      dto.radiusMeters / 1000,
+      {
+        steps: 64,
+        units: 'kilometers',
+      },
+    ).geometry;
 
     return this.prisma.microareaPaintZone.create({
       data: {
@@ -38,21 +44,30 @@ export class PaintZonesService {
         centerLat: dto.centerLat,
         centerLng: dto.centerLng,
         radiusMeters: dto.radiusMeters,
+        // Prisma exige widening do GeoJSON para o tipo Json de entrada; a regra
+        // no-unnecessary-type-assertion é falso-positivo aqui (o build TS falha sem o cast).
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         geojson: geojson as object,
       },
       include: {
-        microarea: { select: { id: true, name: true, color: true, number: true } },
+        microarea: {
+          select: { id: true, name: true, color: true, number: true },
+        },
       },
     });
   }
 
   async clearByMunicipality(municipalityId: string) {
-    const result = await this.prisma.microareaPaintZone.deleteMany({ where: { municipalityId } });
+    const result = await this.prisma.microareaPaintZone.deleteMany({
+      where: { municipalityId },
+    });
     return { count: result.count };
   }
 
   async remove(id: string) {
-    const zone = await this.prisma.microareaPaintZone.findUnique({ where: { id } });
+    const zone = await this.prisma.microareaPaintZone.findUnique({
+      where: { id },
+    });
     if (!zone) throw new NotFoundException('Divisão não encontrada.');
     await this.prisma.microareaPaintZone.delete({ where: { id } });
     return { removed: true };

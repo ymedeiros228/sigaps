@@ -6,7 +6,10 @@ export class MapHomologationDto {
   @IsBoolean()
   homologated: boolean;
 
-  @ApiProperty({ required: false, example: 'Aprovado na reunião da SMS em 04/07/2026' })
+  @ApiProperty({
+    required: false,
+    example: 'Aprovado na reunião da SMS em 04/07/2026',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

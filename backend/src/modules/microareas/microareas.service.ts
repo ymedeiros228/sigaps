@@ -7,7 +7,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { maskCpfField } from '../../common/utils/mask-cpf.util';
-import { applyAcsMicroareaScope, type AuthViewer } from '../../common/utils/acs-scope.util';
+import {
+  applyAcsMicroareaScope,
+  type AuthViewer,
+} from '../../common/utils/acs-scope.util';
 import { AcsService } from '../acs/acs.service';
 import { CreateMicroareaDto, UpdateMicroareaDto } from './dto/microarea.dto';
 
@@ -20,7 +23,11 @@ export class MicroareasService {
   ) {}
 
   async findByMunicipality(municipalityId: string, viewer?: AuthViewer) {
-    const scopedId = await applyAcsMicroareaScope(this.prisma, viewer, undefined);
+    const scopedId = await applyAcsMicroareaScope(
+      this.prisma,
+      viewer,
+      undefined,
+    );
     if (scopedId === '__none__') return [];
 
     return this.prisma.microarea.findMany({
@@ -76,7 +83,7 @@ export class MicroareasService {
         FROM microareas WHERE id = ${id}
       `;
       if (!result[0]?.geojson) return null;
-      return JSON.parse(result[0].geojson);
+      return JSON.parse(result[0].geojson) as GeoJSON.Geometry;
     } catch {
       return null;
     }
@@ -114,7 +121,8 @@ export class MicroareasService {
           name: r.name,
           color: r.color,
           number: r.number,
-          geometry: JSON.parse(r.geojson!) as GeoJSON.Polygon | GeoJSON.MultiPolygon,
+          geometry: JSON.parse(r.geojson!) as
+            GeoJSON.Polygon | GeoJSON.MultiPolygon,
           labelLat: r.label_lat,
           labelLng: r.label_lng,
         }));
@@ -124,7 +132,9 @@ export class MicroareasService {
   }
 
   async rebuildEnvelopes(municipalityId: string) {
-    await this.prisma.municipality.findUniqueOrThrow({ where: { id: municipalityId } });
+    await this.prisma.municipality.findUniqueOrThrow({
+      where: { id: municipalityId },
+    });
 
     const microareas = await this.prisma.microarea.findMany({
       where: { municipalityId },
@@ -177,29 +187,39 @@ export class MicroareasService {
 
   private async validateLinks(
     municipalityId: string,
-    links: { ubsId?: string | null; acsId?: string | null; neighborhoodId?: string | null },
+    links: {
+      ubsId?: string | null;
+      acsId?: string | null;
+      neighborhoodId?: string | null;
+    },
   ) {
     if (links.ubsId) {
       const ubs = await this.prisma.ubs.findFirst({
         where: { id: links.ubsId, municipalityId },
       });
-      if (!ubs) throw new BadRequestException('UBS não encontrada neste município.');
+      if (!ubs)
+        throw new BadRequestException('UBS não encontrada neste município.');
     }
     if (links.acsId) {
       const acs = await this.prisma.acs.findFirst({
         where: { id: links.acsId, municipalityId },
       });
-      if (!acs) throw new BadRequestException('ACS não encontrado neste município.');
+      if (!acs)
+        throw new BadRequestException('ACS não encontrado neste município.');
     }
     if (links.neighborhoodId) {
       const neighborhood = await this.prisma.neighborhood.findFirst({
         where: { id: links.neighborhoodId, municipalityId },
       });
-      if (!neighborhood) throw new BadRequestException('Bairro não encontrado neste município.');
+      if (!neighborhood)
+        throw new BadRequestException('Bairro não encontrado neste município.');
     }
   }
 
-  private async ensureAcsExclusive(microareaId: string, acsId: string | null | undefined) {
+  private async ensureAcsExclusive(
+    microareaId: string,
+    acsId: string | null | undefined,
+  ) {
     if (!acsId) return;
     await this.prisma.microarea.updateMany({
       where: { acsId, NOT: { id: microareaId } },
@@ -250,7 +270,9 @@ export class MicroareasService {
     const ubsId = dto.ubsId !== undefined ? dto.ubsId : before.ubsId;
     const acsId = dto.acsId !== undefined ? dto.acsId : before.acsId;
     const neighborhoodId =
-      dto.neighborhoodId !== undefined ? dto.neighborhoodId : before.neighborhoodId;
+      dto.neighborhoodId !== undefined
+        ? dto.neighborhoodId
+        : before.neighborhoodId;
 
     await this.validateLinks(municipalityId, { ubsId, acsId, neighborhoodId });
 
@@ -266,7 +288,9 @@ export class MicroareasService {
         ubsId: dto.ubsId !== undefined ? (dto.ubsId ?? null) : undefined,
         acsId: dto.acsId !== undefined ? (dto.acsId ?? null) : undefined,
         neighborhoodId:
-          dto.neighborhoodId !== undefined ? (dto.neighborhoodId ?? null) : undefined,
+          dto.neighborhoodId !== undefined
+            ? (dto.neighborhoodId ?? null)
+            : undefined,
       },
     });
     if (acsId) {

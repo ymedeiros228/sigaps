@@ -19,6 +19,9 @@ export class AuditController {
     @Param('municipalityId') municipalityId: string,
     @Query('limit') limit?: string,
   ) {
-    return this.audit.findRecent(municipalityId, limit ? parseInt(limit, 10) : 20);
+    return this.audit.findRecent(
+      municipalityId,
+      limit ? parseInt(limit, 10) : 20,
+    );
   }
 }

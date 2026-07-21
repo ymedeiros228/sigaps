@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 /** Evita "prepared statement already exists" no Supabase pooler (Render). */
@@ -34,10 +39,13 @@ export class PrismaService
     const datasourceUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
     super({
       datasources: datasourceUrl ? { db: { url: datasourceUrl } } : undefined,
-      log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['error'],
+      log:
+        process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['error'],
     });
     if (datasourceUrl && datasourceUrl !== process.env.DATABASE_URL) {
-      this.logger.log('DATABASE_URL normalizada para pooler Supabase (pgbouncer=true)');
+      this.logger.log(
+        'DATABASE_URL normalizada para pooler Supabase (pgbouncer=true)',
+      );
     }
   }
 
@@ -48,7 +56,9 @@ export class PrismaService
         return;
       } catch (error) {
         if (attempt === 4) throw error;
-        this.logger.warn(`Conexão DB tentativa ${attempt + 1} falhou — retentando...`);
+        this.logger.warn(
+          `Conexão DB tentativa ${attempt + 1} falhou — retentando...`,
+        );
         await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
       }
     }

@@ -71,9 +71,10 @@ export class DashboardService {
   ) {}
 
   async getIndicators(municipalityId: string) {
-    const cached = getCachedDashboardIndicators<
-      Awaited<ReturnType<DashboardService['computeIndicators']>>
-    >(municipalityId);
+    const cached =
+      getCachedDashboardIndicators<
+        Awaited<ReturnType<DashboardService['computeIndicators']>>
+      >(municipalityId);
     if (cached) return cached;
 
     const data = await this.computeIndicators(municipalityId);
@@ -81,8 +82,11 @@ export class DashboardService {
     return data;
   }
 
-  async getOperationalChecklist(municipalityId: string): Promise<OperationalChecklist> {
-    const cached = getCachedOperationalChecklist<OperationalChecklist>(municipalityId);
+  async getOperationalChecklist(
+    municipalityId: string,
+  ): Promise<OperationalChecklist> {
+    const cached =
+      getCachedOperationalChecklist<OperationalChecklist>(municipalityId);
     if (cached) return cached;
 
     const municipality = await this.prisma.municipality.findUnique({
@@ -95,12 +99,13 @@ export class DashboardService {
     });
     if (!municipality) throw new NotFoundException('Município não encontrado');
 
-    const [microareas, microareasWithoutAcs, streetStats, ubsCount] = await Promise.all([
-      this.prisma.microarea.count({ where: { municipalityId } }),
-      this.prisma.microarea.count({ where: { municipalityId, acsId: null } }),
-      this.getStreetStats(municipalityId),
-      this.prisma.ubs.count({ where: { municipalityId } }),
-    ]);
+    const [microareas, microareasWithoutAcs, streetStats, ubsCount] =
+      await Promise.all([
+        this.prisma.microarea.count({ where: { municipalityId } }),
+        this.prisma.microarea.count({ where: { municipalityId, acsId: null } }),
+        this.getStreetStats(municipalityId),
+        this.prisma.ubs.count({ where: { municipalityId } }),
+      ]);
 
     const streets = streetStats.total;
     const assigned = streetStats.assigned;
@@ -116,7 +121,10 @@ export class DashboardService {
         id: 'streets',
         label: 'Malha viária importada',
         done: streets > 0,
-        detail: streets > 0 ? `${streets} ruas no mapa` : 'Importe ruas via OSM ou arquivo',
+        detail:
+          streets > 0
+            ? `${streets} ruas no mapa`
+            : 'Importe ruas via OSM ou arquivo',
         priority: 'critical',
         actionHref: CHECKLIST_LINKS.streets,
       },
@@ -124,7 +132,10 @@ export class DashboardService {
         id: 'microareas',
         label: 'Microáreas cadastradas',
         done: microareas > 0,
-        detail: microareas > 0 ? `${microareas} microárea(s)` : 'Cadastre em Microáreas',
+        detail:
+          microareas > 0
+            ? `${microareas} microárea(s)`
+            : 'Cadastre em Microáreas',
         priority: 'critical',
         actionHref: CHECKLIST_LINKS.microareas,
       },
@@ -132,7 +143,8 @@ export class DashboardService {
         id: 'ubs',
         label: 'UBS cadastradas',
         done: ubsCount > 0,
-        detail: ubsCount > 0 ? `${ubsCount} UBS` : 'Cadastre pelo menos uma UBS',
+        detail:
+          ubsCount > 0 ? `${ubsCount} UBS` : 'Cadastre pelo menos uma UBS',
         priority: 'high',
         actionHref: CHECKLIST_LINKS.ubs,
       },
@@ -185,7 +197,10 @@ export class DashboardService {
             : 'Opcional: importe CSV e-SUS quando quiser indicadores por logradouro',
         priority: 'medium',
         optional: true,
-        actionHref: families > 0 ? CHECKLIST_LINKS['families-heatmap'] : CHECKLIST_LINKS.families,
+        actionHref:
+          families > 0
+            ? CHECKLIST_LINKS['families-heatmap']
+            : CHECKLIST_LINKS.families,
       },
       {
         id: 'esus-sync',
@@ -263,7 +278,11 @@ export class DashboardService {
       [
         item.label,
         item.done ? 'concluido' : 'pendente',
-        item.optional ? 'opcional' : item.postDelivery ? 'pos-entrega' : item.priority,
+        item.optional
+          ? 'opcional'
+          : item.postDelivery
+            ? 'pos-entrega'
+            : item.priority,
         item.detail,
       ]
         .map((v) => escape(v))
@@ -281,50 +300,64 @@ export class DashboardService {
       throw new NotFoundException('Município não encontrado');
     }
 
-    const safe = async <T>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> => {
+    const safe = async <T>(
+      label: string,
+      fn: () => Promise<T>,
+      fallback: T,
+    ): Promise<T> => {
       try {
         return await fn();
       } catch (error) {
-        this.logger.error(`Dashboard ${label} falhou: ${(error as Error).message}`);
+        this.logger.error(
+          `Dashboard ${label} falhou: ${(error as Error).message}`,
+        );
         return fallback;
       }
     };
 
-    const [
-      ubsCount,
-      acsCount,
-      microareasList,
-      streetStats,
-      recentChanges,
-    ] = await Promise.all([
-      safe('ubs', () => this.prisma.ubs.count({ where: { municipalityId } }), 0),
-      safe(
-        'acs',
-        () => this.prisma.acs.count({ where: { municipalityId, status: 'ATIVO' } }),
-        0,
-      ),
-      safe(
-        'microareas',
-        () =>
-          this.prisma.microarea.findMany({
-            where: { municipalityId },
-            select: {
-              id: true,
-              name: true,
-              color: true,
-              _count: { select: { streets: true } },
-            },
-            orderBy: { number: 'asc' },
-          }),
-        [],
-      ),
-      safe(
-        'streetStats',
-        () => this.getStreetStats(municipalityId),
-        { total: 0, assigned: 0, withNeighborhood: 0, families: 0, inhabitants: 0 },
-      ),
-      safe('recentChanges', () => this.audit.findRecent(municipalityId, 10), []),
-    ]);
+    const [ubsCount, acsCount, microareasList, streetStats, recentChanges] =
+      await Promise.all([
+        safe(
+          'ubs',
+          () => this.prisma.ubs.count({ where: { municipalityId } }),
+          0,
+        ),
+        safe(
+          'acs',
+          () =>
+            this.prisma.acs.count({
+              where: { municipalityId, status: 'ATIVO' },
+            }),
+          0,
+        ),
+        safe(
+          'microareas',
+          () =>
+            this.prisma.microarea.findMany({
+              where: { municipalityId },
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                _count: { select: { streets: true } },
+              },
+              orderBy: { number: 'asc' },
+            }),
+          [],
+        ),
+        safe('streetStats', () => this.getStreetStats(municipalityId), {
+          total: 0,
+          assigned: 0,
+          withNeighborhood: 0,
+          families: 0,
+          inhabitants: 0,
+        }),
+        safe(
+          'recentChanges',
+          () => this.audit.findRecent(municipalityId, 10),
+          [],
+        ),
+      ]);
 
     const streetsCount = streetStats.total;
     const microareasCount = microareasList.length;
@@ -337,10 +370,15 @@ export class DashboardService {
       families: streetStats.families,
       inhabitants: streetStats.inhabitants,
       coverage:
-        streetsCount > 0 ? Math.round((streetStats.assigned / streetsCount) * 100) : 0,
+        streetsCount > 0
+          ? Math.round((streetStats.assigned / streetsCount) * 100)
+          : 0,
       assignedStreets: streetStats.assigned,
       streetsWithNeighborhood: streetStats.withNeighborhood,
-      streetsWithoutNeighborhood: Math.max(0, streetsCount - streetStats.withNeighborhood),
+      streetsWithoutNeighborhood: Math.max(
+        0,
+        streetsCount - streetStats.withNeighborhood,
+      ),
       microareasChart: microareasList.map((m) => ({
         name: m.name,
         color: m.color,
@@ -359,38 +397,42 @@ export class DashboardService {
       throw new NotFoundException('Município não encontrado');
     }
 
-    const [municipalityStreetTotal, acsList, streetAggByMicroarea, neighborhoodStreetCounts] =
-      await Promise.all([
-        this.prisma.street.count({ where: { municipalityId } }),
-        this.prisma.acs.findMany({
-          where: { municipalityId, status: 'ATIVO' },
-          select: {
-            id: true,
-            name: true,
-            microarea: {
-              select: {
-                id: true,
-                name: true,
-                number: true,
-                neighborhoodId: true,
-                ubs: { select: { name: true } },
-              },
+    const [
+      municipalityStreetTotal,
+      acsList,
+      streetAggByMicroarea,
+      neighborhoodStreetCounts,
+    ] = await Promise.all([
+      this.prisma.street.count({ where: { municipalityId } }),
+      this.prisma.acs.findMany({
+        where: { municipalityId, status: 'ATIVO' },
+        select: {
+          id: true,
+          name: true,
+          microarea: {
+            select: {
+              id: true,
+              name: true,
+              number: true,
+              neighborhoodId: true,
+              ubs: { select: { name: true } },
             },
           },
-          orderBy: { name: 'asc' },
-        }),
-        this.prisma.street.groupBy({
-          by: ['microareaId'],
-          where: { municipalityId, microareaId: { not: null } },
-          _count: { _all: true },
-          _sum: { familyCount: true, inhabitantCount: true },
-        }),
-        this.prisma.street.groupBy({
-          by: ['neighborhoodId'],
-          where: { municipalityId, neighborhoodId: { not: null } },
-          _count: { _all: true },
-        }),
-      ]);
+        },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.street.groupBy({
+        by: ['microareaId'],
+        where: { municipalityId, microareaId: { not: null } },
+        _count: { _all: true },
+        _sum: { familyCount: true, inhabitantCount: true },
+      }),
+      this.prisma.street.groupBy({
+        by: ['neighborhoodId'],
+        where: { municipalityId, neighborhoodId: { not: null } },
+        _count: { _all: true },
+      }),
+    ]);
 
     const paintedByMicroarea = new Map(
       streetAggByMicroarea.map((row) => [
@@ -403,12 +445,17 @@ export class DashboardService {
       ]),
     );
     const streetsByNeighborhood = new Map(
-      neighborhoodStreetCounts.map((row) => [row.neighborhoodId!, row._count._all]),
+      neighborhoodStreetCounts.map((row) => [
+        row.neighborhoodId!,
+        row._count._all,
+      ]),
     );
 
     return acsList.map((acs) => {
       const microarea = acs.microarea;
-      const painted = microarea ? paintedByMicroarea.get(microarea.id) : undefined;
+      const painted = microarea
+        ? paintedByMicroarea.get(microarea.id)
+        : undefined;
       const streetCount = painted?.count ?? 0;
       const familyCount = painted?.families ?? 0;
       const inhabitantCount = painted?.inhabitants ?? 0;
@@ -419,7 +466,10 @@ export class DashboardService {
 
       const streetCoveragePct =
         microareaStreetTotal > 0
-          ? Math.min(100, Math.round((streetCount / microareaStreetTotal) * 100))
+          ? Math.min(
+              100,
+              Math.round((streetCount / microareaStreetTotal) * 100),
+            )
           : 0;
       const municipalitySharePct =
         municipalityStreetTotal > 0

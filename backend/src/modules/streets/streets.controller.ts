@@ -9,7 +9,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -42,9 +47,21 @@ export class StreetsController {
   @ApiQuery({ name: 'neighborhoodId', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
-  @ApiQuery({ name: 'mapOnly', required: false, description: 'Resposta leve para o mapa' })
-  @ApiQuery({ name: 'geoPrecision', required: false, description: 'Casas decimais da geometria (mapa)' })
-  @ApiQuery({ name: 'bbox', required: false, description: 'west,south,east,north (mapOnly)' })
+  @ApiQuery({
+    name: 'mapOnly',
+    required: false,
+    description: 'Resposta leve para o mapa',
+  })
+  @ApiQuery({
+    name: 'geoPrecision',
+    required: false,
+    description: 'Casas decimais da geometria (mapa)',
+  })
+  @ApiQuery({
+    name: 'bbox',
+    required: false,
+    description: 'west,south,east,north (mapOnly)',
+  })
   @ApiQuery({ name: 'minLat', required: false })
   @ApiQuery({ name: 'maxLat', required: false })
   @ApiQuery({ name: 'minLng', required: false })
@@ -121,7 +138,9 @@ export class StreetsController {
     UserRole.SECRETARIO_SAUDE,
     UserRole.ADMINISTRADOR,
   )
-  @ApiOperation({ summary: 'Vincular rua inteira ou dividir por lados (zona urbana)' })
+  @ApiOperation({
+    summary: 'Vincular rua inteira ou dividir por lados (zona urbana)',
+  })
   assignSides(
     @Param('id') id: string,
     @Body() dto: AssignStreetSidesDto,
@@ -207,7 +226,10 @@ export class StreetsController {
     UserRole.ADMINISTRADOR,
   )
   @ApiOperation({ summary: 'Remover vínculo de ruas com microáreas' })
-  unassign(@Body() dto: UnassignStreetsDto, @Req() req: { user: { id: string } }) {
+  unassign(
+    @Body() dto: UnassignStreetsDto,
+    @Req() req: { user: { id: string } },
+  ) {
     return this.streetsService.unassignFromMicroarea(dto, req.user.id);
   }
 
@@ -219,7 +241,9 @@ export class StreetsController {
     UserRole.SECRETARIO_SAUDE,
     UserRole.ADMINISTRADOR,
   )
-  @ApiOperation({ summary: 'Pintar trecho da rua no ponto clicado (vértice mais próximo)' })
+  @ApiOperation({
+    summary: 'Pintar trecho da rua no ponto clicado (vértice mais próximo)',
+  })
   paintAtPoint(
     @Param('id') id: string,
     @Body() dto: PaintStreetAtPointDto,
@@ -271,12 +295,17 @@ export class StreetsController {
     UserRole.SECRETARIO_SAUDE,
     UserRole.ADMINISTRADOR,
   )
-  @ApiOperation({ summary: 'Remover vínculo de todas as ruas de uma microárea' })
+  @ApiOperation({
+    summary: 'Remover vínculo de todas as ruas de uma microárea',
+  })
   clearMicroareaAssignments(
     @Param('microareaId') microareaId: string,
     @Req() req: { user: { id: string } },
   ) {
-    return this.streetsService.clearMicroareaAssignments(microareaId, req.user.id);
+    return this.streetsService.clearMicroareaAssignments(
+      microareaId,
+      req.user.id,
+    );
   }
 
   @Post('municipality/:municipalityId/clear-assignments')

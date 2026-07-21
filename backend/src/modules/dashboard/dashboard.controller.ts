@@ -1,5 +1,10 @@
 import { Controller, Get, Header, Param, Query, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { DashboardService } from './dashboard.service';
 
@@ -57,7 +62,8 @@ export class DashboardController {
     @Param('municipalityId') municipalityId: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const checklist = await this.dashboardService.getOperationalChecklist(municipalityId);
+    const checklist =
+      await this.dashboardService.getOperationalChecklist(municipalityId);
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="sigaps-checklist-${municipalityId.slice(0, 8)}.csv"`,

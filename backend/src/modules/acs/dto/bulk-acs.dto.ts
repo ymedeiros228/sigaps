@@ -1,7 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { EntityStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsOptional, IsString, IsUUID, Length, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  ValidateNested,
+} from 'class-validator';
 
 export class BulkAcsItemDto {
   @ApiProperty({ example: 'Maria Silva' })
@@ -11,7 +19,8 @@ export class BulkAcsItemDto {
   @ApiProperty({
     example: '12345678901',
     required: false,
-    description: 'Opcional na importação em lote; se ausente, o sistema gera código interno',
+    description:
+      'Opcional na importação em lote; se ausente, o sistema gera código interno',
   })
   @IsOptional()
   @IsString()
@@ -23,7 +32,10 @@ export class BulkAcsItemDto {
   @IsString()
   phone?: string;
 
-  @ApiProperty({ required: false, description: 'Nome ou número da microárea (ex: 01)' })
+  @ApiProperty({
+    required: false,
+    description: 'Nome ou número da microárea (ex: 01)',
+  })
   @IsOptional()
   @IsString()
   microareaRef?: string;

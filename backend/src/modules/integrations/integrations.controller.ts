@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -17,7 +25,9 @@ export class IntegrationsController {
   ) {}
 
   @Get('cnes/:code')
-  @ApiOperation({ summary: 'Consultar estabelecimento no CNES (dados abertos MS)' })
+  @ApiOperation({
+    summary: 'Consultar estabelecimento no CNES (dados abertos MS)',
+  })
   lookupCnes(@Param('code') code: string) {
     return this.cnes.lookup(code);
   }
@@ -29,7 +39,9 @@ export class IntegrationsController {
     UserRole.COORDENADOR_APS,
     UserRole.ENFERMEIRO,
   )
-  @ApiOperation({ summary: 'Importar famílias/habitantes via CSV piloto e-SUS' })
+  @ApiOperation({
+    summary: 'Importar famílias/habitantes via CSV piloto e-SUS',
+  })
   importEsus(
     @Param('municipalityId') municipalityId: string,
     @Body() body: { csv: string },
@@ -45,7 +57,9 @@ export class IntegrationsController {
     UserRole.COORDENADOR_APS,
     UserRole.ENFERMEIRO,
   )
-  @ApiOperation({ summary: 'Re-sincronizar dados e-SUS do último CSV importado' })
+  @ApiOperation({
+    summary: 'Re-sincronizar dados e-SUS do último CSV importado',
+  })
   syncEsus(
     @Param('id') municipalityId: string,
     @Req() req: { user: { id: string } },

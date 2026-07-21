@@ -93,12 +93,17 @@ export class OsmImportService {
         );
       }
 
-      let overpass: Awaited<ReturnType<typeof this.runOverpassImport>> | null = null;
+      let overpass: Awaited<ReturnType<typeof this.runOverpassImport>> | null =
+        null;
       try {
-        this.logger.log('Complementando ruas via Overpass (inclui vias sem nome)...');
+        this.logger.log(
+          'Complementando ruas via Overpass (inclui vias sem nome)...',
+        );
         overpass = await this.runOverpassImport(municipality);
       } catch (error) {
-        this.logger.warn(`Overpass complementar falhou: ${(error as Error).message}`);
+        this.logger.warn(
+          `Overpass complementar falhou: ${(error as Error).message}`,
+        );
         if (bundled.imported === 0 && existing === 0) {
           throw error;
         }
@@ -190,7 +195,10 @@ export class OsmImportService {
     const data = { elements: Array.from(merged.values()) };
 
     if (data.elements.length === 0) {
-      if (lastError instanceof BadGatewayException || lastError instanceof ServiceUnavailableException) {
+      if (
+        lastError instanceof BadGatewayException ||
+        lastError instanceof ServiceUnavailableException
+      ) {
         throw lastError;
       }
       throw new BadGatewayException(
@@ -232,7 +240,10 @@ export class OsmImportService {
         name,
         streetType: inferStreetType(name, element.tags),
         municipalityId: municipality.id,
-        neighborhoodId: this.resolveNeighborhoodFromTags(element.tags, neighborhoods),
+        neighborhoodId: this.resolveNeighborhoodFromTags(
+          element.tags,
+          neighborhoods,
+        ),
         geojson: { type: 'LineString', coordinates },
       });
     }
@@ -249,7 +260,9 @@ export class OsmImportService {
               name: street.name,
               streetType: street.streetType,
               geojson: street.geojson,
-              ...(street.neighborhoodId ? { neighborhoodId: street.neighborhoodId } : {}),
+              ...(street.neighborhoodId
+                ? { neighborhoodId: street.neighborhoodId }
+                : {}),
             },
           }),
         ),
@@ -297,7 +310,10 @@ export class OsmImportService {
     return (await response.json()) as { elements: OverpassElement[] };
   }
 
-  private bboxFromMunicipality(municipality: { latitude: number; longitude: number }) {
+  private bboxFromMunicipality(municipality: {
+    latitude: number;
+    longitude: number;
+  }) {
     const pad = 0.18;
     return {
       south: municipality.latitude - pad,
@@ -313,8 +329,13 @@ export class OsmImportService {
     osmRelationId: number | null;
   }): number | null {
     if (municipality.osmRelationId) return municipality.osmRelationId;
-    if (municipality.name === 'Passagem Franca' && municipality.state === 'MA') {
-      return Number(this.config.get('OSM_RELATION_ID_PASSAGEM_FRANCA') ?? 332931);
+    if (
+      municipality.name === 'Passagem Franca' &&
+      municipality.state === 'MA'
+    ) {
+      return Number(
+        this.config.get('OSM_RELATION_ID_PASSAGEM_FRANCA') ?? 332931,
+      );
     }
     return null;
   }
@@ -358,15 +379,23 @@ export class OsmImportService {
     return neighborhoods.find((n) => n.name.toLowerCase() === q)?.id;
   }
 
-  private async importPlacesComplement(municipalityId: string, userId?: string) {
+  private async importPlacesComplement(
+    municipalityId: string,
+    userId?: string,
+  ) {
     if (!userId) return;
     try {
-      const places = await this.placesService.importFromOsm(municipalityId, userId);
+      const places = await this.placesService.importFromOsm(
+        municipalityId,
+        userId,
+      );
       this.logger.log(
         `Povoados complementares: ${places.imported} novos, ${places.updated} atualizados`,
       );
     } catch (error) {
-      this.logger.warn(`Povoados complementares falharam: ${(error as Error).message}`);
+      this.logger.warn(
+        `Povoados complementares falharam: ${(error as Error).message}`,
+      );
     }
   }
 }

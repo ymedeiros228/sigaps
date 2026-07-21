@@ -21,8 +21,13 @@ export class BackupSchedulerService {
 
     const configured = this.config.get<string>('AUTO_BACKUP_MUNICIPALITY_IDS');
     const municipalities = configured
-      ? configured.split(',').map((id) => ({ id: id.trim() })).filter((m) => m.id)
-      : await this.prisma.municipality.findMany({ select: { id: true, name: true } });
+      ? configured
+          .split(',')
+          .map((id) => ({ id: id.trim() }))
+          .filter((m) => m.id)
+      : await this.prisma.municipality.findMany({
+          select: { id: true, name: true },
+        });
 
     for (const m of municipalities) {
       try {

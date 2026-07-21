@@ -10,11 +10,16 @@ const TRANSIENT_PATTERNS = [
 ];
 
 export function isTransientDbError(error: unknown): boolean {
-  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const msg = (
+    error instanceof Error ? error.message : String(error)
+  ).toLowerCase();
   return TRANSIENT_PATTERNS.some((p) => msg.includes(p));
 }
 
-export async function withDbRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+export async function withDbRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+): Promise<T> {
   let last: unknown;
   for (let i = 0; i < attempts; i++) {
     try {

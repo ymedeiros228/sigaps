@@ -13,7 +13,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import type { Response } from 'express';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -92,7 +99,8 @@ export class GeoController {
     @UploadedFile() file: Express.Multer.File,
     @Body('updateByName') updateByName?: string,
   ) {
-    if (!file?.buffer) throw new BadRequestException('Arquivo Shapefile obrigatório');
+    if (!file?.buffer)
+      throw new BadRequestException('Arquivo Shapefile obrigatório');
     return this.geoService.importShapefile(
       municipalityId,
       file.buffer,
@@ -137,7 +145,10 @@ export class GeoController {
     @Query('microareaId') microareaId: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const data = await this.geoService.exportGeoJson(municipalityId, microareaId);
+    const data = await this.geoService.exportGeoJson(
+      municipalityId,
+      microareaId,
+    );
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="sigaps-ruas-${municipalityId.slice(0, 8)}.geojson"`,
