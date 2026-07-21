@@ -21,7 +21,8 @@ type OsmPlaceNode = {
   tags?: Record<string, string>;
 };
 
-const OSM_PLACE_TAGS = 'hamlet|village|locality|isolated_dwelling|neighbourhood';
+const OSM_PLACE_TAGS =
+  'hamlet|village|locality|isolated_dwelling|neighbourhood';
 
 @Injectable()
 export class PlacesService {
@@ -38,12 +39,18 @@ export class PlacesService {
       where: { municipalityId },
       orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
       include: {
-        microarea: { select: { id: true, name: true, number: true, color: true } },
+        microarea: {
+          select: { id: true, name: true, number: true, color: true },
+        },
       },
     });
   }
 
-  async assignMicroarea(id: string, microareaId: string | null, userId: string) {
+  async assignMicroarea(
+    id: string,
+    microareaId: string | null,
+    userId: string,
+  ) {
     const place = await this.findOne(id);
 
     if (microareaId) {
@@ -52,7 +59,9 @@ export class PlacesService {
         select: { id: true },
       });
       if (!microarea) {
-        throw new NotFoundException('Microárea não encontrada neste município.');
+        throw new NotFoundException(
+          'Microárea não encontrada neste município.',
+        );
       }
     }
 
@@ -60,7 +69,9 @@ export class PlacesService {
       where: { id },
       data: { microareaId },
       include: {
-        microarea: { select: { id: true, name: true, number: true, color: true } },
+        microarea: {
+          select: { id: true, name: true, number: true, color: true },
+        },
       },
     });
 
@@ -78,7 +89,8 @@ export class PlacesService {
 
   async findOne(id: string) {
     const place = await this.prisma.place.findUnique({ where: { id } });
-    if (!place) throw new NotFoundException('Povoado/localidade não encontrado.');
+    if (!place)
+      throw new NotFoundException('Povoado/localidade não encontrado.');
     return place;
   }
 
@@ -98,7 +110,12 @@ export class PlacesService {
       entityType: 'place',
       entityId: place.id,
       action: 'CREATE',
-      afterData: auditSnapshot(place as Record<string, unknown>, ['name', 'kind', 'latitude', 'longitude']),
+      afterData: auditSnapshot(place as Record<string, unknown>, [
+        'name',
+        'kind',
+        'latitude',
+        'longitude',
+      ]),
     });
     return place;
   }
@@ -112,7 +129,9 @@ export class PlacesService {
         ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
         ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
         ...(dto.longitude !== undefined ? { longitude: dto.longitude } : {}),
-        ...(dto.notes !== undefined ? { notes: dto.notes?.trim() || null } : {}),
+        ...(dto.notes !== undefined
+          ? { notes: dto.notes?.trim() || null }
+          : {}),
       },
     });
     await this.audit.log({
@@ -120,8 +139,18 @@ export class PlacesService {
       entityType: 'place',
       entityId: id,
       action: 'UPDATE',
-      beforeData: auditSnapshot(before as Record<string, unknown>, ['name', 'kind', 'latitude', 'longitude']),
-      afterData: auditSnapshot(place as Record<string, unknown>, ['name', 'kind', 'latitude', 'longitude']),
+      beforeData: auditSnapshot(before as Record<string, unknown>, [
+        'name',
+        'kind',
+        'latitude',
+        'longitude',
+      ]),
+      afterData: auditSnapshot(place as Record<string, unknown>, [
+        'name',
+        'kind',
+        'latitude',
+        'longitude',
+      ]),
     });
     return place;
   }
@@ -134,7 +163,12 @@ export class PlacesService {
       entityType: 'place',
       entityId: id,
       action: 'DELETE',
-      beforeData: auditSnapshot(before as Record<string, unknown>, ['name', 'kind', 'latitude', 'longitude']),
+      beforeData: auditSnapshot(before as Record<string, unknown>, [
+        'name',
+        'kind',
+        'latitude',
+        'longitude',
+      ]),
     });
     return { ok: true };
   }
@@ -161,7 +195,9 @@ export class PlacesService {
       where: { municipalityId: dto.municipalityId },
       select: { id: true, name: true },
     });
-    const byName = new Map(existing.map((row) => [this.normalizePlaceName(row.name), row]));
+    const byName = new Map(
+      existing.map((row) => [this.normalizePlaceName(row.name), row]),
+    );
 
     let created = 0;
     let updated = 0;
@@ -172,7 +208,11 @@ export class PlacesService {
       const row = i + 1;
       const name = item.name?.trim();
       if (!name) {
-        errors.push({ row, name: '—', message: 'Nome do povoado é obrigatório.' });
+        errors.push({
+          row,
+          name: '—',
+          message: 'Nome do povoado é obrigatório.',
+        });
         continue;
       }
 
@@ -232,7 +272,10 @@ export class PlacesService {
               'longitude',
             ]),
           });
-          byName.set(this.normalizePlaceName(place.name), { id: place.id, name: place.name });
+          byName.set(this.normalizePlaceName(place.name), {
+            id: place.id,
+            name: place.name,
+          });
           created++;
         }
       } catch (error) {
@@ -301,7 +344,9 @@ export class PlacesService {
         osmNodeId,
       };
 
-      const existingByOsm = await this.prisma.place.findUnique({ where: { osmNodeId } });
+      const existingByOsm = await this.prisma.place.findUnique({
+        where: { osmNodeId },
+      });
       if (existingByOsm) {
         await this.prisma.place.update({
           where: { id: existingByOsm.id },
@@ -352,8 +397,13 @@ export class PlacesService {
     osmRelationId: number | null;
   }): number | null {
     if (municipality.osmRelationId) return municipality.osmRelationId;
-    if (municipality.name === 'Passagem Franca' && municipality.state === 'MA') {
-      return Number(this.config.get('OSM_RELATION_ID_PASSAGEM_FRANCA') ?? 332931);
+    if (
+      municipality.name === 'Passagem Franca' &&
+      municipality.state === 'MA'
+    ) {
+      return Number(
+        this.config.get('OSM_RELATION_ID_PASSAGEM_FRANCA') ?? 332931,
+      );
     }
     return null;
   }
@@ -416,7 +466,10 @@ export class PlacesService {
     return [];
   }
 
-  private resolvePlaceName(tags: Record<string, string> | undefined, osmId: number) {
+  private resolvePlaceName(
+    tags: Record<string, string> | undefined,
+    osmId: number,
+  ) {
     const name =
       tags?.name?.trim() ||
       tags?.['name:pt']?.trim() ||
@@ -429,7 +482,11 @@ export class PlacesService {
   }
 
   private resolvePlaceKind(placeTag?: string): PlaceKind {
-    if (placeTag === 'village' || placeTag === 'hamlet' || placeTag === 'isolated_dwelling') {
+    if (
+      placeTag === 'village' ||
+      placeTag === 'hamlet' ||
+      placeTag === 'isolated_dwelling'
+    ) {
       return PlaceKind.POVOADO;
     }
     if (placeTag === 'locality') return PlaceKind.LOCALIDADE;

@@ -16,7 +16,10 @@ describe('auditSnapshot', () => {
   });
 
   it('mascara CPF em snapshot parcial', () => {
-    const result = auditSnapshot({ cpf: '98765432100', name: 'João' }, ['cpf', 'name']);
+    const result = auditSnapshot({ cpf: '98765432100', name: 'João' }, [
+      'cpf',
+      'name',
+    ]);
     expect(result).toEqual({
       cpf: '***.***.***-00',
       name: 'João',

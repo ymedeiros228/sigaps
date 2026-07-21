@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
@@ -24,7 +28,9 @@ export class UbsService {
   async findOne(id: string) {
     const ubs = await this.prisma.ubs.findUnique({
       where: { id },
-      include: { microareas: { select: { id: true, name: true, number: true } } },
+      include: {
+        microareas: { select: { id: true, name: true, number: true } },
+      },
     });
     if (!ubs) throw new NotFoundException('UBS não encontrada');
     return ubs;
@@ -59,7 +65,10 @@ export class UbsService {
   }
 
   private prepareUbsData(dto: CreateUbsDto): Prisma.UbsUncheckedCreateInput;
-  private prepareUbsData(dto: UpdateUbsDto, isUpdate: true): Prisma.UbsUncheckedUpdateInput;
+  private prepareUbsData(
+    dto: UpdateUbsDto,
+    isUpdate: true,
+  ): Prisma.UbsUncheckedUpdateInput;
   private prepareUbsData(
     dto: CreateUbsDto | UpdateUbsDto,
     isUpdate = false,
@@ -69,7 +78,7 @@ export class UbsService {
       if (isUpdate) data.cnesCode = null;
       else delete data.cnesCode;
     }
-    return data as Prisma.UbsUncheckedCreateInput | Prisma.UbsUncheckedUpdateInput;
+    return data;
   }
 
   private async assertMunicipality(municipalityId: string) {
@@ -105,7 +114,10 @@ export class UbsService {
 
   async update(id: string, dto: UpdateUbsDto, userId: string) {
     const before = await this.findOne(id);
-    const ubs = await this.prisma.ubs.update({ where: { id }, data: this.prepareUbsData(dto, true) });
+    const ubs = await this.prisma.ubs.update({
+      where: { id },
+      data: this.prepareUbsData(dto, true),
+    });
     await this.audit.log({
       userId,
       entityType: 'ubs',
@@ -126,9 +138,13 @@ export class UbsService {
     });
 
     const byCnes = new Map(
-      existing.filter((row) => row.cnesCode).map((row) => [row.cnesCode as string, row]),
+      existing
+        .filter((row) => row.cnesCode)
+        .map((row) => [row.cnesCode as string, row]),
     );
-    const byName = new Map(existing.map((row) => [this.normalizeName(row.name), row]));
+    const byName = new Map(
+      existing.map((row) => [this.normalizeName(row.name), row]),
+    );
 
     let created = 0;
     let updated = 0;
@@ -181,8 +197,17 @@ export class UbsService {
             action: 'UPDATE',
             afterData: this.ubsSnapshot(ubs),
           });
-          byName.set(this.normalizeName(ubs.name), { id: ubs.id, name: ubs.name, cnesCode: ubs.cnesCode });
-          if (ubs.cnesCode) byCnes.set(ubs.cnesCode, { id: ubs.id, name: ubs.name, cnesCode: ubs.cnesCode });
+          byName.set(this.normalizeName(ubs.name), {
+            id: ubs.id,
+            name: ubs.name,
+            cnesCode: ubs.cnesCode,
+          });
+          if (ubs.cnesCode)
+            byCnes.set(ubs.cnesCode, {
+              id: ubs.id,
+              name: ubs.name,
+              cnesCode: ubs.cnesCode,
+            });
           updated++;
         } else {
           const ubs = await this.prisma.ubs.create({
@@ -195,8 +220,17 @@ export class UbsService {
             action: 'CREATE',
             afterData: this.ubsSnapshot(ubs),
           });
-          byName.set(this.normalizeName(ubs.name), { id: ubs.id, name: ubs.name, cnesCode: ubs.cnesCode });
-          if (ubs.cnesCode) byCnes.set(ubs.cnesCode, { id: ubs.id, name: ubs.name, cnesCode: ubs.cnesCode });
+          byName.set(this.normalizeName(ubs.name), {
+            id: ubs.id,
+            name: ubs.name,
+            cnesCode: ubs.cnesCode,
+          });
+          if (ubs.cnesCode)
+            byCnes.set(ubs.cnesCode, {
+              id: ubs.id,
+              name: ubs.name,
+              cnesCode: ubs.cnesCode,
+            });
           created++;
         }
       } catch (error) {

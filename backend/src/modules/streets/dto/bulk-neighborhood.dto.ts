@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsString, IsUUID, MinLength, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsUUID,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 export class BulkNeighborhoodItemDto {
   @ApiProperty({ example: 'Rua Coronel Manoel Bandeira' })

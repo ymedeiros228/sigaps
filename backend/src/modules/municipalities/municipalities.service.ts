@@ -28,7 +28,9 @@ export class MunicipalitiesService {
         this.prisma.acs.count({ where: { municipalityId: id } }),
         this.prisma.neighborhood.count({ where: { municipalityId: id } }),
         this.prisma.microarea.count({ where: { municipalityId: id } }),
-        this.prisma.acs.count({ where: { municipalityId: id, microarea: null } }),
+        this.prisma.acs.count({
+          where: { municipalityId: id, microarea: null },
+        }),
         this.prisma.acs.count({
           where: { municipalityId: id, status: EntityStatus.ATIVO },
         }),
@@ -78,7 +80,9 @@ export class MunicipalitiesService {
     const allowed = ['.png', '.jpg', '.jpeg', '.webp', '.svg'];
     const ext = extname(file.originalname).toLowerCase() || '.png';
     if (!allowed.includes(ext)) {
-      throw new Error('Formato de imagem não suportado. Use PNG, JPG, WEBP ou SVG.');
+      throw new Error(
+        'Formato de imagem não suportado. Use PNG, JPG, WEBP ou SVG.',
+      );
     }
 
     const uploadDir = join(process.cwd(), 'uploads', 'logos');

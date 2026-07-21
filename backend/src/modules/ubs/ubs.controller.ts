@@ -37,21 +37,38 @@ export class UbsController {
   }
 
   @Post()
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+  )
   @ApiOperation({ summary: 'Cadastrar UBS' })
   create(@Body() dto: CreateUbsDto, @Req() req: { user: { id: string } }) {
     return this.ubsService.create(dto, req.user.id);
   }
 
   @Post('bulk')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
-  @ApiOperation({ summary: 'Importar várias UBS de planilha (nome + coordenadas)' })
-  bulkImport(@Body() dto: BulkUbsImportDto, @Req() req: { user: { id: string } }) {
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+  )
+  @ApiOperation({
+    summary: 'Importar várias UBS de planilha (nome + coordenadas)',
+  })
+  bulkImport(
+    @Body() dto: BulkUbsImportDto,
+    @Req() req: { user: { id: string } },
+  ) {
     return this.ubsService.bulkImport(dto, req.user.id);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+  )
   @ApiOperation({ summary: 'Atualizar UBS' })
   update(
     @Param('id') id: string,
@@ -62,7 +79,11 @@ export class UbsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+  )
   @ApiOperation({ summary: 'Excluir UBS' })
   remove(@Param('id') id: string, @Req() req: { user: { id: string } }) {
     return this.ubsService.remove(id, req.user.id);

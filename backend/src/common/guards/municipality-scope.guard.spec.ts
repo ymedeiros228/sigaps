@@ -19,7 +19,9 @@ function mockContext(req: {
 }
 
 describe('MunicipalityScopeGuard', () => {
-  const reflector = { getAllAndOverride: jest.fn(() => false) } as unknown as Reflector;
+  const reflector = {
+    getAllAndOverride: jest.fn(() => false),
+  } as unknown as Reflector;
   const guard = new MunicipalityScopeGuard(reflector);
 
   it('permite administrador em qualquer município', () => {
@@ -36,7 +38,10 @@ describe('MunicipalityScopeGuard', () => {
     expect(() =>
       guard.canActivate(
         mockContext({
-          user: { role: UserRole.COORDENADOR_APS, municipalityId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+          user: {
+            role: UserRole.COORDENADOR_APS,
+            municipalityId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          },
           params: { municipalityId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
         }),
       ),
@@ -58,7 +63,10 @@ describe('MunicipalityScopeGuard', () => {
     expect(() =>
       guard.canActivate(
         mockContext({
-          user: { role: UserRole.COORDENADOR_APS, municipalityId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+          user: {
+            role: UserRole.COORDENADOR_APS,
+            municipalityId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          },
           params: { municipalityId: 'not-a-uuid' },
         }),
       ),

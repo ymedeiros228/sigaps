@@ -35,7 +35,9 @@ export class EsusSchedulerService {
           select: { id: true },
         });
         if (!actor) {
-          this.logger.warn(`e-SUS sync ignorado (${municipality.name}): sem admin ativo`);
+          this.logger.warn(
+            `e-SUS sync ignorado (${municipality.name}): sem admin ativo`,
+          );
           continue;
         }
 

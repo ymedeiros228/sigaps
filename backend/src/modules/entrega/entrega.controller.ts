@@ -14,7 +14,9 @@ const ZIP_FILENAME = 'sigaps-legado-passagem-franca.zip';
 export class EntregaController {
   @Get(ZIP_FILENAME)
   @Public()
-  @ApiOperation({ summary: 'Download do código-fonte legado (ZIP) para entrega ao Jonas' })
+  @ApiOperation({
+    summary: 'Download do código-fonte legado (ZIP) para entrega ao Jonas',
+  })
   downloadLegado(@Res() res: Response) {
     const file = join(process.cwd(), 'public', 'downloads', ZIP_FILENAME);
     if (!existsSync(file)) {
@@ -23,7 +25,10 @@ export class EntregaController {
       );
     }
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${ZIP_FILENAME}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${ZIP_FILENAME}"`,
+    );
     res.sendFile(file);
   }
 }

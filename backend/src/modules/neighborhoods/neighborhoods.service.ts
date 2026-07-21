@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
-import { CreateNeighborhoodDto, UpdateNeighborhoodDto } from './dto/neighborhood.dto';
+import {
+  CreateNeighborhoodDto,
+  UpdateNeighborhoodDto,
+} from './dto/neighborhood.dto';
 
 @Injectable()
 export class NeighborhoodsService {
@@ -35,21 +38,28 @@ export class NeighborhoodsService {
       entityType: 'neighborhood',
       entityId: neighborhood.id,
       action: 'CREATE',
-      afterData: auditSnapshot(neighborhood as Record<string, unknown>, ['name']),
+      afterData: auditSnapshot(neighborhood as Record<string, unknown>, [
+        'name',
+      ]),
     });
     return neighborhood;
   }
 
   async update(id: string, dto: UpdateNeighborhoodDto, userId: string) {
     const before = await this.findOne(id);
-    const neighborhood = await this.prisma.neighborhood.update({ where: { id }, data: dto });
+    const neighborhood = await this.prisma.neighborhood.update({
+      where: { id },
+      data: dto,
+    });
     await this.audit.log({
       userId,
       entityType: 'neighborhood',
       entityId: id,
       action: 'UPDATE',
       beforeData: auditSnapshot(before as Record<string, unknown>, ['name']),
-      afterData: auditSnapshot(neighborhood as Record<string, unknown>, ['name']),
+      afterData: auditSnapshot(neighborhood as Record<string, unknown>, [
+        'name',
+      ]),
     });
     return neighborhood;
   }

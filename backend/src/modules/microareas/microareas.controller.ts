@@ -36,7 +36,9 @@ export class MicroareasController {
 
   @Get('municipality/:municipalityId/envelopes')
   @SkipThrottle()
-  @ApiOperation({ summary: 'Polígonos de todas as microáreas (PostGIS, uma query)' })
+  @ApiOperation({
+    summary: 'Polígonos de todas as microáreas (PostGIS, uma query)',
+  })
   listEnvelopes(@Param('municipalityId') municipalityId: string) {
     return this.microareasService.listEnvelopesByMunicipality(municipalityId);
   }
@@ -48,7 +50,9 @@ export class MicroareasController {
     UserRole.SECRETARIO_SAUDE,
     UserRole.ADMINISTRADOR,
   )
-  @ApiOperation({ summary: 'Recalcular polígonos das microáreas e limpar órfãos' })
+  @ApiOperation({
+    summary: 'Recalcular polígonos das microáreas e limpar órfãos',
+  })
   rebuildEnvelopes(@Param('municipalityId') municipalityId: string) {
     return this.microareasService.rebuildEnvelopes(municipalityId);
   }
@@ -73,7 +77,10 @@ export class MicroareasController {
     UserRole.ENFERMEIRO,
   )
   @ApiOperation({ summary: 'Criar microárea' })
-  create(@Body() dto: CreateMicroareaDto, @Req() req: { user: { id: string } }) {
+  create(
+    @Body() dto: CreateMicroareaDto,
+    @Req() req: { user: { id: string } },
+  ) {
     return this.microareasService.create(dto, req.user.id);
   }
 

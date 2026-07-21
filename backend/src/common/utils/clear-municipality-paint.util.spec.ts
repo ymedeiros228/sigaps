@@ -31,7 +31,10 @@ describe('clearMunicipalityPaint', () => {
   });
 
   it('remove segmentos, vínculos e zonas mantendo cadastros', async () => {
-    const result = await clearMunicipalityPaint(prisma as never, municipalityId);
+    const result = await clearMunicipalityPaint(
+      prisma as never,
+      municipalityId,
+    );
 
     expect(prisma.streetPaintSegment.deleteMany).toHaveBeenCalledWith({
       where: { street: { municipalityId } },
@@ -50,7 +53,10 @@ describe('clearMunicipalityPaint', () => {
     prisma.street.findMany.mockResolvedValue([]);
     prisma.microareaPaintZone.deleteMany.mockResolvedValue({ count: 0 });
 
-    const result = await clearMunicipalityPaint(prisma as never, municipalityId);
+    const result = await clearMunicipalityPaint(
+      prisma as never,
+      municipalityId,
+    );
 
     expect(result).toEqual({ clearedStreets: 0, clearedPaintZones: 0 });
   });

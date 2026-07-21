@@ -51,7 +51,9 @@ export class AcsService {
       .findMany({
         where: { municipalityId },
         include: {
-          microarea: { select: { id: true, name: true, number: true, color: true } },
+          microarea: {
+            select: { id: true, name: true, number: true, color: true },
+          },
         },
         orderBy: { name: 'asc' },
       })
@@ -67,7 +69,10 @@ export class AcsService {
     return this.maskAcsRow(acs, viewerRole);
   }
 
-  private maskAcsRow<T extends { cpf: string }>(row: T, viewerRole?: string): T {
+  private maskAcsRow<T extends { cpf: string }>(
+    row: T,
+    viewerRole?: string,
+  ): T {
     if (isInternalAcsCode(row.cpf)) {
       return { ...row, cpf: '' };
     }
@@ -77,7 +82,9 @@ export class AcsService {
   private async resolveCreateCpf(cpf?: string): Promise<string> {
     const normalized = cpf?.replace(/\D/g, '').trim();
     if (normalized && normalized.length === 11) {
-      const existing = await this.prisma.acs.findUnique({ where: { cpf: normalized } });
+      const existing = await this.prisma.acs.findUnique({
+        where: { cpf: normalized },
+      });
       if (existing) {
         throw new ConflictException('Ja existe um ACS com este CPF.');
       }
@@ -86,11 +93,15 @@ export class AcsService {
 
     for (let attempt = 0; attempt < 12; attempt++) {
       const candidate = generateInternalAcsCode();
-      const existing = await this.prisma.acs.findUnique({ where: { cpf: candidate } });
+      const existing = await this.prisma.acs.findUnique({
+        where: { cpf: candidate },
+      });
       if (!existing) return candidate;
     }
 
-    throw new BadRequestException('Nao foi possivel gerar identificador interno do ACS.');
+    throw new BadRequestException(
+      'Nao foi possivel gerar identificador interno do ACS.',
+    );
   }
 
   private acsAuditFields(acs: {
@@ -112,25 +123,39 @@ export class AcsService {
   }
 
   private buildStreetCoverageCatalog(
-    streets: Array<{ id: string; name: string; streetType?: string | null; microareaId?: string | null }>,
+    streets: Array<{
+      id: string;
+      name: string;
+      streetType?: string | null;
+      microareaId?: string | null;
+    }>,
   ) {
     return buildStreetRefCatalog(streets);
   }
 
-  private matchStreetCoverageRef(ref: string, catalog: ReturnType<typeof buildStreetRefCatalog>) {
+  private matchStreetCoverageRef(
+    ref: string,
+    catalog: ReturnType<typeof buildStreetRefCatalog>,
+  ) {
     return matchStreetRef(ref, catalog);
   }
 
   private formatStreetCoverageWarnings(summary: StreetCoverageSyncResult) {
     const warnings: string[] = [];
     if (summary.skippedWithoutMicroarea && summary.totalRefs > 0) {
-      warnings.push('Lista de ruas recebida, mas o ACS ainda está sem microárea vinculada.');
+      warnings.push(
+        'Lista de ruas recebida, mas o ACS ainda está sem microárea vinculada.',
+      );
     }
     if (summary.unmatchedRefs.length > 0) {
-      warnings.push(`Ruas não encontradas: ${summary.unmatchedRefs.slice(0, 5).join(', ')}`);
+      warnings.push(
+        `Ruas não encontradas: ${summary.unmatchedRefs.slice(0, 5).join(', ')}`,
+      );
     }
     if (summary.ambiguousRefs.length > 0) {
-      warnings.push(`Ruas ambíguas: ${summary.ambiguousRefs.slice(0, 5).join(', ')}`);
+      warnings.push(
+        `Ruas ambíguas: ${summary.ambiguousRefs.slice(0, 5).join(', ')}`,
+      );
     }
     if (summary.conflictRefs.length > 0) {
       warnings.push(
@@ -191,7 +216,10 @@ export class AcsService {
       select: { id: true, name: true, streetType: true, microareaId: true },
     });
     const catalog = this.buildStreetCoverageCatalog(streets);
-    const matched = new Map<string, { ref: string; street: StreetCoverageCatalogEntry }>();
+    const matched = new Map<
+      string,
+      { ref: string; street: StreetCoverageCatalogEntry }
+    >();
     const ambiguousRefs: string[] = [];
     const unmatchedRefs: string[] = [];
     let matchedRefs = 0;
@@ -212,8 +240,11 @@ export class AcsService {
       unmatchedRefs.push(ref);
     }
 
-    const transferFromIds = new Set((params.transferFromMicroareaIds ?? []).filter(Boolean));
-    const toAssign: Array<{ ref: string; street: StreetCoverageCatalogEntry }> = [];
+    const transferFromIds = new Set(
+      (params.transferFromMicroareaIds ?? []).filter(Boolean),
+    );
+    const toAssign: Array<{ ref: string; street: StreetCoverageCatalogEntry }> =
+      [];
     const conflictRefs: string[] = [];
     let alreadyAssignedCount = 0;
     let transferredCount = 0;
@@ -236,7 +267,9 @@ export class AcsService {
     }
 
     const affectedMicroareas = new Set<string>([microareaId]);
-    const changed = toAssign.filter((item) => item.street.microareaId !== microareaId);
+    const changed = toAssign.filter(
+      (item) => item.street.microareaId !== microareaId,
+    );
     for (const item of changed) {
       if (item.street.microareaId) {
         affectedMicroareas.add(item.street.microareaId);
@@ -254,13 +287,21 @@ export class AcsService {
           entityType: 'street',
           entityId: item.street.id,
           action: 'ASSIGN_MICROAREA',
-          beforeData: { microareaId: item.street.microareaId ?? null, source: 'acs-street-coverage' },
-          afterData: { microareaId, source: 'acs-street-coverage', acsId: params.acsId },
+          beforeData: {
+            microareaId: item.street.microareaId ?? null,
+            source: 'acs-street-coverage',
+          },
+          afterData: {
+            microareaId,
+            source: 'acs-street-coverage',
+            acsId: params.acsId,
+          },
         })),
       });
       for (const affectedId of affectedMicroareas) {
         try {
-          await this.prisma.$executeRaw`SELECT update_microarea_envelope(${affectedId}::uuid)`;
+          await this.prisma
+            .$executeRaw`SELECT update_microarea_envelope(${affectedId}::uuid)`;
         } catch {
           /* PostGIS opcional */
         }
@@ -300,7 +341,9 @@ export class AcsService {
       if (!acs) throw new NotFoundException('ACS não encontrado');
       if (!microarea) throw new NotFoundException('Microárea não encontrada');
       if (acs.municipalityId !== microarea.municipalityId) {
-        throw new BadRequestException('Microárea deve pertencer ao mesmo município do ACS');
+        throw new BadRequestException(
+          'Microárea deve pertencer ao mesmo município do ACS',
+        );
       }
       await this.prisma.microarea.update({
         where: { id: microareaId },
@@ -315,7 +358,9 @@ export class AcsService {
   ): string | undefined {
     if (!ref?.trim()) return undefined;
     const q = ref.trim().toLowerCase();
-    const byNumber = microareas.find((m) => String(m.number) === q || String(m.number).padStart(2, '0') === q);
+    const byNumber = microareas.find(
+      (m) => String(m.number) === q || String(m.number).padStart(2, '0') === q,
+    );
     if (byNumber) return byNumber.id;
     const byName = microareas.find((m) => m.name.toLowerCase() === q);
     if (byName) return byName.id;
@@ -369,7 +414,12 @@ export class AcsService {
     return { ...result, streetCoverageSummary };
   }
 
-  async update(id: string, dto: UpdateAcsDto, userId: string, viewerRole?: string) {
+  async update(
+    id: string,
+    dto: UpdateAcsDto,
+    userId: string,
+    viewerRole?: string,
+  ) {
     const beforeRaw = await this.prisma.acs.findUnique({ where: { id } });
     if (!beforeRaw) throw new NotFoundException('ACS nao encontrado');
     const beforeMicroareaId = await this.getCurrentMicroareaIdForAcs(id);
@@ -394,7 +444,9 @@ export class AcsService {
       await this.assignToMicroarea(id, microareaId || null);
     }
     const currentMicroareaId =
-      microareaId !== undefined ? (microareaId || null) : await this.getCurrentMicroareaIdForAcs(id);
+      microareaId !== undefined
+        ? microareaId || null
+        : await this.getCurrentMicroareaIdForAcs(id);
     const streetCoverageSummary = await this.syncStreetCoverageForAcs({
       acsId: id,
       municipalityId: beforeRaw.municipalityId,
@@ -405,7 +457,9 @@ export class AcsService {
           : beforeRaw.streetCoverageText,
       userId,
       transferFromMicroareaIds:
-        beforeMicroareaId && beforeMicroareaId !== currentMicroareaId ? [beforeMicroareaId] : [],
+        beforeMicroareaId && beforeMicroareaId !== currentMicroareaId
+          ? [beforeMicroareaId]
+          : [],
     });
     const afterRaw = await this.prisma.acs.findUnique({ where: { id } });
     const result = await this.findOne(id, viewerRole);
@@ -422,13 +476,20 @@ export class AcsService {
     return { ...result, streetCoverageSummary };
   }
 
-  async uploadPhoto(id: string, file: Express.Multer.File, userId: string, viewerRole?: string) {
+  async uploadPhoto(
+    id: string,
+    file: Express.Multer.File,
+    userId: string,
+    viewerRole?: string,
+  ) {
     const before = await this.findOne(id, viewerRole);
 
     const allowed = ['.png', '.jpg', '.jpeg', '.webp'];
     const ext = extname(file.originalname).toLowerCase() || '.jpg';
     if (!allowed.includes(ext)) {
-      throw new BadRequestException('Formato de imagem nao suportado. Use PNG, JPG ou WEBP.');
+      throw new BadRequestException(
+        'Formato de imagem nao suportado. Use PNG, JPG ou WEBP.',
+      );
     }
 
     const uploadDir = join(process.cwd(), 'uploads', 'acs');
@@ -442,7 +503,9 @@ export class AcsService {
       where: { id },
       data: { photoUrl },
       include: {
-        microarea: { select: { id: true, name: true, number: true, color: true } },
+        microarea: {
+          select: { id: true, name: true, number: true, color: true },
+        },
       },
     });
 
@@ -480,7 +543,10 @@ export class AcsService {
       const row = i + 1;
       const ref = maskCpfField(item.cpf, viewerRole) ?? item.name;
       try {
-        const microareaId = this.resolveMicroareaRef(item.microareaRef, microareas);
+        const microareaId = this.resolveMicroareaRef(
+          item.microareaRef,
+          microareas,
+        );
         if (item.microareaRef && !microareaId) {
           errors.push({
             row,
@@ -505,7 +571,9 @@ export class AcsService {
         }
 
         if (existing) {
-          const previousMicroareaId = await this.getCurrentMicroareaIdForAcs(existing.id);
+          const previousMicroareaId = await this.getCurrentMicroareaIdForAcs(
+            existing.id,
+          );
           const data: {
             name: string;
             phone?: string;
@@ -517,7 +585,9 @@ export class AcsService {
             phone: item.phone,
             status: item.status ?? existing.status,
             streetCoverageText:
-              item.streetCoverageText?.trim() || existing.streetCoverageText || undefined,
+              item.streetCoverageText?.trim() ||
+              existing.streetCoverageText ||
+              undefined,
           };
 
           if (
@@ -538,7 +608,8 @@ export class AcsService {
             where: { id: existing.id },
             data,
           });
-          if (microareaId) await this.assignToMicroarea(existing.id, microareaId);
+          if (microareaId)
+            await this.assignToMicroarea(existing.id, microareaId);
           const streetCoverageSummary = await this.syncStreetCoverageForAcs({
             acsId: existing.id,
             municipalityId: dto.municipalityId,
@@ -552,13 +623,18 @@ export class AcsService {
           });
           if (streetCoverageSummary) {
             streetAutomation.painted += streetCoverageSummary.paintedCount;
-            streetAutomation.unmatched += streetCoverageSummary.unmatchedRefs.length;
-            streetAutomation.ambiguous += streetCoverageSummary.ambiguousRefs.length;
-            streetAutomation.conflicts += streetCoverageSummary.conflictRefs.length;
+            streetAutomation.unmatched +=
+              streetCoverageSummary.unmatchedRefs.length;
+            streetAutomation.ambiguous +=
+              streetCoverageSummary.ambiguousRefs.length;
+            streetAutomation.conflicts +=
+              streetCoverageSummary.conflictRefs.length;
             if (streetCoverageSummary.skippedWithoutMicroarea) {
               streetAutomation.skippedWithoutMicroarea += 1;
             }
-            for (const warning of this.formatStreetCoverageWarnings(streetCoverageSummary)) {
+            for (const warning of this.formatStreetCoverageWarnings(
+              streetCoverageSummary,
+            )) {
               errors.push({ row, ref, message: warning });
             }
           }
@@ -572,7 +648,8 @@ export class AcsService {
               cpf: data.cpf ?? existing.cpf,
               phone: item.phone,
               status: item.status ?? existing.status,
-              streetCoverageText: data.streetCoverageText ?? existing.streetCoverageText,
+              streetCoverageText:
+                data.streetCoverageText ?? existing.streetCoverageText,
             }),
           });
           updated++;
@@ -598,13 +675,18 @@ export class AcsService {
           });
           if (streetCoverageSummary) {
             streetAutomation.painted += streetCoverageSummary.paintedCount;
-            streetAutomation.unmatched += streetCoverageSummary.unmatchedRefs.length;
-            streetAutomation.ambiguous += streetCoverageSummary.ambiguousRefs.length;
-            streetAutomation.conflicts += streetCoverageSummary.conflictRefs.length;
+            streetAutomation.unmatched +=
+              streetCoverageSummary.unmatchedRefs.length;
+            streetAutomation.ambiguous +=
+              streetCoverageSummary.ambiguousRefs.length;
+            streetAutomation.conflicts +=
+              streetCoverageSummary.conflictRefs.length;
             if (streetCoverageSummary.skippedWithoutMicroarea) {
               streetAutomation.skippedWithoutMicroarea += 1;
             }
-            for (const warning of this.formatStreetCoverageWarnings(streetCoverageSummary)) {
+            for (const warning of this.formatStreetCoverageWarnings(
+              streetCoverageSummary,
+            )) {
               errors.push({ row, ref, message: warning });
             }
           }
@@ -639,7 +721,13 @@ export class AcsService {
       });
     }
 
-    return { created, updated, errors, total: dto.items.length, streetAutomation };
+    return {
+      created,
+      updated,
+      errors,
+      total: dto.items.length,
+      streetAutomation,
+    };
   }
 
   async remove(id: string, userId: string) {

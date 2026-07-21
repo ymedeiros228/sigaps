@@ -9,7 +9,9 @@ export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
   @Get('municipality/:municipalityId')
-  @ApiOperation({ summary: 'Busca unificada: rua, bairro, UBS, ACS, microárea' })
+  @ApiOperation({
+    summary: 'Busca unificada: rua, bairro, UBS, ACS, microárea',
+  })
   search(
     @Param('municipalityId') municipalityId: string,
     @Query('q') query: string,

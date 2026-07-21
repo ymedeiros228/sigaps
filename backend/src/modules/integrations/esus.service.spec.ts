@@ -1,4 +1,7 @@
-import { buildStreetRefCatalog, matchStreetRef } from '../acs/acs-street-coverage.util';
+import {
+  buildStreetRefCatalog,
+  matchStreetRef,
+} from '../acs/acs-street-coverage.util';
 
 describe('e-SUS street matching', () => {
   const catalog = buildStreetRefCatalog([
@@ -8,7 +11,9 @@ describe('e-SUS street matching', () => {
   ]);
 
   it('casa logradouro com acento e prefixo quando único', () => {
-    const single = buildStreetRefCatalog([{ id: 's1', name: 'São José', streetType: 'Rua' }]);
+    const single = buildStreetRefCatalog([
+      { id: 's1', name: 'São José', streetType: 'Rua' },
+    ]);
     expect(matchStreetRef('Rua Sao Jose', single).status).toBe('matched');
     expect(matchStreetRef('São José', catalog).status).toBe('ambiguous');
   });
@@ -26,6 +31,8 @@ describe('e-SUS street matching', () => {
   });
 
   it('retorna não encontrada', () => {
-    expect(matchStreetRef('Rua Inexistente XYZ', catalog).status).toBe('unmatched');
+    expect(matchStreetRef('Rua Inexistente XYZ', catalog).status).toBe(
+      'unmatched',
+    );
   });
 });

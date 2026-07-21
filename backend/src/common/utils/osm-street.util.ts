@@ -23,7 +23,9 @@ const UNNAMED_HIGHWAY_LABEL: Record<string, string> = {
   bridleway: 'Trilha',
 };
 
-function pickTaggedName(tags: Record<string, string> | undefined): string | null {
+function pickTaggedName(
+  tags: Record<string, string> | undefined,
+): string | null {
   if (!tags) return null;
   const candidates = [
     tags.name,
@@ -49,7 +51,11 @@ export function resolveOsmStreetName(
 
   const tagged = pickTaggedName(tags);
   if (tagged) {
-    if (tags?.ref?.trim() && tagged === tags.ref.trim() && !tagged.toLowerCase().startsWith('estrada')) {
+    if (
+      tags?.ref?.trim() &&
+      tagged === tags.ref.trim() &&
+      !tagged.toLowerCase().startsWith('estrada')
+    ) {
       return `Estrada ${tagged}`;
     }
     return tagged;
@@ -65,19 +71,28 @@ export function inferStreetType(name: string, tags?: Record<string, string>) {
   const highway = tags?.highway ?? '';
   if (DIRT_HIGHWAYS.has(highway)) return 'Estrada de terra';
   if (highway === 'service') return 'Via de acesso';
-  if (highway === 'primary' || highway === 'primary_link') return 'Via Principal';
-  if (highway === 'secondary' || highway === 'secondary_link') return 'Via Secundária';
-  if (highway === 'tertiary' || highway === 'tertiary_link') return 'Via Terciária';
+  if (highway === 'primary' || highway === 'primary_link')
+    return 'Via Principal';
+  if (highway === 'secondary' || highway === 'secondary_link')
+    return 'Via Secundária';
+  if (highway === 'tertiary' || highway === 'tertiary_link')
+    return 'Via Terciária';
   if (highway === 'trunk' || highway === 'trunk_link') return 'Rodovia';
 
   const lower = name.toLowerCase();
   if (lower.includes('avenida') || lower.startsWith('av ')) return 'Avenida';
   if (lower.includes('travessa') || lower.startsWith('tv ')) return 'Travessa';
   if (lower.includes('rodovia')) return 'Rodovia';
-  if (lower.includes('estrada de terra') || lower.includes('caminho #')) return 'Estrada de terra';
+  if (lower.includes('estrada de terra') || lower.includes('caminho #'))
+    return 'Estrada de terra';
   if (lower.includes('via de acesso')) return 'Via de acesso';
-  if (lower.includes('rua sem nome') || lower.includes('rua residencial')) return 'Rua';
-  if (lower.includes('via sem nome') || lower.includes('via principal') || lower.includes('via secundária')) {
+  if (lower.includes('rua sem nome') || lower.includes('rua residencial'))
+    return 'Rua';
+  if (
+    lower.includes('via sem nome') ||
+    lower.includes('via principal') ||
+    lower.includes('via secundária')
+  ) {
     return 'Via';
   }
   return 'Rua';

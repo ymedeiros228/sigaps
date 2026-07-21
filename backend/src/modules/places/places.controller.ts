@@ -41,7 +41,12 @@ export class PlacesController {
   }
 
   @Post('import-osm/:municipalityId')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS, UserRole.ENFERMEIRO)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
   @ApiOperation({ summary: 'Importar povoados do OpenStreetMap (complemento)' })
   importFromOsm(
     @Param('municipalityId') municipalityId: string,
@@ -57,7 +62,12 @@ export class PlacesController {
   }
 
   @Post()
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS, UserRole.ENFERMEIRO)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
   @ApiOperation({ summary: 'Cadastrar povoado/localidade' })
   create(@Body() dto: CreatePlaceDto, @Req() req: { user: { id: string } }) {
     return this.placesService.create(dto, req.user.id);
@@ -70,24 +80,43 @@ export class PlacesController {
     UserRole.COORDENADOR_APS,
     UserRole.ENFERMEIRO,
   )
-  @ApiOperation({ summary: 'Importar povoados de planilha (nome + coordenadas + UBS)' })
-  bulkImport(@Body() dto: BulkPlaceImportDto, @Req() req: { user: { id: string } }) {
+  @ApiOperation({
+    summary: 'Importar povoados de planilha (nome + coordenadas + UBS)',
+  })
+  bulkImport(
+    @Body() dto: BulkPlaceImportDto,
+    @Req() req: { user: { id: string } },
+  ) {
     return this.placesService.bulkImport(dto, req.user.id);
   }
 
   @Patch(':id/microarea')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS, UserRole.ENFERMEIRO)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
   @ApiOperation({ summary: 'Vincular/desvincular povoado a uma microárea' })
   assignMicroarea(
     @Param('id') id: string,
     @Body() body: { microareaId: string | null },
     @Req() req: { user: { id: string } },
   ) {
-    return this.placesService.assignMicroarea(id, body.microareaId ?? null, req.user.id);
+    return this.placesService.assignMicroarea(
+      id,
+      body.microareaId ?? null,
+      req.user.id,
+    );
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.SECRETARIO_SAUDE, UserRole.COORDENADOR_APS, UserRole.ENFERMEIRO)
+  @Roles(
+    UserRole.ADMINISTRADOR,
+    UserRole.SECRETARIO_SAUDE,
+    UserRole.COORDENADOR_APS,
+    UserRole.ENFERMEIRO,
+  )
   @ApiOperation({ summary: 'Atualizar povoado' })
   update(
     @Param('id') id: string,
