@@ -40,6 +40,23 @@ O SIGAPS não é um CRUD de curso: é um **sistema GIS de uso real em APS**, pen
 ---
 
 
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/manual/screenshots/02-dashboard.png" alt="Dashboard SIGAPS" width="900" />
+</p>
+
+<p align="center">
+  <img src="docs/manual/screenshots/03-mapa.png" alt="Mapa territorial" width="900" />
+</p>
+
+<p align="center">
+  <img src="docs/manual/screenshots/03-mapa-cobertura.png" alt="Cobertura no mapa" width="900" />
+</p>
+
+Mais capturas no manual: [`docs/manual/screenshots/`](docs/manual/screenshots/).
+
 ## Deploy na web (gratuito)
 
 Guia passo a passo: [docs/DEPLOY_GRATUITO.md](docs/DEPLOY_GRATUITO.md)  
