@@ -9,6 +9,23 @@ Sistema web GIS profissional para gestão territorial das microáreas dos Agente
 
 ---
 
+## Por que este projeto importa
+
+O SIGAPS não é um CRUD de curso: é um **sistema GIS de uso real em APS**, pensado para secretarias municipais — com mapa territorial, papéis de acesso, multi-município e preparo para produção (Docker, PWA, documentação e deploy).
+
+### Destaques técnicos
+
+- **Full-stack TypeScript:** React (Vite) + NestJS + Prisma + PostgreSQL/**PostGIS**
+- **Mapas:** camadas OSM/satélite, importação de ruas (Overpass), pintura de microáreas, export PDF/GeoJSON/KML
+- **Domínio de saúde:** ACS, UBS, famílias/habitantes, cobertura territorial, pilotos CNES/e-SUS
+- **Segurança e operação:** JWT + perfis, escopo por município, rate limit, CPF mascarado (LGPD), backup, Swagger
+- **Entrega:** Docker Compose, PWA para campo, guia de deploy gratuito, testes E2E (Playwright)
+
+> **Status da demo pública:** em preparação (há guia em `docs/DEPLOY_GRATUITO.md`). Clone e rode localmente com Docker + Node 20+.
+
+---
+
+
 ## Deploy na web (gratuito)
 
 Guia passo a passo: [docs/DEPLOY_GRATUITO.md](docs/DEPLOY_GRATUITO.md)  
