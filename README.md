@@ -2,6 +2,9 @@
 
 [![Stack](https://img.shields.io/badge/stack-100%25%20open%20source-green)](LICENSE)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml/badge.svg)](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml)
+[![API](https://img.shields.io/badge/API-online-success)](https://sigaps-api.onrender.com/health)
+[![Demo](https://img.shields.io/badge/demo-ao%20vivo-00A86B)](https://sigaps-api.onrender.com)
 
 Sistema web GIS profissional para gestão territorial das microáreas dos Agentes Comunitários de Saúde (ACS), desenvolvido para a **Prefeitura Municipal de Passagem Franca - MA** e preparado para escalar a qualquer município brasileiro.
 
@@ -21,7 +24,17 @@ O SIGAPS não é um CRUD de curso: é um **sistema GIS de uso real em APS**, pen
 - **Segurança e operação:** JWT + perfis, escopo por município, rate limit, CPF mascarado (LGPD), backup, Swagger
 - **Entrega:** Docker Compose, PWA para campo, guia de deploy gratuito, testes E2E (Playwright)
 
-> **Status da demo pública:** em preparação (há guia em `docs/DEPLOY_GRATUITO.md`). Clone e rode localmente com Docker + Node 20+.
+## Demo ao vivo
+
+| Link | O que é |
+|------|---------|
+| **[Abrir o SIGAPS](https://sigaps-api.onrender.com)** | Front + API em produção (Render) |
+| [Health check](https://sigaps-api.onrender.com/health) | Status da API (`ok` + commit) |
+| [CI no GitHub Actions](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml) | Lint/build/testes no push |
+
+> O plano gratuito do Render pode “dormir” (~1 min no primeiro acesso).  
+> Credenciais de ambiente real/demo ficam fora deste README (só setup local / equipe).
+
 
 ---
 
