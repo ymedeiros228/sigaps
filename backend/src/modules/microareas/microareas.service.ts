@@ -144,7 +144,7 @@ export class MicroareasService {
     for (const microarea of microareas) {
       try {
         await this.prisma.$executeRaw`
-          SELECT update_microarea_envelope(${microarea.id}::uuid)
+          SELECT update_microarea_envelope(${microarea.id}::text)
         `;
       } catch {
         /* PostGIS opcional */

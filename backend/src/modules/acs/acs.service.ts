@@ -301,7 +301,7 @@ export class AcsService {
       for (const affectedId of affectedMicroareas) {
         try {
           await this.prisma
-            .$executeRaw`SELECT update_microarea_envelope(${affectedId}::uuid)`;
+            .$executeRaw`SELECT update_microarea_envelope(${affectedId}::text)`;
         } catch {
           /* PostGIS opcional */
         }

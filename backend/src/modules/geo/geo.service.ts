@@ -111,7 +111,7 @@ export class GeoService {
       );
       for (const id of affected) {
         await this.prisma
-          .$executeRaw`SELECT update_microarea_envelope(${id}::uuid)`;
+          .$executeRaw`SELECT update_microarea_envelope(${id}::text)`;
       }
     }
 

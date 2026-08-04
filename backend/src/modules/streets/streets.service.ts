@@ -1765,7 +1765,7 @@ export class StreetsService {
   private async updateMicroareaEnvelope(microareaId: string) {
     try {
       await this.prisma.$executeRaw`
-        SELECT update_microarea_envelope(${microareaId}::uuid)
+        SELECT update_microarea_envelope(${microareaId}::text)
       `;
     } catch {
       /* PostGIS opcional — ignorar se extensão não instalada */

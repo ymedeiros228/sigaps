@@ -40,7 +40,7 @@ export async function clearMunicipalityPaint(
   });
   for (const { id } of microareas) {
     try {
-      await prisma.$executeRaw`SELECT update_microarea_envelope(${id}::uuid)`;
+      await prisma.$executeRaw`SELECT update_microarea_envelope(${id}::text)`;
     } catch {
       /* PostGIS opcional */
     }
