@@ -3,6 +3,8 @@
 [![Stack](https://img.shields.io/badge/stack-100%25%20open%20source-green)](LICENSE)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml/badge.svg)](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml)
+[![Demo](https://img.shields.io/badge/demo-ao%20vivo-00A86B)](https://sigaps-api.onrender.com)
+[![CI](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml/badge.svg)](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml)
 [![API](https://img.shields.io/badge/API-online-success)](https://sigaps-api.onrender.com/health)
 [![Demo](https://img.shields.io/badge/demo-ao%20vivo-00A86B)](https://sigaps-api.onrender.com)
 
