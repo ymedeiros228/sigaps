@@ -4,9 +4,8 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml/badge.svg)](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml)
 [![Demo](https://img.shields.io/badge/demo-ao%20vivo-00A86B)](https://sigaps-api.onrender.com)
-[![CI](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml/badge.svg)](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml)
 [![API](https://img.shields.io/badge/API-online-success)](https://sigaps-api.onrender.com/health)
-[![Demo](https://img.shields.io/badge/demo-ao%20vivo-00A86B)](https://sigaps-api.onrender.com)
+
 
 Sistema web GIS profissional para gestão territorial das microáreas dos Agentes Comunitários de Saúde (ACS), desenvolvido para a **Prefeitura Municipal de Passagem Franca - MA** e preparado para escalar a qualquer município brasileiro.
 
