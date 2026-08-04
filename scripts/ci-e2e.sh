@@ -64,7 +64,5 @@ echo "==> Playwright"
 export PLAYWRIGHT_BASE_URL="http://127.0.0.1:${FRONTEND_PORT}"
 export E2E_API_URL="http://127.0.0.1:${BACKEND_PORT}"
 npx playwright install chromium --with-deps
-# CI smoke: auth + sessão autenticada (nav/mapa). Suite de pintura fica local
-# (dependente de seed OSM / modos de pincel e pode ser flaky no runner).
-# Case-insensitive; matches "Autenticação" + "Sessão autenticada" without encoding risk
-npm run test:e2e -- --grep "(?i)autentic"
+# CI smoke only: auth + authenticated session (nav/map). Full paint suite is local.
+npm run test:e2e -- e2e/auth.setup.ts e2e/auth.spec.ts e2e/auth-session.spec.ts
