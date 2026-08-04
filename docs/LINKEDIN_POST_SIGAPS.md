@@ -1,30 +1,34 @@
-# Post técnico LinkedIn (rascunho) — SIGAPS
+# LinkedIn — post final (copiar e publicar)
 
-**Título:** Como um GIS open source ajuda a APS a organizar microáreas (React + NestJS + PostGIS)
+**Quando:** após pins + Available for hire.
 
-Texto (cole e adapte):
+**Título sugerido:** Full-stack + APS: GIS open source que prefeitura pode usar (React · NestJS · PostGIS)
 
 ---
 
-Estudante de CC (6º período), entreguei o **SIGAPS**: sistema web GIS para gestão territorial de microáreas da APS, pensado com a realidade de prefeitura (Passagem Franca/MA).
+Estudante de Ciência da Computação (6º período · UNINASSAU). Entreguei o **SIGAPS**: sistema web GIS para gestão territorial das microáreas da APS — pensado com a realidade de prefeitura (Passagem Franca/MA).
 
-**Problema:** microáreas e cobertura ACS frequentemente vivem em planilha ou papel — difícil visualizar território, roles e indicadores juntos.
+**Problema:** microáreas e cobertura ACS muitas vezes vivem em planilha/papel — difícil visualizar território, papéis e indicadores juntos.
 
-**Decisões técnicas:**  
-- React + Vite no front (mapa Leaflet, PWA)  
-- NestJS + Prisma + JWT no backend  
-- PostgreSQL **PostGIS** para geometria de ruas/microáreas  
-- Docker, CI e deploy com demo pública  
+**Decisões:**
+- React + Vite (mapa Leaflet, PWA)
+- NestJS + Prisma + JWT (roles e escopo por município)
+- PostgreSQL **PostGIS** (geometria real de ruas/microáreas)
+- Docker, CI verde e demo pública
 
-**Resultado:** mapa interativo, cadastros UBS/ACS, pintura de microáreas, export e caminho de produção — open source (MIT).
+**Resultado:** mapa interativo, cadastros UBS/ACS, pintura de microáreas, exports e caminho de produção — open source (MIT).
 
 Demo: https://sigaps-api.onrender.com  
 Código: https://github.com/ymedeiros228/sigaps  
+Segundo âncora (desktop PlanificaSUS): https://github.com/ymedeiros228/painel-ubs-planifica  
 
 Aberto a **estágio / júnior full-stack** (TypeScript, saúde pública, GIS).
 
-#opensource #fullstack #nestjs #react #postgis #saúde #APS
+#fullstack #nestjs #react #postgis #opensource #APS #saúde #estágio
 
 ---
 
-Publicar manualmente no LinkedIn após revisar.
+Checklist pós-publicação:
+- [ ] Post no ar
+- [ ] Link “About” do LinkedIn aponta pro GitHub
+- [ ] Treinei 1x as 10 perguntas em `docs/INTERVIEW_SIGAPS.md`

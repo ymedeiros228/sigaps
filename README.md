@@ -73,6 +73,26 @@ Health de produção: `/health` · `/health/db` · `/health/postgis`
 
 ---
 
+## Para recrutadores (5 linhas)
+
+1. **Stack:** React + NestJS + Prisma + PostgreSQL/PostGIS + Docker + PWA (MIT).  
+2. **Demo:** [sigaps-api.onrender.com](https://sigaps-api.onrender.com) · badge CI verde no topo deste README.  
+3. **Multi-município:** `MunicipalityScopeGuard` bloqueia cross-tenant por `municipalityId` (teste unitário em `backend/src/common/guards/municipality-scope.guard.spec.ts`).  
+4. **LGPD / produção:** CPF mascarado por perfil · rate limit · `/health`, `/health/db`, `/health/postgis` · keep-alive no Render.  
+5. **Defesa oral:** [docs/INTERVIEW_SIGAPS.md](docs/INTERVIEW_SIGAPS.md) · post LinkedIn: [docs/LINKEDIN_POST_SIGAPS.md](docs/LINKEDIN_POST_SIGAPS.md).
+
+## Observabilidade (health)
+
+| Endpoint | O que prova |
+|----------|-------------|
+| `GET /health` | API viva (`ok`, `commit`, `uptimeSec`, `env`) |
+| `GET /health/db` | Conexão Postgres (`SELECT 1`) |
+| `GET /health/postgis` | Extensão PostGIS + coluna/índice `streets.geom` |
+
+Unit tests: `health.controller.spec.ts` + `municipality-scope.guard.spec.ts` (escopo multi-tenant).
+
+---
+
 ## Screenshots
 
 <p align="center">

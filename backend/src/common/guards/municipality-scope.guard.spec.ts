@@ -72,4 +72,43 @@ describe('MunicipalityScopeGuard', () => {
       ),
     ).toThrow(ForbiddenException);
   });
+
+  it('extrai municipalityId do body quando não está em params', () => {
+    const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const ok = guard.canActivate(
+      mockContext({
+        user: { role: UserRole.ENFERMEIRO, municipalityId: id },
+        body: { municipalityId: id },
+      }),
+    );
+    expect(ok).toBe(true);
+  });
+
+  it('bloqueia cross-tenant via query string', () => {
+    expect(() =>
+      guard.canActivate(
+        mockContext({
+          user: {
+            role: UserRole.ENFERMEIRO,
+            municipalityId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          },
+          query: { municipalityId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
+        }),
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('permite rota pública sem checar município', () => {
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValueOnce(true);
+    const ok = guard.canActivate(
+      mockContext({
+        user: {
+          role: UserRole.ENFERMEIRO,
+          municipalityId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        },
+        params: { municipalityId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' },
+      }),
+    );
+    expect(ok).toBe(true);
+  });
 });
