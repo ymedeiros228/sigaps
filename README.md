@@ -7,39 +7,71 @@
 [![API](https://img.shields.io/badge/API-online-success)](https://sigaps-api.onrender.com/health)
 
 
-Sistema web GIS profissional para gestão territorial das microáreas dos Agentes Comunitários de Saúde (ACS), desenvolvido para a **Prefeitura Municipal de Passagem Franca - MA** e preparado para escalar a qualquer município brasileiro.
+GIS web open source para gestão territorial das microáreas de ACS — feito para a **Prefeitura de Passagem Franca (MA)** e preparado para **multi-município**.
 
 **Cliente:** Jonas Almeida Medeiros — Enfermeiro responsável pelo planejamento da APS
 
 ---
 
-## Por que este projeto importa
+## Em 60 segundos
 
-O SIGAPS não é um CRUD de curso: é um **sistema GIS de uso real em APS**, pensado para secretarias municipais — com mapa territorial, papéis de acesso, multi-município e preparo para produção (Docker, PWA, documentação e deploy).
+| | |
+|--|--|
+| **Problema** | Microáreas da APS em papel/planilha; falta mapa, papéis e cobertura |
+| **Solução** | Mapa GIS + cadastros UBS/ACS + pintura de microáreas + indicadores |
+| **Stack** | React · NestJS · Prisma · PostgreSQL/**PostGIS** · Docker · PWA |
+| **Demo** | [sigaps-api.onrender.com](https://sigaps-api.onrender.com) · [health](https://sigaps-api.onrender.com/health) |
+| **Licença** | MIT |
+
+### Validar a demo em 2 minutos
+
+1. Abra a [demo](https://sigaps-api.onrender.com) (aguarde ~1 min se o Render estiver “dormindo”).
+2. Confira [GET /health](https://sigaps-api.onrender.com/health) → `ok: true` (+ `commit`, `uptimeSec`).
+3. Fluxo autenticado e seeds de **produção** não ficam neste README (apenas setup local/equipe).
+4. Local: `docker compose up` + seed Prisma (ver Início Rápido).
 
 ### Destaques técnicos
 
 - **Full-stack TypeScript:** React (Vite) + NestJS + Prisma + PostgreSQL/**PostGIS**
-- **Mapas:** camadas OSM/satélite, importação de ruas (Overpass), pintura de microáreas, export PDF/GeoJSON/KML
-- **Domínio de saúde:** ACS, UBS, famílias/habitantes, cobertura territorial, pilotos CNES/e-SUS
-- **Segurança e operação:** JWT + perfis, escopo por município, rate limit, CPF mascarado (LGPD), backup, Swagger
-- **Entrega:** Docker Compose, PWA para campo, guia de deploy gratuito, testes E2E (Playwright)
+- **Mapas:** OSM/satélite, Overpass, pintura de microáreas, export PDF/GeoJSON/KML
+- **Domínio de saúde:** ACS, UBS, famílias/habitantes, cobertura, pilotos CNES/e-SUS
+- **Segurança:** JWT + perfis, escopo por município, rate limit, CPF mascarado (LGPD)
+- **Operação:** Docker Compose, PWA, backup, keep-alive no Render, CI + Playwright smoke
 
 ## Demo ao vivo
 
 | Link | O que é |
 |------|---------|
 | **[Abrir o SIGAPS](https://sigaps-api.onrender.com)** | Front + API em produção (Render) |
-| [Health check](https://sigaps-api.onrender.com/health) | Status da API (`ok` + commit) |
-| [CI no GitHub Actions](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml) | Lint/build/testes no push |
-
-> O plano gratuito do Render pode “dormir” (~1 min no primeiro acesso).  
-> Credenciais de ambiente real/demo ficam fora deste README (só setup local / equipe).
-
+| [Health check](https://sigaps-api.onrender.com/health) | `ok` + commit + uptime |
+| [CI no GitHub Actions](https://github.com/ymedeiros228/sigaps/actions/workflows/ci.yml) | unit + build + e2e smoke |
 
 ---
 
+## Arquitetura (5 decisões)
 
+| Decisão | Por quê |
+|---------|--------|
+| NestJS + modules | API REST modular com guards JWT/roles |
+| PostGIS | Geometria real de ruas/microáreas |
+| Multi-município | Escala secretarias no mesmo produto |
+| JWT + escopo | Isola dados do município autenticado |
+| Docker | Postgres + API + front com caminho único |
+
+Detalhes: [docs/ARQUITETURA.md](docs/ARQUITETURA.md) · Segurança: [SECURITY.md](SECURITY.md) · Roteiro de entrevista: [docs/INTERVIEW_SIGAPS.md](docs/INTERVIEW_SIGAPS.md)
+
+## Testes e CI
+
+| O quê | Comando / onde |
+|-------|----------------|
+| Unit (backend Jest) | `cd backend && npm test` (inclui health) |
+| Build frontend | `cd frontend && npm run build` |
+| Playwright smoke (CI) | login + nav · `bash scripts/ci-e2e.sh` |
+| Pintura mapa (local) | `cd frontend && npm run test:e2e` |
+
+Health de produção: `/health` · `/health/db` · `/health/postgis`
+
+---
 
 ## Screenshots
 
@@ -76,6 +108,8 @@ Variáveis de exemplo: `.env.production.example` | Blueprint: `render.yaml`
 | [Roadmap](docs/ROADMAP.md) | Fases de desenvolvimento |
 | [API REST](docs/API.md) | Referência de endpoints |
 | [Swagger](http://localhost:3000/docs) | Documentação interativa (com API rodando) |
+| [Roteiro entrevista (10 Q&A)](docs/INTERVIEW_SIGAPS.md) | Defesa oral do projeto |
+| [Rascunho post LinkedIn](docs/LINKEDIN_POST_SIGAPS.md) | Narrativa problema → decisão → resultado |
 
 ---
 

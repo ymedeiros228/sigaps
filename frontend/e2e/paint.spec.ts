@@ -45,7 +45,7 @@ test.describe('Pintura no mapa', () => {
   test('pinta trecho de rua após busca', async ({ page }) => {
     await openMapAndWaitStreets(page);
 
-    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    const search = page.getByTestId('street-search');
     await search.fill('Viriato');
     await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
 
@@ -74,7 +74,7 @@ test.describe('Pintura no mapa', () => {
   test('pinta rua inteira no modo whole', async ({ page }) => {
     await openMapAndWaitStreets(page);
 
-    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    const search = page.getByTestId('street-search');
     await search.fill('Viriato');
     await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
 
@@ -102,7 +102,7 @@ test.describe('Pintura no mapa', () => {
   test('modo arrastar envia scope brush com coordenadas de fim', async ({ page }) => {
     await openMapAndWaitStreets(page);
 
-    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    const search = page.getByTestId('street-search');
     await search.fill('Viriato');
     await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
 
@@ -145,7 +145,7 @@ test.describe('Pintura no mapa', () => {
   test('modo apagar remove pintura ao clicar na rua', async ({ page }) => {
     await openMapAndWaitStreets(page);
 
-    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    const search = page.getByTestId('street-search');
     await search.fill('Viriato');
     await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
 
@@ -174,7 +174,7 @@ test.describe('Pintura no mapa', () => {
   test('modo apagar brush envia unpaint com coordenadas de fim', async ({ page }) => {
     await openMapAndWaitStreets(page);
 
-    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    const search = page.getByTestId('street-search');
     await search.fill('Viriato');
     await page.getByRole('option', { name: /Viriato/i }).first().click({ timeout: 20_000 });
 

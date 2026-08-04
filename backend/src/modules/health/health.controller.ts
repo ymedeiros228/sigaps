@@ -18,7 +18,13 @@ export class HealthController {
       process.env.RENDER_GIT_COMMIT?.trim() ||
       process.env.GIT_COMMIT?.trim() ||
       null;
-    return { ok: true, ts: Date.now(), commit };
+    return {
+      ok: true,
+      ts: Date.now(),
+      commit,
+      uptimeSec: Math.floor(process.uptime()),
+      env: process.env.NODE_ENV ?? 'development',
+    };
   }
 
   @Get('db')

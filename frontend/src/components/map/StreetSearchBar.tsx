@@ -183,11 +183,6 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         size="small"
         fullWidth
         value={text}
-        role="combobox"
-        aria-expanded={showList}
-        aria-autocomplete="list"
-        aria-controls="street-search-results"
-        aria-label="Buscar rua, UBS, povoado ou ACS"
         onChange={(e) => {
           setText(e.target.value);
           setOpen(true);
@@ -197,6 +192,14 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         onKeyDown={handleKeyDown}
         placeholder="Buscar rua, UBS, povoado, ACS..."
         slotProps={{
+          htmlInput: {
+            role: 'combobox',
+            'aria-expanded': showList,
+            'aria-autocomplete': 'list',
+            'aria-controls': 'street-search-results',
+            'aria-label': 'Buscar rua, UBS, povoado ou ACS',
+            'data-testid': 'street-search',
+          },
           input: {
             startAdornment: (
               <InputAdornment position="start">

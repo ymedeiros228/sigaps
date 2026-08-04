@@ -23,7 +23,7 @@ test.describe('Sessão autenticada', () => {
   test('busca no mapa aceita texto', async ({ page }) => {
     await page.goto('/mapa');
     await expect(page.locator('.leaflet-container')).toBeVisible({ timeout: 30_000 });
-    const search = page.getByRole('combobox', { name: /Buscar rua/i });
+    const search = page.getByTestId('street-search');
     await search.fill('rua');
     await expect(search).toHaveValue('rua');
   });
