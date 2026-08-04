@@ -162,12 +162,12 @@ npm run docs:pdf
 
 ## Credenciais padrão (seed)
 
-| Campo | Valor |
-|-------|-------|
-| Email | jonas@passagemfranca.ma.gov.br |
-| Senha | Sigaps@2026 |
+> **Atenção:** as credenciais de seed ficam apenas no setup local (`.env` / seed do Prisma).  
+> **Não use e-mails ou senhas de exemplo em produção.** Após o primeiro login em ambiente real, troque a senha do administrador.
 
----
+Consulte `.env.example` e o seed do backend para o usuário demo local.
+
+
 
 ## Fluxo principal
 
