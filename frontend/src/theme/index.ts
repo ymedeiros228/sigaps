@@ -59,6 +59,9 @@ export const createAppTheme = (darkMode: boolean) =>
           },
           contained: {
             background: `linear-gradient(135deg, ${brand.green} 0%, ${brand.greenDark} 100%)`,
+            transition: 'filter 0.18s ease, transform 0.18s ease',
+            '&:hover': { boxShadow: 'none', filter: 'brightness(1.08)' },
+            '&:active': { transform: 'translateY(1px)' },
           },
         },
       },
@@ -118,7 +121,28 @@ export const createAppTheme = (darkMode: boolean) =>
       MuiTextField: {
         styleOverrides: {
           root: {
-            '& .MuiOutlinedInput-root': { borderRadius: 10 },
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 10,
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: brand.green,
+                borderWidth: 2,
+              },
+            },
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: { borderRadius: 16 },
+        },
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '6px 10px',
           },
         },
       },

@@ -285,3 +285,85 @@ body {
 .sigaps-pdf-capture .leaflet-container {
   background: #101418 !important;
 }
+
+/* ===== Acabamento visual (polimento) ===== */
+
+::selection {
+  background: rgba(0, 168, 107, 0.28);
+  color: inherit;
+}
+
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible,
+[role='tab']:focus-visible {
+  outline: 2px solid #00a86b;
+  outline-offset: 2px;
+}
+
+/* Números alinhados em colunas (tabelas, chips, contadores). */
+td,
+th,
+.MuiChip-label,
+.MuiTableCell-root {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Controles do mapa com a mesma linguagem dos painéis flutuantes. */
+.leaflet-bar {
+  border: none !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow:
+    0 6px 20px rgba(2, 6, 23, 0.2),
+    0 1px 3px rgba(2, 6, 23, 0.14) !important;
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.leaflet-bar a {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.leaflet-bar a:hover {
+  background-color: #eefaf5;
+  color: #008f5a;
+}
+
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 10px 0 0 0;
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.leaflet-control-scale-line {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(30, 41, 59, 0.55) !important;
+  border-radius: 0 0 6px 6px;
+  font-weight: 600;
+}
+
+/* Painéis flutuantes: sombra com deslocamento e desfoque (profundidade real). */
+.map-float-panel {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 14px 36px rgba(2, 6, 23, 0.26),
+    0 2px 6px rgba(2, 6, 23, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

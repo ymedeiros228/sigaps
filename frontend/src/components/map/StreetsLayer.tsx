@@ -44,9 +44,9 @@ const PAINTED_HALO_STYLE: PathOptions = {
 const systemStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
   const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
   return {
-    color: isDirt ? '#a67c00' : '#546e7a',
-    weight: isDirt ? 5 : 4,
-    opacity: isDirt ? 0.75 : 0.6,
+    color: isDirt ? '#a67c00' : '#455a64',
+    weight: isDirt ? 5 : 4.5,
+    opacity: isDirt ? 0.82 : 0.72,
     dashArray: isDirt ? '4 7' : undefined,
     lineCap: 'round',
     lineJoin: 'round',
@@ -56,9 +56,9 @@ const systemStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
 const unassignedStyle = (feature?: GeoJSON.Feature): PathOptions => {
   const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
   return {
-    color: isDirt ? '#c4a35a' : '#546e7a',
-    weight: isDirt ? 5 : 4,
-    opacity: isDirt ? 0.8 : 0.55,
+    color: isDirt ? '#b8933f' : '#455a64',
+    weight: isDirt ? 5 : 4.5,
+    opacity: isDirt ? 0.88 : 0.7,
     dashArray: isDirt ? '4 8' : '6 6',
     lineCap: 'round',
     lineJoin: 'round',
