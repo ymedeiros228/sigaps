@@ -27,7 +27,10 @@ export function MapLegend({
   onClearMicroarea,
 }: MapLegendProps) {
   const theme = useTheme();
-  const [open, setOpen] = useState(true);
+  // Em tela pequena a legenda começa recolhida para não cobrir o mapa (um toque abre).
+  const [open, setOpen] = useState(
+    () => typeof window === 'undefined' || window.matchMedia('(min-width:600px)').matches,
+  );
   const showHeatmap = useMapStore((s) => s.showHeatmap);
   const showUbs = useMapStore((s) => s.showUbsMarkers);
   const showPlaces = useMapStore((s) => s.showPlacesMarkers);
@@ -39,7 +42,7 @@ export function MapLegend({
 
   useEffect(() => {
     if (paintMode && !paintGuideCollapsed) setOpen(false);
-    else if (!paintMode) setOpen(true);
+    else if (!paintMode) setOpen(window.matchMedia('(min-width:600px)').matches);
   }, [paintMode, paintGuideCollapsed]);
 
   const sortedMicroareas = useMemo(() => sortMicroareas(microareas), [microareas]);

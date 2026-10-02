@@ -40,6 +40,7 @@ export function MapTileLayerController({ layerId }: { layerId: MapBaseLayerId })
       labels = L.tileLayer(MAP_LABELS_OVERLAY.url, {
         attribution: MAP_LABELS_OVERLAY.attribution,
         maxZoom: MAP_LABELS_OVERLAY.maxZoom,
+        maxNativeZoom: MAP_LABELS_OVERLAY.maxNativeZoom,
         subdomains: MAP_LABELS_OVERLAY.subdomains,
         pane: 'overlayPane',
       });

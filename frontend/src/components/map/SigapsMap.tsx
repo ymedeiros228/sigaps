@@ -270,6 +270,14 @@ export function SigapsMap() {
     onBounds,
   } = useMapViewportStreets(municipalityId);
 
+  // Aviso apenas informativo (só quando aparece): some sozinho para não cobrir o mapa.
+  const largeMeshNoticeVisible = streetsTotal > VIEWPORT_STREETS_THRESHOLD && !largeMeshNoticeDismissed;
+  useEffect(() => {
+    if (!largeMeshNoticeVisible) return;
+    const timer = window.setTimeout(dismissLargeMeshNotice, 8000);
+    return () => window.clearTimeout(timer);
+  }, [largeMeshNoticeVisible, dismissLargeMeshNotice]);
+
   const streetCount = streetsData?.items?.length ?? 0;
   const streets = useMemo(
     () => prepareStreetsForMap(streetsData?.items ?? []),
@@ -1788,10 +1796,13 @@ export function SigapsMap() {
           onClose={dismissLargeMeshNotice}
           sx={{
             position: 'absolute',
-            top: 80,
-            right: 16,
+            // Celular: embaixo (não cobre a barra de ferramentas); desktop: canto superior direito.
+            top: { xs: 'auto', sm: 80 },
+            bottom: { xs: 96, sm: 'auto' },
+            left: { xs: 8, sm: 'auto' },
+            right: { xs: 8, sm: 16 },
             zIndex: 1000,
-            maxWidth: 320,
+            maxWidth: { xs: 'none', sm: 320 },
             borderRadius: 2,
           }}
         >
