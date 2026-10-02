@@ -12,6 +12,23 @@ export interface JwtPayload {
   municipalityId?: string | null;
 }
 
+type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  municipalityId: string | null;
+  isActive: boolean;
+};
+
+/**
+ * Cache curto do usuário validado: evita uma ida ao banco em TODA requisição autenticada.
+ * Janela pequena — desativar um usuário passa a valer em até 15 s.
+ */
+const USER_CACHE_TTL_MS = 15_000;
+const USER_CACHE_MAX = 500;
+const userCache = new Map<string, { user: AuthUser; expires: number }>();
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -26,6 +43,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    const cached = userCache.get(payload.sub);
+    if (cached && cached.expires > Date.now()) return cached.user;
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -39,10 +59,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user || !user.isActive) {
+      userCache.delete(payload.sub);
       throw new UnauthorizedException('Sessão inválida ou usuário inativo');
     }
 
-    return {
+    const validated: AuthUser = {
       id: user.id,
       email: user.email,
       name: user.name,
@@ -50,5 +71,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       municipalityId: user.municipalityId,
       isActive: user.isActive,
     };
+    if (userCache.size >= USER_CACHE_MAX) userCache.clear();
+    userCache.set(payload.sub, {
+      user: validated,
+      expires: Date.now() + USER_CACHE_TTL_MS,
+    });
+    return validated;
   }
 }

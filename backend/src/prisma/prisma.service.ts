@@ -16,7 +16,14 @@ function normalizeDatabaseUrl(raw?: string): string | undefined {
         url.searchParams.set('pgbouncer', 'true');
       }
       if (!url.searchParams.has('connection_limit')) {
-        url.searchParams.set('connection_limit', '1');
+        // Serverless (Vercel): 1 por instância, pois várias instâncias dividem o pool do Supabase.
+        // Servidor contínuo (local/Render): mais conexões evitam fila entre requisições simultâneas
+        // (o mapa dispara várias chamadas em paralelo ao abrir).
+        const fallback = process.env.VERCEL ? '1' : '5';
+        url.searchParams.set(
+          'connection_limit',
+          process.env.DB_CONNECTION_LIMIT?.trim() || fallback,
+        );
       }
     }
     if (!url.searchParams.has('schema')) {

@@ -19,7 +19,7 @@ async function expandPaintGuide(page: import('@playwright/test').Page) {
 async function enterPaintWithMicroarea01(page: import('@playwright/test').Page) {
   await expandPaintGuide(page);
   await page.getByTestId('paint-chip-1').click();
-  await expect(page.getByText('Pintando')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('paint-guide-header').getByText('Pintando')).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe('Pintura no mapa', () => {
@@ -59,8 +59,8 @@ test.describe('Pintura no mapa', () => {
       { timeout: 30_000 },
     );
 
-    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
-    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    const streetPath = page.locator('.leaflet-streetsHit-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeAttached({ timeout: 15_000 });
     await streetPath.click({ force: true });
 
     const response = await paintResponse;
@@ -89,8 +89,8 @@ test.describe('Pintura no mapa', () => {
       { timeout: 30_000 },
     );
 
-    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
-    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    const streetPath = page.locator('.leaflet-streetsHit-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeAttached({ timeout: 15_000 });
     await streetPath.click({ force: true });
 
     const response = await paintResponse;
@@ -109,8 +109,8 @@ test.describe('Pintura no mapa', () => {
     await enterPaintWithMicroarea01(page);
     await page.getByTestId('paint-mode-brush').click();
 
-    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
-    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    const streetPath = page.locator('.leaflet-streetsHit-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeAttached({ timeout: 15_000 });
     const box = await streetPath.boundingBox();
     if (!box) throw new Error('Rua não visível no mapa');
 
@@ -151,8 +151,8 @@ test.describe('Pintura no mapa', () => {
 
     await enterPaintWithMicroarea01(page);
 
-    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
-    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    const streetPath = page.locator('.leaflet-streetsHit-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeAttached({ timeout: 15_000 });
     await streetPath.click({ force: true });
     await expect(page.getByText(/pintada|vinculado/i).first()).toBeVisible({ timeout: 15_000 });
 
@@ -180,8 +180,8 @@ test.describe('Pintura no mapa', () => {
 
     await enterPaintWithMicroarea01(page);
 
-    const streetPath = page.locator('.leaflet-overlay-pane path.leaflet-interactive').first();
-    await expect(streetPath).toBeVisible({ timeout: 15_000 });
+    const streetPath = page.locator('.leaflet-streetsHit-pane path.leaflet-interactive').first();
+    await expect(streetPath).toBeAttached({ timeout: 15_000 });
     const box = await streetPath.boundingBox();
     if (!box) throw new Error('Rua não visível no mapa');
 
@@ -226,9 +226,9 @@ test.describe('Pintura no mapa', () => {
   test('atalho S sai do modo pintar', async ({ page }) => {
     await openMapAndWaitStreets(page);
     await enterPaintWithMicroarea01(page);
-    await expect(page.getByText('Pintando')).toBeVisible();
+    await expect(page.getByTestId('paint-guide-header').getByText('Pintando')).toBeVisible();
     await page.keyboard.press('s');
-    await expect(page.getByText('Pintando')).toBeHidden({ timeout: 10_000 });
+    await expect(page.getByTestId('paint-guide-header').getByText('Pintando')).toBeHidden({ timeout: 10_000 });
     await expect(page.getByText(/Modo pintar desativado|Pintar microáreas/i).first()).toBeVisible({
       timeout: 10_000,
     });

@@ -606,11 +606,14 @@ function StreetsLayerComponent({
     return `${hitFeatures.length}:${h}:${zoom}:${paintMode ? 1 : 0}:${paintScope}:${eraserMode ? 1 : 0}`;
   }, [hitFeatures, zoom, paintMode, paintScope, eraserMode]);
 
-  useEffect(() => {
+  // Camada de clique/hover em SVG (hit-testing nativo do navegador, exato e barato no pincel),
+  // enquanto o desenho das ruas usa Canvas (preferCanvas no mapa). O pane nasce junto do renderer.
+  const hitRenderer = useMemo(() => {
     if (!map.getPane('streetsHit')) {
       const pane = map.createPane('streetsHit');
       pane.style.zIndex = '450';
     }
+    return L.svg({ pane: 'streetsHit', padding: 0.3 });
   }, [map]);
 
   /** Versões curtas — pintado e cinza com keys separadas (pintar não remonta tudo). */
@@ -700,8 +703,9 @@ function StreetsLayerComponent({
       lineCap: 'round',
       lineJoin: 'round',
       pane: 'streetsHit',
+      renderer: hitRenderer,
     }),
-    [eraserMode, paintScope],
+    [eraserMode, paintScope, hitRenderer],
   );
 
   const bindInteraction = (feature: GeoJSON.Feature, layer: L.Layer) => {

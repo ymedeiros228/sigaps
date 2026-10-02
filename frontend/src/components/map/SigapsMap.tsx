@@ -1828,6 +1828,8 @@ export function SigapsMap() {
           doubleClickZoom={false}
           boxZoom={false}
           maxZoom={19}
+          // Canvas em vez de SVG: centenas de ruas viram um único <canvas> (DOM leve, pan/zoom fluido).
+          preferCanvas
         >
           <MapInteractionController />
           <MapCursorCoordsTracker />
