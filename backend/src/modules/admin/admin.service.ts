@@ -12,6 +12,7 @@ import { clearMunicipalityPaint } from '../../common/utils/clear-municipality-pa
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { invalidateAuthUser } from '../auth/jwt.strategy';
 
 @Injectable()
 export class AdminService {
@@ -264,6 +265,7 @@ export class AdminService {
         updatedAt: true,
       },
     });
+    invalidateAuthUser(userId);
 
     await this.audit.log({
       userId: actorId,
@@ -294,6 +296,7 @@ export class AdminService {
       where: { id: userId },
       data: { passwordHash, refreshToken: null },
     });
+    invalidateAuthUser(userId);
 
     await this.audit.log({
       userId: actorId,

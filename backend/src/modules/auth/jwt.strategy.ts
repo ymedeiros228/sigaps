@@ -29,6 +29,15 @@ const USER_CACHE_TTL_MS = 15_000;
 const USER_CACHE_MAX = 500;
 const userCache = new Map<string, { user: AuthUser; expires: number }>();
 
+/**
+ * Descarta o usuário em cache assim que ele é alterado (papel, ativo/inativo, senha),
+ * para a mudança valer na hora nesta instância. Em ambiente com várias instâncias
+ * (serverless), as demais respeitam o TTL de 15 s.
+ */
+export function invalidateAuthUser(userId: string): void {
+  userCache.delete(userId);
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
