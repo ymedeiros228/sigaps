@@ -1,13 +1,16 @@
 import { authApi, type User } from '../services/api';
 import { waitForApiReady } from '../utils/waitForApi';
 
-/** Credenciais padrão do seed — admin em desenvolvimento local */
-export const DEV_LOGIN = {
-  email: 'admin@passagemfranca.ma.gov.br',
-  password: 'Sigaps@2026',
-};
+/**
+ * Credenciais padrão do seed — admin em desenvolvimento local.
+ * O ternário com import.meta.env.DEV faz o Vite remover os valores do build de
+ * produção (antes a senha do seed ia parar no JS público).
+ */
+export const DEV_LOGIN = import.meta.env.DEV
+  ? { email: 'admin@passagemfranca.ma.gov.br', password: 'Sigaps@2026' }
+  : { email: '', password: '' };
 
-const LEGACY_DEV_EMAIL = 'jonas@passagemfranca.ma.gov.br';
+const LEGACY_DEV_EMAIL = import.meta.env.DEV ? 'jonas@passagemfranca.ma.gov.br' : '';
 
 export function getDevLoginDefaults() {
   if (!import.meta.env.DEV) {

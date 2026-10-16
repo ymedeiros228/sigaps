@@ -7,6 +7,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { Map, Refresh, ContactSupport } from '@mui/icons-material';
+import { isBrowserOffline, OFFLINE_MESSAGE } from '../../utils/apiError';
 
 interface MapEmptyStateProps {
   onImport?: () => void;
@@ -78,7 +79,9 @@ export function MapEmptyState({ onImport, canImport = true, loadError = false, a
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lineHeight: 1.7 }}>
               {loadError
-                ? 'Verifique sua internet e tente novamente. O sistema carrega as ruas do município automaticamente.'
+                ? isBrowserOffline()
+                  ? OFFLINE_MESSAGE
+                  : 'Não foi possível carregar as ruas agora. Tente novamente; o sistema carrega as ruas do município automaticamente.'
                 : 'As ruas serão carregadas automaticamente. Se nada acontecer, clique abaixo.'}
             </Typography>
             <Button

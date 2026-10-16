@@ -47,3 +47,6 @@ frontend/dist/
 # Manual PDF build temp
 docs/manual/_build.html
 .vercel
+
+# Capturas do Playwright MCP (sessões de desenvolvimento)
+.playwright-mcp/

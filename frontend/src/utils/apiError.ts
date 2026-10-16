@@ -19,16 +19,25 @@ function isGenericEnglishMessage(text: string) {
   return GENERIC_EN.has(text.trim().toLowerCase());
 }
 
+/** O navegador sabe dizer quando o aparelho está sem rede; fora isso, a falha é do servidor. */
+export function isBrowserOffline() {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+export const OFFLINE_MESSAGE =
+  'Seu aparelho está sem internet. Conecte-se ao Wi-Fi ou aos dados móveis e tente novamente.';
+export const SERVER_DOWN_MESSAGE =
+  'O servidor do SIGAPS não respondeu. Sua internet está funcionando: o problema é do nosso lado. Tente novamente em alguns instantes.';
+
 export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. Tente novamente.'): string {
   const err = error as AxiosError<ApiErrorBody>;
   const data = err.response?.data;
   if (!data) {
+    if (isBrowserOffline()) return OFFLINE_MESSAGE;
     if (err.code === 'ECONNABORTED') {
-      return 'A requisição demorou demais. O servidor pode estar acordando — tente novamente.';
+      return 'O servidor demorou demais para responder. Tente novamente em alguns instantes.';
     }
-    if (err.code === 'ERR_NETWORK') {
-      return 'Sem conexão com o servidor. Verifique sua internet e tente novamente.';
-    }
+    if (err.code === 'ERR_NETWORK') return SERVER_DOWN_MESSAGE;
     return fallback;
   }
 
@@ -71,7 +80,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
   }
 
   if (err.response?.status === 502 || err.response?.status === 504) {
-    return 'Servidor lento (hospedagem gratuita). Aguarde cerca de 1 minuto e tente novamente.';
+    return 'O servidor está lento agora. Aguarde um minuto e tente novamente.';
   }
 
   return fallback;
