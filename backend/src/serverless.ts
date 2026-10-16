@@ -4,10 +4,9 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { AppModule } from './app.module';
 import { setupApp } from './app.setup';
 
-type ExpressHandler = (req: IncomingMessage, res: ServerResponse) => void;
+import { toNestUrl } from './serverless-url';
 
-/** Prefixo pelo qual o Vercel encaminha a API (vercel.json → /api/*). */
-const API_PREFIX = '/api';
+type ExpressHandler = (req: IncomingMessage, res: ServerResponse) => void;
 
 let handlerPromise: Promise<ExpressHandler> | null = null;
 
@@ -27,14 +26,12 @@ function getHandler() {
   return handlerPromise;
 }
 
-/** Função do Vercel: tira o /api da frente e entrega para o Express do Nest. */
+/** Função do Vercel: ajusta a URL (sem /api e sem o ?path= do rewrite) e entrega ao Nest. */
 export default async function handler(
   req: IncomingMessage,
   res: ServerResponse,
 ) {
-  if (req.url === API_PREFIX || req.url?.startsWith(`${API_PREFIX}/`)) {
-    req.url = req.url.slice(API_PREFIX.length) || '/';
-  }
+  req.url = toNestUrl(req.url);
   const app = await getHandler();
   app(req, res);
 }
