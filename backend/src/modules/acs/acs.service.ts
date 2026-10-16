@@ -4,11 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { mkdir, writeFile } from 'fs/promises';
-import { extname, join } from 'path';
+import { extname } from 'path';
 import { EntityStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { StorageService } from '../../common/storage/storage.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import {
@@ -44,6 +44,7 @@ export class AcsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly storage: StorageService,
   ) {}
 
   findByMunicipality(municipalityId: string, viewerRole?: string) {
@@ -492,13 +493,11 @@ export class AcsService {
       );
     }
 
-    const uploadDir = join(process.cwd(), 'uploads', 'acs');
-    await mkdir(uploadDir, { recursive: true });
-
-    const filename = `${id}${ext}`;
-    await writeFile(join(uploadDir, filename), file.buffer);
-
-    const photoUrl = `/uploads/acs/${filename}`;
+    const photoUrl = await this.storage.putPublic(
+      `acs/${id}${ext}`,
+      file.buffer,
+      file.mimetype || 'application/octet-stream',
+    );
     const result = await this.prisma.acs.update({
       where: { id },
       data: { photoUrl },

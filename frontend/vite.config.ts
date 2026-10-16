@@ -36,6 +36,7 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [
+          /^\/api\//,
           /^\/entrega\//,
           /^\/downloads\//,
           /\.zip$/,

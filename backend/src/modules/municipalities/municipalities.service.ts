@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityStatus } from '@prisma/client';
-import { mkdir, writeFile } from 'fs/promises';
-import { extname, join } from 'path';
+import { extname } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { StorageService } from '../../common/storage/storage.service';
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { CreateMunicipalityDto } from './dto/municipality.dto';
 import { MapHomologationDto } from './dto/map-homologation.dto';
@@ -14,6 +14,7 @@ export class MunicipalitiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly storage: StorageService,
   ) {}
 
   findAll() {
@@ -85,13 +86,11 @@ export class MunicipalitiesService {
       );
     }
 
-    const uploadDir = join(process.cwd(), 'uploads', 'logos');
-    await mkdir(uploadDir, { recursive: true });
-
-    const filename = `${id}${ext}`;
-    await writeFile(join(uploadDir, filename), file.buffer);
-
-    const logoUrl = `/uploads/logos/${filename}`;
+    const logoUrl = await this.storage.putPublic(
+      `logos/${id}${ext}`,
+      file.buffer,
+      file.mimetype || 'application/octet-stream',
+    );
     return this.prisma.municipality.update({
       where: { id },
       data: { logoUrl },

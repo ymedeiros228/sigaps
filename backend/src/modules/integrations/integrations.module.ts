@@ -9,6 +9,6 @@ import { IntegrationsController } from './integrations.controller';
   imports: [AuditModule],
   controllers: [IntegrationsController],
   providers: [CnesService, EsusService, EsusSchedulerService],
-  exports: [CnesService],
+  exports: [CnesService, EsusSchedulerService],
 })
 export class IntegrationsModule {}

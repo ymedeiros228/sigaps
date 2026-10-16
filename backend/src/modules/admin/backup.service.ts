@@ -3,10 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'fs/promises';
-import { join } from 'path';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import { toText } from '../../common/utils/to-text.util';
 
 const BACKUP_VERSION = 1;
@@ -32,7 +31,10 @@ type StreetRow = {
 
 @Injectable()
 export class BackupService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async exportBackup(municipalityId: string) {
     const municipality = await this.prisma.municipality.findUnique({
@@ -334,78 +336,71 @@ export class BackupService {
 
   async saveAutoBackup(municipalityId: string) {
     const payload = await this.exportBackup(municipalityId);
-    const dir = this.autoBackupDir(municipalityId);
-    await mkdir(dir, { recursive: true });
-
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `auto-${stamp}.json`;
-    const filepath = join(dir, filename);
-    await writeFile(filepath, JSON.stringify(payload), 'utf8');
+    const body = JSON.stringify(payload);
+    await this.storage.putPrivate(
+      this.autoBackupKey(municipalityId, filename),
+      body,
+      'application/json',
+    );
 
     await this.pruneAutoBackups(municipalityId);
 
-    const info = await stat(filepath);
     return {
       filename,
-      sizeBytes: info.size,
-      createdAt: info.mtime.toISOString(),
+      sizeBytes: Buffer.byteLength(body, 'utf8'),
+      createdAt: new Date().toISOString(),
     };
   }
 
   async listAutoBackups(municipalityId: string) {
-    const dir = this.autoBackupDir(municipalityId);
+    const retentionNote = this.storage.isRemote
+      ? 'Backups automáticos ficam no armazenamento privado (Supabase Storage).'
+      : 'Backups automáticos ficam no disco do servidor. Baixe periodicamente.';
+    let items: Array<{
+      filename: string;
+      sizeBytes: number;
+      createdAt: string;
+    }> = [];
     try {
-      const files = await readdir(dir);
-      const items = await Promise.all(
-        files
-          .filter((f) => f.startsWith('auto-') && f.endsWith('.json'))
-          .map(async (filename) => {
-            const info = await stat(join(dir, filename));
-            return {
-              filename,
-              sizeBytes: info.size,
-              createdAt: info.mtime.toISOString(),
-            };
-          }),
+      const files = await this.storage.listPrivate(
+        this.autoBackupKey(municipalityId, ''),
       );
-      const sorted = items.sort((a, b) =>
-        b.createdAt.localeCompare(a.createdAt),
-      );
-      return {
-        lastAutoBackupAt: sorted[0]?.createdAt ?? null,
-        items: sorted,
-        retentionNote:
-          'Backups automáticos ficam no disco do servidor (efêmero no Render free). Baixe periodicamente.',
-      };
+      items = files
+        .filter((f) => f.name.startsWith('auto-') && f.name.endsWith('.json'))
+        .map((f) => ({
+          filename: f.name,
+          sizeBytes: f.sizeBytes,
+          createdAt: f.createdAt,
+        }));
     } catch {
-      return {
-        lastAutoBackupAt: null,
-        items: [] as Array<{
-          filename: string;
-          sizeBytes: number;
-          createdAt: string;
-        }>,
-        retentionNote:
-          'Backups automáticos ficam no disco do servidor (efêmero no Render free). Baixe periodicamente.',
-      };
+      items = [];
     }
+    return {
+      lastAutoBackupAt: items[0]?.createdAt ?? null,
+      items,
+      retentionNote,
+    };
   }
 
   async readAutoBackup(municipalityId: string, filename: string) {
     if (!/^auto-[\dTZ-]+\.json$/.test(filename)) {
       throw new BadRequestException('Nome de arquivo inválido.');
     }
-    const filepath = join(this.autoBackupDir(municipalityId), filename);
+    const raw = await this.storage
+      .getPrivate(this.autoBackupKey(municipalityId, filename))
+      .catch(() => null);
+    if (!raw) throw new NotFoundException('Backup automático não encontrado.');
     try {
-      const raw = await readFile(filepath, 'utf8');
-      return JSON.parse(raw) as Record<string, unknown>;
+      return JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
     } catch {
       throw new NotFoundException('Backup automático não encontrado.');
     }
   }
 
-  private autoBackupDir(municipalityId: string) {
-    return join(process.cwd(), 'uploads', 'backups', municipalityId);
+  private autoBackupKey(municipalityId: string, filename: string) {
+    return `backups/${municipalityId}/${filename}`;
   }
 
   private async pruneAutoBackups(municipalityId: string) {
@@ -418,13 +413,11 @@ export class BackupService {
         : AUTO_BACKUP_RETENTION;
     const listing = await this.listAutoBackups(municipalityId);
     const excess = listing.items.slice(maxKeep);
-    await Promise.all(
-      excess.map((item) =>
-        unlink(join(this.autoBackupDir(municipalityId), item.filename)).catch(
-          () => {},
-        ),
-      ),
-    );
+    await this.storage
+      .removePrivate(
+        excess.map((item) => this.autoBackupKey(municipalityId, item.filename)),
+      )
+      .catch(() => {});
   }
 
   private serializeStreet(s: StreetRow) {

@@ -23,10 +23,12 @@ function bundledPath(municipalityName: string, state: string): string | null {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-  const candidates = [
-    join(process.cwd(), 'assets', 'geo', `${slug}-streets.geojson`),
-    join(process.cwd(), 'assets', 'geo', 'passagem-franca-streets.geojson'),
-  ];
+  // cwd = backend/ (dev, Docker) ou raiz do repositório (função do Vercel)
+  const roots = [process.cwd(), join(process.cwd(), 'backend')];
+  const candidates = roots.flatMap((root) => [
+    join(root, 'assets', 'geo', `${slug}-streets.geojson`),
+    join(root, 'assets', 'geo', 'passagem-franca-streets.geojson'),
+  ]);
 
   for (const path of candidates) {
     if (existsSync(path)) return path;

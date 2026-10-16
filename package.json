@@ -10,7 +10,8 @@
     "dev:backend": "npm run start:dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "docker:up": "docker compose up -d",
-    "docker:build": "docker compose up -d --build"
+    "docker:build": "docker compose up -d --build",
+    "vercel-build": "cd backend && npx prisma generate && npm run build && cd ../frontend && VITE_API_URL=/api VITE_DEV_AUTO_LOGIN=false npm run build"
   },
   "devDependencies": {
     "marked": "^18.0.5",

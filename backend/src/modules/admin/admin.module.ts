@@ -9,5 +9,6 @@ import { BackupService } from './backup.service';
   imports: [AuditModule],
   controllers: [AdminController],
   providers: [AdminService, BackupService, BackupSchedulerService],
+  exports: [BackupSchedulerService],
 })
 export class AdminModule {}

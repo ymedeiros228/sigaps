@@ -23,6 +23,8 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { CadastrosModule } from './modules/cadastros/cadastros.module';
 import { PlacesModule } from './modules/places/places.module';
 import { EntregaModule } from './modules/entrega/entrega.module';
+import { CronModule } from './modules/cron/cron.module';
+import { StorageModule } from './common/storage/storage.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { MunicipalityScopeGuard } from './common/guards/municipality-scope.guard';
@@ -32,7 +34,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../.env'] }),
-    ScheduleModule.forRoot(),
+    // No Vercel (serverless) não há processo contínuo: as tarefas vêm do Vercel Cron (/cron/*).
+    ...(process.env.VERCEL ? [] : [ScheduleModule.forRoot()]),
+    StorageModule,
     ThrottlerModule.forRoot([
       {
         name: 'default',
@@ -63,6 +67,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
     CadastrosModule,
     PlacesModule,
     EntregaModule,
+    CronModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
