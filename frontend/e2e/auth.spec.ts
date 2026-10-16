@@ -4,7 +4,7 @@ import { E2E_ADMIN } from './helpers';
 test.describe('Autenticação', () => {
   test('exibe formulário de login', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.getByRole('heading', { name: 'Bem-vindo' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Boas-vindas' })).toBeVisible();
     await expect(page.getByTestId('login-email')).toBeVisible();
     await expect(page.getByTestId('login-password')).toBeVisible();
     await expect(page.getByTestId('login-submit')).toBeVisible();
