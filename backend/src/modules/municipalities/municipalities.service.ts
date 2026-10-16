@@ -3,7 +3,10 @@ import { EntityStatus } from '@prisma/client';
 import { extname } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
-import { StorageService } from '../../common/storage/storage.service';
+import {
+  imageContentType,
+  StorageService,
+} from '../../common/storage/storage.service';
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { CreateMunicipalityDto } from './dto/municipality.dto';
 import { MapHomologationDto } from './dto/map-homologation.dto';
@@ -89,7 +92,7 @@ export class MunicipalitiesService {
     const logoUrl = await this.storage.putPublic(
       `logos/${id}${ext}`,
       file.buffer,
-      file.mimetype || 'application/octet-stream',
+      imageContentType(ext),
     );
     return this.prisma.municipality.update({
       where: { id },

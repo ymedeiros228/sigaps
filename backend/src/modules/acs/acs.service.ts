@@ -8,7 +8,10 @@ import { extname } from 'path';
 import { EntityStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
-import { StorageService } from '../../common/storage/storage.service';
+import {
+  imageContentType,
+  StorageService,
+} from '../../common/storage/storage.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import {
@@ -496,7 +499,7 @@ export class AcsService {
     const photoUrl = await this.storage.putPublic(
       `acs/${id}${ext}`,
       file.buffer,
-      file.mimetype || 'application/octet-stream',
+      imageContentType(ext),
     );
     const result = await this.prisma.acs.update({
       where: { id },

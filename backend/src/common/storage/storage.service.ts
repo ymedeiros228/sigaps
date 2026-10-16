@@ -3,6 +3,19 @@ import { ConfigService } from '@nestjs/config';
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 
+/** Content-Type definido pelo servidor (nunca o mimetype enviado pelo cliente). */
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+};
+
+export function imageContentType(ext: string) {
+  return IMAGE_CONTENT_TYPES[ext.toLowerCase()] ?? 'application/octet-stream';
+}
+
 export type StoredObject = {
   name: string;
   sizeBytes: number;
