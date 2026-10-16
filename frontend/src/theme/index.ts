@@ -123,8 +123,12 @@ export const createAppTheme = (darkMode: boolean) =>
           root: {
             '& .MuiOutlinedInput-root': {
               borderRadius: 10,
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              // Verde só sem erro: campo inválido continua vermelho mesmo com foco
+              '&.Mui-focused:not(.Mui-error) .MuiOutlinedInput-notchedOutline': {
                 borderColor: brand.green,
+                borderWidth: 2,
+              },
+              '&.Mui-focused.Mui-error .MuiOutlinedInput-notchedOutline': {
                 borderWidth: 2,
               },
             },

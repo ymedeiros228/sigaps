@@ -7,8 +7,18 @@ import {
   Alert,
   InputAdornment,
   CircularProgress,
+  IconButton,
 } from '@mui/material';
-import { Email, Lock, Map } from '@mui/icons-material';
+import {
+  Email,
+  Groups,
+  KeyboardCapslock,
+  Lock,
+  Map,
+  PhoneAndroid,
+  Visibility,
+  VisibilityOff,
+} from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
@@ -41,8 +51,11 @@ export function LoginPage() {
   const [connecting, setConnecting] = useState(false);
   const [wakeStatus, setWakeStatus] = useState<string | null>(null);
   const [autoLogging, setAutoLogging] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const autoLoginTried = useRef(false);
   const { register, handleSubmit, formState, reset } = useForm<LoginForm>({
+    mode: 'onSubmit',
     defaultValues: devDefaults,
   });
 
@@ -190,9 +203,13 @@ export function LoginPage() {
             microáreas, visualize a cobertura e gere relatórios profissionais.
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {['Mapa GIS', 'Microáreas', 'OpenStreetMap'].map((tag) => (
+            {[
+              { label: 'Mapa real do município', Icon: Map },
+              { label: 'Microáreas por ACS', Icon: Groups },
+              { label: 'Funciona no celular', Icon: PhoneAndroid },
+            ].map(({ label, Icon }) => (
               <Box
-                key={tag}
+                key={label}
                 sx={{
                   px: 2,
                   py: 0.75,
@@ -205,8 +222,8 @@ export function LoginPage() {
                   fontWeight: 500,
                 }}
               >
-                <Map sx={{ fontSize: 16 }} />
-                {tag}
+                <Icon sx={{ fontSize: 16 }} aria-hidden />
+                {label}
               </Box>
             ))}
           </Box>
@@ -218,18 +235,20 @@ export function LoginPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          p: { xs: 2, sm: 4 },
+          p: { xs: 0, sm: 4 },
           bgcolor: 'background.default',
         }}
       >
         <Paper
           elevation={0}
           sx={{
-            p: { xs: 3, sm: 4 },
+            px: { xs: 2.5, sm: 4 },
+            py: { xs: 4, sm: 4 },
             width: '100%',
             maxWidth: 420,
-            border: '1px solid',
-            borderColor: 'divider',
+            border: { xs: 'none', sm: '1px solid' },
+            borderColor: { sm: 'divider' },
+            bgcolor: { xs: 'transparent', sm: 'background.paper' },
           }}
         >
           <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', alignItems: 'center', gap: 1, mb: 3 }}>
@@ -239,13 +258,16 @@ export function LoginPage() {
               alt={`Prefeitura de ${MUNICIPALITY_NAME}`}
               sx={{ height: 56, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
             />
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
               SIGAPS
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {MUNICIPALITY_NAME} — {MUNICIPALITY_STATE}
             </Typography>
           </Box>
 
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Bem-vindo
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Boas-vindas
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Acesse sua conta para continuar
@@ -261,13 +283,6 @@ export function LoginPage() {
           {autoLogging && (
             <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
               Entrando automaticamente...
-            </Alert>
-          )}
-
-          {import.meta.env.PROD && !connecting && !autoLogging && (
-            <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-              Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto enquanto o
-              servidor acorda. Depois disso, o acesso fica rápido.
             </Alert>
           )}
 
@@ -291,6 +306,9 @@ export function LoginPage() {
               margin="normal"
               placeholder="seu.email@municipio.ma.gov.br"
               autoComplete="email"
+              inputMode="email"
+              error={!!formState.errors.email}
+              helperText={formState.errors.email ? 'Informe seu e-mail.' : undefined}
               {...register('email', { required: true })}
               slotProps={{
                 htmlInput: { 'data-testid': 'login-email' },
@@ -306,10 +324,22 @@ export function LoginPage() {
             <TextField
               fullWidth
               label="Senha"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               margin="normal"
               placeholder="Digite sua senha"
               autoComplete="current-password"
+              error={!!formState.errors.password}
+              helperText={
+                formState.errors.password ? (
+                  'Informe sua senha.'
+                ) : capsLockOn ? (
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                    <KeyboardCapslock sx={{ fontSize: 14 }} aria-hidden />
+                    Caps Lock ligado
+                  </Box>
+                ) : undefined
+              }
+              onKeyUp={(e) => setCapsLockOn(e.getModifierState?.('CapsLock') ?? false)}
               {...register('password', { required: true })}
               slotProps={{
                 htmlInput: { 'data-testid': 'login-password' },
@@ -317,6 +347,18 @@ export function LoginPage() {
                   startAdornment: (
                     <InputAdornment position="start">
                       <Lock fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        edge="end"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                        aria-pressed={showPassword}
+                      >
+                        {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
                     </InputAdornment>
                   ),
                 },
@@ -344,7 +386,7 @@ export function LoginPage() {
             color="text.secondary"
             sx={{ mt: 3, display: 'block', textAlign: 'center' }}
           >
-            Secretaria Municipal de Saúde — {MUNICIPALITY_NAME}/{MUNICIPALITY_STATE}
+            Secretaria Municipal de Saúde · {MUNICIPALITY_NAME}/{MUNICIPALITY_STATE}
           </Typography>
         </Paper>
       </Box>
