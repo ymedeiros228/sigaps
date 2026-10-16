@@ -57,7 +57,7 @@ describe('StorageService — disco local', () => {
 describe('StorageService — Supabase Storage', () => {
   const env = {
     SUPABASE_URL: 'https://proj.supabase.co/',
-    SUPABASE_SERVICE_ROLE_KEY: 'service-key',
+    SUPABASE_SERVICE_ROLE_KEY: 'eyJ.service-key',
   };
   const originalFetch = global.fetch;
   let fetchMock: jest.Mock;
@@ -93,8 +93,23 @@ describe('StorageService — Supabase Storage', () => {
       'https://proj.supabase.co/storage/v1/object/sigaps-public/acs/a%201.jpg',
     ]);
     const headers = calls[2][1].headers as Record<string, string>;
-    expect(headers.Authorization).toBe('Bearer service-key');
+    expect(headers.Authorization).toBe('Bearer eyJ.service-key');
     expect(headers['x-upsert']).toBe('true');
+  });
+
+  it('chave nova sb_secret_ vai só no apikey', async () => {
+    const storage = makeStorage({
+      SUPABASE_URL: 'https://proj.supabase.co',
+      SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_abc',
+    });
+    await storage.putPrivate('backups/m1/a.json', '{}', 'application/json');
+    const calls = fetchMock.mock.calls as Array<[string, RequestInit]>;
+    const headers = calls[calls.length - 1][1].headers as Record<
+      string,
+      string
+    >;
+    expect(headers.apikey).toBe('sb_secret_abc');
+    expect(headers.Authorization).toBeUndefined();
   });
 
   it('ignora bucket já existente e só cria uma vez', async () => {

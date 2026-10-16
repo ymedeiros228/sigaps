@@ -226,10 +226,14 @@ export class StorageService {
     extraHeaders: Record<string, string> = {},
   ) {
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.serviceKey}`,
       apikey: this.serviceKey!,
       ...extraHeaders,
     };
+    // Chave antiga (service_role) é um JWT e vai também no Authorization.
+    // A nova (sb_secret_...) só vale no apikey: no Authorization ela é recusada.
+    if (this.serviceKey!.startsWith('eyJ')) {
+      headers.Authorization = `Bearer ${this.serviceKey}`;
+    }
     if (contentType) headers['Content-Type'] = contentType;
     return fetch(`${this.supabaseUrl}/storage/v1${path}`, {
       method,
