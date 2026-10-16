@@ -46,3 +46,4 @@ frontend/dist/
 
 # Manual PDF build temp
 docs/manual/_build.html
+.vercel
