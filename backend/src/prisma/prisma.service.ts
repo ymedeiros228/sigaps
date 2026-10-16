@@ -35,6 +35,25 @@ function normalizeDatabaseUrl(raw?: string): string | undefined {
   }
 }
 
+export type DbErrorReason =
+  'not_configured' | 'paused_or_not_found' | 'auth_failed' | 'unreachable';
+
+/** Motivo resumido da falha de conexão (sem expor host, usuário ou senha). */
+export function classifyDbError(error: unknown): DbErrorReason {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/Environment variable not found: DATABASE_URL/i.test(message)) {
+    return 'not_configured';
+  }
+  // Supabase pausado ou projeto removido: o pooler não acha o tenant
+  if (/tenant\/user .* not found|ENOTFOUND/i.test(message)) {
+    return 'paused_or_not_found';
+  }
+  if (/password authentication failed|P1000/i.test(message)) {
+    return 'auth_failed';
+  }
+  return 'unreachable';
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -56,17 +75,29 @@ export class PrismaService
     }
   }
 
+  /**
+   * Tenta conectar no boot, mas não derruba a API se o banco estiver fora
+   * (ex.: Supabase pausado): o Prisma reconecta sozinho na próxima consulta e
+   * o /health continua respondendo, com /health/db dizendo o motivo.
+   * No Vercel, uma tentativa só, para não atrasar o cold start.
+   */
   async onModuleInit() {
-    for (let attempt = 0; attempt < 5; attempt++) {
+    const attempts = process.env.VERCEL ? 1 : 5;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
         await this.$connect();
         return;
       } catch (error) {
-        if (attempt === 4) throw error;
+        if (attempt === attempts) {
+          this.logger.error(
+            `Banco indisponível no boot (${classifyDbError(error)}); a API sobe e tenta de novo na próxima consulta.`,
+          );
+          return;
+        }
         this.logger.warn(
-          `Conexão DB tentativa ${attempt + 1} falhou — retentando...`,
+          `Conexão DB tentativa ${attempt} falhou — retentando...`,
         );
-        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
       }
     }
   }

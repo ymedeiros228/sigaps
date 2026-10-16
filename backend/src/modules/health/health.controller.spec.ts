@@ -39,7 +39,18 @@ describe('HealthController', () => {
   it('db returns ok false when prisma throws', async () => {
     prisma.$queryRaw.mockRejectedValueOnce(new Error('down'));
     await expect(controller.db()).resolves.toEqual(
-      expect.objectContaining({ ok: false }),
+      expect.objectContaining({ ok: false, reason: 'unreachable' }),
     );
+  });
+
+  it('db explica Supabase pausado sem expor o usuário do banco', async () => {
+    prisma.$queryRaw.mockRejectedValueOnce(
+      new Error('FATAL: (ENOTFOUND) tenant/user postgres.abcdef not found'),
+    );
+    const result = await controller.db();
+    expect(result).toEqual(
+      expect.objectContaining({ ok: false, reason: 'paused_or_not_found' }),
+    );
+    expect(JSON.stringify(result)).not.toContain('abcdef');
   });
 });

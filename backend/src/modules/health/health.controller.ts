@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../../common/decorators/roles.decorator';
-import { PrismaService } from '../../prisma/prisma.service';
+import { classifyDbError, PrismaService } from '../../prisma/prisma.service';
 
 @ApiTags('Health')
 @SkipThrottle()
@@ -15,6 +15,7 @@ export class HealthController {
   @ApiOperation({ summary: 'Verifica se a API está online' })
   check() {
     const commit =
+      process.env.VERCEL_GIT_COMMIT_SHA?.trim() ||
       process.env.RENDER_GIT_COMMIT?.trim() ||
       process.env.GIT_COMMIT?.trim() ||
       null;
@@ -34,8 +35,8 @@ export class HealthController {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { ok: true, ts: Date.now() };
-    } catch {
-      return { ok: false, ts: Date.now() };
+    } catch (error) {
+      return { ok: false, ts: Date.now(), reason: classifyDbError(error) };
     }
   }
 
