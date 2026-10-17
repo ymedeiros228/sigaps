@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useResponsiveDialog } from './useResponsiveDialog';
 import { Upload, Download } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { integrationsApi } from '../../services/api';
@@ -32,6 +33,7 @@ export function EsusImportDialog({
   onClose,
   onSuccess,
 }: EsusImportDialogProps) {
+  const responsive = useResponsiveDialog();
   const fileRef = useRef<HTMLInputElement>(null);
   const [csv, setCsv] = useState('');
   const [importErrors, setImportErrors] = useState<
@@ -97,6 +99,7 @@ export function EsusImportDialog({
 
   return (
     <Dialog
+      {...responsive}
       open={open}
       onClose={handleClose}
       maxWidth="md"

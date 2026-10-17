@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useResponsiveDialog } from '../useResponsiveDialog';
 import { ContentPaste, Upload, Download } from '@mui/icons-material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { municipalitiesApi, ubsApi } from '../../../services/api';
@@ -42,6 +43,7 @@ export function UbsBulkImportDialog({
   onSuccess,
   onError,
 }: UbsBulkImportDialogProps) {
+  const responsive = useResponsiveDialog();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
   const [preview, setPreview] = useState<UbsImportRow[]>([]);
@@ -138,7 +140,7 @@ export function UbsBulkImportDialog({
   }, [preview]);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog {...responsive} open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ fontWeight: 800 }}>Importar UBS da planilha</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">

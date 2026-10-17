@@ -9,6 +9,7 @@ import {
   DialogTitle,
   Typography,
 } from '@mui/material';
+import { useResponsiveDialog } from './useResponsiveDialog';
 import { Upload, Download } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { streetsApi } from '../../services/api';
@@ -58,6 +59,7 @@ export function NeighborhoodBulkAssignDialog({
   onSuccess,
   onError,
 }: NeighborhoodBulkAssignDialogProps) {
+  const responsive = useResponsiveDialog();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<ReturnType<typeof parseCsv>>([]);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -123,7 +125,7 @@ export function NeighborhoodBulkAssignDialog({
   }, [preview]);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog {...responsive} open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 800 }}>Vincular ruas aos bairros</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">

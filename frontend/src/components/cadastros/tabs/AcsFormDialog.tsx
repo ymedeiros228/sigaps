@@ -3,7 +3,6 @@ import {
   Avatar,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -20,6 +19,8 @@ import { useForm } from 'react-hook-form';
 import type { Acs, Microarea } from '../../../services/api';
 import { assetUrl } from '../../../utils/assetUrl';
 import { sortMicroareas } from '../../../utils/sortMicroareas';
+import { MicroareaDot } from '../MicroareaDot';
+import { dialogFormActionsSx, dialogFormSx, useResponsiveDialog } from '../useResponsiveDialog';
 
 export type AcsFormValues = {
   name: string;
@@ -57,6 +58,7 @@ export function AcsFormDialog({
   onPhotoUpload,
 }: AcsFormDialogProps) {
   const theme = useTheme();
+  const responsive = useResponsiveDialog();
   const fileRef = useRef<HTMLInputElement>(null);
   const {
     register,
@@ -90,11 +92,11 @@ export function AcsFormDialog({
     handleSubmit((values) => onSave(values, andAnother));
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>
+    <Dialog {...responsive} open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 700 }}>
         {editing ? 'Editar ACS' : 'Cadastrar ACS'}
       </DialogTitle>
-      <form onSubmit={submit(false)}>
+      <Box component="form" onSubmit={submit(false)} sx={dialogFormSx}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
           <Typography variant="body2" color="text.secondary">
             {editing
@@ -150,7 +152,7 @@ export function AcsFormDialog({
           <TextField
             label="Nome completo"
             autoFocus
-            {...register('name', { required: 'Informe o nome' })}
+            {...register('name', { required: 'Informe o nome completo do agente' })}
             error={!!errors.name}
             helperText={errors.name?.message}
             fullWidth
@@ -171,13 +173,9 @@ export function AcsFormDialog({
             <MenuItem value="">Sem microárea</MenuItem>
             {microareaOptions.map((m) => (
               <MenuItem key={m.id} value={m.id}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Chip
-                    label={m.number}
-                    size="small"
-                    sx={{ bgcolor: m.color, color: '#fff', minWidth: 28, height: 22 }}
-                  />
-                  {m.name}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontVariantNumeric: 'tabular-nums' }}>
+                  <MicroareaDot color={m.color} size={12} />
+                  {m.number} · {m.name}
                 </Box>
               </MenuItem>
             ))}
@@ -193,7 +191,7 @@ export function AcsFormDialog({
           />
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 2.5, flexWrap: 'wrap', gap: 1 }}>
+        <DialogActions disableSpacing sx={{ ...dialogFormActionsSx, flexWrap: 'wrap' }}>
           <Button onClick={onClose} disabled={loading}>
             Cancelar
           </Button>
@@ -217,7 +215,7 @@ export function AcsFormDialog({
             {loading ? 'Salvando…' : editing ? 'Salvar alterações' : 'Salvar ACS'}
           </Button>
         </DialogActions>
-      </form>
+      </Box>
     </Dialog>
   );
 }

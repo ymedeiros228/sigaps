@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useResponsiveDialog } from '../useResponsiveDialog';
 import { ContentPaste, Upload, Download } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { acsApi } from '../../../services/api';
@@ -38,6 +39,7 @@ export function AcsBulkImportDialog({
   onSuccess,
   onError,
 }: AcsBulkImportDialogProps) {
+  const responsive = useResponsiveDialog();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
   const [preview, setPreview] = useState<AcsImportRow[]>([]);
@@ -124,7 +126,7 @@ export function AcsBulkImportDialog({
   }, [preview]);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog {...responsive} open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 800 }}>Importar ACS da planilha</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
