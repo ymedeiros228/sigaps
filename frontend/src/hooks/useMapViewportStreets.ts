@@ -8,11 +8,11 @@ import { mergeStreetsById } from '../utils/streetsCache';
 import { useDebouncedValue } from './useDebouncedValue';
 import { CACHE, queryKeys } from '../utils/queryKeys';
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from '../utils/queryRetry';
+import { VIEWPORT_LOAD_ACTIVATE_ABOVE, VIEWPORT_STREETS_THRESHOLD } from '../constants/streets';
 
-/** Acima disso o FE considera “mapa grande” (UI/probe). */
-export const VIEWPORT_STREETS_THRESHOLD = 800;
-/** Só ativa carregamento por bbox acima deste total — evita quebrar municípios ~800–1200 ruas. */
-export const VIEWPORT_LOAD_ACTIVATE_ABOVE = 1200;
+// Reexporta para quem já importa daqui (ex.: SigapsMap). Código fora do mapa deve
+// importar de constants/streets, senão leva o Leaflet junto.
+export { VIEWPORT_LOAD_ACTIVATE_ABOVE, VIEWPORT_STREETS_THRESHOLD };
 
 type StreetsMapData = { items: Street[]; total: number };
 

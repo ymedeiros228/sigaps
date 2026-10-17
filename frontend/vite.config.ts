@@ -80,21 +80,56 @@ export default defineConfig({
   build: {
     // manifest.json em dist/.vite: o scripts/check-bundle.mjs lê dele o que a tela de login baixa.
     manifest: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/leaflet') || id.includes('react-leaflet')) {
-            return 'leaflet';
-          }
-          if (id.includes('@mui/icons-material')) return 'mui-icons';
-          if (id.includes('@mui/material') || id.includes('@emotion')) return 'mui-core';
-          if (id.includes('recharts')) return 'charts';
-          if (id.includes('html2canvas') || id.includes('jspdf') || id.includes('qrcode')) {
-            return 'export-tools';
-          }
-          if (id.includes('/xlsx/') || id.includes('node_modules/xlsx')) {
-            return 'xlsx';
-          }
+        // Divisão do JS em pacotes (opção nativa do Rolldown; substitui o manualChunks).
+        // O manualChunks antigo puxava as dependências de cada grupo (inclusive o React)
+        // para dentro dos pacotes de gráficos/PDF/mapa, e a tela de login baixava tudo.
+        // Aqui o grupo "vendor" (maior prioridade) fica com toda biblioteca que a entrada
+        // usa de forma estática (tag $initial: React, MUI, router, React Query...).
+        // Os grupos pesados só recebem o que sobra, então ficam fora da tela de login
+        // e só baixam quando a rota precisa. O scripts/check-bundle.mjs confere isso.
+        codeSplitting: {
+          groups: [
+            {
+              name: 'vendor',
+              test: /[\\/]node_modules[\\/]/,
+              tags: ['$initial'],
+              priority: 100,
+            },
+            {
+              // Gráficos: só o dashboard.
+              name: 'charts',
+              test: /[\\/]node_modules[\\/](recharts|victory-vendor|d3-[^\\/]+)[\\/]/,
+              priority: 30,
+            },
+            {
+              // Exportação em PDF/imagem: só quando o usuário pede. O canvg e o dompurify
+              // ficam de fora de propósito: o jspdf só os carrega sob demanda (import dinâmico).
+              name: 'pdf',
+              test: /[\\/]node_modules[\\/](jspdf|html2canvas|qrcode)[\\/]/,
+              priority: 30,
+            },
+            {
+              // Planilha: só na importação dos cadastros.
+              name: 'xlsx',
+              test: /[\\/]node_modules[\\/]xlsx[\\/]/,
+              priority: 30,
+            },
+            {
+              // Mapa: Leaflet e Turf.
+              name: 'map',
+              test: /[\\/]node_modules[\\/](leaflet|react-leaflet|@react-leaflet|@turf)[\\/]/,
+              priority: 20,
+            },
+            {
+              // Componentes e ícones do MUI que só as páginas internas usam: um pacote só,
+              // em vez de dezenas de arquivos pequenos (menos pedidos no celular).
+              name: 'mui-pages',
+              test: /[\\/]node_modules[\\/](@mui|@emotion)[\\/]/,
+              priority: 10,
+            },
+          ],
         },
       },
     },

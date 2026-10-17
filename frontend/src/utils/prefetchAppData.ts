@@ -11,7 +11,7 @@ import { fetchCadastrosBundle } from './fetchCadastrosData';
 import { hydrateCadastrosCache } from './hydrateCadastrosCache';
 import { fetchAllMapStreets } from './fetchAllStreets';
 import { CACHE, queryKeys } from './queryKeys';
-import { VIEWPORT_STREETS_THRESHOLD } from '../hooks/useMapViewportStreets';
+import { VIEWPORT_STREETS_THRESHOLD } from '../constants/streets';
 
 /** Prefetch cadastros com bundle + fallback (compatível com API antiga). */
 export function prefetchCadastrosData(queryClient: QueryClient, municipalityId: string) {
