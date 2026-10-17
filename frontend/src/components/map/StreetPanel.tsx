@@ -8,7 +8,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Alert,
   alpha,
   useTheme,
   FormControl,
@@ -254,20 +253,42 @@ export function StreetPanel({
       elevation={0}
       sx={{
         position: 'absolute',
-        top: { xs: 100, sm: 120 },
-        right: { xs: 8, sm: 16 },
+        // Celular: folha embaixo (a rua escolhida continua visível no mapa, acima dela).
+        // Computador: coluna à direita, logo abaixo da barra.
+        top: { xs: 'auto', sm: 'var(--map-toolbar-offset, 72px)' },
+        bottom: { xs: 8, sm: 'auto' },
+        right: { xs: 8, sm: 12 },
         left: { xs: 8, sm: 'auto' },
-        zIndex: 1000,
+        zIndex: 1002,
         width: { xs: 'auto', sm: 360 },
-        maxHeight: { xs: 'calc(100vh - 200px)', sm: 'calc(100vh - 140px)' },
+        maxHeight: {
+          xs: '58%',
+          sm: 'calc(100% - var(--map-toolbar-offset, 72px) - 12px)',
+        },
         overflow: 'auto',
+        overscrollBehavior: 'contain',
         bgcolor: glassBg,
         borderRadius: 3,
-        borderTop: `3px solid ${accent}`,
       }}
     >
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 1 }}>
+      <Box sx={{ px: 2, pb: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'start',
+            gap: 1,
+            // Cabeçalho fica visível ao rolar: nome da rua e o X sempre à mão.
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+            mx: -2,
+            px: 2,
+            pt: 2,
+            pb: 1,
+            bgcolor: glassBg,
+          }}
+        >
           <Box sx={{ display: 'flex', gap: 1.5, minWidth: 0 }}>
             <Box
               sx={{
@@ -285,28 +306,33 @@ export function StreetPanel({
               <SignpostIcon />
             </Box>
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                {street.streetType ?? 'Rua'}
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25, fontSize: '1.0625rem' }}>
                 {street.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {[
+                  street.streetType ?? 'Rua',
+                  street.lengthMeters ? `${Math.round(street.lengthMeters)} m` : null,
+                  street.neighborhood?.name ?? null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </Typography>
             </Box>
           </Box>
-          <IconButton size="small" onClick={onClose} sx={{ mt: -0.5 }}>
+          <IconButton size="small" onClick={onClose} aria-label="Fechar detalhes da rua" sx={{ mt: -0.5 }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
 
-        <Alert severity="info" icon={<LightbulbOutlinedIcon fontSize="small" />} sx={{ mt: 1.5, py: 0.5, borderRadius: 2 }}>
-          <Typography variant="caption" component="div">
-            {hasMultipleMicroareas
-              ? 'Esta rua tem partes com cores diferentes. Toque em "Colorir no mapa" para ajustar.'
-              : dualSide
-                ? 'Avenidas podem ter cores diferentes em cada lado.'
-                : 'Toque em "Colorir no mapa" e depois toque nas ruas.'}
-          </Typography>
-        </Alert>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-start', mt: 0.5 }}>
+          <LightbulbOutlinedIcon sx={{ fontSize: 16, mt: '1px', color: 'info.main' }} />
+          {hasMultipleMicroareas
+            ? 'Esta rua tem partes com cores diferentes. Toque em "Editar no mapa" para ajustar.'
+            : dualSide
+              ? 'Avenidas podem ter cores diferentes em cada lado.'
+              : 'Toque em "Pintar no mapa" e depois nas ruas.'}
+        </Typography>
 
         {hasSegments && (
           <Box sx={{ mt: 1.5, mb: 1 }}>
@@ -392,16 +418,6 @@ export function StreetPanel({
 
         <Divider sx={{ my: 2 }} />
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 2 }}>
-          <StatBox label="Imóveis" value={street.propertyCount} />
-          <StatBox label="Famílias" value={street.familyCount} />
-          <StatBox label="Habitantes" value={street.inhabitantCount} />
-          <StatBox
-            label="Comprimento"
-            value={street.lengthMeters ? `${Math.round(street.lengthMeters)} m` : '—'}
-          />
-        </Box>
-
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
             Famílias e habitantes
@@ -453,7 +469,7 @@ export function StreetPanel({
           )}
         </Box>
 
-        <InfoRow label="Bairro" value={street.neighborhood?.name ?? '—'} />
+        <InfoRow label="Bairro" value={street.neighborhood?.name ?? 'Sem bairro'} />
 
         <Divider sx={{ my: 2 }} />
 
@@ -668,15 +684,6 @@ export function StreetPanel({
         )}
       </Box>
     </Paper>
-  );
-}
-
-function StatBox({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <Box sx={{ p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{label}</Typography>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{value}</Typography>
-    </Box>
   );
 }
 

@@ -205,7 +205,8 @@ export function MapToolbar({
         top: { xs: 8, sm: 12 },
         left: { xs: 8, sm: 12 },
         right: { xs: 8, sm: 12 },
-        zIndex: 1000,
+        // Acima da legenda e dos painéis: a lista da busca abre por cima deles
+        zIndex: 1005,
         px: { xs: 1, sm: 1.25 },
         py: 1,
         borderRadius: 3,

@@ -1370,8 +1370,16 @@ export function MapCenterController() {
     map.once('moveend', onEnd);
 
     if (mapFlyTarget.bounds) {
+      // Enquadra a rua na parte livre do mapa: abaixo da barra e fora do painel de detalhes
+      // (folha embaixo no celular, coluna à direita no computador).
+      const container = map.getContainer();
+      const size = map.getSize();
+      const toolbarOffset =
+        parseInt(getComputedStyle(container.parentElement ?? container).getPropertyValue('--map-toolbar-offset'), 10) || 72;
+      const narrow = size.x < 600;
       map.flyToBounds(mapFlyTarget.bounds, {
-        padding: [48, 48],
+        paddingTopLeft: [32, toolbarOffset + 8],
+        paddingBottomRight: narrow ? [32, Math.round(size.y * 0.58) + 24] : [384, 80],
         maxZoom: mapFlyTarget.zoom,
         duration: 0.75,
       });

@@ -26,6 +26,8 @@ export type StreetSearchOption = {
   lng?: number;
   microareaId?: string;
   geojson?: GeoJSON.LineString;
+  /** Linha de apoio na lista (ex.: qual trecho, de qual microárea). */
+  detail?: string;
 };
 
 interface StreetSearchBarProps {
@@ -97,9 +99,10 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         pushUnique(remoteStreetOptions, `street-${s.id}`, {
           id: s.id,
           label: formatStreetLabel(s),
-          group: 'Todas as ruas',
+          group: 'Rua',
           kind: 'street',
           geojson: fixLineString(s.geojson as GeoJSON.LineString),
+          detail: s.microarea?.name,
         });
       }
     });
@@ -149,6 +152,25 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
         lng: p.longitude,
       }),
     );
+
+    // Ruas com o mesmo nome (trechos separados no OSM): numera de oeste para leste,
+    // senão a lista mostra duas linhas idênticas e não dá para saber qual escolher.
+    const streetOptions = [...localStreetOptions, ...remoteStreetOptions];
+    const byLabel = new Map<string, StreetSearchOption[]>();
+    for (const opt of streetOptions) {
+      const list = byLabel.get(opt.label) ?? [];
+      list.push(opt);
+      byLabel.set(opt.label, list);
+    }
+    for (const list of byLabel.values()) {
+      if (list.length < 2) continue;
+      const westX = (o: StreetSearchOption) => o.geojson?.coordinates?.[0]?.[0] ?? 0;
+      [...list]
+        .sort((a, b) => westX(a) - westX(b))
+        .forEach((opt, i) => {
+          opt.detail = [`Trecho ${i + 1} de ${list.length}`, opt.detail].filter(Boolean).join(' · ');
+        });
+    }
 
     return [
       ...ubsOptions,
@@ -262,7 +284,7 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
                 >
                   <ListItemText
                     primary={opt.label}
-                    secondary={opt.group}
+                    secondary={opt.detail ? `${opt.group} · ${opt.detail}` : opt.group}
                     slotProps={{
                       primary: { sx: { fontWeight: 600, fontSize: 14 } },
                     }}
