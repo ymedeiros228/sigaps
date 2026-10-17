@@ -2,7 +2,7 @@ import type React from 'react';
 import { Suspense, lazy, useEffect, useMemo } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
+import { ThemeProvider, CssBaseline } from '@mui/material';
 import { createAppTheme } from './theme';
 import { useAuthStore, useAppStore } from './store';
 import { LoginPage } from './pages/LoginPage';
@@ -10,6 +10,8 @@ import { AppLayout } from './components/layout/AppLayout';
 import { useEnsureValidMunicipality } from './hooks/useEnsureValidMunicipality';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AjudaPage } from './components/common/AjudaPage';
+import { MapSkeleton, PageSkeleton } from './components/common/PageSkeleton';
+import { DashboardSkeleton } from './components/dashboard/DashboardSkeleton';
 
 const DashboardPage = lazy(() =>
   import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
@@ -40,20 +42,12 @@ const queryClient = new QueryClient({
   },
 });
 
-function PageLoader() {
-  return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
-      <CircularProgress />
-    </Box>
-  );
-}
-
 function HomeRoute() {
   const role = useAuthStore((s) => s.user?.role);
   if (role === 'ACS') return <Navigate to="/mapa" replace />;
   return (
     <ErrorBoundary title="Erro ao abrir o dashboard">
-      <Suspense fallback={<PageLoader />}>
+      <Suspense fallback={<DashboardSkeleton />}>
         <DashboardPage />
       </Suspense>
     </ErrorBoundary>
@@ -94,7 +88,7 @@ function AppRoutes() {
           path="/mapa"
           element={
             <ErrorBoundary title="Erro ao abrir o mapa">
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={<MapSkeleton />}>
                 <SigapsMap />
               </Suspense>
             </ErrorBoundary>
@@ -104,7 +98,7 @@ function AppRoutes() {
           path="/cadastros"
           element={
             <ErrorBoundary title="Erro ao abrir cadastros">
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={<PageSkeleton />}>
                 <CadastrosPage />
               </Suspense>
             </ErrorBoundary>
@@ -114,7 +108,7 @@ function AppRoutes() {
           path="/admin"
           element={
             <ErrorBoundary title="Erro ao abrir administração">
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={<PageSkeleton />}>
                 <AdminPage />
               </Suspense>
             </ErrorBoundary>
