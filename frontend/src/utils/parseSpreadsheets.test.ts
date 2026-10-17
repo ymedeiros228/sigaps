@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
-import { parseAcsExcelFile } from './parseAcsSpreadsheet';
+import { ACS_CSV_TEMPLATE, parseAcsCsvText, parseAcsExcelFile } from './parseAcsSpreadsheet';
 import { parsePlacesExcelFile } from './parsePlacesSpreadsheet';
 import { parseUbsExcelFile } from './parseUbsSpreadsheet';
 
@@ -105,5 +105,58 @@ describe('importação de planilha .xlsx', () => {
 
   it('planilha vazia não quebra', async () => {
     await expect(parseUbsExcelFile(planilha([]))).resolves.toEqual([]);
+  });
+});
+
+describe('importação de ACS pelo modelo do sistema', () => {
+  it('as ruas vêm da coluna "Ruas atendidas", não da "Microarea"', () => {
+    expect(parseAcsCsvText(ACS_CSV_TEMPLATE)).toEqual([
+      {
+        name: 'Maria Silva',
+        phone: '(99) 98421-7828',
+        microareaRef: '01',
+        streetCoverageText: 'Rua do Sol',
+        status: 'ATIVO',
+      },
+      {
+        name: 'João Santos',
+        cpf: '12345678901',
+        phone: '(99) 98505-5597',
+        microareaRef: '02',
+        streetCoverageText: 'Avenida Central | Travessa da Paz',
+        status: 'ATIVO',
+      },
+    ]);
+  });
+
+  it('na planilha .xlsx com as colunas do modelo, também', async () => {
+    const file = planilha([
+      {
+        UBS: 'UBS Centro',
+        Contato: '(99) 98421-7828',
+        'Nome do ACS': 'Maria Silva',
+        Microarea: '01',
+        'Ruas atendidas': 'Rua do Sol',
+        CPF: '',
+        Status: 'ATIVO',
+        Observacao: '',
+      },
+    ]);
+
+    await expect(parseAcsExcelFile(file)).resolves.toEqual([
+      {
+        name: 'Maria Silva',
+        phone: '(99) 98421-7828',
+        microareaRef: '01',
+        streetCoverageText: 'Rua do Sol',
+        status: 'ATIVO',
+      },
+    ]);
+  });
+
+  it('sem coluna de ruas, a microárea não vira rua', () => {
+    expect(parseAcsCsvText('Nome do ACS;Microárea\nMaria Silva;01')).toEqual([
+      { name: 'Maria Silva', microareaRef: '01', status: 'ATIVO' },
+    ]);
   });
 });

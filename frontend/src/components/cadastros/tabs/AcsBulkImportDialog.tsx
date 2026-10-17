@@ -15,14 +15,11 @@ import { ContentPaste, Upload, Download } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { acsApi } from '../../../services/api';
 import {
+  ACS_CSV_TEMPLATE,
   parseAcsCsvText,
   parseAcsExcelFile,
   type AcsImportRow,
 } from '../../../utils/parseAcsSpreadsheet';
-
-const CSV_TEMPLATE = `UBS;Contato;Nome do ACS;Microarea;Ruas atendidas;CPF;Status;Observacao
-UBS Centro;(99) 98421-7828;Maria Silva;01;Rua do Sol;;ATIVO;
-UBS Aeroporto;(99) 98505-5597;João Santos;02;Avenida Central | Travessa da Paz;12345678901;ATIVO;`;
 
 type ImportError = { row: number; ref: string; message: string };
 
@@ -109,7 +106,7 @@ export function AcsBulkImportDialog({
   };
 
   const downloadTemplate = () => {
-    const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([ACS_CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

@@ -17,8 +17,11 @@ function normHeader(value: string) {
     .trim();
 }
 
-function pickColumn(headers: string[], aliases: string[]) {
-  return headers.findIndex((header) => aliases.some((alias) => header.includes(alias)));
+// `taken`: colunas que já são de outro campo. "Microarea" contém "area", que é apelido das ruas.
+function pickColumn(headers: string[], aliases: string[], taken: number[] = []) {
+  return headers.findIndex(
+    (header, idx) => !taken.includes(idx) && aliases.some((alias) => header.includes(alias)),
+  );
 }
 
 function normalizeStatus(value: unknown) {
@@ -85,7 +88,7 @@ export function parseAcsRowsFromObjects(rows: Record<string, unknown>[]): AcsImp
     'territorio',
     'area',
     'territorio de ruas',
-  ]);
+  ], [microIdx]);
   const statusIdx = pickColumn(headers, ['status', 'situacao']);
 
   const get = (row: Record<string, unknown>, idx: number) =>
@@ -140,7 +143,7 @@ export function parseAcsCsvText(text: string): AcsImportRow[] {
     'territorio',
     'area',
     'territorio de ruas',
-  ]);
+  ], [microIdx]);
   const statusIdx = pickColumn(headers, ['status', 'situacao']);
 
   const dataLines = nameIdx >= 0 || cpfIdx >= 0 ? lines.slice(1) : lines;
@@ -170,3 +173,7 @@ export async function parseAcsExcelFile(file: File): Promise<AcsImportRow[]> {
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
   return parseAcsRowsFromObjects(rows);
 }
+
+export const ACS_CSV_TEMPLATE = `UBS;Contato;Nome do ACS;Microarea;Ruas atendidas;CPF;Status;Observacao
+UBS Centro;(99) 98421-7828;Maria Silva;01;Rua do Sol;;ATIVO;
+UBS Aeroporto;(99) 98505-5597;João Santos;02;Avenida Central | Travessa da Paz;12345678901;ATIVO;`;
