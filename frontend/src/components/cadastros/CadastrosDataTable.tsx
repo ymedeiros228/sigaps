@@ -1,5 +1,4 @@
 import {
-  Box,
   Skeleton,
   Table,
   TableBody,
@@ -7,8 +6,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  alpha,
-  useTheme,
 } from '@mui/material';
 import type { ReactNode } from 'react';
 
@@ -30,6 +27,31 @@ type CadastrosDataTableProps<T> = {
   actions?: (row: T) => ReactNode;
 };
 
+const SKELETON_ROWS = 5;
+
+/** Cabeçalho legível: sem caixa alta, cinza de apoio, fundo neutro (o verde fica para ação). */
+const headCellSx = {
+  fontWeight: 600,
+  fontSize: '0.8125rem',
+  color: 'text.secondary',
+  bgcolor: 'action.hover',
+  whiteSpace: 'nowrap',
+  py: 1.25,
+};
+
+/** Botões de ação com alvo de toque ≥ 44 px quando o ponteiro é o dedo. */
+const actionsCellSx = {
+  whiteSpace: 'nowrap',
+  py: 0.75,
+  '@media (pointer: coarse)': {
+    '& .MuiIconButton-root': { width: 44, height: 44 },
+  },
+};
+
+function hideOnMobileSx(hide?: boolean) {
+  return hide ? { xs: 'none', sm: 'table-cell' } : undefined;
+}
+
 export function CadastrosDataTable<T>({
   columns,
   rows,
@@ -38,90 +60,84 @@ export function CadastrosDataTable<T>({
   emptyState,
   actions,
 }: CadastrosDataTableProps<T>) {
-  const theme = useTheme();
   const hasActions = !!actions;
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton key={index} variant="rounded" height={44} sx={{ borderRadius: 2 }} />
-        ))}
-      </Box>
-    );
-  }
-
-  if (rows.length === 0) {
+  if (!loading && rows.length === 0) {
     return <>{emptyState}</>;
   }
 
   return (
     <TableContainer
+      aria-busy={loading || undefined}
       sx={{
-        borderRadius: 2,
+        borderRadius: 1,
         border: 1,
         borderColor: 'divider',
         overflow: 'auto',
       }}
     >
-      <Table size="medium">
+      {/* tabular-nums: contagens, coordenadas e números alinham na vertical */}
+      <Table size="medium" sx={{ fontVariantNumeric: 'tabular-nums' }}>
         <TableHead>
           <TableRow>
             {columns.map((column) => (
               <TableCell
                 key={column.id}
                 align={column.align}
-                sx={{
-                  fontWeight: 700,
-                  bgcolor: alpha(theme.palette.primary.main, 0.06),
-                  whiteSpace: 'nowrap',
-                  display: column.hideOnMobile ? { xs: 'none', sm: 'table-cell' } : undefined,
-                  width: column.width,
-                }}
+                sx={{ ...headCellSx, display: hideOnMobileSx(column.hideOnMobile), width: column.width }}
               >
                 {column.label}
               </TableCell>
             ))}
             {hasActions && (
-              <TableCell
-                align="right"
-                sx={{
-                  fontWeight: 700,
-                  bgcolor: alpha(theme.palette.primary.main, 0.06),
-                  width: 96,
-                }}
-              >
+              <TableCell align="right" sx={{ ...headCellSx, width: 96 }}>
                 Ações
               </TableCell>
             )}
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row) => (
-            <TableRow
-              key={rowKey(row)}
-              hover
-              sx={{
-                '&:last-child td': { borderBottom: 0 },
-                '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.35) },
-              }}
-            >
-              {columns.map((column) => (
-                <TableCell
-                  key={column.id}
-                  align={column.align}
-                  sx={{ display: column.hideOnMobile ? { xs: 'none', sm: 'table-cell' } : undefined }}
-                >
-                  {column.render(row)}
-                </TableCell>
+          {loading
+            ? // Carregando: o mesmo esqueleto da tabela, para a tela não "pular" quando os dados chegam.
+              Array.from({ length: SKELETON_ROWS }).map((_, index) => (
+                <TableRow key={index} sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                  {columns.map((column, colIndex) => (
+                    <TableCell
+                      key={column.id}
+                      align={column.align}
+                      sx={{ display: hideOnMobileSx(column.hideOnMobile) }}
+                    >
+                      <Skeleton
+                        width={colIndex === 0 ? '70%' : column.align === 'center' ? 24 : '55%'}
+                        sx={{ display: 'inline-block' }}
+                      />
+                    </TableCell>
+                  ))}
+                  {hasActions && (
+                    <TableCell align="right">
+                      <Skeleton variant="circular" width={28} height={28} sx={{ display: 'inline-block' }} />
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))
+            : rows.map((row) => (
+                <TableRow key={rowKey(row)} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                  {columns.map((column) => (
+                    <TableCell
+                      key={column.id}
+                      align={column.align}
+                      sx={{ display: hideOnMobileSx(column.hideOnMobile), py: 1.5 }}
+                    >
+                      {column.render(row)}
+                    </TableCell>
+                  ))}
+                  {hasActions && (
+                    <TableCell align="right" sx={actionsCellSx}>
+                      {actions(row)}
+                    </TableCell>
+                  )}
+                </TableRow>
               ))}
-              {hasActions && (
-                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                  {actions(row)}
-                </TableCell>
-              )}
-            </TableRow>
-          ))}
         </TableBody>
       </Table>
     </TableContainer>
