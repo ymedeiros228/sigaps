@@ -53,6 +53,9 @@ export default defineConfig({
           '**/assets/MapPdfDialog-*.js',
           '**/assets/xlsx-*.js',
           '**/assets/charts-*.js',
+          // Fonte Inter: só os subconjuntos latinos (português) vão para o precache.
+          // Cirílico, grego e vietnamita o navegador só baixa se aparecer esse caractere.
+          '**/assets/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2',
         ],
         // Imagens do mapa já vistas ficam no celular: abre na hora e gasta menos dados no sinal fraco.
         // Só guarda resposta 200 de pedido CORS (crossOrigin nas camadas). O "mapa preto" de 07/2026

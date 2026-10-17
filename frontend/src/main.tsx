@@ -1,6 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
+// Fonte Inter (variável, pesos 100–900) servida pelo próprio site: a tela não espera
+// o Google Fonts e funciona offline. O nome da família é "Inter Variable".
+import '@fontsource-variable/inter'
 import './index.css'
 import App from './App.tsx'
 

@@ -32,7 +32,8 @@ export const createAppTheme = (darkMode: boolean) =>
         : { primary: '#1A2332', secondary: '#5A6B7D' },
     },
     typography: {
-      fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+      // "Inter Variable" vem do @fontsource-variable/inter (importado no main.tsx).
+      fontFamily: '"Inter Variable", "Inter", "Segoe UI", system-ui, sans-serif',
       h4: { fontWeight: 800, letterSpacing: '-0.02em' },
       h5: { fontWeight: 700, letterSpacing: '-0.01em' },
       h6: { fontWeight: 600 },
