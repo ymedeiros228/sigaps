@@ -22,11 +22,9 @@ import {
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
-import { useAuthStore, ACTIVE_MUNICIPALITY_KEY } from '../store';
+import { useAuthStore } from '../store';
 import { getApiErrorMessage } from '../utils/apiError';
-import { prefetchCadastrosData, prefetchMapData } from '../utils/prefetchAppData';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
 import {
   ensureDevAdminAuth,
@@ -41,7 +39,6 @@ interface LoginForm {
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const setAuth = useAuthStore((s) => s.setAuth);
   const logout = useAuthStore((s) => s.logout);
   const token = useAuthStore((s) => s.token);
@@ -70,13 +67,8 @@ export function LoginPage() {
       // Vai direto ao login: no Vercel a API acorda em ~2 s, sem "ping" antes.
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
+      // A pré-carga dos dados (conforme o perfil) fica no AppLayout.
       navigate('/', { replace: true });
-      const muniId =
-        res.data.user.municipalityId ?? localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
-      if (muniId) {
-        prefetchCadastrosData(queryClient, muniId);
-        void prefetchMapData(queryClient, muniId);
-      }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Email ou senha inválidos. Verifique suas credenciais.'));
       setAutoLogging(false);
@@ -105,19 +97,12 @@ export function LoginPage() {
       logout,
     ).then((ok) => {
       if (ok) {
-        const user = useAuthStore.getState().user;
-        const muniId =
-          user?.municipalityId ?? localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
-        if (muniId) {
-          prefetchCadastrosData(queryClient, muniId);
-          void prefetchMapData(queryClient, muniId);
-        }
         navigate('/', { replace: true });
       } else {
         setAutoLogging(false);
       }
     });
-  }, [token, setAuth, logout, navigate, queryClient]);
+  }, [token, setAuth, logout, navigate]);
 
   return (
     <Box
