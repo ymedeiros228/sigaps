@@ -42,6 +42,18 @@ export default defineConfig({
           /\.zip$/,
         ],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Fora do cache inicial: pacotes pesados que o ACS não usa (o perfil ACS vai direto
+        // para /mapa). PDF (jspdf/html2canvas/canvg/dompurify), planilha (xlsx) e gráficos
+        // (recharts, só o dashboard). Continuam no ar e baixam na primeira vez que a tela
+        // pede; depois ficam no cache HTTP (/assets/ é immutable no vercel.json).
+        // O app (vendor, index, páginas) e o mapa (map, SigapsMap) continuam no precache.
+        globIgnores: [
+          '**/node_modules/**/*', // padrão do workbox (substituído ao definir a lista)
+          '**/assets/pdf-*.js',
+          '**/assets/MapPdfDialog-*.js',
+          '**/assets/xlsx-*.js',
+          '**/assets/charts-*.js',
+        ],
         // Imagens do mapa já vistas ficam no celular: abre na hora e gasta menos dados no sinal fraco.
         // Só guarda resposta 200 de pedido CORS (crossOrigin nas camadas). O "mapa preto" de 07/2026
         // veio de guardar resposta opaca (sem CORS), que não dá para conferir.
@@ -104,11 +116,22 @@ export default defineConfig({
               priority: 30,
             },
             {
-              // Exportação em PDF/imagem: só quando o usuário pede. O canvg e o dompurify
-              // ficam de fora de propósito: o jspdf só os carrega sob demanda (import dinâmico).
+              // Exportação em PDF/imagem: só quando o usuário pede.
               name: 'pdf',
               test: /[\\/]node_modules[\\/](jspdf|html2canvas|qrcode)[\\/]/,
               priority: 30,
+            },
+            {
+              // O jspdf carrega estes dois sob demanda (import dinâmico). Ficam em pacotes
+              // separados, com nome fixo para o workbox.globIgnores reconhecer.
+              name: 'pdf-canvg',
+              test: /[\\/]node_modules[\\/]canvg[\\/]/,
+              priority: 40,
+            },
+            {
+              name: 'pdf-purify',
+              test: /[\\/]node_modules[\\/]dompurify[\\/]/,
+              priority: 40,
             },
             {
               // Planilha: só na importação dos cadastros.
