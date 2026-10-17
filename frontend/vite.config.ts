@@ -8,7 +8,9 @@ export default defineConfig({
     VitePWA({
       injectRegister: null,
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      // favicon.svg e os PNGs de public/icons já entram no precache pelo globPatterns;
+      // sem isto o plugin os acrescentava de novo (entradas duplicadas no sw.js).
+      includeManifestIcons: false,
       manifest: {
         name: 'SIGAPS — Gestão das Microáreas',
         short_name: 'SIGAPS',
@@ -18,18 +20,32 @@ export default defineConfig({
         display: 'standalone',
         lang: 'pt-BR',
         start_url: '/',
+        // PNGs gerados do favicon.svg por scripts/generate-icons.mjs. O maskable tem fundo
+        // cheio e margem de segurança (o SVG tem cantos transparentes e não serve para isso).
         icons: [
           {
-            src: '/favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/icons/pwa-192.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any',
+          },
+          {
+            src: '/icons/pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/pwa-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
           {
             src: '/favicon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
-            purpose: 'maskable',
+            purpose: 'any',
           },
         ],
       },
