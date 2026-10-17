@@ -22,12 +22,9 @@ import {
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
-import { useAuthStore, ACTIVE_MUNICIPALITY_KEY } from '../store';
+import { useAuthStore } from '../store';
 import { getApiErrorMessage } from '../utils/apiError';
-import { prefetchCadastrosData, prefetchMapData } from '../utils/prefetchAppData';
-import { waitForApiReady } from '../utils/waitForApi';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
 import {
   ensureDevAdminAuth,
@@ -42,14 +39,12 @@ interface LoginForm {
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const setAuth = useAuthStore((s) => s.setAuth);
   const logout = useAuthStore((s) => s.logout);
   const token = useAuthStore((s) => s.token);
   const devDefaults = getDevLoginDefaults();
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
-  const [wakeStatus, setWakeStatus] = useState<string | null>(null);
   const [autoLogging, setAutoLogging] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
@@ -68,29 +63,17 @@ export function LoginPage() {
   const doLogin = async (data: LoginForm) => {
     setError('');
     setConnecting(true);
-    setWakeStatus('Conectando ao servidor…');
     try {
-      await waitForApiReady(12, 5000, (attempt, max) => {
-        if (attempt > 1) {
-          setWakeStatus(`Servidor acordando… tentativa ${attempt} de ${max}`);
-        }
-      });
-      setWakeStatus(null);
+      // Vai direto ao login: no Vercel a API acorda em ~2 s, sem "ping" antes.
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
+      // A pré-carga dos dados (conforme o perfil) fica no AppLayout.
       navigate('/', { replace: true });
-      const muniId =
-        res.data.user.municipalityId ?? localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
-      if (muniId) {
-        prefetchCadastrosData(queryClient, muniId);
-        void prefetchMapData(queryClient, muniId);
-      }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Email ou senha inválidos. Verifique suas credenciais.'));
       setAutoLogging(false);
     } finally {
       setConnecting(false);
-      setWakeStatus(null);
     }
   };
 
@@ -114,19 +97,12 @@ export function LoginPage() {
       logout,
     ).then((ok) => {
       if (ok) {
-        const user = useAuthStore.getState().user;
-        const muniId =
-          user?.municipalityId ?? localStorage.getItem(ACTIVE_MUNICIPALITY_KEY);
-        if (muniId) {
-          prefetchCadastrosData(queryClient, muniId);
-          void prefetchMapData(queryClient, muniId);
-        }
         navigate('/', { replace: true });
       } else {
         setAutoLogging(false);
       }
     });
-  }, [token, setAuth, logout, navigate, queryClient]);
+  }, [token, setAuth, logout, navigate]);
 
   return (
     <Box
@@ -286,12 +262,6 @@ export function LoginPage() {
             </Alert>
           )}
 
-          {connecting && !autoLogging && (
-            <Alert severity="info" icon={<CircularProgress size={16} />} sx={{ mb: 2, borderRadius: 2 }}>
-              {wakeStatus ?? 'Conectando ao servidor…'}
-            </Alert>
-          )}
-
           {error && (
             <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {error}
@@ -374,7 +344,10 @@ export function LoginPage() {
               disabled={formState.isSubmitting || autoLogging || connecting}
             >
               {formState.isSubmitting || autoLogging || connecting ? (
-                <CircularProgress size={22} color="inherit" />
+                <>
+                  <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} aria-hidden />
+                  Entrando…
+                </>
               ) : (
                 'Entrar no sistema'
               )}

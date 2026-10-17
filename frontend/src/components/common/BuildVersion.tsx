@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Typography } from '@mui/material';
+import { apiUrl } from '../../services/api';
 
 export function BuildVersion() {
   const [commit, setCommit] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/health')
+    // O /health é da API: no Vercel fica em /api/health (o /health da raiz é o site).
+    fetch(apiUrl('/health'))
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.commit) setCommit(String(data.commit).slice(0, 7));

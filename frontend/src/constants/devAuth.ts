@@ -1,5 +1,4 @@
 import { authApi, type User } from '../services/api';
-import { waitForApiReady } from '../utils/waitForApi';
 
 /**
  * Credenciais padrão do seed — admin em desenvolvimento local.
@@ -52,7 +51,6 @@ export function ensureDevAdminAuth(
       }
 
       try {
-        await waitForApiReady(8, 3000);
         const res = await authApi.login(DEV_LOGIN.email, DEV_LOGIN.password);
         setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
         localStorage.setItem('sigaps_dev_email', DEV_LOGIN.email);

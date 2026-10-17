@@ -26,6 +26,9 @@ export function isBrowserOffline() {
 
 export const OFFLINE_MESSAGE =
   'Seu aparelho está sem internet. Conecte-se ao Wi-Fi ou aos dados móveis e tente novamente.';
+const SERVER_UNAVAILABLE_MESSAGE =
+  'O servidor está indisponível no momento. Tente novamente em alguns instantes.';
+const SERVER_SLOW_MESSAGE = 'O servidor está lento agora. Aguarde um minuto e tente novamente.';
 export const SERVER_DOWN_MESSAGE =
   'O servidor do SIGAPS não respondeu. Sua internet está funcionando: o problema é do nosso lado. Tente novamente em alguns instantes.';
 
@@ -38,6 +41,10 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
       return 'O servidor demorou demais para responder. Tente novamente em alguns instantes.';
     }
     if (err.code === 'ERR_NETWORK') return SERVER_DOWN_MESSAGE;
+    // 502/503/504 costumam vir sem corpo JSON (resposta do proxy, não da API).
+    const status = err.response?.status;
+    if (status === 503) return SERVER_UNAVAILABLE_MESSAGE;
+    if (status === 502 || status === 504) return SERVER_SLOW_MESSAGE;
     return fallback;
   }
 
@@ -69,7 +76,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
   }
 
   if (err.response?.status === 503) {
-    return 'Servidor acordando — aguarde alguns segundos e tente novamente.';
+    return SERVER_UNAVAILABLE_MESSAGE;
   }
 
   if (err.response?.status === 500) {
@@ -80,7 +87,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
   }
 
   if (err.response?.status === 502 || err.response?.status === 504) {
-    return 'O servidor está lento agora. Aguarde um minuto e tente novamente.';
+    return SERVER_SLOW_MESSAGE;
   }
 
   return fallback;

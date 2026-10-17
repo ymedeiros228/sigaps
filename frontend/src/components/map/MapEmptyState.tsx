@@ -73,7 +73,7 @@ export function MapEmptyState({ onImport, canImport = true, loadError = false, a
 
         {autoRetrying ? (
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            Tentando novamente automaticamente. Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto.
+            Tentando novamente automaticamente em alguns segundos.
           </Typography>
         ) : canImport ? (
           <>

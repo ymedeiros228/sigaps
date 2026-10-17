@@ -1,7 +1,7 @@
 import { CACHE } from './queryKeys';
 import { shouldRetryCloudQuery } from './queryRetry';
 
-/** Defaults para queries de cadastro — falham rápido no Render. */
+/** Padrões das consultas de cadastro: no máximo 1 nova tentativa, para o erro aparecer logo. */
 export const cadastrosQueryDefaults = {
   staleTime: CACHE.default,
   gcTime: 15 * 60_000,
