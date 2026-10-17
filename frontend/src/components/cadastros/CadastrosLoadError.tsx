@@ -11,7 +11,7 @@ export function CadastrosLoadError({ title, message, onRetry }: CadastrosLoadErr
   return (
     <Alert
       severity="error"
-      sx={{ borderRadius: 2, mb: 2 }}
+      sx={{ borderRadius: 1, mb: 2 }}
       action={
         onRetry ? (
           <Button color="inherit" size="small" startIcon={<Refresh />} onClick={onRetry}>

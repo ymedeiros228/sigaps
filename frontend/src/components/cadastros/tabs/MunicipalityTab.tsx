@@ -1,17 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Divider,
-  Skeleton,
-  TextField,
-  Typography,
-  alpha,
-  useTheme,
-  Alert,
-} from '@mui/material';
+import { Box, Button, Divider, Skeleton, TextField, Typography } from '@mui/material';
 import { AccountBalance, CloudUpload, Sync, Upload } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -33,8 +21,26 @@ type MunicipalityForm = {
   secretariat: string;
 };
 
+/** Quadro do logotipo: o mesmo tamanho no carregamento e com dados. */
+const LOGO_SIZE = 88;
+
+/** Subtítulo de cada bloco do município (h3 abaixo do título da seção). */
+function BlockTitle({ children }: { children: string }) {
+  return (
+    <Typography variant="subtitle2" component="h3" sx={{ fontWeight: 700, mb: 0.5 }}>
+      {children}
+    </Typography>
+  );
+}
+
+const blockButtonsSx = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 1,
+  '@media (pointer: coarse)': { '& .MuiButton-root': { minHeight: 44 } },
+} as const;
+
 export function MunicipalityTab({ municipalityId }: { municipalityId: string }) {
-  const theme = useTheme();
   const user = useAuthStore((s) => s.user);
   const { canManage, reportError, reportSuccess } = useCadastros();
   const queryClient = useQueryClient();
@@ -116,19 +122,17 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
 
   if (isPending && !municipality) {
     return (
-      <Box sx={{ maxWidth: 640 }}>
+      <Box sx={{ maxWidth: 640 }} aria-busy="true" aria-label="Carregando dados do município">
         <Skeleton width="45%" height={32} sx={{ mb: 1 }} />
         <Skeleton width="70%" height={20} sx={{ mb: 3 }} />
-        <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
-          <CardContent sx={{ display: 'flex', gap: 2.5, alignItems: 'center' }}>
-            <Skeleton variant="rounded" width={96} height={96} />
-            <Box sx={{ flex: 1 }}>
-              <Skeleton width="50%" height={22} />
-              <Skeleton width="80%" height={18} sx={{ mt: 1 }} />
-              <Skeleton variant="rounded" width={140} height={32} sx={{ mt: 1.5 }} />
-            </Box>
-          </CardContent>
-        </Card>
+        <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 3 }}>
+          <Skeleton variant="rounded" width={LOGO_SIZE} height={LOGO_SIZE} sx={{ flexShrink: 0, borderRadius: 1 }} />
+          <Box sx={{ flex: 1 }}>
+            <Skeleton width="50%" height={22} />
+            <Skeleton width="80%" height={18} sx={{ mt: 1 }} />
+            <Skeleton variant="rounded" width={140} height={32} sx={{ mt: 1.5, borderRadius: '10px' }} />
+          </Box>
+        </Box>
         <Divider sx={{ mb: 3 }} />
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Skeleton variant="rounded" height={56} />
@@ -146,49 +150,49 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
 
   return (
     <Box sx={{ maxWidth: 640 }}>
-      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+      <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 0.5 }}>
         Dados do município
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Informações exibidas em relatórios e na identidade do sistema.
       </Typography>
 
-      <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
-        <CardContent sx={{ display: 'flex', flexWrap: 'wrap', gap: 2.5, alignItems: 'center' }}>
-          <Box
-            sx={{
-              width: 96,
-              height: 96,
-              borderRadius: 2.5,
-              border: '1px dashed',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              bgcolor: alpha(theme.palette.primary.main, 0.06),
-            }}
-          >
-            {municipality.logoUrl ? (
-              <MunicipalityLogo
-                logoUrl={municipality.logoUrl}
-                alt="Logo do município"
-                boxProps={{
-                  sx: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' },
-                }}
-              />
-            ) : (
-              <AccountBalance sx={{ fontSize: 40, color: 'text.secondary' }} />
-            )}
-          </Box>
-          <Box sx={{ flex: 1, minWidth: 200 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Logotipo institucional
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              PNG, JPG, WEBP ou SVG. Recomendado: fundo transparente.
-            </Typography>
-            {canManage && (
+      {/* Blocos separados por linhas finas, sem cartão dentro do cartão da página. */}
+      <Box component="section" sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 3 }}>
+        <Box
+          sx={{
+            width: LOGO_SIZE,
+            height: LOGO_SIZE,
+            flexShrink: 0,
+            borderRadius: 1,
+            border: 1,
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            bgcolor: 'action.hover',
+          }}
+        >
+          {municipality.logoUrl ? (
+            <MunicipalityLogo
+              logoUrl={municipality.logoUrl}
+              alt="Logo do município"
+              boxProps={{
+                sx: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' },
+              }}
+            />
+          ) : (
+            <AccountBalance sx={{ fontSize: 36, color: 'text.secondary' }} />
+          )}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <BlockTitle>Logotipo institucional</BlockTitle>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: canManage ? 1.5 : 0 }}>
+            PNG, JPG, WEBP ou SVG. Recomendado: fundo transparente.
+          </Typography>
+          {canManage && (
+            <Box sx={blockButtonsSx}>
               <Button
                 variant="outlined"
                 size="small"
@@ -198,40 +202,52 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
               >
                 {logoMutation.isPending ? 'Enviando...' : 'Enviar logotipo'}
               </Button>
-            )}
-          </Box>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) logoMutation.mutate(file);
-              e.target.value = '';
-            }}
-          />
-        </CardContent>
-      </Card>
+            </Box>
+          )}
+        </Box>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) logoMutation.mutate(file);
+            e.target.value = '';
+          }}
+        />
+      </Box>
 
       {canImportEsus && (
-        <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
-          <CardContent>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Integração e-SUS (piloto)
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              Importe famílias e habitantes por logradouro a partir de CSV exportado do e-SUS.
-              Use &quot;Sincronizar&quot; para reaplicar o último CSV importado (também agendado
-              semanalmente quando <code>AUTO_ESUS_SYNC_ENABLED=true</code> no servidor).
+        <>
+          <Divider sx={{ mb: 3 }} />
+          <Box component="section" sx={{ mb: 3 }}>
+            <BlockTitle>Integração e-SUS (piloto)</BlockTitle>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, textWrap: 'pretty' }}>
+              Importe famílias e habitantes por logradouro a partir do CSV exportado do e-SUS.
+              &quot;Sincronizar&quot; reaplica o último CSV importado. A sincronização automática
+              semanal acontece quando estiver ativada no servidor.
             </Typography>
             {municipality.esusLastSyncAt && (
-              <Alert severity="info" sx={{ mb: 1.5, py: 0.25 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  mb: 1.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                <Sync fontSize="small" sx={{ color: 'text.secondary' }} aria-hidden />
                 Última sincronização:{' '}
-                {new Date(municipality.esusLastSyncAt).toLocaleString('pt-BR')}
-              </Alert>
+                {new Date(municipality.esusLastSyncAt).toLocaleString('pt-BR', {
+                  dateStyle: 'short',
+                  timeStyle: 'short',
+                })}
+              </Typography>
             )}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Box sx={blockButtonsSx}>
               <Button
                 variant="outlined"
                 size="small"
@@ -250,14 +266,15 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
                 {syncEsusMutation.isPending ? 'Sincronizando…' : 'Sincronizar e-SUS'}
               </Button>
             </Box>
-          </CardContent>
-        </Card>
+          </Box>
+        </>
       )}
 
       <Divider sx={{ mb: 3 }} />
 
       <form onSubmit={handleSubmit((values) => saveMutation.mutate(values))}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <BlockTitle>Dados institucionais</BlockTitle>
           <TextField
             label="Nome do município"
             {...register('name', { required: 'Informe o nome do município' })}
@@ -269,7 +286,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px' }, gap: 2 }}>
             <TextField
               label="Prefeitura"
-              {...register('prefecture', { required: 'Informe a prefeitura' })}
+              {...register('prefecture', { required: 'Informe o nome da prefeitura' })}
               error={!!errors.prefecture}
               helperText={errors.prefecture?.message}
               fullWidth
@@ -277,7 +294,10 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
             />
             <TextField
               label="UF"
-              {...register('state', { required: 'UF obrigatória', maxLength: { value: 2, message: 'Use 2 letras' } })}
+              {...register('state', {
+                required: 'Informe a UF com 2 letras (ex.: MA)',
+                maxLength: { value: 2, message: 'Use só a sigla, com 2 letras (ex.: MA)' },
+              })}
               error={!!errors.state}
               helperText={errors.state?.message}
               fullWidth
@@ -287,7 +307,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
           </Box>
           <TextField
             label="Secretaria de Saúde"
-            {...register('secretariat', { required: 'Informe a secretaria' })}
+            {...register('secretariat', { required: 'Informe o nome da Secretaria de Saúde' })}
             error={!!errors.secretariat}
             helperText={errors.secretariat?.message}
             fullWidth

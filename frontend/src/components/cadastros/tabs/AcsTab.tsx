@@ -4,10 +4,10 @@ import {
   Button,
   Chip,
   IconButton,
+  Skeleton,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
-  Typography,
 } from '@mui/material';
 import {
   Add,
@@ -27,6 +27,38 @@ import { CadastrosEmptyState, CadastrosEmptyAction } from '../CadastrosEmptyStat
 import { AcsFormDialog, type AcsFormValues } from './AcsFormDialog';
 import { AcsBulkImportDialog } from './AcsBulkImportDialog';
 import { AcsCardsView } from './AcsCardsView';
+import { MicroareaDot } from '../MicroareaDot';
+
+/** Carregando os cartões: mesma grade e mesmo desenho do cartão do ACS. */
+function AcsCardsSkeleton() {
+  return (
+    <Box
+      aria-busy="true"
+      aria-label="Carregando agentes"
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' },
+        gap: 1.5,
+      }}
+    >
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Box key={index} sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+            <Skeleton variant="circular" width={48} height={48} sx={{ flexShrink: 0 }} />
+            <Box sx={{ flex: 1 }}>
+              <Skeleton width="75%" height={22} />
+              <Skeleton width="45%" height={16} />
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 0.75, pt: 1.5, mt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+            <Skeleton variant="rounded" width={120} height={24} sx={{ borderRadius: 4 }} />
+            <Skeleton variant="rounded" width={52} height={24} sx={{ borderRadius: 4 }} />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
@@ -254,7 +286,7 @@ export function AcsTab({
 
       {viewMode === 'cards' ? (
         isLoading ? (
-          <Typography color="text.secondary">Carregando…</Typography>
+          <AcsCardsSkeleton />
         ) : filtered.length === 0 ? (
           <CadastrosEmptyState
             icon={<People sx={{ fontSize: 32 }} />}
@@ -280,6 +312,7 @@ export function AcsTab({
                     label="Importar planilha"
                     onClick={() => setImportOpen(true)}
                     icon={<Upload />}
+                    secondary
                   />
                 </Box>
               ) : filter === 'sem-micro' ? (
@@ -311,13 +344,14 @@ export function AcsTab({
               label: 'Microárea',
               render: (row) =>
                 row.microarea ? (
-                  <Chip
-                    label={row.microarea.name}
-                    size="small"
-                    sx={{ bgcolor: row.microarea.color, color: '#fff' }}
-                  />
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                    <MicroareaDot color={row.microarea.color} />
+                    {row.microarea.name}
+                  </Box>
                 ) : (
-                  '—'
+                  <Box component="span" sx={{ color: 'text.secondary' }}>
+                    Sem microárea
+                  </Box>
                 ),
             },
             {
@@ -356,13 +390,18 @@ export function AcsTab({
               ? (row) => (
                   <>
                     <Tooltip title="Editar">
-                      <IconButton size="small" onClick={() => openForm(row)}>
+                      <IconButton size="small" aria-label={`Editar ${row.name}`} onClick={() => openForm(row)}>
                         <Edit fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     {canDelete && (
                       <Tooltip title="Remover">
-                        <IconButton size="small" color="error" onClick={() => handleDelete(row)}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          aria-label={`Remover ${row.name}`}
+                          onClick={() => handleDelete(row)}
+                        >
                           <Delete fontSize="small" />
                         </IconButton>
                       </Tooltip>

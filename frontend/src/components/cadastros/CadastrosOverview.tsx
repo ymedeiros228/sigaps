@@ -1,5 +1,5 @@
-import { Box, Button, Grid, Skeleton, Typography } from '@mui/material';
-import { Add, LocalHospital, People, LocationCity, GridView, Upload } from '@mui/icons-material';
+import { Box, ButtonBase, Grid, Skeleton, Typography } from '@mui/material';
+import { LocalHospital, People, LocationCity, GridView } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { StatCard } from '../ui/StatCard';
 import { useCadastros } from './CadastrosContext';
@@ -13,29 +13,24 @@ type CadastrosOverviewProps = {
   municipalityId: string;
   section: CadastrosSectionId;
   onSectionChange: (section: CadastrosSectionId) => void;
-  onAcsAction?: (action: 'new' | 'import') => void;
 };
 
+/** Esqueleto com o mesmo desenho do StatCard (ícone à esquerda, rótulo e número). */
 function StatCardSkeleton() {
   return (
-    <Box sx={{ p: 2.5, borderRadius: 2, border: 1, borderColor: 'divider', height: '100%' }}>
+    <Box sx={{ p: 2.5, borderRadius: 1, border: 1, borderColor: 'divider', height: '100%' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Skeleton variant="rounded" width={48} height={48} />
+        <Skeleton variant="rounded" width={48} height={48} sx={{ flexShrink: 0, borderRadius: '10px' }} />
         <Box sx={{ flex: 1 }}>
-          <Skeleton width="40%" height={18} />
-          <Skeleton width="25%" height={32} sx={{ mt: 0.5 }} />
+          <Skeleton width="50%" height={18} />
+          <Skeleton width="30%" height={32} sx={{ mt: 0.5 }} />
         </Box>
       </Box>
     </Box>
   );
 }
 
-export function CadastrosOverview({
-  municipalityId,
-  section,
-  onSectionChange,
-  onAcsAction,
-}: CadastrosOverviewProps) {
+export function CadastrosOverview({ municipalityId, section, onSectionChange }: CadastrosOverviewProps) {
   const { canManageAcs } = useCadastros();
 
   const {
@@ -97,6 +92,15 @@ export function CadastrosOverview({
     },
   ];
 
+  // Dica de status dos ACS. Os botões "Novo ACS" e "Importar planilha" ficam só
+  // no cabeçalho da seção ACS (antes apareciam repetidos aqui).
+  const acsHint =
+    acs === 0
+      ? 'Comece cadastrando os ACS manualmente ou importando uma planilha.'
+      : acsSemMicro > 0
+        ? `${acsSemMicro} agente(s) ainda sem microárea — vincule na aba ACS ou em Microáreas.`
+        : 'Todos os ACS estão vinculados a microáreas.';
+
   return (
     <Box sx={{ mb: 3 }}>
       {isError && (
@@ -107,65 +111,57 @@ export function CadastrosOverview({
         />
       )}
 
-      <Grid container spacing={2}>
+      <Grid container spacing={{ xs: 1.5, sm: 2 }}>
         {showSkeleton
           ? Array.from({ length: 4 }).map((_, i) => (
               <Grid key={i} size={{ xs: 6, md: 3 }}>
                 <StatCardSkeleton />
               </Grid>
             ))
-          : stats.map((stat) => (
-              <Grid key={stat.title} size={{ xs: 6, md: 3 }}>
-                <Box
-                  onClick={() => onSectionChange(stat.section)}
-                  sx={{
-                    cursor: 'pointer',
-                    height: '100%',
-                    outline: section === stat.section ? 2 : 0,
-                    outlineColor: stat.color,
-                    outlineOffset: 2,
-                    borderRadius: 2,
-                  }}
-                >
-                  <StatCard
-                    title={stat.title}
-                    value={stat.value}
-                    icon={stat.icon}
-                    color={stat.color}
-                    subtitle={stat.subtitle}
-                  />
-                </Box>
-              </Grid>
-            ))}
+          : stats.map((stat) => {
+              const selected = section === stat.section;
+              return (
+                <Grid key={stat.title} size={{ xs: 6, md: 3 }} sx={{ minWidth: 0 }}>
+                  <ButtonBase
+                    onClick={() => onSectionChange(stat.section)}
+                    aria-current={selected ? 'true' : undefined}
+                    focusRipple
+                    sx={{
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      textAlign: 'left',
+                      borderRadius: 1,
+                      outline: selected ? 2 : 0,
+                      outlineStyle: 'solid',
+                      outlineColor: 'primary.main',
+                      outlineOffset: 2,
+                      fontVariantNumeric: 'tabular-nums',
+                      '&.Mui-focusVisible': { outline: 2, outlineStyle: 'solid', outlineColor: 'primary.main' },
+                    }}
+                  >
+                    <StatCard
+                      title={stat.title}
+                      value={stat.value}
+                      icon={stat.icon}
+                      color={stat.color}
+                      subtitle={stat.subtitle}
+                    />
+                  </ButtonBase>
+                </Grid>
+              );
+            })}
       </Grid>
 
-      {section === 'acs' && canManageAcs && onAcsAction && !showSkeleton && (
-        <Box
-          sx={{
-            mt: 2,
-            p: 2,
-            borderRadius: 2,
-            bgcolor: 'action.hover',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: 1.5,
-          }}
+      {section === 'acs' && canManageAcs && !showSkeleton && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          role="status"
+          sx={{ mt: 1.5, textWrap: 'pretty' }}
         >
-          <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 200 }}>
-            {acs === 0
-              ? 'Comece cadastrando os ACS manualmente ou importando uma planilha.'
-              : acsSemMicro > 0
-                ? `${acsSemMicro} agente(s) ainda sem microárea — vincule na aba ACS ou em Microáreas.`
-                : 'Todos os ACS estão vinculados a microáreas.'}
-          </Typography>
-          <Button size="small" variant="contained" startIcon={<Add />} onClick={() => onAcsAction('new')}>
-            Novo ACS
-          </Button>
-          <Button size="small" variant="outlined" startIcon={<Upload />} onClick={() => onAcsAction('import')}>
-            Importar planilha
-          </Button>
-        </Box>
+          {acsHint}
+        </Typography>
       )}
     </Box>
   );
