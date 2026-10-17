@@ -13,6 +13,11 @@ function resolveApiUrl(): string {
 
 const API_URL = resolveApiUrl();
 
+/** URL completa de um caminho da API: apiUrl('/health') vira '/api/health' no Vercel. */
+export function apiUrl(path: string): string {
+  return `${API_URL.replace(/\/$/, '')}${path}`;
+}
+
 const AUTH_TOKEN_KEY = 'sigaps_token';
 const AUTH_REFRESH_KEY = 'sigaps_refresh';
 
