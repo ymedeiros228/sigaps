@@ -14,6 +14,7 @@ export type CadastrosSection = {
   id: CadastrosSectionId;
   label: string;
   shortLabel: string;
+  /** Descrição curta (cabe em uma linha) mostrada no menu de seções do computador. */
   description: string;
   icon: ReactNode;
 };
@@ -30,14 +31,14 @@ export const CADASTROS_SECTIONS: CadastrosSection[] = [
     id: 'ubs',
     label: 'Unidades Básicas de Saúde',
     shortLabel: 'UBS',
-    description: 'UBS de referência — planilha Excel ou marcação no mapa',
+    description: 'Unidades de referência no mapa',
     icon: <LocalHospital fontSize="small" />,
   },
   {
     id: 'acs',
     label: 'Agentes Comunitários',
     shortLabel: 'ACS',
-    description: 'Profissionais vinculados às microáreas',
+    description: 'Agentes e suas microáreas',
     icon: <People fontSize="small" />,
   },
   {
@@ -51,14 +52,14 @@ export const CADASTROS_SECTIONS: CadastrosSection[] = [
     id: 'povoados',
     label: 'Povoados e localidades',
     shortLabel: 'Povoados',
-    description: 'Povoados no mapa — busca, satélite ou coordenadas manuais',
+    description: 'Localidades marcadas no mapa',
     icon: <HomeWork fontSize="small" />,
   },
   {
     id: 'microareas',
     label: 'Microáreas',
     shortLabel: 'Microáreas',
-    description: 'Territórios de cobertura e pintura no mapa',
+    description: 'Territórios e pintura no mapa',
     icon: <GridView fontSize="small" />,
   },
 ];

@@ -7,8 +7,6 @@ import {
   ListItemText,
   Tab,
   Tabs,
-  Typography,
-  alpha,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -26,85 +24,82 @@ export function CadastrosNav({ section, onChange, highlightAcs, onSectionHover }
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const sectionIndex = CADASTROS_SECTIONS.findIndex((item) => item.id === section);
 
+  // Celular e tablet: abas roláveis na horizontal (o polegar alcança e nada vaza da tela).
   if (isMobile) {
     return (
       <Tabs
         value={sectionIndex}
         onChange={(_, index) => onChange(CADASTROS_SECTIONS[index].id)}
         variant="scrollable"
-        scrollButtons="auto"
+        scrollButtons={false}
+        aria-label="Seções de cadastro"
         sx={{
           borderBottom: 1,
           borderColor: 'divider',
           minHeight: 48,
-          '& .MuiTab-root': { minHeight: 48, gap: 0.75 },
+          px: 0.5,
+          '& .MuiTab-root': { minHeight: 48, minWidth: 0, px: 1.75, gap: 0.75 },
         }}
       >
         {CADASTROS_SECTIONS.map((item) => (
-          <Tab key={item.id} label={item.shortLabel} icon={item.icon as React.ReactElement} iconPosition="start" />
+          <Tab
+            key={item.id}
+            label={item.shortLabel}
+            icon={item.icon as React.ReactElement}
+            iconPosition="start"
+          />
         ))}
       </Tabs>
     );
   }
 
+  // Computador: lista lateral com rótulo e uma descrição curta em text.secondary.
   return (
     <Box
       component="nav"
+      aria-label="Seções de cadastro"
       sx={{
-        width: 240,
+        width: 232,
         flexShrink: 0,
         borderRight: 1,
         borderColor: 'divider',
-        py: 1.5,
-        px: 1,
+        p: 1,
       }}
     >
-      <Typography
-        variant="overline"
-        color="text.secondary"
-        sx={{ px: 1.5, mb: 1, display: 'block', letterSpacing: 1.2 }}
-      >
-        Seções
-      </Typography>
-      <List disablePadding>
+      <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
         {CADASTROS_SECTIONS.map((item) => {
           const selected = item.id === section;
-          const emphasize = highlightAcs && item.id === 'acs' && !selected;
+          // Enfermeiro(a): a seção ACS ganha o ícone na cor da marca para ser achada rápido.
+          const emphasize = highlightAcs && item.id === 'acs';
           return (
             <ListItemButton
               key={item.id}
               selected={selected}
+              aria-current={selected ? 'page' : undefined}
               onClick={() => onChange(item.id)}
               onMouseEnter={() => onSectionHover?.(item.id)}
-              sx={{
-                py: 1.25,
-                mb: 0.5,
-                alignItems: 'flex-start',
-                ...(emphasize && {
-                  borderLeft: 3,
-                  borderColor: 'success.main',
-                  bgcolor: alpha(theme.palette.success.main, 0.06),
-                }),
-                '&.Mui-selected': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.12),
-                },
-              }}
+              sx={{ py: 1, px: 1.25, minHeight: 52, alignItems: 'flex-start' }}
             >
               <ListItemIcon
                 sx={{
-                  minWidth: 36,
-                  mt: 0.25,
-                  color: selected ? 'primary.main' : 'text.secondary',
+                  minWidth: 32,
+                  mt: '2px',
+                  color: selected || emphasize ? 'primary.main' : 'text.secondary',
                 }}
               >
                 {item.icon}
               </ListItemIcon>
               <ListItemText
+                sx={{ my: 0 }}
                 primary={item.shortLabel}
                 secondary={item.description}
                 slotProps={{
-                  primary: { sx: { fontWeight: selected ? 700 : 600, fontSize: '0.9rem' } },
-                  secondary: { sx: { fontSize: '0.72rem', lineHeight: 1.35, mt: 0.25 } },
+                  primary: {
+                    sx: { fontWeight: selected ? 700 : 600, fontSize: '0.875rem', lineHeight: 1.4 },
+                  },
+                  secondary: {
+                    sx: { fontSize: '0.75rem', lineHeight: 1.35, mt: 0.25, color: 'text.secondary' },
+                  },
                 }}
               />
             </ListItemButton>

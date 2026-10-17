@@ -4,8 +4,8 @@ import {
   Box,
   Breadcrumbs,
   Card,
-  CircularProgress,
   Link,
+  Skeleton,
   Typography,
 } from '@mui/material';
 import { Link as RouterLink, Navigate, useSearchParams } from 'react-router-dom';
@@ -43,6 +43,22 @@ const PlacesTab = lazy(() =>
 const MicroareasTab = lazy(() =>
   import('../components/cadastros/tabs/MicroareasTab').then((m) => ({ default: m.MicroareasTab })),
 );
+
+/** Enquanto o código da seção baixa: o mesmo desenho do cabeçalho + lista, sem "pulo" de layout. */
+function SectionSkeleton() {
+  return (
+    <Box aria-busy="true" aria-label="Carregando seção">
+      <Skeleton width="40%" height={32} />
+      <Skeleton width="65%" height={20} sx={{ mb: 2 }} />
+      <Skeleton variant="rounded" height={40} sx={{ maxWidth: { sm: 360 }, mb: 3, borderRadius: '10px' }} />
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Skeleton key={index} variant="rounded" height={52} sx={{ borderRadius: 1 }} />
+        ))}
+      </Box>
+    </Box>
+  );
+}
 
 function defaultSectionForRole(role?: string): CadastrosSectionId {
   if (role === 'ENFERMEIRO') return 'acs';
@@ -114,13 +130,6 @@ export function CadastrosPage() {
     setSearchParams({ secao: next }, { replace: true });
   };
 
-  const handleAcsAction = (action: 'new' | 'import') => {
-    setSearchParams(
-      { secao: 'acs', acao: action === 'new' ? 'novo' : 'importar' },
-      { replace: true },
-    );
-  };
-
   const clearAcsAction = () => {
     if (!acsAction) return;
     const next = new URLSearchParams(searchParams);
@@ -145,7 +154,16 @@ export function CadastrosPage() {
 
   return (
     <CadastrosProvider>
-      <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1280, mx: 'auto' }}>
+      <Box
+        sx={{
+          p: { xs: 2, sm: 3 },
+          maxWidth: 1280,
+          mx: 'auto',
+          // A largura mínima do conteúdo (abas roláveis, tabelas largas) não pode
+          // alargar a página: sem isto, no celular tudo vazava ~400 px para a direita.
+          contain: 'inline-size',
+        }}
+      >
         <Breadcrumbs sx={{ mb: 2, fontSize: '0.85rem' }}>
           <Link component={RouterLink} to="/" underline="hover" color="inherit">
             Início
@@ -161,16 +179,20 @@ export function CadastrosPage() {
           subtitle="Gerencie município, UBS, ACS, bairros, povoados e microáreas da APS"
         />
 
-        <CadastrosOverview municipalityId={municipalityId} section={section} onSectionChange={handleSectionChange} onAcsAction={handleAcsAction} />
+        <CadastrosOverview
+          municipalityId={municipalityId}
+          section={section}
+          onSectionChange={handleSectionChange}
+        />
 
         {!canManageCurrentSection && (
-          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 1 }}>
             Você está em modo visualização. Para cadastrar ou editar, peça acesso ao coordenador da APS.
           </Alert>
         )}
 
         {user?.role === 'ENFERMEIRO' && section !== 'acs' && enfermeiroCanManageAcs && (
-          <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert severity="info" sx={{ mb: 3, borderRadius: 1 }}>
             Como enfermeiro(a), você pode cadastrar e editar ACS na seção{' '}
             <Link
               component="button"
@@ -192,13 +214,7 @@ export function CadastrosPage() {
               highlightAcs={user?.role === 'ENFERMEIRO'}
             />
             <Box sx={{ flex: 1, p: { xs: 2, sm: 3 }, minWidth: 0 }}>
-              <Suspense
-                fallback={
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                    <CircularProgress size={32} />
-                  </Box>
-                }
-              >
+              <Suspense fallback={<SectionSkeleton />}>
                 <CadastrosContent
                   municipalityId={municipalityId}
                   section={section}
