@@ -78,6 +78,8 @@ export default defineConfig({
     },
   },
   build: {
+    // manifest.json em dist/.vite: o scripts/check-bundle.mjs lê dele o que a tela de login baixa.
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
