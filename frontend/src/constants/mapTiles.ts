@@ -15,10 +15,10 @@ export type MapTileConfig = {
 export const MAP_TILE_LAYERS: Record<MapBaseLayerId, MapTileConfig> = {
   map: {
     name: 'Mapa',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    // Endereço único recomendado pelo OSM (a/b/c é coisa antiga): uma conexão só, reaproveitada.
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; OpenStreetMap',
     maxZoom: 19,
-    subdomains: ['a', 'b', 'c'],
     detectRetina: false,
   },
   satellite: {

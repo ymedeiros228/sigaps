@@ -32,6 +32,10 @@ import {
 const HIT_WEIGHT = 32;
 const ERASER_HIT_WEIGHT = 56;
 const VIEWPORT_CULL_MIN = 600;
+/** Clique/toque vai para a rua mais próxima do dedo, não para a camada que estiver por cima. */
+const NEAREST_TOLERANCE_PX = 24;
+/** Destaque de rua sob o mouse e de rua selecionada (azul: não se confunde com as cores das microáreas). */
+const SELECTION_COLOR = '#1a73e8';
 
 const PAINTED_HALO_STYLE: PathOptions = {
   color: '#ffffff',
@@ -41,29 +45,79 @@ const PAINTED_HALO_STYLE: PathOptions = {
   lineJoin: 'round',
 };
 
-const systemStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
+/** Satélite não desenha as ruas: um fio branco mostra onde elas estão. */
+const satelliteStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
   const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
   return {
-    color: isDirt ? '#a67c00' : '#455a64',
-    weight: isDirt ? 5 : 4.5,
-    opacity: isDirt ? 0.82 : 0.72,
-    dashArray: isDirt ? '4 7' : undefined,
+    color: '#ffffff',
+    weight: 2.5,
+    opacity: 0.6,
+    dashArray: isDirt ? '4 6' : undefined,
     lineCap: 'round',
     lineJoin: 'round',
   };
 };
 
-const unassignedStyle = (feature?: GeoJSON.Feature): PathOptions => {
+/** Modo pintar: traço fino e claro (o que dá para pintar) sem esconder os nomes do mapa. */
+const unassignedStyle = (feature?: GeoJSON.Feature, onSatellite = false): PathOptions => {
   const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
+  if (onSatellite) return { ...satelliteStreetStyle(feature), opacity: 0.75, dashArray: '5 6' };
   return {
-    color: isDirt ? '#b8933f' : '#455a64',
-    weight: isDirt ? 5 : 4.5,
-    opacity: isDirt ? 0.88 : 0.7,
-    dashArray: isDirt ? '4 8' : '6 6',
+    color: isDirt ? '#a1887f' : '#546e7a',
+    weight: 2.5,
+    opacity: 0.55,
+    dashArray: isDirt ? '3 7' : '5 6',
     lineCap: 'round',
     lineJoin: 'round',
   };
 };
+
+const selectionGlowStyle = (): PathOptions => ({
+  color: SELECTION_COLOR,
+  weight: 18,
+  opacity: 0.35,
+  lineCap: 'round',
+  lineJoin: 'round',
+});
+
+const selectionLineStyle = (): PathOptions => ({
+  color: SELECTION_COLOR,
+  weight: 4,
+  opacity: 0.95,
+  lineCap: 'round',
+  lineJoin: 'round',
+});
+
+const SELECT_HOVER_STYLE: L.PolylineOptions = {
+  color: SELECTION_COLOR,
+  weight: 8,
+  opacity: 0.45,
+  lineCap: 'round',
+  lineJoin: 'round',
+  interactive: false,
+};
+
+const lineCollection = (
+  features: GeoJSON.Feature<GeoJSON.LineString>[],
+): GeoJSON.FeatureCollection<GeoJSON.LineString> => ({ type: 'FeatureCollection', features });
+
+type LineBox = [minLng: number, minLat: number, maxLng: number, maxLat: number];
+const lineBoxCache = new WeakMap<GeoJSON.LineString, LineBox>();
+
+function lineBox(geom: GeoJSON.LineString): LineBox {
+  let box = lineBoxCache.get(geom);
+  if (!box) {
+    box = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const [lng, lat] of geom.coordinates as [number, number][]) {
+      if (lng < box[0]) box[0] = lng;
+      if (lat < box[1]) box[1] = lat;
+      if (lng > box[2]) box[2] = lng;
+      if (lat > box[3]) box[3] = lat;
+    }
+    lineBoxCache.set(geom, box);
+  }
+  return box;
+}
 
 interface StreetsLayerProps {
   streets: Street[];
@@ -130,6 +184,10 @@ function StreetsLayerComponent({
   const paintScope = useMapStore((s) => s.paintScope);
   const mapPanEnabled = useMapStore((s) => s.mapPanEnabled);
   const addDragPaintId = useMapStore((s) => s.addDragPaintId);
+  const baseLayer = useMapStore((s) => s.baseLayer);
+  const onSatellite = baseLayer === 'satellite' || baseLayer === 'hybrid';
+  // Celular/tablet sem mouse: tooltip "flutuante" só atrapalha (abre no toque e fica parado).
+  const canHover = useMemo(() => window.matchMedia?.('(hover: hover)').matches ?? true, []);
   const activeColor = eraserMode
     ? '#EF5350'
     : microareas.find((m) => m.id === selectedMicroareaId)?.color ?? '#00A86B';
@@ -230,16 +288,84 @@ function StreetsLayerComponent({
     }
   };
 
+  const hitFeaturesRef = useRef<StreetMapFeature[]>([]);
+  const selectHoverIdRef = useRef<string | null>(null);
+  const selectHoverRafRef = useRef<number | null>(null);
+
+  /** Rua mais próxima do ponto (em pixels), entre as que têm área de clique na tela. */
+  const nearestHitStreetId = (latlng: L.LatLng): string | null => {
+    const p = map.latLngToLayerPoint(latlng);
+    const sw = map.layerPointToLatLng(L.point(p.x - NEAREST_TOLERANCE_PX, p.y + NEAREST_TOLERANCE_PX));
+    const ne = map.layerPointToLatLng(L.point(p.x + NEAREST_TOLERANCE_PX, p.y - NEAREST_TOLERANCE_PX));
+    let bestId: string | null = null;
+    let best = NEAREST_TOLERANCE_PX;
+    for (const feature of hitFeaturesRef.current) {
+      const box = lineBox(feature.geometry);
+      if (box[2] < sw.lng || box[0] > ne.lng || box[3] < sw.lat || box[1] > ne.lat) continue;
+      const coords = feature.geometry.coordinates as [number, number][];
+      let prev = map.latLngToLayerPoint([coords[0][1], coords[0][0]]);
+      for (let i = 1; i < coords.length; i++) {
+        const cur = map.latLngToLayerPoint([coords[i][1], coords[i][0]]);
+        const d = L.LineUtil.pointToSegmentDistance(p, prev, cur);
+        if (d <= best) {
+          best = d;
+          bestId = String(feature.properties.streetId ?? feature.properties.id);
+        }
+        prev = cur;
+      }
+    }
+    return bestId;
+  };
+
+  const selectTooltip = (street: Street) => {
+    const label = formatStreetLabel({ name: street.name, streetType: street.streetType ?? 'Rua' });
+    const microareaName = street.microarea?.name ?? street.paintSegments?.[0]?.microarea?.name;
+    if (microareaName) return `${label} — ${microareaName}`;
+    if ((street.familyCount ?? 0) > 0) return `${label} — ${street.familyCount} família(s)`;
+    return label;
+  };
+
+  const clearSelectHover = () => {
+    if (selectHoverRafRef.current != null) {
+      cancelAnimationFrame(selectHoverRafRef.current);
+      selectHoverRafRef.current = null;
+    }
+    selectHoverIdRef.current = null;
+    clearHoverPreviewLayer();
+  };
+
+  /** Modo normal: acende a rua que o clique vai abrir (a mais próxima do cursor). */
+  const hoverSelectAt = (latlng: L.LatLng, layer: L.Layer, fallbackId: string) => {
+    if (selectHoverRafRef.current != null) cancelAnimationFrame(selectHoverRafRef.current);
+    selectHoverRafRef.current = requestAnimationFrame(() => {
+      selectHoverRafRef.current = null;
+      const id = nearestHitStreetId(latlng) ?? fallbackId;
+      if (id === selectHoverIdRef.current) return;
+      const street = streetFor(id);
+      if (!street) return;
+      selectHoverIdRef.current = id;
+      const latlngs = streetCoords(street.geojson).map(([lng, lat]) => L.latLng(lat, lng));
+      if (!hoverPreviewLayerRef.current) {
+        hoverPreviewLayerRef.current = L.polyline(latlngs, SELECT_HOVER_STYLE).addTo(map);
+      } else {
+        hoverPreviewLayerRef.current.setLatLngs(latlngs);
+        hoverPreviewLayerRef.current.setStyle(SELECT_HOVER_STYLE);
+      }
+      layer.setTooltipContent(selectTooltip(street));
+    });
+  };
+
   useEffect(
     () => () => {
       clearBrushPreviewLayer();
-      clearHoverPreviewLayer();
+      clearSelectHover();
     },
     [map],
   );
 
+  // Troca de modo remonta a camada de clique sem "mouseout": limpa qualquer destaque que ficou.
   useEffect(() => {
-    if (!paintMode || mapPanEnabled) clearHoverPreviewLayer();
+    clearSelectHover();
   }, [paintMode, mapPanEnabled, map]);
 
   const streetsByIdRef = useRef(new Map<string, Street>());
@@ -254,6 +380,12 @@ function StreetsLayerComponent({
       if (!seen.has(id)) mapById.delete(id);
     }
   }, [streets]);
+
+  // A camada de clique liga os eventos ao ser criada, ANTES do efeito acima rodar. Sem este
+  // reserva, as ruas recém-chegadas (abrir o mapa, carregar outra área) ficavam sem clique
+  // até o próximo arraste ou zoom.
+  const streetById = useMemo(() => new Map(streets.map((s) => [s.id, s])), [streets]);
+  const streetFor = (id: string) => streetsByIdRef.current.get(id) ?? streetById.get(id);
 
   const brushContainerRectRef = useRef<DOMRect | null>(null);
   const paintRangeFnRef = useRef(onStreetPaintRange);
@@ -596,6 +728,10 @@ function StreetsLayerComponent({
     eraserMode,
   ]);
 
+  useEffect(() => {
+    hitFeaturesRef.current = hitFeatures;
+  }, [hitFeatures]);
+
   /** Hit layer: remonta quando o conjunto de ruas do viewport muda (não só o count). */
   const hitLayerVersion = useMemo(() => {
     let h = 0;
@@ -615,6 +751,39 @@ function StreetsLayerComponent({
     }
     return L.svg({ pane: 'streetsHit', padding: 0.3 });
   }, [map]);
+
+  // Destaque da rua selecionada fica ABAIXO das ruas pintadas (a cor da microárea continua visível).
+  const selectionPane = useMemo(() => {
+    if (!map.getPane('streetsSelection')) {
+      const pane = map.createPane('streetsSelection');
+      pane.style.zIndex = '390';
+      pane.style.pointerEvents = 'none';
+    }
+    return 'streetsSelection';
+  }, [map]);
+
+  const selection = useMemo(() => {
+    const ids = new Set(selectedIds);
+    if (highlightedId) ids.add(highlightedId);
+    const glow: GeoJSON.Feature<GeoJSON.LineString>[] = [];
+    const line: GeoJSON.Feature<GeoJSON.LineString>[] = [];
+    const keyParts: string[] = [];
+    for (const id of ids) {
+      const street = streetById.get(id);
+      if (!street || !isValidLineString(street.geojson)) continue;
+      const painted = streetHasPaint(street);
+      const feature: GeoJSON.Feature<GeoJSON.LineString> = {
+        type: 'Feature',
+        properties: { id },
+        geometry: street.geojson,
+      };
+      glow.push(feature);
+      // Rua sem pintura não tem linha própria no mapa: ganha um fio azul no centro.
+      if (!painted) line.push(feature);
+      keyParts.push(`${id}:${painted ? 1 : 0}`);
+    }
+    return { glow, line, key: keyParts.join(',') };
+  }, [streetById, selectedIds, highlightedId]);
 
   /** Versões curtas — pintado e cinza com keys separadas (pintar não remonta tudo). */
   const hashFeatures = (list: typeof painted) => {
@@ -719,7 +888,7 @@ function StreetsLayerComponent({
       side?: StreetPaintSide;
     };
     // Sempre a rua atual do cache — hit layer permanece montado após paint.
-    const getStreet = () => streetsByIdRef.current.get(props.streetId);
+    const getStreet = () => streetFor(props.streetId);
     if (!getStreet()) return;
 
     const path = layer as L.Path;
@@ -800,7 +969,7 @@ function StreetsLayerComponent({
         className: 'street-name-label',
         offset: [0, 0],
       });
-    } else {
+    } else if (canHover) {
       layer.bindTooltip(label, {
         sticky: true,
         className: paintMode ? 'paint-tooltip' : 'street-tooltip',
@@ -994,9 +1163,16 @@ function StreetsLayerComponent({
     }
 
     layer.on('mousedown', stopMapEvent);
+    if (canHover) {
+      layer.on('mouseover mousemove', ((e: L.LeafletMouseEvent) =>
+        hoverSelectAt(e.latlng, layer, props.streetId)) as L.LeafletEventHandlerFn);
+      layer.on('mouseout', clearSelectHover);
+    }
     layer.on('click', (e: L.LeafletMouseEvent) => {
       stopMapEvent(e);
-      const street = getStreet();
+      // Onde as áreas de clique se sobrepõem, vale a rua mais perto do clique (é a que estava acesa).
+      const nearestId = nearestHitStreetId(e.latlng);
+      const street = (nearestId ? streetFor(nearestId) : undefined) ?? getStreet();
       if (!street) return;
       const multiSelect = !!(e.originalEvent?.ctrlKey || e.originalEvent?.metaKey);
       onStreetClick(street, multiSelect);
@@ -1033,7 +1209,7 @@ function StreetsLayerComponent({
     const toLatLngs = (geom: GeoJSON.LineString) =>
       (geom.coordinates as [number, number][]).map(([lng, lat]) => L.latLng(lat, lng));
     const nonInteractive = { interactive: false as const };
-    const styleKey = `${activeColor}|${eraserMode ? 1 : 0}`;
+    const styleKey = `${activeColor}|${eraserMode ? 1 : 0}|${onSatellite ? 1 : 0}`;
     const visible = visibleStreetIdsRef.current;
     const streetState = streetFeatureStateRef.current;
 
@@ -1065,7 +1241,7 @@ function StreetsLayerComponent({
       }
       for (const f of bucket.unpainted) {
         const line = L.polyline(toLatLngs(f.geometry), {
-          ...unassignedStyle(f),
+          ...unassignedStyle(f, onSatellite),
           ...nonInteractive,
         });
         groups.unpainted.addLayer(line);
@@ -1106,6 +1282,7 @@ function StreetsLayerComponent({
     dragPreview,
     activeColor,
     eraserMode,
+    onSatellite,
     paintedHaloStyle,
     paintedLineStyle,
     dragPreviewStyle,
@@ -1113,11 +1290,22 @@ function StreetsLayerComponent({
 
   return (
     <>
-      {unpainted.length > 0 && !paintMode && (
+      {/* Modo normal: ruas sem pintura não ganham linha (o mapa de fundo já as mostra, com nome). */}
+      {unpainted.length > 0 && !paintMode && onSatellite && (
         <GeoJSON
-          key={`system-streets-${unpaintedVersion}`}
+          key={`satellite-streets-${unpaintedVersion}`}
           data={fc(unpainted)}
-          style={systemStreetStyle}
+          style={satelliteStreetStyle}
+          interactive={false}
+        />
+      )}
+
+      {selection.glow.length > 0 && (
+        <GeoJSON
+          key={`selection-glow-${selection.key}`}
+          data={lineCollection(selection.glow)}
+          style={selectionGlowStyle}
+          pane={selectionPane}
           interactive={false}
         />
       )}
@@ -1144,6 +1332,15 @@ function StreetsLayerComponent({
           key={`heat-${heatFeatures.length}-${maxFamilyCount}-overlay`}
           data={fc(heatFeatures)}
           style={heatLineStyle}
+          interactive={false}
+        />
+      )}
+
+      {selection.line.length > 0 && (
+        <GeoJSON
+          key={`selection-line-${selection.key}-${paintMode ? 1 : 0}`}
+          data={lineCollection(selection.line)}
+          style={selectionLineStyle}
           interactive={false}
         />
       )}

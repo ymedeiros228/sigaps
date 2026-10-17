@@ -197,8 +197,13 @@ export function MapLegend({
               );
             })}
             <Box sx={{ pt: 0.5, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-              <LegendRow color="#c4a35a" dashed label="Estrada de terra" />
-              <LegendRow color="#888" dashed label="Sem microárea" />
+              {/* Fora do modo pintar essas ruas não ganham linha (o mapa de fundo já mostra). */}
+              {paintMode && (
+                <>
+                  <LegendRow color="#c4a35a" dashed label="Estrada de terra" />
+                  <LegendRow color="#888" dashed label="Sem microárea" />
+                </>
+              )}
               {showUbs && ubsList.length > 0 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box

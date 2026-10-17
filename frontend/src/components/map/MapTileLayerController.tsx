@@ -14,6 +14,8 @@ function createTileLayer(config: MapTileConfig) {
     attribution: config.attribution,
     maxZoom: config.maxZoom ?? 19,
     detectRetina: config.detectRetina ?? false,
+    // Pedido CORS: o service worker consegue guardar a imagem (sem isso ela vem "opaca").
+    crossOrigin: 'anonymous',
   };
   if (config.maxNativeZoom != null) options.maxNativeZoom = config.maxNativeZoom;
   if (config.subdomains) options.subdomains = config.subdomains;
@@ -43,6 +45,7 @@ export function MapTileLayerController({ layerId }: { layerId: MapBaseLayerId })
         maxNativeZoom: MAP_LABELS_OVERLAY.maxNativeZoom,
         subdomains: MAP_LABELS_OVERLAY.subdomains,
         pane: 'overlayPane',
+        crossOrigin: 'anonymous',
       });
       labels.addTo(map);
     }

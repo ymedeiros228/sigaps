@@ -42,6 +42,25 @@ export default defineConfig({
           /\.zip$/,
         ],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Imagens do mapa já vistas ficam no celular: abre na hora e gasta menos dados no sinal fraco.
+        // Só guarda resposta 200 de pedido CORS (crossOrigin nas camadas). O "mapa preto" de 07/2026
+        // veio de guardar resposta opaca (sem CORS), que não dá para conferir.
+        runtimeCaching: [
+          {
+            urlPattern:
+              /^https:\/\/(tile\.openstreetmap\.org|[abc]\.tile\.opentopomap\.org|server\.arcgisonline\.com)\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'sigaps-map-tiles',
+              expiration: {
+                maxEntries: 800,
+                maxAgeSeconds: 7 * 24 * 60 * 60,
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+        ],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,

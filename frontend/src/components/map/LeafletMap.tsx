@@ -1,6 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { MapContainer, type MapContainerProps } from 'react-leaflet';
 import { Box, CircularProgress, Typography } from '@mui/material';
+import { patchLeafletCanvasForHighDpi } from '../../utils/leafletCrispCanvas';
+
+// Ruas nítidas em celular com tela 3x (o Leaflet parava no 2x).
+patchLeafletCanvasForHighDpi();
 
 type LeafletMapProps = MapContainerProps & {
   children: ReactNode;
