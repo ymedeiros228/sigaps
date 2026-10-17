@@ -4,6 +4,8 @@ WORKDIR /frontend
 ARG RENDER_GIT_COMMIT
 ENV GIT_COMMIT=${RENDER_GIT_COMMIT}
 COPY frontend/package*.json ./
+# Pacote xlsx oficial da SheetJS (vem como arquivo, não do npm)
+COPY frontend/vendor ./vendor
 RUN npm ci
 COPY frontend/ ./
 # Mesma origem: API e site no sigaps-api.onrender.com

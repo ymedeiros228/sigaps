@@ -1,6 +1,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
+# Pacote xlsx oficial da SheetJS (vem como arquivo, não do npm)
+COPY vendor ./vendor
 RUN npm ci
 COPY . .
 RUN npm run build
