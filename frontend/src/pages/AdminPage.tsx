@@ -566,7 +566,7 @@ export function AdminPage() {
               </Box>
               <Typography variant="body2" color="text.secondary">
                 {autoBackupInfo?.retentionNote ??
-                  'Backup semanal (domingo, 03h). Baixe periodicamente — disco efêmero no Render free.'}
+                  'Backup automático toda semana, guardado no armazenamento privado (Supabase Storage). Ficam os mais recentes; baixe uma cópia de vez em quando.'}
               </Typography>
               {autoBackupInfo?.lastAutoBackupAt && (
                 <Chip
