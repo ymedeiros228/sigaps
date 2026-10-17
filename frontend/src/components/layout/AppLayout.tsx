@@ -224,13 +224,26 @@ export function AppLayout() {
         <Toolbar sx={{ gap: 1 }}>
           <IconButton
             edge="start"
+            aria-label="Abrir menu"
             sx={{ display: { sm: 'none' } }}
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700, fontSize: '1rem' }}>
-            Gestão Territorial da APS
+          {/* No celular o título fica curto e, se ainda faltar espaço, corta com "…"
+              (minWidth 0 + noWrap) em vez de quebrar linha e empurrar os botões. */}
+          <Typography
+            variant="h6"
+            component="div"
+            noWrap
+            sx={{ flexGrow: 1, minWidth: 0, fontWeight: 700, fontSize: '1rem' }}
+          >
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+              SIGAPS
+            </Box>
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              Gestão Territorial da APS
+            </Box>
           </Typography>
           <Tooltip title={darkMode ? 'Modo claro' : 'Modo escuro'}>
             <IconButton onClick={toggleDarkMode} size="small">
