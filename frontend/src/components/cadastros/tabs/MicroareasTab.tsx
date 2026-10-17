@@ -113,7 +113,7 @@ export function MicroareasTab({ municipalityId }: { municipalityId: string }) {
   }, [data, search]);
 
   const saveMutation = useMutation({
-    mutationFn: (values: MicroareaForm) => {
+    mutationFn: async (values: MicroareaForm) => {
       const body = sanitizeLinks(values);
       return editing
         ? microareasApi.update(editing.id, body)

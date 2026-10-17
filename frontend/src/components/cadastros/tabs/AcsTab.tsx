@@ -108,7 +108,7 @@ export function AcsTab({
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { values: AcsFormValues; andAnother: boolean }) => {
+    mutationFn: async (payload: { values: AcsFormValues; andAnother: boolean }) => {
       const { values } = payload;
       const body = {
         name: values.name,

@@ -117,7 +117,7 @@ export function UbsTab({ municipalityId }: { municipalityId: string }) {
   }, [data, search]);
 
   const saveMutation = useMutation({
-    mutationFn: (values: UbsForm) => {
+    mutationFn: async (values: UbsForm) => {
       const payload = sanitizeUbsForm(values);
       return editing
         ? ubsApi.update(editing.id, payload)

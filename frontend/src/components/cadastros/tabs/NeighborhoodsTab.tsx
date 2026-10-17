@@ -45,7 +45,7 @@ export function NeighborhoodsTab({ municipalityId }: { municipalityId: string })
   }, [data, search]);
 
   const saveMutation = useMutation({
-    mutationFn: (values: NeighborhoodForm) =>
+    mutationFn: async (values: NeighborhoodForm) =>
       editing
         ? neighborhoodsApi.update(editing.id, values)
         : neighborhoodsApi.create({ ...values, municipalityId }),
