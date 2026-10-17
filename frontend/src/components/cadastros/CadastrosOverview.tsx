@@ -8,6 +8,7 @@ import { queryKeys } from '../../utils/queryKeys';
 import { cadastrosQueryDefaults } from '../../utils/cadastrosQuery';
 import { fetchCadastrosSummary } from '../../utils/fetchCadastrosData';
 import { CadastrosLoadError } from './CadastrosLoadError';
+import { plural } from '../../utils/plural';
 
 type CadastrosOverviewProps = {
   municipalityId: string;
@@ -69,7 +70,7 @@ export function CadastrosOverview({ municipalityId, section, onSectionChange }: 
       value: acs,
       subtitle:
         acs > 0
-          ? `${acsAtivos} ativo(s)${acsSemMicro > 0 ? ` · ${acsSemMicro} sem microárea` : ''}`
+          ? `${acsAtivos} ${acsAtivos === 1 ? 'ativo' : 'ativos'}${acsSemMicro > 0 ? ` · ${acsSemMicro} sem microárea` : ''}`
           : 'Cadastre os agentes da equipe',
       icon: <People />,
       color: '#4CAF50',
@@ -98,7 +99,7 @@ export function CadastrosOverview({ municipalityId, section, onSectionChange }: 
     acs === 0
       ? 'Comece cadastrando os ACS manualmente ou importando uma planilha.'
       : acsSemMicro > 0
-        ? `${acsSemMicro} agente(s) ainda sem microárea — vincule na aba ACS ou em Microáreas.`
+        ? `${plural(acsSemMicro, 'agente', 'agentes')} ainda sem microárea — vincule na aba ACS ou em Microáreas.`
         : 'Todos os ACS estão vinculados a microáreas.';
 
   return (

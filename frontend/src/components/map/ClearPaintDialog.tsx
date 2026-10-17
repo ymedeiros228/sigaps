@@ -10,6 +10,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { WarningAmber } from '@mui/icons-material';
+import { plural } from '../../utils/plural';
 
 interface ClearPaintDialogProps {
   open: boolean;
@@ -37,8 +38,8 @@ export function ClearPaintDialog({
 
   const description =
     scope === 'all'
-      ? `Isso remove o vínculo de ${paintedCount} rua(s) pintada(s) em todas as microáreas. Você poderá pintar novamente rua por rua.`
-      : `Isso remove ${paintedCount} rua(s) vinculada(s) à ${microareaName}. As outras microáreas não serão alteradas.`;
+      ? `Isso remove o vínculo de ${plural(paintedCount, 'rua pintada', 'ruas pintadas')} em todas as microáreas. Você poderá pintar novamente rua por rua.`
+      : `Isso remove ${plural(paintedCount, 'rua vinculada', 'ruas vinculadas')} à ${microareaName}. As outras microáreas não serão alteradas.`;
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="xs" fullWidth>

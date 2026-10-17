@@ -62,6 +62,7 @@ function AcsCardsSkeleton() {
 import { CACHE, queryKeys } from '../../../utils/queryKeys';
 import { cadastrosQueryDefaults } from '../../../utils/cadastrosQuery';
 import { invalidateCadastrosCache } from '../../../utils/hydrateCadastrosCache';
+import { plural } from '../../../utils/plural';
 
 type ViewMode = 'cards' | 'table';
 type AcsFilter = 'all' | 'sem-micro';
@@ -163,7 +164,7 @@ export function AcsTab({
         setFormSession((n) => n + 1);
         reportSuccess(
           summary?.paintedCount
-            ? `ACS cadastrado. ${summary.paintedCount} rua(s) pintada(s). Preencha o próximo.`
+            ? `ACS cadastrado. ${plural(summary.paintedCount, 'rua pintada', 'ruas pintadas')}. Preencha o próximo.`
             : 'ACS cadastrado. Preencha o próximo.',
         );
       } else {
@@ -173,7 +174,7 @@ export function AcsTab({
         if (summary?.paintedCount || summary?.unmatchedRefs?.length || summary?.ambiguousRefs?.length) {
           reportSuccess(
             `${base} ${
-              summary.paintedCount ? `${summary.paintedCount} rua(s) pintada(s). ` : ''
+              summary.paintedCount ? `${plural(summary.paintedCount, 'rua pintada', 'ruas pintadas')}. ` : ''
             }${
               summary.unmatchedRefs?.length || summary.ambiguousRefs?.length || summary.conflictRefs?.length
                 ? 'Confira possíveis pendências na lista de ruas.'
@@ -264,7 +265,7 @@ export function AcsTab({
 
       {data.length > 0 && (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          <Chip label={`${stats.ativos} ativo(s)`} size="small" color="success" variant="outlined" />
+          <Chip label={`${stats.ativos} ${stats.ativos === 1 ? 'ativo' : 'ativos'}`} size="small" color="success" variant="outlined" />
           <Chip label={`${stats.comMicro} com microárea`} size="small" variant="outlined" />
           {stats.semMicro > 0 && (
             <Chip

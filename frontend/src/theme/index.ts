@@ -59,9 +59,6 @@ export const createAppTheme = (darkMode: boolean) =>
             '&:hover': { boxShadow: 'none' },
           },
           contained: {
-            background: `linear-gradient(135deg, ${brand.green} 0%, ${brand.greenDark} 100%)`,
-            transition: 'filter 0.18s ease, transform 0.18s ease',
-            '&:hover': { boxShadow: 'none', filter: 'brightness(1.08)' },
             '&:active': { transform: 'translateY(1px)' },
           },
         },
@@ -71,7 +68,6 @@ export const createAppTheme = (darkMode: boolean) =>
           root: {
             backgroundImage: 'none',
             border: `1px solid ${darkMode ? alpha('#fff', 0.06) : alpha('#000', 0.06)}`,
-            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
           },
         },
       },

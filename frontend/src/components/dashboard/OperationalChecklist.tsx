@@ -15,6 +15,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useState } from 'react';
 import { dashboardApi, type OperationalChecklist } from '../../services/api';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
+import { plural } from '../../utils/plural';
 
 export function OperationalChecklistCard({ municipalityId }: { municipalityId: string }) {
   const [csvLoading, setCsvLoading] = useState(false);
@@ -98,7 +99,7 @@ function ChecklistContent({
 
         {pendingCritical.length > 0 && (
           <Typography variant="body2" color="warning.main" sx={{ mb: 1.5 }}>
-            {pendingCritical.length} item(ns) crítico(s) pendente(s) para operação plena da APS.
+            {plural(pendingCritical.length, 'item crítico pendente', 'itens críticos pendentes')} para a operação plena da APS.
           </Typography>
         )}
 
