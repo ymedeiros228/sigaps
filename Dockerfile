@@ -1,5 +1,5 @@
 # SIGAPS — API + frontend (mesma URL no Render)
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /frontend
 ARG RENDER_GIT_COMMIT
 ENV GIT_COMMIT=${RENDER_GIT_COMMIT}
@@ -13,7 +13,7 @@ ENV VITE_API_URL=
 ENV VITE_DEV_AUTO_LOGIN=false
 RUN npm run build
 
-FROM node:20-alpine AS backend-builder
+FROM node:24-alpine AS backend-builder
 RUN apk add --no-cache openssl
 WORKDIR /app
 ARG RENDER_GIT_COMMIT
@@ -24,7 +24,7 @@ COPY backend/ ./
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:20-alpine AS production
+FROM node:24-alpine AS production
 RUN apk add --no-cache openssl
 WORKDIR /app
 ARG RENDER_GIT_COMMIT

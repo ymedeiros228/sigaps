@@ -194,7 +194,7 @@ sigaps/
 
 ### 6.1 Pré-requisitos
 
-- Node.js 20+
+- Node.js 24 (o mesmo do Vercel e do CI; ver .nvmrc)
 - Docker Desktop (recomendado)
 
 ### 6.2 Desenvolvimento local

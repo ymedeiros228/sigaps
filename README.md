@@ -189,7 +189,7 @@ sigaps/
 
 ### Pré-requisitos
 
-- Node.js 20+
+- Node.js 24 (o mesmo do Vercel e do CI; ver .nvmrc)
 - Docker e Docker Compose (recomendado)
 
 ### 1. Configurar
