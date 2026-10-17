@@ -25,7 +25,6 @@ import {
   AdminPanelSettings,
 } from '@mui/icons-material';
 import { BuildVersion } from '../common/BuildVersion';
-import { HostingNotice } from '../common/HostingNotice';
 import { useAppDataPrefetch } from '../../hooks/useAppDataPrefetch';
 import { useMemo, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -280,7 +279,6 @@ export function AppLayout() {
         }}
       >
         <Toolbar />
-        <HostingNotice />
         <Box sx={{ px: { xs: 2, sm: 3 }, pt: 1 }}>
           <InstallPrompt />
         </Box>

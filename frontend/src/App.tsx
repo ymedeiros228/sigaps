@@ -9,7 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { useEnsureValidMunicipality } from './hooks/useEnsureValidMunicipality';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { AjudaHostingPage } from './components/common/HostingNotice';
+import { AjudaPage } from './components/common/AjudaPage';
 
 const DashboardPage = lazy(() =>
   import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
@@ -122,11 +122,7 @@ function AppRoutes() {
         />
         <Route
           path="/ajuda"
-          element={
-            <Suspense fallback={<PageLoader />}>
-              <AjudaHostingPage />
-            </Suspense>
-          }
+          element={<AjudaPage />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
