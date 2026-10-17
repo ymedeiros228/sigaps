@@ -69,7 +69,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro. 
   }
 
   if (err.response?.status === 503) {
-    return 'Servidor acordando — aguarde alguns segundos e tente novamente.';
+    return 'O servidor está indisponível no momento. Tente novamente em alguns instantes.';
   }
 
   if (err.response?.status === 500) {

@@ -27,7 +27,6 @@ import { authApi } from '../services/api';
 import { useAuthStore, ACTIVE_MUNICIPALITY_KEY } from '../store';
 import { getApiErrorMessage } from '../utils/apiError';
 import { prefetchCadastrosData, prefetchMapData } from '../utils/prefetchAppData';
-import { waitForApiReady } from '../utils/waitForApi';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
 import {
   ensureDevAdminAuth,
@@ -49,7 +48,6 @@ export function LoginPage() {
   const devDefaults = getDevLoginDefaults();
   const [error, setError] = useState('');
   const [connecting, setConnecting] = useState(false);
-  const [wakeStatus, setWakeStatus] = useState<string | null>(null);
   const [autoLogging, setAutoLogging] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
@@ -68,14 +66,8 @@ export function LoginPage() {
   const doLogin = async (data: LoginForm) => {
     setError('');
     setConnecting(true);
-    setWakeStatus('Conectando ao servidor…');
     try {
-      await waitForApiReady(12, 5000, (attempt, max) => {
-        if (attempt > 1) {
-          setWakeStatus(`Servidor acordando… tentativa ${attempt} de ${max}`);
-        }
-      });
-      setWakeStatus(null);
+      // Vai direto ao login: no Vercel a API acorda em ~2 s, sem "ping" antes.
       const res = await authApi.login(data.email, data.password);
       setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
       navigate('/', { replace: true });
@@ -90,7 +82,6 @@ export function LoginPage() {
       setAutoLogging(false);
     } finally {
       setConnecting(false);
-      setWakeStatus(null);
     }
   };
 
@@ -286,12 +277,6 @@ export function LoginPage() {
             </Alert>
           )}
 
-          {connecting && !autoLogging && (
-            <Alert severity="info" icon={<CircularProgress size={16} />} sx={{ mb: 2, borderRadius: 2 }}>
-              {wakeStatus ?? 'Conectando ao servidor…'}
-            </Alert>
-          )}
-
           {error && (
             <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {error}
@@ -374,7 +359,10 @@ export function LoginPage() {
               disabled={formState.isSubmitting || autoLogging || connecting}
             >
               {formState.isSubmitting || autoLogging || connecting ? (
-                <CircularProgress size={22} color="inherit" />
+                <>
+                  <CircularProgress size={18} color="inherit" sx={{ mr: 1 }} aria-hidden />
+                  Entrando…
+                </>
               ) : (
                 'Entrar no sistema'
               )}

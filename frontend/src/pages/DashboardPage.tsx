@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import {
   Box,
   Card,
@@ -42,41 +42,27 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { formatAuditAction } from '../utils/permissions';
 import { dashboardApi, type AcsCoverageRow } from '../services/api';
-import { waitForApiReady } from '../utils/waitForApi';
-import { isRetryableQueryError, shouldRetryCloudQuery, cloudQueryRetryDelay } from '../utils/queryRetry';
+import { shouldRetryCloudQuery, cloudQueryRetryDelay } from '../utils/queryRetry';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const DashboardCharts = lazy(() =>
   import('../components/dashboard/DashboardCharts').then((m) => ({ default: m.DashboardCharts })),
 );
 
 function dashboardErrorMessage(error: unknown) {
-  if (isRetryableQueryError(error)) {
-    return 'O servidor está acordando (hospedagem gratuita). Aguarde cerca de 1 minuto e clique em Tentar novamente.';
-  }
   const status = (error as AxiosError)?.response?.status;
   if (status === 403) return 'Você não tem permissão para ver estes indicadores.';
   if (status === 404) return 'Município não encontrado. Faça login novamente.';
   if (status === 500) return 'Erro no servidor ao buscar indicadores. Tente novamente em instantes.';
-  return 'Não foi possível carregar os indicadores. Verifique sua conexão e tente novamente.';
+  // Rede e servidor fora do ar: a mensagem comum diz "sem internet" só quando o
+  // aparelho está mesmo offline; senão, que o servidor não respondeu.
+  return getApiErrorMessage(error, 'Não foi possível carregar os indicadores. Tente novamente.');
 }
 
 export function DashboardPage() {
   const municipalityId = useMunicipalityId();
   const theme = useTheme();
-  const [wakeMessage, setWakeMessage] = useState<string | null>(null);
   const [csvLoading, setCsvLoading] = useState(false);
-
-  useEffect(() => {
-    if (!import.meta.env.PROD) return;
-    let cancelled = false;
-    void waitForApiReady(4, 2000).then((ready) => {
-      if (!cancelled && !ready) {
-        setWakeMessage('Servidor acordando — carregando indicadores…');
-        window.setTimeout(() => { if (!cancelled) setWakeMessage(null); }, 5000);
-      }
-    });
-    return () => { cancelled = true; };
-  }, []);
 
   const { data: municipality } = useQuery({
     queryKey: queryKeys.municipality(municipalityId!),
@@ -136,13 +122,8 @@ export function DashboardPage() {
       <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', p: 8, gap: 1.5 }}>
         <CircularProgress />
         <Typography variant="body1" sx={{ fontWeight: 600 }}>
-          {wakeMessage ?? (failureCount > 0 ? `Carregando indicadores… (tentativa ${failureCount + 1})` : 'Carregando indicadores…')}
+          {failureCount > 0 ? `Carregando indicadores… (tentativa ${failureCount + 1})` : 'Carregando indicadores…'}
         </Typography>
-        {failureCount > 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420, textAlign: 'center' }}>
-            Na hospedagem gratuita, o primeiro acesso do dia pode levar até 1 minuto.
-          </Typography>
-        )}
       </Box>
     );
   }

@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-/** URL da API: vazio em produção = mesma origem (Render unificado). */
+/**
+ * URL da API. No Vercel o build usa VITE_API_URL=/api (mesma origem do site);
+ * sem a variável, produção usa a própria origem e o dev usa localhost:3000.
+ */
 function resolveApiUrl(): string {
   const env = import.meta.env.VITE_API_URL;
   if (typeof env === 'string' && env.length > 0) return env;

@@ -28,7 +28,6 @@ import { ACTIVE_MUNICIPALITY_KEY } from './store';
 import { ensureDevAdminAuth, isDevAutoLoginEnabled } from './constants/devAuth';
 import { prefetchCadastrosData, prefetchMapData } from './utils/prefetchAppData';
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from './utils/queryRetry';
-import { startApiKeepAlive } from './utils/waitForApi';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -160,8 +159,6 @@ export default function App() {
       }
     });
   }, [hydrate]);
-
-  useEffect(() => startApiKeepAlive(), []);
 
   return (
     <QueryClientProvider client={queryClient}>
