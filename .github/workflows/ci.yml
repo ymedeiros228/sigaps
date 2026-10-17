@@ -53,6 +53,8 @@ jobs:
         env:
           VITE_API_URL: https://sigaps-api.onrender.com
           VITE_DEV_AUTO_LOGIN: "false"
+      # Trava contra regressão: falha se o JS da tela de login passar de 260 KB gz.
+      - run: npm run check:bundle
 
   e2e:
     runs-on: ubuntu-latest
