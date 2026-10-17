@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { importStreetsFromBundledGeoJson } from '../src/common/utils/bundled-streets.import';
 import { clearMunicipalityPaint } from '../src/common/utils/clear-municipality-paint.util';
+import { planSeed } from '../src/common/utils/seed-guard.util';
 
 const prisma = new PrismaClient();
 
@@ -25,6 +26,8 @@ const TEMPLATE_ACS = [
 ];
 
 async function main() {
+  // Nunca em produção; usuários existentes e a pintura do mapa ficam como estão.
+  const plan = planSeed(process.env.DATABASE_URL, process.env);
   ensureMunicipalityLogo();
   const municipality = await prisma.municipality.upsert({
     where: { name_state: { name: 'Passagem Franca', state: 'MA' } },
@@ -55,7 +58,7 @@ async function main() {
       role: UserRole.ENFERMEIRO,
       municipalityId: municipality.id,
     },
-    update: { passwordHash, municipalityId: municipality.id, role: UserRole.ENFERMEIRO },
+    update: {},
   });
 
   await prisma.user.upsert({
@@ -67,7 +70,7 @@ async function main() {
       role: UserRole.ADMINISTRADOR,
       municipalityId: municipality.id,
     },
-    update: { passwordHash, municipalityId: municipality.id, role: UserRole.ADMINISTRADOR },
+    update: {},
   });
 
   const colors = ['#E6194B', '#4363D8', '#3CB44B', '#FFE119', '#911EB4'];
@@ -142,12 +145,7 @@ async function main() {
           role: UserRole.ACS,
           municipalityId: municipality.id,
         },
-        update: {
-          passwordHash,
-          municipalityId: municipality.id,
-          role: UserRole.ACS,
-          name: template.name,
-        },
+        update: {},
       });
       await prisma.acs.update({
         where: { id: acs.id },
@@ -156,11 +154,13 @@ async function main() {
     }
   }
 
-  const removedDemo = await prisma.street.deleteMany({
-    where: { municipalityId: municipality.id, osmId: null },
-  });
-  if (removedDemo.count > 0) {
-    console.log(`Removidas ${removedDemo.count} ruas demo (sem OSM)`);
+  if (plan.resetMap) {
+    const removedDemo = await prisma.street.deleteMany({
+      where: { municipalityId: municipality.id, osmId: null },
+    });
+    if (removedDemo.count > 0) {
+      console.log(`Removidas ${removedDemo.count} ruas demo (sem OSM)`);
+    }
   }
 
   const streetCount = await prisma.street.count({
@@ -180,21 +180,28 @@ async function main() {
     console.log(`Ruas OSM já no banco: ${streetCount}`);
   }
 
-  const cleared = await clearMunicipalityPaint(prisma, municipality.id);
-  if (cleared.clearedStreets > 0 || cleared.clearedPaintZones > 0) {
-    console.log(
-      `Mapa zerado para entrega: ${cleared.clearedStreets} ruas e ${cleared.clearedPaintZones} círculos removidos`,
-    );
+  if (plan.resetMap) {
+    const cleared = await clearMunicipalityPaint(prisma, municipality.id);
+    if (cleared.clearedStreets > 0 || cleared.clearedPaintZones > 0) {
+      console.log(
+        `Mapa zerado para entrega: ${cleared.clearedStreets} ruas e ${cleared.clearedPaintZones} círculos removidos`,
+      );
+    } else {
+      console.log('Mapa já estava sem pintura — cadastros prontos para o usuário pintar.');
+    }
   } else {
-    console.log('Mapa já estava sem pintura — cadastros prontos para o usuário pintar.');
+    console.log('Pintura do mapa mantida (SEED_RESET_MAP=true para zerar).');
   }
 
   console.log('Seed concluído!');
   console.log(`Município: ${municipality.name} (${municipality.id})`);
-  console.log('5 microáreas com ACS template vinculados (mapa zerado).');
-  console.log('Usuários: jonas@passagemfranca.ma.gov.br (enfermeiro) / admin@passagemfranca.ma.gov.br (admin) — Sigaps@2026');
+  console.log('5 microáreas com ACS template vinculados.');
+  console.log('Usuários novos: jonas@passagemfranca.ma.gov.br (enfermeiro) / admin@passagemfranca.ma.gov.br (admin) — Sigaps@2026 (usuários existentes não têm a senha alterada)');
 }
 
 main()
-  .catch(console.error)
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
   .finally(() => prisma.$disconnect());

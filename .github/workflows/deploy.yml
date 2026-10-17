@@ -41,16 +41,10 @@ jobs:
       - run: npx prisma generate
         if: steps.check.outputs.configured == 'true'
 
+      # Sem seed aqui: em produção ele voltava as senhas para a padrão e podia zerar o mapa.
       - name: Aplicar migrações (com reparo P3009)
         if: steps.check.outputs.configured == 'true'
         run: bash scripts/migrate-deploy.sh
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Seed (dados Passagem Franca)
-        if: steps.check.outputs.configured == 'true'
-        continue-on-error: true
-        run: npx prisma db seed
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
