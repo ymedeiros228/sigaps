@@ -50,3 +50,6 @@ docs/manual/_build.html
 
 # Capturas do Playwright MCP (sessões de desenvolvimento)
 .playwright-mcp/
+
+# Supabase CLI (arquivos locais do supabase link)
+supabase/.temp/
