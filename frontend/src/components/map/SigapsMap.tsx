@@ -40,7 +40,7 @@ import { canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, paintGeometryEqual, prepareStreetsForMap } from '../../utils/streetSearch';
 import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, simulatePaintRange, simulateUnpaintAtPoint, simulateUnpaintRange, closestVertexIndex, streetCoords, sliceStreetGeojson, densifyStreetForMicro } from '../../utils/streetPaintSegments';
-import { MapBoundsReporter, useMapViewportStreets, VIEWPORT_STREETS_THRESHOLD } from '../../hooks/useMapViewportStreets';
+import { MapBoundsReporter, useMapViewportStreets } from '../../hooks/useMapViewportStreets';
 import { useMapToolbarOffset } from '../../hooks/useMapToolbarOffset';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { scheduleDashboardInvalidate, scheduleMicroareasInvalidate, invalidateMicroareasNow } from '../../utils/prefetchAppData';
@@ -55,19 +55,10 @@ import { streetHasPaint } from '../../utils/streetPaintSegments';
 import { LeafletMap } from './LeafletMap';
 import { MapTileLayerController } from './MapTileLayerController';
 import { MapCursorCoordsTracker } from './MapCursorCoords';
+import { MapCursorCoordsLabel } from './MapCursorCoordsLabel';
 
 const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
 const DRAG_PAINT_THROTTLE_MS = 120;
-const LARGE_MESH_NOTICE_KEY = 'sigaps_large_mesh_notice_dismissed';
-
-function isLargeMeshNoticeDismissed(municipalityId: string | null): boolean {
-  if (!municipalityId) return false;
-  try {
-    return localStorage.getItem(`${LARGE_MESH_NOTICE_KEY}:${municipalityId}`) === '1';
-  } catch {
-    return false;
-  }
-}
 
 /** Resposta lean do paint/unpaint: reconstitui geojson a partir da rua em cache. */
 function hydratePaintedStreet(updated: Street, base: Street): Street {
@@ -143,9 +134,6 @@ export function SigapsMap() {
   const [importFailed, setImportFailed] = useState(false);
   const [importPolling, setImportPolling] = useState(false);
   const [streetsAutoRetrying, setStreetsAutoRetrying] = useState(false);
-  const [largeMeshNoticeDismissed, setLargeMeshNoticeDismissed] = useState(() =>
-    isLargeMeshNoticeDismissed(municipalityId),
-  );
   const streetsAutoRetryCount = useRef(0);
   const pendingPaintRef = useRef<Set<string>>(new Set());
   const pendingUnpaintRef = useRef<Set<string>>(new Set());
@@ -244,21 +232,6 @@ export function SigapsMap() {
     }
   }, [microareasData, setMicroareas]);
 
-  useEffect(() => {
-    setLargeMeshNoticeDismissed(isLargeMeshNoticeDismissed(municipalityId));
-  }, [municipalityId]);
-
-  const dismissLargeMeshNotice = useCallback(() => {
-    if (municipalityId) {
-      try {
-        localStorage.setItem(`${LARGE_MESH_NOTICE_KEY}:${municipalityId}`, '1');
-      } catch {
-        /* storage indisponível */
-      }
-    }
-    setLargeMeshNoticeDismissed(true);
-  }, [municipalityId]);
-
   const {
     streetsData,
     streetsTotal,
@@ -269,14 +242,6 @@ export function SigapsMap() {
     refetch: refetchStreets,
     onBounds,
   } = useMapViewportStreets(municipalityId);
-
-  // Aviso apenas informativo (só quando aparece): some sozinho para não cobrir o mapa.
-  const largeMeshNoticeVisible = streetsTotal > VIEWPORT_STREETS_THRESHOLD && !largeMeshNoticeDismissed;
-  useEffect(() => {
-    if (!largeMeshNoticeVisible) return;
-    const timer = window.setTimeout(dismissLargeMeshNotice, 8000);
-    return () => window.clearTimeout(timer);
-  }, [largeMeshNoticeVisible, dismissLargeMeshNotice]);
 
   const streetCount = streetsData?.items?.length ?? 0;
   const streets = useMemo(
@@ -1651,7 +1616,14 @@ export function SigapsMap() {
     <Box
       ref={mapContainerRef}
       className={paintMode ? (eraserMode ? 'sigaps-map-painting sigaps-map-eraser' : 'sigaps-map-painting') : undefined}
-      sx={{ position: 'relative', height: 'calc(100vh - 64px)', width: '100%', '--map-toolbar-offset': '120px' } as const}
+      sx={{
+        position: 'relative',
+        // dvh: no celular a barra do navegador não esconde a parte de baixo do mapa.
+        height: { xs: 'calc(100dvh - 56px)', sm: 'calc(100dvh - 64px)' },
+        width: '100%',
+        overflow: 'hidden',
+        '--map-toolbar-offset': '72px',
+      } as const}
     >
       <MapToolbar
         mapContainerRef={mapContainerRef}
@@ -1790,26 +1762,6 @@ export function SigapsMap() {
           onImport={() => void handleRetryLoadStreets()}
         />
       )}
-      {streetsTotal > VIEWPORT_STREETS_THRESHOLD && !largeMeshNoticeDismissed && (
-        <Alert
-          severity="info"
-          onClose={dismissLargeMeshNotice}
-          sx={{
-            position: 'absolute',
-            // Celular: embaixo (não cobre a barra de ferramentas); desktop: canto superior direito.
-            top: { xs: 'auto', sm: 80 },
-            bottom: { xs: 96, sm: 'auto' },
-            left: { xs: 8, sm: 'auto' },
-            right: { xs: 8, sm: 16 },
-            zIndex: 1000,
-            maxWidth: { xs: 'none', sm: 320 },
-            borderRadius: 2,
-          }}
-        >
-          Malha grande ({streetsTotal} ruas). O mapa simplifica geometrias e carrega por área visível
-          para manter a performance.
-        </Alert>
-      )}
 
       {useViewport && streetCount === 0 && !streetsFetching && !isLoading && !showEmptyOverlay && (
         <Alert
@@ -1829,6 +1781,11 @@ export function SigapsMap() {
           Mova o mapa para carregar mais ruas
         </Alert>
       )}
+
+      {/* Coordenadas do cursor: discreto, ao lado do zoom, só em aparelho com mouse. */}
+      <Box className="map-cursor-coords" aria-hidden>
+        <MapCursorCoordsLabel emptyText="" typographyProps={{ sx: { fontFamily: 'inherit', fontWeight: 600 } }} />
+      </Box>
 
       <LeafletMap
           className="sigaps-leaflet-map"

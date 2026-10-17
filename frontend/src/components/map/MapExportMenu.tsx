@@ -15,8 +15,11 @@ import {
   CircularProgress,
   Divider,
   Typography,
+  Tooltip,
+  Box,
 } from '@mui/material';
 import {
+  FolderOpen,
   Upload,
   Download,
   Image,
@@ -259,9 +262,21 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
 
   return (
     <>
-      <Button size="small" variant="outlined" onClick={(e) => setAnchorEl(e.currentTarget)}>
-        Arquivos
-      </Button>
+      <Tooltip title="Exportar mapa e importar arquivos">
+        <Button
+          size="small"
+          variant="outlined"
+          color="inherit"
+          aria-label="Arquivos"
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          startIcon={<FolderOpen fontSize="small" />}
+          sx={{ minWidth: 0, px: 1.25, borderColor: 'divider', '& .MuiButton-startIcon': { mr: { xs: 0, md: 0.75 } } }}
+        >
+          <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>
+            Arquivos
+          </Box>
+        </Button>
+      </Tooltip>
       {exportError && (
         <Alert severity="error" sx={{ mt: 1 }} onClose={() => setExportError(null)}>
           {exportError}

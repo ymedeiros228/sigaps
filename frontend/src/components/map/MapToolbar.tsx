@@ -7,14 +7,17 @@ import {
   ToggleButtonGroup,
   Button,
   Chip,
-  FormControlLabel,
+  Divider,
+  Popover,
   Switch,
   Typography,
+  useMediaQuery,
   useTheme,
   alpha,
 } from '@mui/material';
 import {
   Fullscreen,
+  FullscreenExit,
   MyLocation,
   Satellite,
   Terrain,
@@ -22,16 +25,17 @@ import {
   Download,
   AutoFixOff,
   FormatPaint,
+  Layers,
 } from '@mui/icons-material';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { MapExportMenu } from './MapExportMenu';
 import { StreetSearchBar, type StreetSearchOption } from './StreetSearchBar';
 import { canImportStreets } from '../../utils/permissions';
 import { countPaintedStreets, countStreetsWithFamilyData, sumFamiliesOnStreets } from '../../utils/streetPaintStats';
-import { MapCursorCoordsLabel } from './MapCursorCoordsLabel';
 import type { RefObject } from 'react';
 import type { Microarea, Street } from '../../services/api';
+import type { MapBaseLayerId } from '../../constants/mapTiles';
 
 interface MapToolbarProps {
   onImport: () => void;
@@ -46,15 +50,20 @@ interface MapToolbarProps {
   readOnly?: boolean;
 }
 
-const panelSx = {
-  position: 'absolute' as const,
-  top: 16,
-  left: 16,
-  right: 16,
-  zIndex: 1000,
-  p: 1.5,
-  borderRadius: 3,
-};
+const BASE_LAYERS: { id: MapBaseLayerId; label: string; hint: string; icon: ReactNode }[] = [
+  { id: 'map', label: 'Ruas', hint: 'Mapa de ruas (OpenStreetMap)', icon: <MapIcon fontSize="small" /> },
+  {
+    id: 'satellite',
+    label: 'Satélite',
+    hint: 'Satélite — se o fundo ficar preto, volte em Ruas',
+    icon: <Satellite fontSize="small" />,
+  },
+  { id: 'terrain', label: 'Relevo', hint: 'Relevo', icon: <Terrain fontSize="small" /> },
+];
+
+/** Tela cheia só onde o navegador deixa (o iPhone, por exemplo, não deixa). */
+const fullscreenSupported = () =>
+  typeof document !== 'undefined' && !!document.documentElement.requestFullscreen;
 
 export function MapToolbar({
   onImport,
@@ -69,6 +78,7 @@ export function MapToolbar({
   readOnly = false,
 }: MapToolbarProps) {
   const theme = useTheme();
+  const compact = useMediaQuery(theme.breakpoints.down('md'));
   const municipalityId = useAppStore((s) => s.municipalityId);
   const paintMode = useMapStore((s) => s.paintMode);
   const eraserMode = useMapStore((s) => s.eraserMode);
@@ -85,6 +95,14 @@ export function MapToolbar({
   const flyTo = useMapStore((s) => s.flyTo);
   const user = useAuthStore((s) => s.user);
   const canImport = canImportStreets(user?.role);
+  const [layersAnchor, setLayersAnchor] = useState<HTMLElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
+
+  useEffect(() => {
+    const sync = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
 
   const coverage = useMemo(() => {
     if (streetCount === 0) return 0;
@@ -100,51 +118,109 @@ export function MapToolbar({
     [streets],
   );
 
-  const handleSearchSelect = (option: StreetSearchOption) => {
-    onSearchSelect(option);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen();
   };
 
   const glassBg = theme.palette.mode === 'dark'
-    ? alpha(theme.palette.background.paper, 0.88)
-    : alpha('#fff', 0.92);
+    ? alpha(theme.palette.background.paper, 0.9)
+    : alpha('#fff', 0.94);
+
+  const showImport = !readOnly && canImport && (streetCount > 0 || importing);
+  // Camadas extras só fazem sentido fora do modo pintar (lá o painel de baixo manda).
+  const activeOverlays = [showEnvelopes, showHeatmap, showUbsMarkers, showPlacesMarkers].filter(Boolean).length;
+
+  const baseLayerToggle = (fullWidth: boolean) => (
+    <ToggleButtonGroup
+      size="small"
+      exclusive
+      fullWidth={fullWidth}
+      value={baseLayer}
+      onChange={(_, v) => v && setBaseLayer(v)}
+      aria-label="Fundo do mapa"
+      sx={{ bgcolor: alpha(theme.palette.action.hover, 0.5), flexShrink: 0 }}
+    >
+      {BASE_LAYERS.map((layer) => (
+        <Tooltip key={layer.id} title={fullWidth ? '' : layer.hint}>
+          <ToggleButton value={layer.id} aria-label={layer.label} sx={{ gap: 0.75, px: fullWidth ? 1 : 1.25, textTransform: 'none' }}>
+            {layer.icon}
+            {fullWidth && (
+              <Typography component="span" variant="body2" sx={{ fontWeight: 600 }}>
+                {layer.label}
+              </Typography>
+            )}
+          </ToggleButton>
+        </Tooltip>
+      ))}
+    </ToggleButtonGroup>
+  );
+
+  const layerSwitch = (
+    label: string,
+    checked: boolean,
+    onChange: (value: boolean) => void,
+    options: { hint?: string; disabled?: boolean; testId?: string } = {},
+  ) => (
+    <Box
+      component="label"
+      data-testid={options.testId}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        minHeight: 44,
+        px: 1,
+        mx: -1,
+        borderRadius: 2,
+        cursor: options.disabled ? 'default' : 'pointer',
+        '&:hover': options.disabled ? undefined : { bgcolor: 'action.hover' },
+      }}
+    >
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }} color={options.disabled ? 'text.disabled' : 'text.primary'}>
+          {label}
+        </Typography>
+        {options.hint && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
+            {options.hint}
+          </Typography>
+        )}
+      </Box>
+      <Switch
+        size="small"
+        checked={checked}
+        disabled={options.disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+    </Box>
+  );
 
   return (
     <Paper
       className={`map-float-panel map-toolbar-root${paintMode ? ' map-toolbar-root--paint' : ''}`}
       elevation={0}
       sx={{
-        ...panelSx,
+        position: 'absolute',
+        top: { xs: 8, sm: 12 },
+        left: { xs: 8, sm: 12 },
+        right: { xs: 8, sm: 12 },
+        zIndex: 1000,
+        px: { xs: 1, sm: 1.25 },
+        py: 1,
+        borderRadius: 3,
         bgcolor: glassBg,
         display: 'flex',
-        flexWrap: 'wrap',
-        gap: paintMode ? 0.75 : 1,
+        flexWrap: 'nowrap',
+        gap: 1,
         alignItems: 'center',
-        py: paintMode ? 1 : 1.5,
       }}
     >
-      <StreetSearchBar
-        municipalityId={municipalityId}
-        streets={streets}
-        onSelect={handleSearchSelect}
-      />
+      <Box sx={{ flex: '1 1 0', minWidth: 0, maxWidth: { md: 440 } }}>
+        <StreetSearchBar municipalityId={municipalityId} streets={streets} onSelect={onSearchSelect} />
+      </Box>
 
-      <ToggleButtonGroup
-        size="small"
-        exclusive
-        value={baseLayer}
-        onChange={(_, v) => v && setBaseLayer(v)}
-        sx={{ bgcolor: alpha(theme.palette.action.hover, 0.5) }}
-      >
-        <ToggleButton value="map">
-          <Tooltip title="Mapa de ruas OpenStreetMap"><MapIcon fontSize="small" /></Tooltip>
-        </ToggleButton>
-        <ToggleButton value="satellite">
-          <Tooltip title="Satélite — se o fundo ficar preto, volte em Mapa"><Satellite fontSize="small" /></Tooltip>
-        </ToggleButton>
-        <ToggleButton value="terrain">
-          <Tooltip title="Relevo"><Terrain fontSize="small" /></Tooltip>
-        </ToggleButton>
-      </ToggleButtonGroup>
+      {!compact && baseLayerToggle(false)}
 
       {paintMode && (
         <Chip
@@ -156,156 +232,189 @@ export function MapToolbar({
         />
       )}
 
-      {streetCount > 0 && (
-        <Chip
-          label={`${coverage}%`}
-          size="small"
-          color={coverage >= 80 ? 'success' : coverage >= 40 ? 'warning' : 'default'}
-          variant="outlined"
-          sx={{ fontWeight: 700, display: { xs: 'none', sm: 'flex' }, minWidth: 52 }}
-        />
-      )}
-
       {!paintMode && readOnly && (
         <Chip label="Consulta — sua microárea" size="small" color="primary" variant="outlined" />
       )}
 
-      {!readOnly && canImport && (streetCount > 0 || importing) && (
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={onImport}
-          disabled={importing}
-          startIcon={<Download fontSize="small" />}
-        >
-          {importing ? 'Atualizando...' : 'Atualizar ruas'}
-        </Button>
-      )}
-
       {selectedCount > 0 && (
-        <Chip
-          size="small"
-          label={`${selectedCount} selecionada(s)`}
-          color="info"
-          variant="outlined"
-        />
+        <Chip size="small" label={`${selectedCount} selecionada(s)`} color="info" variant="outlined" />
       )}
 
-      {!paintMode && streetCount > 0 && (
-        <Chip
-          label="Toque na rua para detalhes"
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 600, display: { xs: 'none', lg: 'flex' } }}
-        />
-      )}
-
-      {!paintMode && (
-      <>
-      <FormControlLabel
-        control={
-          <Switch
+      {streetCount > 0 && !compact && (
+        <Tooltip title="Ruas com microárea na área carregada">
+          <Chip
+            label={`${coverage}% pintado`}
             size="small"
-            checked={showEnvelopes}
-            onChange={(e) => setShowEnvelopes(e.target.checked)}
+            color={coverage >= 80 ? 'success' : coverage >= 40 ? 'warning' : 'default'}
+            variant="outlined"
+            sx={{ fontWeight: 700 }}
           />
-        }
-        label="Áreas (polígonos)"
-        sx={{ mr: 0 }}
-      />
-
-      <Tooltip
-        title={
-          familyStats.streetsWithData === 0
-            ? 'Importe dados e-SUS para ver o mapa de calor'
-            : 'Sobrepõe calor de famílias sobre as cores das microáreas'
-        }
-      >
-        <FormControlLabel
-          data-testid="toggle-heatmap"
-          control={
-            <Switch
-              size="small"
-              checked={showHeatmap}
-              onChange={(e) => setShowHeatmap(e.target.checked)}
-              disabled={familyStats.streetsWithData === 0}
-            />
-          }
-          label={
-            familyStats.total > 0
-              ? `Famílias (${familyStats.total})`
-              : 'Famílias'
-          }
-          sx={{ mr: 0, display: { xs: 'none', md: 'flex' } }}
-        />
-      </Tooltip>
-
-      <FormControlLabel
-        control={
-          <Switch
-            size="small"
-            checked={showUbsMarkers}
-            onChange={(e) => setShowUbsMarkers(e.target.checked)}
-          />
-        }
-        label="UBS"
-        sx={{ mr: 0, display: { xs: 'none', lg: 'flex' } }}
-      />
-
-      <FormControlLabel
-        control={
-          <Switch
-            size="small"
-            checked={showPlacesMarkers}
-            onChange={(e) => setShowPlacesMarkers(e.target.checked)}
-          />
-        }
-        label="Povoados"
-        sx={{ mr: 0, display: { xs: 'none', lg: 'flex' } }}
-      />
-
-      <MapExportMenu
-        mapContainerRef={mapContainerRef}
-        microareas={microareas}
-        onImportFamilies={onImportFamilies}
-      />
-      </>
-      )}
-
-      <Box sx={{ display: 'flex', gap: 0.5, ml: { md: 'auto' } }}>
-        <Tooltip title="Tela cheia">
-          <IconButton size="small" onClick={() => document.documentElement.requestFullscreen()}>
-            <Fullscreen fontSize="small" />
-          </IconButton>
         </Tooltip>
+      )}
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto', flexShrink: 0 }}>
+        {showImport && !compact && (
+          <Button
+            size="small"
+            variant="text"
+            onClick={onImport}
+            disabled={importing}
+            startIcon={<Download fontSize="small" />}
+          >
+            {importing ? 'Atualizando…' : 'Atualizar ruas'}
+          </Button>
+        )}
+
+        {!paintMode && (
+          <MapExportMenu
+            mapContainerRef={mapContainerRef}
+            microareas={microareas}
+            onImportFamilies={onImportFamilies}
+          />
+        )}
+
+        <Tooltip title="Camadas e fundo do mapa">
+          <Button
+            size="small"
+            variant={layersAnchor ? 'contained' : 'outlined'}
+            color="inherit"
+            onClick={(e) => setLayersAnchor(e.currentTarget)}
+            aria-label="Camadas"
+            aria-haspopup="dialog"
+            startIcon={<Layers fontSize="small" />}
+            sx={{
+              minWidth: 0,
+              borderColor: 'divider',
+              px: 1.25,
+              '& .MuiButton-startIcon': { mr: { xs: 0, md: 0.75 } },
+            }}
+          >
+            <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>
+              Camadas
+            </Box>
+            {!paintMode && activeOverlays > 0 && (
+              <Box
+                component="span"
+                sx={{
+                  ml: 0.75,
+                  minWidth: 18,
+                  height: 18,
+                  px: 0.5,
+                  borderRadius: 9,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  lineHeight: '18px',
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
+                }}
+              >
+                {activeOverlays}
+              </Box>
+            )}
+          </Button>
+        </Tooltip>
+
+        {!compact && fullscreenSupported() && (
+          <Tooltip title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}>
+            <IconButton size="small" onClick={toggleFullscreen} aria-label={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}>
+              {isFullscreen ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip title="Centralizar município">
-          <IconButton size="small" onClick={() => flyTo(-6.1828, -43.7869, 14)}>
+          <IconButton size="small" onClick={() => flyTo(-6.1828, -43.7869, 14)} aria-label="Centralizar município">
             <MyLocation fontSize="small" />
           </IconButton>
         </Tooltip>
       </Box>
 
-      {!paintMode && (
-      <Box
-        sx={{
-          flexBasis: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.75,
-          pt: 0.75,
-          mt: 0.25,
-          borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+      <Popover
+        open={!!layersAnchor}
+        anchorEl={layersAnchor}
+        onClose={() => setLayersAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{
+          paper: {
+            sx: { mt: 1, p: 2, width: 300, maxWidth: 'calc(100vw - 16px)', borderRadius: 3 },
+          },
         }}
       >
-        <MyLocation fontSize="small" color="action" sx={{ flexShrink: 0 }} />
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
-            Coordenadas do cursor
-          </Typography>
-          <MapCursorCoordsLabel />
-        </Box>
-      </Box>
-      )}
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+          Fundo do mapa
+        </Typography>
+        {baseLayerToggle(true)}
+
+        {!paintMode && (
+          <>
+            <Divider sx={{ my: 1.5 }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Mostrar no mapa
+            </Typography>
+            {layerSwitch('Áreas das microáreas', showEnvelopes, setShowEnvelopes, {
+              hint: 'Contorno de cada microárea',
+            })}
+            {layerSwitch(
+              familyStats.total > 0 ? `Calor de famílias (${familyStats.total})` : 'Calor de famílias',
+              showHeatmap,
+              setShowHeatmap,
+              {
+                hint:
+                  familyStats.streetsWithData === 0
+                    ? 'Importe os dados do e-SUS para ativar'
+                    : 'Onde há mais famílias por rua',
+                disabled: familyStats.streetsWithData === 0,
+                testId: 'toggle-heatmap',
+              },
+            )}
+            {layerSwitch('UBS', showUbsMarkers, setShowUbsMarkers)}
+            {layerSwitch('Povoados e localidades', showPlacesMarkers, setShowPlacesMarkers)}
+          </>
+        )}
+
+        {(compact && (showImport || streetCount > 0 || fullscreenSupported())) && (
+          <>
+            <Divider sx={{ my: 1.5 }} />
+            {streetCount > 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                  {coverage}%
+                </Box>{' '}
+                das ruas carregadas já têm microárea
+              </Typography>
+            )}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {showImport && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    setLayersAnchor(null);
+                    onImport();
+                  }}
+                  disabled={importing}
+                  startIcon={<Download fontSize="small" />}
+                >
+                  {importing ? 'Atualizando…' : 'Atualizar ruas'}
+                </Button>
+              )}
+              {fullscreenSupported() && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    setLayersAnchor(null);
+                    toggleFullscreen();
+                  }}
+                  startIcon={isFullscreen ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
+                >
+                  {isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+                </Button>
+              )}
+            </Box>
+          </>
+        )}
+      </Popover>
     </Paper>
   );
 }

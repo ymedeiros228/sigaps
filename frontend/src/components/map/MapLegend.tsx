@@ -89,11 +89,21 @@ export function MapLegend({
       elevation={0}
       sx={{
         position: 'absolute',
-        bottom: paintMode && !paintGuideCollapsed ? { xs: 240, sm: 220 } : { xs: 220, sm: 200 },
-        left: { xs: 8, sm: 16 },
+        // Computador: logo abaixo da barra, à esquerda. Celular: embaixo, acima do painel de pintar.
+        top: { xs: 'auto', sm: 'var(--map-toolbar-offset, 72px)' },
+        bottom: {
+          xs: paintMode && !paintGuideCollapsed ? 240 : 76,
+          sm: 'auto',
+        },
+        left: { xs: 8, sm: 12 },
         zIndex: 1000,
-        minWidth: { xs: 0, sm: 220 },
-        maxWidth: { xs: 'calc(50% - 12px)', sm: 280 },
+        width: { xs: open ? 'min(260px, calc(100% - 16px))' : 'auto', sm: 240 },
+        maxHeight: {
+          xs: 'calc(100% - var(--map-toolbar-offset, 72px) - 96px)',
+          sm: 'calc(100% - var(--map-toolbar-offset, 72px) - 96px)',
+        },
+        display: 'flex',
+        flexDirection: 'column',
         bgcolor: glassBg,
         borderRadius: 3,
         overflow: 'hidden',
@@ -101,33 +111,43 @@ export function MapLegend({
       }}
     >
       <Box
+        role="button"
+        aria-expanded={open}
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          px: 1.5,
-          py: 1,
+          gap: 1,
+          pl: 1.5,
+          pr: 0.5,
+          minHeight: 44,
           cursor: 'pointer',
+          flexShrink: 0,
+          '&:hover': { bgcolor: 'action.hover' },
         }}
         onClick={() => setOpen(!open)}
       >
-        <Box>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            Legenda
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {loading
-              ? 'Carregando…'
-              : paintMode && stats.paintedTotal === 0
-                ? `Nenhuma rua pintada ainda · ${streets.length} na tela (cinza = sem pintura)`
-                : `${stats.paintedTotal} pintada(s) no município · ${stats.paintedViewport}/${streets.length} na tela`}
-          </Typography>
-        </Box>
-        <IconButton size="small">{open ? <ExpandLess /> : <ExpandMore />}</IconButton>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          Legenda
+        </Typography>
+        <Typography variant="caption" color="text.secondary" noWrap sx={{ flex: 1, minWidth: 0 }}>
+          {loading
+            ? 'carregando…'
+            : stats.paintedTotal === 0
+              ? 'nada pintado ainda'
+              : `${stats.paintedTotal} rua${stats.paintedTotal > 1 ? 's' : ''} pintada${stats.paintedTotal > 1 ? 's' : ''}`}
+        </Typography>
+        <IconButton size="small" tabIndex={-1} aria-hidden>
+          {open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+        </IconButton>
       </Box>
 
-      <Collapse in={open}>
+      <Collapse in={open} unmountOnExit sx={{ minHeight: 0, overflow: 'auto' }}>
         <Box sx={{ px: 1.5, pb: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+            {paintMode && stats.paintedTotal === 0
+              ? `${streets.length} ruas na tela · tracejado = sem microárea`
+              : `${stats.paintedViewport} de ${streets.length} ruas pintadas na tela`}
+          </Typography>
           <LinearProgress
             variant={loading ? 'indeterminate' : 'determinate'}
             value={loading ? undefined : stats.coverage}
@@ -174,7 +194,6 @@ export function MapLegend({
                       height: 5,
                       bgcolor: m.color,
                       borderRadius: 1,
-                      boxShadow: `0 0 8px ${m.color}66`,
                       flexShrink: 0,
                     }}
                   />

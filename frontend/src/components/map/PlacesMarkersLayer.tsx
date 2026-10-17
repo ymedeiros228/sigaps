@@ -120,12 +120,15 @@ export function PlacesMarkersLayer({
             }
           >
             {paintMode && paintTooltip ? (
-              <Tooltip direction="top" offset={[0, -12]} className="paint-tooltip" sticky>
+              // key: o react-leaflet não troca a opção "permanent" de um tooltip já criado;
+              // sem remontar, o rótulo fixo do povoado virava "Pintar povoado" fixo na tela.
+              <Tooltip key="paint" direction="top" offset={[0, -12]} className="paint-tooltip" sticky>
                 {paintTooltip}
               </Tooltip>
             ) : (
               showLabels && (
                 <Tooltip
+                  key="label"
                   permanent
                   direction="bottom"
                   offset={[0, 10]}

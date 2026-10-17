@@ -9,7 +9,7 @@ async function openMapAndWaitStreets(page: import('@playwright/test').Page) {
 
 async function expandPaintGuide(page: import('@playwright/test').Page) {
   const header = page.getByTestId('paint-guide-header');
-  const collapsed = await page.getByText('Mapa guardado').isVisible().catch(() => false);
+  const collapsed = await page.getByTestId('paint-guide-header').getByText('Pintar ruas', { exact: true }).isVisible().catch(() => false);
   if (collapsed) {
     await header.click();
   }

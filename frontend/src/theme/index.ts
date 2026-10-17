@@ -119,6 +119,11 @@ export const createAppTheme = (darkMode: boolean) =>
           root: { textTransform: 'none', fontWeight: 600, minHeight: 48 },
         },
       },
+      MuiToggleButton: {
+        styleOverrides: {
+          root: { textTransform: 'none', fontWeight: 600 },
+        },
+      },
       MuiTextField: {
         styleOverrides: {
           root: {

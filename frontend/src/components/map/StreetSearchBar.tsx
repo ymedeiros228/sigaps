@@ -178,7 +178,7 @@ export function StreetSearchBar({ municipalityId, streets, onSelect }: StreetSea
   const showList = open && text.trim().length >= 2;
 
   return (
-    <Box sx={{ position: 'relative', minWidth: { xs: '100%', sm: 300 }, flex: { sm: 1 } }}>
+    <Box sx={{ position: 'relative', width: '100%', minWidth: 0 }}>
       <TextField
         size="small"
         fullWidth

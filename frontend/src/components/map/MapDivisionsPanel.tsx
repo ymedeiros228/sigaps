@@ -125,7 +125,8 @@ export function MapDivisionsPanel({
         top: 'var(--map-toolbar-offset, 120px)',
         right: { xs: 8, sm: 16 },
         zIndex: 999,
-        width: { xs: 'calc(100% - 16px)', sm: 300 },
+        // Fechado vira um botão pequeno (não cobre o mapa); aberto ganha a largura do formulário.
+        width: panelOpen || divisionMode ? { xs: 'calc(100% - 16px)', sm: 300 } : 'auto',
         maxWidth: 320,
         maxHeight: 'calc(100% - var(--map-toolbar-offset, 120px) - 180px)',
         bgcolor: glassBg,
@@ -139,17 +140,22 @@ export function MapDivisionsPanel({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          px: 1.5,
-          py: 1,
-          bgcolor: alpha(theme.palette.info.main, 0.08),
+          gap: 0.5,
+          pl: 1.5,
+          pr: 0.5,
+          py: 0.5,
+          minHeight: 44,
           cursor: 'pointer',
+          '&:hover': { bgcolor: 'action.hover' },
         }}
+        role="button"
+        aria-expanded={panelOpen}
         onClick={() => setPanelOpen(!panelOpen)}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <GridView color="info" fontSize="small" />
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            Divisões de mapa
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {panelOpen || divisionMode ? 'Divisões de mapa' : 'Divisões'}
           </Typography>
           {zones.length > 0 && (
             <Chip size="small" label={zones.length} color="info" variant="outlined" />
@@ -158,7 +164,7 @@ export function MapDivisionsPanel({
         <IconButton size="small">{panelOpen ? <ExpandLess /> : <ExpandMore />}</IconButton>
       </Box>
 
-      <Collapse in={panelOpen}>
+      <Collapse in={panelOpen} unmountOnExit>
         <Box sx={{ p: 1.5, pt: 1 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
             Crie áreas circulares no mapa e vincule ruas à microárea escolhida. Ideal para

@@ -17,7 +17,6 @@ import {
   Brush,
   ExpandLess,
   ExpandMore,
-  CheckCircle,
   PanTool,
   Add,
   FormatPaint,
@@ -254,14 +253,17 @@ export function PaintGuidePanel({
         sx={{
           position: 'absolute',
           bottom: { xs: 12, sm: 20 },
-          left: '50%',
-          transform: 'translateX(-50%)',
+          // Computador: aberto fica no canto direito, para não cobrir o centro da cidade.
+          left: collapsed ? '50%' : { xs: '50%', md: 'auto' },
+          right: collapsed ? 'auto' : { xs: 'auto', md: 16 },
+          transform: collapsed ? 'translateX(-50%)' : { xs: 'translateX(-50%)', md: 'none' },
+          maxHeight: collapsed ? undefined : { md: 'calc(100% - var(--map-toolbar-offset, 72px) - 76px)' },
           zIndex: 1001,
           width: collapsed
             ? { xs: 'calc(100% - 24px)', sm: 'auto' }
             : paintMode
-              ? { xs: 'calc(100% - 16px)', sm: 480, md: 520 }
-              : { xs: 'calc(100% - 16px)', sm: 520, md: 560 },
+              ? { xs: 'calc(100% - 16px)', sm: 480, md: 440 }
+              : { xs: 'calc(100% - 16px)', sm: 520, md: 440 },
           maxWidth: collapsed ? { xs: '100%', sm: 520 } : undefined,
           display: 'flex',
           flexDirection: 'column',
@@ -286,20 +288,24 @@ export function PaintGuidePanel({
             py: collapsed ? 0.75 : 1.25,
             flexShrink: 0,
             bgcolor: collapsed
-              ? alpha(theme.palette.success.main, 0.1)
+              ? theme.palette.primary.main
               : paintMode
                 ? alpha(accentColor, 0.12)
                 : alpha(theme.palette.primary.main, 0.06),
             borderBottom: collapsed ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            color: collapsed ? theme.palette.primary.contrastText : undefined,
+            minHeight: collapsed ? 48 : undefined,
             cursor: 'pointer',
             gap: 1,
+            transition: 'background-color 0.15s ease-out',
+            '&:hover': collapsed ? { bgcolor: theme.palette.primary.dark } : undefined,
           }}
           onClick={() => setPaintGuideCollapsed(!collapsed)}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, minWidth: 0, flex: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               {collapsed ? (
-                <CheckCircle color="success" fontSize="small" />
+                <Brush fontSize="small" />
               ) : eraserMode ? (
                 <AutoFixOff color="error" />
               ) : (
@@ -307,7 +313,7 @@ export function PaintGuidePanel({
               )}
               <Typography variant={collapsed ? 'body2' : 'subtitle1'} sx={{ fontWeight: 700 }}>
                 {collapsed
-                  ? 'Mapa guardado'
+                  ? 'Pintar ruas'
                   : eraserMode
                     ? 'Modo apagar'
                     : paintMode
@@ -315,8 +321,8 @@ export function PaintGuidePanel({
                       : 'Pintar microáreas'}
               </Typography>
               {collapsed && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                  Toque para pintar de novo
+                <Typography variant="caption" sx={{ display: { xs: 'none', sm: 'inline' }, opacity: 0.85 }}>
+                  Tudo salvo · toque para continuar
                 </Typography>
               )}
               {!collapsed && selectedMicroarea && (
@@ -330,9 +336,11 @@ export function PaintGuidePanel({
                 <Chip
                   size="small"
                   variant="outlined"
-                  color={collapsed ? 'success' : 'default'}
                   label={`${paintedCount} pintada${paintedCount > 1 ? 's' : ''}`}
-                  sx={{ fontWeight: 600 }}
+                  sx={{
+                    fontWeight: 600,
+                    ...(collapsed && { color: 'inherit', borderColor: alpha('#fff', 0.6) }),
+                  }}
                 />
               )}
             </Box>
@@ -362,6 +370,7 @@ export function PaintGuidePanel({
             <Tooltip title={collapsed ? 'Abrir painel' : 'Minimizar painel'}>
               <IconButton
                 size="small"
+                color="inherit"
                 aria-label={collapsed ? 'Abrir painel' : 'Minimizar painel'}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -497,9 +506,11 @@ export function PaintGuidePanel({
                           className="map-microarea-chip"
                           data-testid={`paint-chip-${m.number}`}
                           variant={selected && !eraserMode ? 'contained' : 'outlined'}
+                          color="inherit"
                           size="small"
                           onClick={() => handleToggleMicroarea(m.id)}
                           sx={{
+                            color: 'text.primary',
                             flexShrink: paintMode ? 0 : undefined,
                             fontSize: '0.8rem',
                             py: 0.625,
@@ -513,7 +524,8 @@ export function PaintGuidePanel({
                             ...(selected && !eraserMode && {
                               bgcolor: m.color,
                               color: '#fff',
-                              boxShadow: `0 4px 14px ${alpha(m.color, 0.45)}`,
+                              backgroundImage: 'none',
+                              boxShadow: `0 4px 12px ${alpha(m.color, 0.4)}`,
                               '&:hover': { bgcolor: m.color, filter: 'brightness(0.95)' },
                             }),
                           }}
