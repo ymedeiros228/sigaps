@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Paper,
   TextField,
   Typography,
   Alert,
@@ -11,11 +10,8 @@ import {
 } from '@mui/material';
 import {
   Email,
-  Groups,
   KeyboardCapslock,
   Lock,
-  Map,
-  PhoneAndroid,
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
@@ -26,6 +22,7 @@ import { authApi } from '../services/api';
 import { useAuthStore } from '../store';
 import { getApiErrorMessage } from '../utils/apiError';
 import { MUNICIPALITY_LOGO, MUNICIPALITY_NAME, MUNICIPALITY_STATE } from '../constants/branding';
+import territorioSvg from '../assets/territorio-passagem-franca.svg';
 import {
   ensureDevAdminAuth,
   getDevLoginDefaults,
@@ -107,163 +104,165 @@ export function LoginPage() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+        gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.15fr) minmax(420px, 1fr)' },
+        gridTemplateRows: { xs: 'auto 1fr', md: '1fr' },
+        bgcolor: 'background.default',
       }}
     >
+      {/* Painel do território: as ruas reais da sede, parte delas pintada por microárea. */}
       <Box
+        component="section"
+        aria-label={`SIGAPS — ${MUNICIPALITY_NAME}`}
         sx={{
-          display: { xs: 'none', md: 'flex' },
-          flexDirection: 'column',
-          justifyContent: 'center',
-          p: 6,
-          background: 'linear-gradient(145deg, #0B1220 0%, #0F3D2E 45%, #00A86B 120%)',
-          color: '#fff',
           position: 'relative',
           overflow: 'hidden',
+          color: '#F2F7F4',
+          bgcolor: '#0B1F17',
+          minHeight: { xs: 208, md: '100dvh' },
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: { xs: 'flex-end', md: 'space-between' },
+          p: { xs: 2.5, sm: 4, md: 6 },
         }}
       >
         <Box
+          component="img"
+          src={territorioSvg}
+          alt=""
+          aria-hidden
           sx={{
             position: 'absolute',
-            top: -80,
-            right: -80,
-            width: 300,
-            height: 300,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.06)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            width: { xs: 640, sm: 900, md: '128%' },
+            maxWidth: 'none',
+            // Celular: o centro da cidade fica no meio da faixa; computador: à direita do texto.
+            left: { xs: 'calc(50% - 300px)', sm: 'calc(50% - 470px)', md: 'auto' },
+            right: { md: '-30%' },
+            top: { xs: -150, sm: -215, md: '50%' },
+            transform: { md: 'translateY(-46%)' },
+            opacity: { xs: 0.7, md: 0.95 },
           }}
         />
+        {/* Véu para o texto ler bem sobre as ruas (não é enfeite). */}
         <Box
+          aria-hidden
           sx={{
             position: 'absolute',
-            bottom: -60,
-            left: -60,
-            width: 200,
-            height: 200,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.04)',
+            inset: 0,
+            background: {
+              xs: 'linear-gradient(180deg, rgba(11,31,23,0.15) 0%, rgba(11,31,23,0.92) 78%)',
+              md: 'linear-gradient(90deg, rgba(11,31,23,0.96) 0%, rgba(11,31,23,0.78) 38%, rgba(11,31,23,0) 72%)',
+            },
           }}
         />
-        <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 440 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-            <Box
-              component="img"
-              src={MUNICIPALITY_LOGO}
-              alt={`Prefeitura de ${MUNICIPALITY_NAME}`}
+
+        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 1.75 }}>
+          <Box
+            component="img"
+            src={MUNICIPALITY_LOGO}
+            alt={`Prefeitura de ${MUNICIPALITY_NAME}`}
+            sx={{
+              height: { xs: 48, md: 56 },
+              width: { xs: 48, md: 56 },
+              objectFit: 'contain',
+              bgcolor: '#fff',
+              borderRadius: '14px',
+              p: 0.75,
+              boxShadow: '0 6px 18px -6px rgba(0,0,0,0.5)',
+            }}
+          />
+          <Box>
+            <Typography
+              component="p"
               sx={{
-                height: 72,
-                width: 'auto',
-                maxWidth: 200,
-                objectFit: 'contain',
-                bgcolor: '#fff',
-                borderRadius: 2,
-                p: 1,
+                fontWeight: 750,
+                fontSize: { xs: '1.375rem', md: '1.5rem' },
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
               }}
-            />
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                SIGAPS
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                {MUNICIPALITY_NAME} — {MUNICIPALITY_STATE}
-              </Typography>
-            </Box>
+            >
+              SIGAPS
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(242,247,244,0.78)' }}>
+              {MUNICIPALITY_NAME} — {MUNICIPALITY_STATE}
+            </Typography>
           </Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, lineHeight: 1.3 }}>
-            Gestão inteligente das microáreas da Atenção Primária à Saúde
+        </Box>
+
+        <Box sx={{ position: 'relative', maxWidth: 460, display: { xs: 'none', md: 'block' } }}>
+          <Typography
+            component="p"
+            sx={{
+              fontWeight: 700,
+              fontSize: 'clamp(1.75rem, 2.6vw, 2.375rem)',
+              lineHeight: 1.15,
+              letterSpacing: '-0.025em',
+              textWrap: 'balance',
+              mb: 2,
+            }}
+          >
+            Gestão das microáreas da Atenção Primária, rua por rua.
           </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9, lineHeight: 1.7, mb: 4 }}>
+          <Typography sx={{ color: 'rgba(242,247,244,0.82)', lineHeight: 1.65, maxWidth: 420 }}>
             Organize o território dos ACS sobre o mapa real do município. Vincule ruas às
             microáreas, visualize a cobertura e gere relatórios profissionais.
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {[
-              { label: 'Mapa real do município', Icon: Map },
-              { label: 'Microáreas por ACS', Icon: Groups },
-              { label: 'Funciona no celular', Icon: PhoneAndroid },
-            ].map(({ label, Icon }) => (
-              <Box
-                key={label}
-                sx={{
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(255,255,255,0.12)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
-              >
-                <Icon sx={{ fontSize: 16 }} aria-hidden />
-                {label}
-              </Box>
+        </Box>
+
+        <Box
+          sx={{
+            position: 'relative',
+            display: { xs: 'none', md: 'flex' },
+            alignItems: 'center',
+            gap: 1.25,
+            color: 'rgba(242,247,244,0.72)',
+            fontSize: 13,
+          }}
+        >
+          <Box component="span" aria-hidden sx={{ display: 'inline-flex', gap: 0.5 }}>
+            {['#E6194B', '#4363D8', '#FFE119', '#911EB4', '#F032E6'].map((color) => (
+              <Box key={color} component="span" sx={{ width: 14, height: 4, borderRadius: 2, bgcolor: color }} />
             ))}
           </Box>
+          Ruas da sede de {MUNICIPALITY_NAME}. Cada cor é uma microárea.
         </Box>
       </Box>
 
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'center',
+          alignItems: { xs: 'flex-start', md: 'center' },
           justifyContent: 'center',
-          p: { xs: 0, sm: 4 },
-          bgcolor: 'background.default',
+          px: { xs: 2.5, sm: 4 },
+          py: { xs: 3.5, md: 6 },
         }}
       >
-        <Paper
-          elevation={0}
-          sx={{
-            px: { xs: 2.5, sm: 4 },
-            py: { xs: 4, sm: 4 },
-            width: '100%',
-            maxWidth: 420,
-            border: { xs: 'none', sm: '1px solid' },
-            borderColor: { sm: 'divider' },
-            bgcolor: { xs: 'transparent', sm: 'background.paper' },
-          }}
-        >
-          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', alignItems: 'center', gap: 1, mb: 3 }}>
-            <Box
-              component="img"
-              src={MUNICIPALITY_LOGO}
-              alt={`Prefeitura de ${MUNICIPALITY_NAME}`}
-              sx={{ height: 56, width: 'auto', maxWidth: 180, objectFit: 'contain' }}
-            />
-            <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
-              SIGAPS
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {MUNICIPALITY_NAME} — {MUNICIPALITY_STATE}
-            </Typography>
-          </Box>
-
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, mb: 0.5 }}>
+        <Box sx={{ width: '100%', maxWidth: 400 }}>
+          <Typography variant="h4" component="h1" sx={{ fontSize: { xs: '1.625rem', md: '1.875rem' }, mb: 0.75 }}>
             Boas-vindas
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Acesse sua conta para continuar
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Entre com o e-mail e a senha da sua conta.
           </Typography>
 
           {import.meta.env.DEV && (
-            <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="info" sx={{ mb: 2 }}>
               Modo desenvolvimento: entrada automática como administrador
               {isDevAutoLoginEnabled() ? ' (admin@passagemfranca.ma.gov.br).' : ' desativada.'}
             </Alert>
           )}
 
           {autoLogging && (
-            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="success" sx={{ mb: 2 }}>
               Entrando automaticamente...
             </Alert>
           )}
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
@@ -340,7 +339,7 @@ export function LoginPage() {
               variant="contained"
               size="large"
               data-testid="login-submit"
-              sx={{ mt: 3, py: 1.4 }}
+              sx={{ mt: 3, py: 1.5 }}
               disabled={formState.isSubmitting || autoLogging || connecting}
             >
               {formState.isSubmitting || autoLogging || connecting ? (
@@ -357,11 +356,13 @@ export function LoginPage() {
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ mt: 3, display: 'block', textAlign: 'center' }}
+            sx={{ mt: 4, pt: 2.5, display: 'block', borderTop: 1, borderColor: 'divider' }}
           >
+            Esqueceu a senha? Peça ao administrador do sistema para redefinir.
+            <br />
             Secretaria Municipal de Saúde · {MUNICIPALITY_NAME}/{MUNICIPALITY_STATE}
           </Typography>
-        </Paper>
+        </Box>
       </Box>
     </Box>
   );
