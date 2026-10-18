@@ -36,6 +36,21 @@ body {
   opacity: 1 !important;
 }
 
+/*
+ * Fundo "Ruas" em tons pastel, no estilo do Apple Maps: o mesmo OpenStreetMap com
+ * menos saturação (terreno bege-claro, praças verde-suave, água azul-acinzentada),
+ * para as cores das microáreas se destacarem. Nomes, casas e praças continuam visíveis.
+ * O mapa fica claro também no tema escuro (o Yuri achou o mapa preto esquisito).
+ * Só o fundo (tile pane) recebe o filtro; ruas pintadas e marcadores ficam com a cor real.
+ */
+.leaflet-container.sigaps-map-base-osm {
+  background: #f6f2ea;
+}
+
+.leaflet-container.sigaps-map-base-osm .leaflet-tile-pane {
+  filter: saturate(0.45) brightness(1.06) contrast(0.9) sepia(0.08);
+}
+
 .leaflet-control-zoom a {
   border-radius: 8px !important;
   width: 36px !important;
@@ -189,9 +204,9 @@ body {
   padding: 6px 12px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96) !important;
-  border: 2px solid rgba(0, 168, 107, 0.45) !important;
+  border: 2px solid rgba(36, 138, 61, 0.45) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
-  color: #1b5e20 !important;
+  color: #1b6e31 !important;
 }
 
 .leaflet-container.sigaps-map-painting.sigaps-map-eraser .paint-tooltip {
@@ -290,7 +305,7 @@ body {
 /* ===== Acabamento visual (polimento) ===== */
 
 ::selection {
-  background: rgba(0, 168, 107, 0.28);
+  background: rgba(52, 199, 89, 0.3);
   color: inherit;
 }
 
@@ -298,7 +313,7 @@ a:focus-visible,
 button:focus-visible,
 [role='button']:focus-visible,
 [role='tab']:focus-visible {
-  outline: 2px solid #00a86b;
+  outline: 2px solid #248a3d;
   outline-offset: 2px;
 }
 
@@ -330,8 +345,8 @@ th,
 }
 
 .leaflet-bar a:hover {
-  background-color: #eefaf5;
-  color: #008f5a;
+  background-color: #f2f2f7;
+  color: #248a3d;
 }
 
 .leaflet-control-attribution {
@@ -398,4 +413,32 @@ th,
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ===== Tema escuro: controles do mapa no tom dos painéis (o mapa continua claro) ===== */
+html[data-theme='dark'] .leaflet-bar a,
+html[data-theme='dark'] .leaflet-bar a:hover {
+  background-color: #1c1c1e;
+  color: #f5f5f7;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme='dark'] .leaflet-bar a:hover {
+  background-color: #2c2c2e;
+  color: #30d158;
+}
+
+html[data-theme='dark'] .leaflet-control-attribution,
+html[data-theme='dark'] .leaflet-control-scale-line,
+html[data-theme='dark'] .map-cursor-coords > span {
+  background: rgba(28, 28, 30, 0.82) !important;
+  color: #98989d;
+}
+
+html[data-theme='dark'] .leaflet-control-attribution a {
+  color: #30d158;
+}
+
+html[data-theme='dark'] .leaflet-control-scale-line {
+  border-color: rgba(245, 245, 247, 0.5) !important;
 }

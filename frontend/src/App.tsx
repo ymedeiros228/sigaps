@@ -129,6 +129,12 @@ export default function App() {
   const darkMode = useAppStore((s) => s.darkMode);
   const theme = useMemo(() => createAppTheme(darkMode), [darkMode]);
 
+  // O CSS do mapa (fundo suave/escuro) e a barra do navegador no celular seguem o tema.
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', darkMode ? '#1C1C1E' : '#FFFFFF');
+  }, [darkMode]);
+
   useEffect(() => {
     hydrate();
     if (!isDevAutoLoginEnabled()) return;

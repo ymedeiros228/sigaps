@@ -1,36 +1,36 @@
 import { alpha, createTheme } from '@mui/material/styles';
 
 /**
- * Cores do SIGAPS. O verde da marca (#00A86B) é claro demais para texto branco
- * (3:1); botões e textos usam o verde mais fundo (~5:1), e o verde da marca fica
- * para destaques sobre fundo escuro.
+ * Cores do SIGAPS no estilo Apple (pedido do Yuri, 18/10): os cinzas do iOS/macOS e o
+ * verde do sistema. O verde claro da Apple (#34C759) não serve para texto branco
+ * (2:1); botões e textos usam o verde "acessível" da Apple (#248A3D, ~4,6:1).
  */
 export const brand = {
-  green: '#00A86B',
-  greenDeep: '#08774F',
-  greenInk: '#065C3D',
-  blue: '#1E6FD9',
-  ink: '#13201A',
+  green: '#34C759',
+  greenDeep: '#248A3D',
+  greenInk: '#1B6E31',
+  blue: '#007AFF',
+  ink: '#1D1D1F',
 };
 
 const light = {
-  bg: '#F3F6F4',
+  bg: '#F2F2F7',
   paper: '#FFFFFF',
-  sunken: '#EBF0ED',
-  text: '#13201A',
-  textMuted: '#52615A',
-  line: alpha('#13201A', 0.1),
-  lineStrong: alpha('#13201A', 0.18),
+  sunken: '#F5F5F7',
+  text: '#1D1D1F',
+  textMuted: '#6E6E73',
+  line: alpha('#3C3C43', 0.13),
+  lineStrong: alpha('#3C3C43', 0.24),
 };
 
 const dark = {
-  bg: '#0C1210',
-  paper: '#131B18',
-  sunken: '#0F1714',
-  text: '#E9F0EC',
-  textMuted: '#A2B1AA',
-  line: alpha('#E9F0EC', 0.09),
-  lineStrong: alpha('#E9F0EC', 0.16),
+  bg: '#000000',
+  paper: '#1C1C1E',
+  sunken: '#2C2C2E',
+  text: '#F5F5F7',
+  textMuted: '#98989D',
+  line: alpha('#FFFFFF', 0.1),
+  lineStrong: alpha('#FFFFFF', 0.18),
 };
 
 /** Sombras com deslocamento e desfoque, na cor da tinta (nunca preto puro). */
@@ -42,25 +42,26 @@ const shadow = {
 
 export const createAppTheme = (darkMode: boolean) => {
   const c = darkMode ? dark : light;
-  const primaryMain = darkMode ? '#2FC48C' : brand.greenDeep;
+  const primaryMain = darkMode ? '#30D158' : brand.greenDeep;
 
   return createTheme({
     palette: {
       mode: darkMode ? 'dark' : 'light',
       primary: {
         main: primaryMain,
-        dark: darkMode ? '#22A574' : brand.greenInk,
-        light: darkMode ? '#5BD6A7' : brand.green,
-        contrastText: darkMode ? '#04140D' : '#FFFFFF',
+        dark: darkMode ? '#28B04B' : brand.greenInk,
+        light: darkMode ? '#5CE07D' : brand.green,
+        contrastText: darkMode ? '#00210A' : '#FFFFFF',
       },
+      // Azul, laranja e vermelho do sistema da Apple (no claro, a versão de alto contraste).
       secondary: {
-        main: darkMode ? '#6AA6F2' : brand.blue,
-        contrastText: darkMode ? '#06172E' : '#FFFFFF',
+        main: darkMode ? '#0A84FF' : '#0066CC',
+        contrastText: '#FFFFFF',
       },
-      success: { main: darkMode ? '#3CCB8F' : '#0A7D50' },
-      warning: { main: darkMode ? '#F2B246' : '#B5600A' },
-      error: { main: darkMode ? '#F2716B' : '#C62828' },
-      info: { main: darkMode ? '#6AA6F2' : '#1C64C4' },
+      success: { main: darkMode ? '#30D158' : '#248A3D' },
+      warning: { main: darkMode ? '#FF9F0A' : '#C93400' },
+      error: { main: darkMode ? '#FF453A' : '#D70015' },
+      info: { main: darkMode ? '#0A84FF' : '#0066CC' },
       background: { default: c.bg, paper: c.paper },
       divider: c.line,
       text: { primary: c.text, secondary: c.textMuted },
@@ -246,10 +247,10 @@ export const createAppTheme = (darkMode: boolean) => {
             fontSize: 12,
             fontWeight: 600,
             padding: '6px 10px',
-            backgroundColor: darkMode ? '#E9F0EC' : '#1B2A23',
-            color: darkMode ? '#13201A' : '#F3F6F4',
+            backgroundColor: darkMode ? '#F5F5F7' : '#1D1D1F',
+            color: darkMode ? '#1D1D1F' : '#F5F5F7',
           },
-          arrow: { color: darkMode ? '#E9F0EC' : '#1B2A23' },
+          arrow: { color: darkMode ? '#F5F5F7' : '#1D1D1F' },
         },
       },
       MuiChip: {
@@ -260,7 +261,15 @@ export const createAppTheme = (darkMode: boolean) => {
       },
       MuiAlert: {
         styleOverrides: {
-          root: { borderRadius: 12, alignItems: 'flex-start' },
+          root: {
+            borderRadius: 12,
+            alignItems: 'flex-start',
+            // Celular: o botão do aviso desce para baixo do texto em vez de espremer as palavras.
+            '@media (max-width: 599.95px)': {
+              flexWrap: 'wrap',
+              '& .MuiAlert-action': { width: '100%', margin: 0, padding: '0 0 4px 34px' },
+            },
+          },
           message: { paddingTop: 9 },
           icon: { paddingTop: 9 },
           action: { paddingTop: 4 },
