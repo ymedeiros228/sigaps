@@ -19,9 +19,18 @@ export function streetZoomBucket(zoom: number): number {
   return Math.min(19, Math.floor(zoom));
 }
 
+/** Distância (px) do eixo até cada lado: de perto, os lados vão para a beira da rua e o nome fica livre no meio. */
+const SIDE_OFFSET_PX: Record<number, number> = { 12: 2, 14: 2.5, 16: 5, 17: 8, 18: 10, 19: 11 };
+
 export function sideOffsetMetersForZoom(zoom: number, latitude = -6.18): number {
   const metersPerPixel = (156543.03392 * Math.cos((latitude * Math.PI) / 180)) / 2 ** zoom;
-  return Math.min(12, Math.max(4, 5 * metersPerPixel));
+  return (SIDE_OFFSET_PX[streetZoomBucket(zoom)] ?? 5) * metersPerPixel;
+}
+
+/** Espessura (px) da pintura por zoom: fina, para não cobrir o mapa nem o nome das ruas. */
+export function paintWeightForZoom(zoom: number): number {
+  const bucket = streetZoomBucket(zoom);
+  return bucket <= 16 ? 3.5 : bucket === 17 ? 4.5 : 5;
 }
 
 export function setDisplaySideOffset(meters: number) {
@@ -609,6 +618,8 @@ export function buildStreetMapFeatures(
     splitUnpaintedEdges?: boolean;
     /** Legado: lado fixo no modo trecho. Sem ele, os dois lados aparecem e o toque escolhe. */
     microSide?: StreetPaintSide;
+    /** Grupo de zoom (streetZoomBucket): de perto, a rua inteira vira duas linhas. */
+    zoomBucket?: number;
   },
 ): { painted: StreetMapFeature[]; unpainted: StreetMapFeature[]; dragPreview: StreetMapFeature[] } {
   const painted: StreetMapFeature[] = [];
@@ -688,6 +699,17 @@ export function buildStreetMapFeatures(
         },
         geometry: displayGeometry(baseStreet, seg.geojson, seg.side),
       });
+      // Rua inteira (FULL) de perto: duas linhas nas beiras, deixando o nome da rua à vista.
+      if (seg.side === 'FULL' && (ctx.zoomBucket ?? 0) >= 16) {
+        const last = painted.pop()!;
+        for (const side of ['LEFT', 'RIGHT'] as const) {
+          painted.push({
+            ...last,
+            properties: { ...last.properties, id: `${last.properties.id}:${side}` },
+            geometry: offsetLineForSide(seg.geojson, side),
+          });
+        }
+      }
     }
 
     if (dual) {

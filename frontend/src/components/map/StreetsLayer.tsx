@@ -17,6 +17,7 @@ import {
   edgeMicroareaOnSide,
   setDisplaySideOffset,
   sideOffsetMetersForZoom,
+  paintWeightForZoom,
   streetZoomBucket,
   densifyStreetForMicro,
   computeBrushPreviewGeometryByIndex,
@@ -44,13 +45,14 @@ const NEAREST_TOLERANCE_PX = 24;
  */
 const SELECTION_COLOR = '#1D1D1F';
 
-const PAINTED_HALO_STYLE: PathOptions = {
+/** Contorno branco fino da pintura (o largo de antes apagava o nome das ruas). */
+const paintedHaloFor = (zoom: number): PathOptions => ({
   color: '#ffffff',
-  weight: 13,
-  opacity: 0.98,
-  lineCap: 'round',
+  weight: paintWeightForZoom(zoom) + 2.5,
+  opacity: 0.95,
+  lineCap: 'butt',
   lineJoin: 'round',
-};
+});
 
 /** Satélite não desenha as ruas: um fio branco mostra onde elas estão. */
 const satelliteStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
@@ -586,8 +588,9 @@ function StreetsLayerComponent({
       splitUnpaintedEdges: false,
       // Sem lado fixo: no modo trecho os dois lados aparecem e o toque decide qual pintar.
       microSide: undefined,
+      zoomBucket: streetZoomBucket(zoom),
     }),
-    [paintStreetSide, paintMode, paintScope],
+    [paintStreetSide, paintMode, zoom],
   );
 
   /** Cache por rua: um traço só reconstrói a rua dirty, não as ~700. */
@@ -840,7 +843,7 @@ function StreetsLayerComponent({
 
   const fc = (list: typeof painted) => ({ type: 'FeatureCollection' as const, features: list });
 
-  const paintedHaloStyle = useCallback((): PathOptions => PAINTED_HALO_STYLE, []);
+  const paintedHaloStyle = useCallback((): PathOptions => paintedHaloFor(zoom), [zoom]);
 
   const paintedLineStyle = useCallback(
     (feature?: GeoJSON.Feature): PathOptions => {
@@ -854,13 +857,16 @@ function StreetsLayerComponent({
       const emphasis = props?.highlighted || props?.selected || props?.dragPending;
       return {
         color,
-        weight: showHeatmap ? (emphasis ? 7 : 5) : eraserMode ? 12 : emphasis ? 10 : 8,
+        weight: showHeatmap
+          ? emphasis ? 7 : 5
+          : paintWeightForZoom(zoom) + (eraserMode ? 2 : emphasis ? 1.5 : 0),
         opacity: showHeatmap ? 0.55 : 1,
-        lineCap: 'round',
+        // Ponta reta: a redonda passava do fim da rua e embolava nas esquinas.
+        lineCap: 'butt',
         lineJoin: 'round',
       };
     },
-    [activeColor, showHeatmap, eraserMode],
+    [activeColor, showHeatmap, eraserMode, zoom],
   );
 
   const dragPreviewStyle = useCallback(
@@ -1230,7 +1236,7 @@ function StreetsLayerComponent({
     const toLatLngs = (geom: GeoJSON.LineString) =>
       (geom.coordinates as [number, number][]).map(([lng, lat]) => L.latLng(lat, lng));
     const nonInteractive = { interactive: false as const };
-    const styleKey = `${activeColor}|${eraserMode ? 1 : 0}|${onSatellite ? 1 : 0}`;
+    const styleKey = `${activeColor}|${eraserMode ? 1 : 0}|${onSatellite ? 1 : 0}|${streetZoomBucket(zoom)}`;
     const visible = visibleStreetIdsRef.current;
     const streetState = streetFeatureStateRef.current;
 
