@@ -86,6 +86,7 @@ export function PaintGuidePanel({
   const [addOpen, setAddOpen] = useState(false);
   const [clearDialog, setClearDialog] = useState<'all' | 'microarea' | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const [neighborhoodConfirm, setNeighborhoodConfirm] = useState<{ id: string; name: string; count: number } | null>(null);
   const [dirtRoadConfirm, setDirtRoadConfirm] = useState<{ count: number } | null>(null);
   const paintMode = useMapStore((s) => s.paintMode);
@@ -268,7 +269,7 @@ export function PaintGuidePanel({
           display: 'flex',
           flexDirection: 'column',
           bgcolor: glassBg,
-          borderRadius: collapsed ? 999 : 3,
+          borderRadius: collapsed ? 999 : '20px',
           overflow: 'hidden',
           border: '1px solid',
           borderColor: paintMode && !collapsed ? accentColor : alpha(theme.palette.divider, 0.12),
@@ -418,7 +419,7 @@ export function PaintGuidePanel({
             }}
           >
             {microareas.length === 0 ? (
-              <Alert severity="warning" sx={{ borderRadius: 2 }}>
+              <Alert severity="warning">
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                   Nenhuma microárea cadastrada
                 </Typography>
@@ -445,11 +446,11 @@ export function PaintGuidePanel({
                 )}
               </Alert>
             ) : streetCount === 0 ? (
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
+              <Alert severity="info">
                 Carregando ruas do município. Aguarde alguns segundos.
               </Alert>
             ) : paintedCount === 0 ? (
-              <Alert severity="success" data-testid="paint-guide-empty-map" sx={{ borderRadius: 2, mb: 1.25 }}>
+              <Alert severity="success" data-testid="paint-guide-empty-map" sx={{ mb: 1.25 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                   Mapa zerado — pronto para você decidir a pintura
                 </Typography>
@@ -516,17 +517,22 @@ export function PaintGuidePanel({
                             py: 0.625,
                             px: 1.5,
                             gap: 0.625,
-                            borderColor: m.color,
-                            borderWidth: 2,
-                            fontWeight: 700,
+                            // Neutro até ser escolhido: 10 bordas coloridas juntas viravam um arco-íris.
+                            borderColor: theme.palette.divider,
+                            borderWidth: 1,
+                            bgcolor: 'background.paper',
+                            fontWeight: 600,
                             borderRadius: 999,
                             maxWidth: paintMode ? 148 : 'none',
+                            '&:hover': { borderColor: m.color, bgcolor: alpha(m.color, 0.06) },
                             ...(selected && !eraserMode && {
                               bgcolor: m.color,
+                              borderColor: m.color,
                               color: '#fff',
+                              fontWeight: 700,
                               backgroundImage: 'none',
-                              boxShadow: `0 4px 12px ${alpha(m.color, 0.4)}`,
-                              '&:hover': { bgcolor: m.color, filter: 'brightness(0.95)' },
+                              boxShadow: `0 4px 12px -2px ${alpha(m.color, 0.45)}`,
+                              '&:hover': { bgcolor: m.color, borderColor: m.color, filter: 'brightness(0.95)' },
                             }),
                           }}
                         >
@@ -537,6 +543,7 @@ export function PaintGuidePanel({
                               height: 10,
                               borderRadius: '50%',
                               bgcolor: selected && !eraserMode ? '#fff' : m.color,
+                              boxShadow: selected && !eraserMode ? 'none' : `0 0 0 2px ${alpha(m.color, 0.18)}`,
                               flexShrink: 0,
                             }}
                           />
@@ -631,7 +638,7 @@ export function PaintGuidePanel({
                 )}
 
                 {paintMode && eraserMode && paintedCount === 0 && (
-                  <Alert severity="warning" sx={{ borderRadius: 2, mb: 1.25 }}>
+                  <Alert severity="warning" sx={{ mb: 1.25 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       Nenhuma rua pintada para apagar
                     </Typography>
@@ -704,120 +711,133 @@ export function PaintGuidePanel({
                   </Box>
                 )}
 
+                {/* Opções extras de pintura: valem mesmo com o mapa zerado. */}
+                {paintMode && (neighborhoods.length > 0 || unpaintedDirtRoadIds.length > 0) && (
+                  <>
+                    <Button
+                      fullWidth
+                      size="small"
+                      color="inherit"
+                      onClick={() => setAdvancedOpen((open) => !open)}
+                      endIcon={advancedOpen ? <ExpandLess /> : <ExpandMore />}
+                      sx={{ justifyContent: 'space-between', fontWeight: 700, mt: 1.25 }}
+                    >
+                      Mais opções de pintura
+                    </Button>
+                    <Collapse in={advancedOpen}>
+                      <Box sx={{ mt: 1 }}>
+                        {canPaint && neighborhoods.length > 0 && (
+                          <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
+                              Pintar bairro inteiro
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                              {neighborhoods.map((n) => {
+                                const count = streets.filter((s) => s.neighborhood?.id === n.id).length;
+                                if (count === 0) return null;
+                                return (
+                                  <Button
+                                    key={n.id}
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => handlePaintNeighborhood(n.id, n.name)}
+                                  >
+                                    {n.name} ({count})
+                                  </Button>
+                                );
+                              })}
+                            </Box>
+                          </Box>
+                        )}
+                        {canPaint && unpaintedDirtRoadIds.length > 0 && (
+                          <Button
+                            fullWidth
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            onClick={() => setDirtRoadConfirm({ count: unpaintedDirtRoadIds.length })}
+                          >
+                            Marcar estradas de terra ({unpaintedDirtRoadIds.length})
+                          </Button>
+                        )}
+                      </Box>
+                    </Collapse>
+                  </>
+                )}
+                {/* Limpar em lote é perigoso: fica fechado até a pessoa pedir. */}
                 {paintedCount > 0 && (
-                  <Box
-                    sx={{
-                      mt: paintMode ? 1.25 : 2,
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor: alpha(theme.palette.warning.main, 0.06),
-                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                    }}
-                    data-testid="paint-clear-batch"
-                  >
-                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 1, display: 'block' }}>
-                      Limpar pinturas em lote
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {selectedMicroarea && selectedMicroareaPaintedCount > 0 && (
+                  <Box sx={{ mt: paintMode ? 1 : 1.5 }} data-testid="paint-clear-batch">
+                    <Button
+                      fullWidth
+                      size="small"
+                      color="inherit"
+                      onClick={() => setClearOpen((open) => !open)}
+                      endIcon={clearOpen ? <ExpandLess /> : <ExpandMore />}
+                      aria-expanded={clearOpen}
+                      sx={{ justifyContent: 'space-between', fontWeight: 600, color: 'text.secondary' }}
+                    >
+                      Limpar pinturas
+                    </Button>
+                    <Collapse in={clearOpen}>
+                      <Box
+                        sx={{
+                          mt: 1,
+                          p: 1.25,
+                          borderRadius: 1,
+                          bgcolor: alpha(theme.palette.error.main, 0.05),
+                          border: `1px solid ${alpha(theme.palette.error.main, 0.18)}`,
+                        }}
+                      >
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {selectedMicroarea && selectedMicroareaPaintedCount > 0 && (
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            color="warning"
+                            size="small"
+                            startIcon={<DeleteSweep />}
+                            disabled={clearingPaint}
+                            onClick={() => setClearDialog('microarea')}
+                            sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                          >
+                            Limpar {selectedMicroarea.name} ({selectedMicroareaPaintedCount})
+                          </Button>
+                        )}
                         <Button
                           fullWidth
                           variant="outlined"
-                          color="warning"
+                          color="error"
                           size="small"
                           startIcon={<DeleteSweep />}
                           disabled={clearingPaint}
-                          onClick={() => setClearDialog('microarea')}
-                          sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                          data-testid="paint-clear-all"
+                          onClick={() => setClearDialog('all')}
+                          sx={{ justifyContent: 'flex-start', fontWeight: 700 }}
                         >
-                          Limpar {selectedMicroarea.name} ({selectedMicroareaPaintedCount})
+                          Limpar todas ({paintedCount})
                         </Button>
-                      )}
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        startIcon={<DeleteSweep />}
-                        disabled={clearingPaint}
-                        data-testid="paint-clear-all"
-                        onClick={() => setClearDialog('all')}
-                        sx={{ justifyContent: 'flex-start', fontWeight: 700 }}
-                      >
-                        Limpar todas ({paintedCount})
-                      </Button>
-                      {paintZoneCount > 0 && onClearPaintZones && (
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          color="warning"
-                          size="small"
-                          startIcon={<DeleteSweep />}
-                          disabled={clearingPaintZones}
-                          onClick={onClearPaintZones}
-                          sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
-                        >
-                          Remover círculos ({paintZoneCount})
-                        </Button>
-                      )}
-                    </Box>
-                    {paintMode && (neighborhoods.length > 0 || unpaintedDirtRoadIds.length > 0) && (
-                      <>
-                        <Button
-                          fullWidth
-                          size="small"
-                          color="inherit"
-                          onClick={() => setAdvancedOpen((open) => !open)}
-                          endIcon={advancedOpen ? <ExpandLess /> : <ExpandMore />}
-                          sx={{ justifyContent: 'space-between', fontWeight: 700, mt: 1.25 }}
-                        >
-                          Mais opções de pintura
-                        </Button>
-                        <Collapse in={advancedOpen}>
-                          <Box sx={{ mt: 1 }}>
-                            {canPaint && neighborhoods.length > 0 && (
-                              <Box sx={{ mb: 1.5 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mb: 0.75, display: 'block' }}>
-                                  Pintar bairro inteiro
-                                </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                                  {neighborhoods.map((n) => {
-                                    const count = streets.filter((s) => s.neighborhood?.id === n.id).length;
-                                    if (count === 0) return null;
-                                    return (
-                                      <Button
-                                        key={n.id}
-                                        size="small"
-                                        variant="outlined"
-                                        onClick={() => handlePaintNeighborhood(n.id, n.name)}
-                                      >
-                                        {n.name} ({count})
-                                      </Button>
-                                    );
-                                  })}
-                                </Box>
-                              </Box>
-                            )}
-                            {canPaint && unpaintedDirtRoadIds.length > 0 && (
-                              <Button
-                                fullWidth
-                                size="small"
-                                variant="outlined"
-                                color="warning"
-                                onClick={() => setDirtRoadConfirm({ count: unpaintedDirtRoadIds.length })}
-                              >
-                                Marcar estradas de terra ({unpaintedDirtRoadIds.length})
-                              </Button>
-                            )}
-                          </Box>
-                        </Collapse>
-                      </>
-                    )}
-                    {paintMode && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                        Use <strong>Apagar</strong> para corrigir trecho a trecho.
-                      </Typography>
-                    )}
+                        {paintZoneCount > 0 && onClearPaintZones && (
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            color="warning"
+                            size="small"
+                            startIcon={<DeleteSweep />}
+                            disabled={clearingPaintZones}
+                            onClick={onClearPaintZones}
+                            sx={{ justifyContent: 'flex-start', fontWeight: 600 }}
+                          >
+                            Remover círculos ({paintZoneCount})
+                          </Button>
+                        )}
+                      </Box>
+                        {paintMode && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                            Para corrigir só um trecho, use <strong>Apagar</strong>.
+                          </Typography>
+                        )}
+                      </Box>
+                    </Collapse>
                   </Box>
                 )}
 

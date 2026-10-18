@@ -66,10 +66,11 @@ const satelliteStreetStyle = (feature?: GeoJSON.Feature): PathOptions => {
 const unassignedStyle = (feature?: GeoJSON.Feature, onSatellite = false): PathOptions => {
   const isDirt = (feature?.properties as { isDirtRoad?: boolean })?.isDirtRoad;
   if (onSatellite) return { ...satelliteStreetStyle(feature), opacity: 0.75, dashArray: '5 6' };
+  // Cinza da Apple (#8E8E93), mais leve: a cidade inteira tracejada pesava no zoom 14–15.
   return {
-    color: isDirt ? '#a1887f' : '#546e7a',
-    weight: 2.5,
-    opacity: 0.55,
+    color: isDirt ? '#a2845e' : '#8e8e93',
+    weight: 2.25,
+    opacity: 0.7,
     dashArray: isDirt ? '3 7' : '5 6',
     lineCap: 'round',
     lineJoin: 'round',

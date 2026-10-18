@@ -90,7 +90,7 @@ function SidePanel({
     <Box
       sx={{
         p: 1.5,
-        borderRadius: 2,
+        borderRadius: 1,
         border: '2px solid',
         borderColor: selected?.color ?? 'divider',
         bgcolor: selected ? alpha(selected.color, 0.06) : 'transparent',
@@ -268,7 +268,7 @@ export function StreetPanel({
         overflow: 'auto',
         overscrollBehavior: 'contain',
         bgcolor: glassBg,
-        borderRadius: 3,
+        borderRadius: '18px',
       }}
     >
       <Box sx={{ px: 2, pb: 2 }}>
@@ -294,7 +294,7 @@ export function StreetPanel({
               sx={{
                 width: 40,
                 height: 40,
-                borderRadius: 2,
+                borderRadius: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -361,7 +361,7 @@ export function StreetPanel({
                     alignItems: 'center',
                     gap: 1,
                     p: 1,
-                    borderRadius: 2,
+                    borderRadius: 1,
                     border: '1px solid',
                     borderColor: alpha(seg.microarea?.color ?? '#888', 0.4),
                     bgcolor: alpha(seg.microarea?.color ?? '#888', 0.08),

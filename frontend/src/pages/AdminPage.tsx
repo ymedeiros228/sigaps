@@ -329,17 +329,7 @@ export function AdminPage() {
 
       {!isLoading && overview && tab === 'resumo' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Card
-            variant="outlined"
-            sx={{
-              borderRadius: 2,
-              borderColor: overview.delivery.readyForHandoff
-                ? 'success.main'
-                : overview.delivery.dataReady
-                  ? 'info.main'
-                  : 'warning.main',
-            }}
-          >
+          <Card>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Typography variant="h6" sx={{ flex: 1 }}>
@@ -390,7 +380,7 @@ export function AdminPage() {
                   Código-fonte legado (~14 MB) para enviar por WhatsApp, e-mail ou pendrive.
                 </Typography>
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   color="primary"
                   startIcon={<Download />}
                   component="a"
@@ -398,16 +388,22 @@ export function AdminPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   download={LEGACY_DOWNLOAD_FILENAME}
-                  sx={{ fontWeight: 700 }}
                 >
                   Baixar ZIP
                 </Button>
                 <Typography
                   variant="caption"
-                  color="text.secondary"
                   component="a"
                   href={LEGACY_DOWNLOAD_PATH}
-                  sx={{ display: 'block', mt: 1, wordBreak: 'break-all' }}
+                  sx={{
+                    display: 'block',
+                    mt: 1,
+                    wordBreak: 'break-all',
+                    color: 'text.secondary',
+                    textUnderlineOffset: '3px',
+                    textDecorationColor: 'currentColor',
+                    '&:hover': { color: 'primary.main' },
+                  }}
                 >
                   {legacyDownloadShareUrl()}
                 </Typography>

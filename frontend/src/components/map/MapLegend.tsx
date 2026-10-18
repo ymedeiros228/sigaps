@@ -105,7 +105,7 @@ export function MapLegend({
         display: 'flex',
         flexDirection: 'column',
         bgcolor: glassBg,
-        borderRadius: 3,
+        borderRadius: '18px',
         overflow: 'hidden',
         opacity: paintMode && !paintGuideCollapsed ? 0.92 : 1,
       }}

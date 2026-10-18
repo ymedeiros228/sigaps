@@ -267,7 +267,8 @@ export const createAppTheme = (darkMode: boolean) => {
             // Celular: o botão do aviso desce para baixo do texto em vez de espremer as palavras.
             '@media (max-width: 599.95px)': {
               flexWrap: 'wrap',
-              '& .MuiAlert-action': { width: '100%', margin: 0, padding: '0 0 4px 34px' },
+              '& .MuiAlert-message': { flex: '1 1 0', minWidth: 0 },
+              '& .MuiAlert-action': { flexBasis: '100%', margin: 0, padding: '0 0 4px 34px' },
             },
           },
           message: { paddingTop: 9 },

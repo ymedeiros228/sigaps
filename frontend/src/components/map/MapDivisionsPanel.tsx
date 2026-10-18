@@ -130,7 +130,7 @@ export function MapDivisionsPanel({
         maxWidth: 320,
         maxHeight: 'calc(100% - var(--map-toolbar-offset, 120px) - 180px)',
         bgcolor: glassBg,
-        borderRadius: 3,
+        borderRadius: '18px',
         overflow: 'auto',
         border: divisionMode ? `2px solid ${theme.palette.info.main}` : undefined,
       }}
@@ -194,7 +194,7 @@ export function MapDivisionsPanel({
             </Button>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-              <Alert severity="info" sx={{ py: 0.25, borderRadius: 2 }}>
+              <Alert severity="info" sx={{ py: 0.25 }}>
                 Clique no mapa para posicionar o centro da divisão. Use esta opção quando a
                 pintura manual ficar difícil.
               </Alert>

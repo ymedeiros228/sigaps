@@ -310,7 +310,7 @@ export function MapPdfDialog({
           </Select>
         </FormControl>
 
-        <Box sx={{ bgcolor: 'action.hover', borderRadius: 2, p: 1.5 }}>
+        <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
             O sistema centraliza automaticamente nas ruas pintadas, ativa satélite e
             microáreas, e gera o PDF em alta resolução. Para bairro específico, selecione

@@ -57,7 +57,12 @@ import { MapTileLayerController } from './MapTileLayerController';
 import { MapCursorCoordsTracker } from './MapCursorCoords';
 import { MapCursorCoordsLabel } from './MapCursorCoordsLabel';
 
-const PASSAGEM_FRANCA = { lat: -6.1828, lng: -43.7869, zoom: 14 };
+// Centro da sede (média das ruas do OSM). Computador abre um nível mais perto; no celular, a sede inteira cabe no 14.
+const PASSAGEM_FRANCA = {
+  lat: -6.1812,
+  lng: -43.7772,
+  zoom: typeof window !== 'undefined' && window.innerWidth >= 900 ? 15 : 14,
+};
 const DRAG_PAINT_THROTTLE_MS = 120;
 
 /** Resposta lean do paint/unpaint: reconstitui geojson a partir da rua em cache. */
@@ -1727,7 +1732,7 @@ export function SigapsMap() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
-            borderRadius: 2,
+            borderRadius: 1,
             maxWidth: 420,
           }}
         >
@@ -1746,7 +1751,7 @@ export function SigapsMap() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
-            borderRadius: 2,
+            borderRadius: 1,
             maxWidth: 420,
           }}
         >
@@ -1773,7 +1778,7 @@ export function SigapsMap() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
-            borderRadius: 2,
+            borderRadius: 1,
             maxWidth: 360,
             bgcolor: 'background.paper',
           }}
@@ -1919,7 +1924,7 @@ export function SigapsMap() {
         sx={{ mt: 8 }}
       >
         {snackbar ? (
-          <Alert severity={snackbar.severity} onClose={() => setSnackbar(null)} sx={{ borderRadius: 2, width: '100%' }}>
+          <Alert severity={snackbar.severity} onClose={() => setSnackbar(null)} sx={{ width: '100%' }}>
             {snackbar.message}
           </Alert>
         ) : undefined}

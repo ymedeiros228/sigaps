@@ -67,7 +67,7 @@ export function SelectionBar({
         maxWidth: { xs: '100%', sm: 720 },
         bgcolor: alpha(theme.palette.info.main, 0.12),
         border: `1px solid ${alpha(theme.palette.info.main, 0.35)}`,
-        borderRadius: 3,
+        borderRadius: '18px',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', sm: 'auto' } }}>

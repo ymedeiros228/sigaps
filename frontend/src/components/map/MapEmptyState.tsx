@@ -48,7 +48,7 @@ export function MapEmptyState({ onImport, canImport = true, loadError = false, a
           sx={{
             width: 72,
             height: 72,
-            borderRadius: 3,
+            borderRadius: '18px',
             mx: 'auto',
             mb: 2,
             display: 'flex',

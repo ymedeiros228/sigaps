@@ -49,7 +49,7 @@ export function ClearPaintDialog({
             display: 'flex',
             gap: 1.5,
             p: 1.5,
-            borderRadius: 2,
+            borderRadius: 1,
             bgcolor: alpha(theme.palette.warning.main, 0.1),
             border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`,
           }}

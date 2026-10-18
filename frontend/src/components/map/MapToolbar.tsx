@@ -172,7 +172,7 @@ export function MapToolbar({
         minHeight: 44,
         px: 1,
         mx: -1,
-        borderRadius: 2,
+        borderRadius: 1,
         cursor: options.disabled ? 'default' : 'pointer',
         '&:hover': options.disabled ? undefined : { bgcolor: 'action.hover' },
       }}
@@ -209,7 +209,7 @@ export function MapToolbar({
         zIndex: 1005,
         px: { xs: 1, sm: 1.25 },
         py: 1,
-        borderRadius: 3,
+        borderRadius: '18px',
         bgcolor: glassBg,
         display: 'flex',
         flexWrap: 'nowrap',
@@ -323,7 +323,7 @@ export function MapToolbar({
           </Tooltip>
         )}
         <Tooltip title="Centralizar município">
-          <IconButton size="small" onClick={() => flyTo(-6.1828, -43.7869, 14)} aria-label="Centralizar município">
+          <IconButton size="small" onClick={() => flyTo(-6.1812, -43.7772, window.innerWidth >= 900 ? 15 : 14)} aria-label="Centralizar município">
             <MyLocation fontSize="small" />
           </IconButton>
         </Tooltip>
@@ -337,7 +337,7 @@ export function MapToolbar({
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{
           paper: {
-            sx: { mt: 1, p: 2, width: 300, maxWidth: 'calc(100vw - 16px)', borderRadius: 3 },
+            sx: { mt: 1, p: 2, width: 300, maxWidth: 'calc(100vw - 16px)', borderRadius: '16px' },
           },
         }}
       >
