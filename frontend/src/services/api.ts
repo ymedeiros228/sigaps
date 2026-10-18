@@ -801,6 +801,23 @@ export const adminApi = {
     }>(`/admin/municipality/${municipalityId}/prepare-delivery`),
 };
 
+/** Equipe do município: enfermeiro, coordenação e secretaria gerenciam as contas da equipe. */
+export const teamApi = {
+  list: (municipalityId: string) =>
+    api.get<AdminUser[]>(`/team/municipality/${municipalityId}/users`),
+  create: (
+    municipalityId: string,
+    data: { email: string; password: string; name: string; role: string },
+  ) => api.post<AdminUser>(`/team/municipality/${municipalityId}/users`, data),
+  update: (
+    municipalityId: string,
+    userId: string,
+    data: Partial<{ email: string; name: string; role: string; isActive: boolean }>,
+  ) => api.patch<AdminUser>(`/team/municipality/${municipalityId}/users/${userId}`, data),
+  resetPassword: (municipalityId: string, userId: string, password: string) =>
+    api.post(`/team/municipality/${municipalityId}/users/${userId}/reset-password`, { password }),
+};
+
 export const integrationsApi = {
   lookupCnes: (code: string) =>
     api.get<CnesLookupResult>(`/integrations/cnes/${encodeURIComponent(code)}`),

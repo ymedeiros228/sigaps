@@ -175,6 +175,29 @@ export class AdminService {
     return `\uFEFF${header}\n${lines.join('\n')}`;
   }
 
+  /** Contas do município, sem senha nem token (tela Equipe). */
+  listUsers(municipalityId: string) {
+    return this.prisma.user.findMany({
+      where: { municipalityId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+    });
+  }
+
+  /** Conta do município (para conferir o perfil antes de alterar). */
+  async getUser(municipalityId: string, userId: string) {
+    const user = await this.findUserInMunicipality(municipalityId, userId);
+    return { id: user.id, role: user.role };
+  }
+
   private async findUserInMunicipality(municipalityId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, municipalityId },

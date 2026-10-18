@@ -24,6 +24,7 @@ import {
   ListAlt,
   HelpOutlined,
   AdminPanelSettings,
+  Groups,
 } from '@mui/icons-material';
 import { BuildVersion } from '../common/BuildVersion';
 import { useAppDataPrefetch } from '../../hooks/useAppDataPrefetch';
@@ -35,7 +36,7 @@ import { MUNICIPALITY_NAME } from '../../constants/branding';
 import { MunicipalityLogo } from '../common/MunicipalityLogo';
 import { InstallPrompt } from '../common/InstallPrompt';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
-import { canAccessAdmin, formatRoleLabel, isAcsUser } from '../../utils/permissions';
+import { canAccessAdmin, canManageTeam, formatRoleLabel, isAcsUser } from '../../utils/permissions';
 import { municipalitiesApi } from '../../services/api';
 import { queryKeys } from '../../utils/queryKeys';
 import { prefetchCadastrosData } from '../../utils/prefetchAppData';
@@ -78,6 +79,10 @@ export function AppLayout() {
       ];
     }
     const items = [...baseNavItems];
+    if (canManageTeam(user?.role)) {
+      // Antes da Ajuda: Dashboard, Mapa, Cadastros, Equipe, Ajuda.
+      items.splice(3, 0, { label: 'Equipe', path: '/equipe', icon: <Groups /> });
+    }
     if (isAdmin) {
       items.push({
         label: 'Administração',
@@ -86,7 +91,7 @@ export function AppLayout() {
       });
     }
     return items;
-  }, [isAdmin, isAcs]);
+  }, [isAdmin, isAcs, user?.role]);
 
   const currentLabel =
     navItems.find((item) =>

@@ -55,6 +55,34 @@ export function canCreateMicroarea(role?: string): boolean {
   return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
 }
 
+/** Ordem dos perfis: quem gerencia a equipe só lida com perfis do mesmo nível ou abaixo. */
+const ROLE_RANK: Record<string, number> = {
+  ADMINISTRADOR: 4,
+  SECRETARIO_SAUDE: 3,
+  COORDENADOR_APS: 2,
+  ENFERMEIRO: 1,
+  ACS: 0,
+};
+
+export const ALL_ROLES = ['ADMINISTRADOR', 'SECRETARIO_SAUDE', 'COORDENADOR_APS', 'ENFERMEIRO', 'ACS'] as const;
+
+/** Tela Equipe: todos menos o ACS. */
+export function canManageTeam(role?: string): boolean {
+  return !!role && role !== 'ACS' && role in ROLE_RANK;
+}
+
+/** Mesma regra da API (role-rank.util.ts): só o administrador mexe em administrador. */
+export function canHandleRole(actor: string | undefined, target: string): boolean {
+  if (actor === 'ADMINISTRADOR') return true;
+  if (!canManageTeam(actor) || target === 'ADMINISTRADOR') return false;
+  return (ROLE_RANK[target] ?? 99) <= ROLE_RANK[actor!];
+}
+
+/** Perfis que `actor` pode dar a uma conta nova. */
+export function assignableRoles(actor?: string): string[] {
+  return ALL_ROLES.filter((r) => canHandleRole(actor, r));
+}
+
 /** Apenas administrador do sistema. */
 export function canAccessAdmin(role?: string): boolean {
   return role === 'ADMINISTRADOR';

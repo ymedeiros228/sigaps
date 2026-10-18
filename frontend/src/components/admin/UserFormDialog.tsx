@@ -13,15 +13,7 @@ import {
 } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import type { AdminUser } from '../../services/api';
-import { formatRoleLabel } from '../../utils/permissions';
-
-const ROLES = [
-  'ADMINISTRADOR',
-  'SECRETARIO_SAUDE',
-  'COORDENADOR_APS',
-  'ENFERMEIRO',
-  'ACS',
-] as const;
+import { ALL_ROLES, formatRoleLabel } from '../../utils/permissions';
 
 export type UserFormValues = {
   name: string;
@@ -39,6 +31,8 @@ interface UserFormDialogProps {
   onSave: (values: UserFormValues) => void;
   onResetPassword?: (password: string) => void;
   resetLoading?: boolean;
+  /** Perfis que quem está criando pode dar (padrão: todos, para o administrador). */
+  allowedRoles?: readonly string[];
 }
 
 const emptyValues: UserFormValues = {
@@ -57,6 +51,7 @@ export function UserFormDialog({
   onSave,
   onResetPassword,
   resetLoading,
+  allowedRoles = ALL_ROLES,
 }: UserFormDialogProps) {
   const {
     register,
@@ -67,6 +62,9 @@ export function UserFormDialog({
   } = useForm<UserFormValues>();
 
   const resetPassword = watch('password');
+  // Select do MUI com register não mostra o valor vindo do reset: fica controlado pelo watch.
+  const roleValue = watch('role') ?? '';
+  const activeValue = String(watch('isActive') ?? 'true');
 
   useEffect(() => {
     if (!open) return;
@@ -79,14 +77,14 @@ export function UserFormDialog({
             password: '',
             isActive: editing.isActive ? ('true' as unknown as boolean) : ('false' as unknown as boolean),
           }
-        : emptyValues,
+        : { ...emptyValues, role: allowedRoles.includes('ACS') ? 'ACS' : allowedRoles[0] },
     );
-  }, [open, editing, reset]);
+  }, [open, editing, reset, allowedRoles]);
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        {editing ? 'Editar usuário' : 'Novo usuário'}
+        {editing ? 'Editar conta' : 'Nova conta'}
       </DialogTitle>
       <form onSubmit={handleSubmit(onSave)}>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
@@ -122,9 +120,10 @@ export function UserFormDialog({
             label="Perfil"
             select
             {...register('role', { required: true })}
+            value={roleValue}
             fullWidth
           >
-            {ROLES.map((role) => (
+            {allowedRoles.map((role) => (
               <MenuItem key={role} value={role}>
                 {formatRoleLabel(role)}
               </MenuItem>
@@ -137,6 +136,7 @@ export function UserFormDialog({
                 label="Status"
                 select
                 {...register('isActive')}
+                value={activeValue}
                 fullWidth
               >
                 <MenuItem value="true">Ativo</MenuItem>
@@ -196,7 +196,7 @@ export function UserFormDialog({
             disabled={loading}
             startIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
           >
-            {loading ? 'Salvando…' : editing ? 'Salvar alterações' : 'Criar usuário'}
+            {loading ? 'Salvando…' : editing ? 'Salvar alterações' : 'Criar conta'}
           </Button>
         </DialogActions>
       </form>

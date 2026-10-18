@@ -44,22 +44,19 @@ import {
   Storage,
   Visibility,
   Warning,
-  Verified,
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../components/ui/PageHeader';
 import { StatCard } from '../components/ui/StatCard';
 import { UserFormDialog, type UserFormValues } from '../components/admin/UserFormDialog';
-import { AdminHomologationTab } from '../components/admin/AdminHomologationTab';
-import { LEGACY_DOWNLOAD_FILENAME, LEGACY_DOWNLOAD_PATH, legacyDownloadShareUrl } from '../constants/delivery';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
 import { adminApi, type AdminUser, type AuditFilters, type AuditLogEntry } from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
 import { canAccessAdmin, formatAuditAction, formatRoleLabel } from '../utils/permissions';
 
-type AdminTab = 'resumo' | 'backup' | 'usuarios' | 'auditoria' | 'homologacao';
+type AdminTab = 'resumo' | 'backup' | 'usuarios' | 'auditoria';
 
 const ENTITY_FILTER_OPTIONS = [
   { value: '', label: 'Todas entidades' },
@@ -115,7 +112,7 @@ export function AdminPage() {
   const [searchParams] = useSearchParams();
 
   const initialTab = searchParams.get('tab');
-  const validTabs: AdminTab[] = ['resumo', 'backup', 'usuarios', 'auditoria', 'homologacao'];
+  const validTabs: AdminTab[] = ['resumo', 'backup', 'usuarios', 'auditoria'];
   const [tab, setTab] = useState<AdminTab>(
     validTabs.includes(initialTab as AdminTab) ? (initialTab as AdminTab) : 'resumo',
   );
@@ -128,7 +125,6 @@ export function AdminPage() {
   const [pendingBackup, setPendingBackup] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [auditExportLoading, setAuditExportLoading] = useState(false);
-  const [deliveryOpen, setDeliveryOpen] = useState(false);
 
   const canAccess = canAccessAdmin(user?.role);
   const ready = canAccess && !!municipalityId;
@@ -241,19 +237,6 @@ export function AdminPage() {
     onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
   });
 
-  const prepareDeliveryMutation = useMutation({
-    mutationFn: () => adminApi.prepareForDelivery(municipalityId!).then((r) => r.data),
-    onSuccess: (res) => {
-      setDeliveryOpen(false);
-      void queryClient.invalidateQueries();
-      setMessage({
-        type: 'success',
-        text: res.message,
-      });
-    },
-    onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
-  });
-
   const loadBackupFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -318,7 +301,6 @@ export function AdminPage() {
         <Tab value="backup" label="Backup" icon={<Backup />} iconPosition="start" />
         <Tab value="usuarios" label="Usuários" icon={<People />} iconPosition="start" />
         <Tab value="auditoria" label="Auditoria" icon={<History />} iconPosition="start" />
-        <Tab value="homologacao" label="Homologação" icon={<Verified />} iconPosition="start" />
       </Tabs>
 
       {isLoading && (
@@ -329,100 +311,6 @@ export function AdminPage() {
 
       {!isLoading && overview && tab === 'resumo' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Card>
-            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="h6" sx={{ flex: 1 }}>
-                  Status de entrega
-                </Typography>
-                {overview.delivery.readyForHandoff && (
-                  <Chip size="small" color="success" label="Pronto para o Jonas" />
-                )}
-                {overview.delivery.dataReady && !overview.delivery.mapClean && (
-                  <Chip size="small" color="warning" label="Mapa com pintura" />
-                )}
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {overview.delivery.readyForHandoff
-                  ? 'Cadastros completos e mapa zerado — ideal para entregar ao enfermeiro começar a pintar do zero.'
-                  : overview.delivery.dataReady
-                    ? 'Dados base OK. Zere a pintura antes de entregar, se ainda houver ruas coloridas.'
-                    : 'Complete ruas, UBS, microáreas e vínculo ACS antes da entrega ao usuário.'}
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  color={overview.delivery.dataReady ? 'success' : 'default'}
-                  label={`Dados: ${overview.delivery.dataReady ? 'prontos' : 'pendentes'}`}
-                />
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  color={overview.delivery.mapClean ? 'success' : 'warning'}
-                  label={`Mapa: ${overview.delivery.mapClean ? 'zerado' : `${overview.counts.assignedStreets} pintada(s)`}`}
-                />
-              </Box>
-              <Box
-                sx={{
-                  mt: 1,
-                  p: 1.5,
-                  borderRadius: 1,
-                  bgcolor: 'action.hover',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  ZIP para o Jonas
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Código-fonte legado (~14 MB) para enviar por WhatsApp, e-mail ou pendrive.
-                </Typography>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  startIcon={<Download />}
-                  component="a"
-                  href={LEGACY_DOWNLOAD_PATH}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={LEGACY_DOWNLOAD_FILENAME}
-                >
-                  Baixar ZIP
-                </Button>
-                <Typography
-                  variant="caption"
-                  component="a"
-                  href={LEGACY_DOWNLOAD_PATH}
-                  sx={{
-                    display: 'block',
-                    mt: 1,
-                    wordBreak: 'break-all',
-                    color: 'text.secondary',
-                    textUnderlineOffset: '3px',
-                    textDecorationColor: 'currentColor',
-                    '&:hover': { color: 'primary.main' },
-                  }}
-                >
-                  {legacyDownloadShareUrl()}
-                </Typography>
-              </Box>
-              {!overview.delivery.mapClean && (
-                <Box>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    onClick={() => setDeliveryOpen(true)}
-                    disabled={prepareDeliveryMutation.isPending}
-                  >
-                    Zerar mapa para entrega
-                  </Button>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-
           <Box
             sx={{
               display: 'grid',
@@ -882,44 +770,6 @@ export function AdminPage() {
           )}
         </Box>
       )}
-
-      {tab === 'homologacao' && municipalityId && (
-        <AdminHomologationTab municipalityId={municipalityId} />
-      )}
-
-      <Dialog open={deliveryOpen} onClose={() => setDeliveryOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Warning color="warning" />
-          Zerar mapa para entrega?
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Esta ação remove{' '}
-            <strong>
-              {overview?.counts.assignedStreets ?? 0} pintura(s) de rua
-            </strong>
-            {overview && overview.counts.paintZones > 0
-              ? ` e ${overview.counts.paintZones} círculo(s) de pintura`
-              : ''}
-            . Os cadastros permanecem intactos.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Use antes de entregar o sistema ao enfermeiro para que ele comece a territorialização do
-            zero, com os dados já mapeados.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeliveryOpen(false)}>Cancelar</Button>
-          <Button
-            variant="contained"
-            color="success"
-            disabled={prepareDeliveryMutation.isPending}
-            onClick={() => prepareDeliveryMutation.mutate()}
-          >
-            {prepareDeliveryMutation.isPending ? 'Preparando…' : 'Confirmar entrega zerada'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

@@ -22,6 +22,9 @@ const SigapsMap = lazy(() =>
 const CadastrosPage = lazy(() =>
   import('./pages/CadastrosPage').then((m) => ({ default: m.CadastrosPage })),
 );
+const EquipePage = lazy(() =>
+  import('./pages/EquipePage').then((m) => ({ default: m.EquipePage })),
+);
 const AdminPage = lazy(() =>
   import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })),
 );
@@ -110,6 +113,16 @@ function AppRoutes() {
             <ErrorBoundary title="Erro ao abrir administração">
               <Suspense fallback={<PageSkeleton />}>
                 <AdminPage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/equipe"
+          element={
+            <ErrorBoundary title="Erro ao abrir a equipe">
+              <Suspense fallback={<PageSkeleton />}>
+                <EquipePage />
               </Suspense>
             </ErrorBoundary>
           }

@@ -600,7 +600,7 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
     pdf.setTextColor(120);
     pdf.setFont('helvetica', 'italic');
     pdf.setFontSize(8);
-    pdf.text('Nenhuma rua pintada — vincule ruas às microáreas antes de homologar o mapa.', margin + 3, tableY + 7);
+    pdf.text('Nenhuma rua pintada ainda — pinte as ruas das microáreas no mapa.', margin + 3, tableY + 7);
   }
 
   // Rodapé
@@ -631,7 +631,7 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   pdf.text(
     homologation
       ? `Homologado em ${new Date(homologation.at).toLocaleDateString('pt-BR')} por ${homologation.by}`
-      : 'Documento para homologação pela Secretaria Municipal de Saúde',
+      : 'Secretaria Municipal de Saúde',
     margin + 78,
     metaY + 4,
   );
