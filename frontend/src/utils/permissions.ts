@@ -78,6 +78,17 @@ export function canHandleRole(actor: string | undefined, target: string): boolea
   return (ROLE_RANK[target] ?? 99) <= ROLE_RANK[actor!];
 }
 
+/** Conta existente: só perfil abaixo do seu ou a própria (mesma regra da API). */
+export function canManageAccount(
+  actor: { id: string; role: string } | null | undefined,
+  target: { id: string; role: string },
+): boolean {
+  if (!actor) return false;
+  if (actor.role === 'ADMINISTRADOR' || actor.id === target.id) return true;
+  if (!canManageTeam(actor.role) || target.role === 'ADMINISTRADOR') return false;
+  return (ROLE_RANK[target.role] ?? 99) < ROLE_RANK[actor.role];
+}
+
 /** Perfis que `actor` pode dar a uma conta nova. */
 export function assignableRoles(actor?: string): string[] {
   return ALL_ROLES.filter((r) => canHandleRole(actor, r));

@@ -19,7 +19,7 @@ import { UserFormDialog, type UserFormValues } from '../components/admin/UserFor
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { teamApi, type AdminUser } from '../services/api';
 import { useAuthStore } from '../store';
-import { assignableRoles, canHandleRole, formatRoleLabel } from '../utils/permissions';
+import { assignableRoles, canManageAccount, formatRoleLabel } from '../utils/permissions';
 import { getApiErrorMessage } from '../utils/apiError';
 
 const initialsOf = (name: string) =>
@@ -156,7 +156,7 @@ export function EquipePage() {
                   </Box>
                 ))
               : users.map((u) => {
-                  const editable = canHandleRole(me?.role, u.role);
+                  const editable = canManageAccount(me, u);
                   const isMe = u.id === me?.id;
                   return (
                     <Box

@@ -16,6 +16,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import {
   TEAM_MANAGER_ROLES,
   canHandleRole,
+  canManageAccount,
 } from '../../common/utils/role-rank.util';
 import { AdminService } from './admin.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -70,7 +71,7 @@ export class TeamController {
     @Req() req: TeamRequest,
   ) {
     const target = await this.admin.getUser(municipalityId, userId);
-    if (!canHandleRole(req.user.role, target.role))
+    if (!canManageAccount(req.user, target))
       throw new ForbiddenException(FORBIDDEN_ROLE);
     if (dto.role && !canHandleRole(req.user.role, dto.role)) {
       throw new ForbiddenException(FORBIDDEN_ROLE);
@@ -87,7 +88,7 @@ export class TeamController {
     @Req() req: TeamRequest,
   ) {
     const target = await this.admin.getUser(municipalityId, userId);
-    if (!canHandleRole(req.user.role, target.role))
+    if (!canManageAccount(req.user, target))
       throw new ForbiddenException(FORBIDDEN_ROLE);
     return this.admin.resetPassword(
       municipalityId,

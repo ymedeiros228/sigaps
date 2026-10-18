@@ -1,5 +1,5 @@
 import { UserRole } from '@prisma/client';
-import { canHandleRole } from './role-rank.util';
+import { canHandleRole, canManageAccount } from './role-rank.util';
 
 describe('canHandleRole', () => {
   it('administrador pode tudo', () => {
@@ -29,6 +29,24 @@ describe('canHandleRole', () => {
     expect(canHandleRole(UserRole.ENFERMEIRO, UserRole.ADMINISTRADOR)).toBe(
       false,
     );
+  });
+
+  it('conta existente: só perfil abaixo ou a própria (enfermeiro não toma a conta de outro)', () => {
+    const enf = { id: 'a', role: UserRole.ENFERMEIRO };
+    expect(canManageAccount(enf, { id: 'b', role: UserRole.ACS })).toBe(true);
+    expect(canManageAccount(enf, { id: 'c', role: UserRole.ENFERMEIRO })).toBe(
+      false,
+    );
+    expect(canManageAccount(enf, { id: 'a', role: UserRole.ENFERMEIRO })).toBe(
+      true,
+    );
+    expect(
+      canManageAccount(enf, { id: 'd', role: UserRole.ADMINISTRADOR }),
+    ).toBe(false);
+    const adm = { id: 'x', role: UserRole.ADMINISTRADOR };
+    expect(
+      canManageAccount(adm, { id: 'y', role: UserRole.ADMINISTRADOR }),
+    ).toBe(true);
   });
 
   it('ACS não gerencia ninguém', () => {
