@@ -83,6 +83,18 @@ export function haversineMeters(a: Coord, b: Coord): number {
 export const MICRO_CHUNK_METERS = 18;
 
 /**
+ * Folga do recorte: o site recebe as coordenadas com 5 casas (~1 m) e um pedaço de
+ * 17,99 m virava 18,01 m e era cortado de novo — site e servidor numeravam os pedaços
+ * diferente. Igual em frontend/src/utils/streetPaintSegments.ts.
+ */
+const DENSIFY_SLACK_METERS = 2;
+
+const round5 = ([lng, lat]: Coord): Coord => [
+  Math.round(lng * 1e5) / 1e5,
+  Math.round(lat * 1e5) / 1e5,
+];
+
+/**
  * Densifica a polilinha para nenhum trecho passar de maxMeters.
  * Retorna mapa oldIndex → newIndex dos vértices originais.
  */
@@ -97,8 +109,13 @@ export function densifyLineString(
   for (let i = 0; i < coords.length - 1; i++) {
     const a = coords[i];
     const b = coords[i + 1];
-    const dist = haversineMeters(a, b);
-    const steps = Math.max(1, Math.ceil(dist / maxMeters));
+    // Medido nas coordenadas arredondadas, como o site as recebe: os dois lados
+    // chegam ao mesmo número de pedaços.
+    const dist = haversineMeters(round5(a), round5(b));
+    const steps = Math.max(
+      1,
+      Math.ceil((dist - DENSIFY_SLACK_METERS) / maxMeters),
+    );
     for (let s = 1; s < steps; s++) {
       const t = s / steps;
       out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);

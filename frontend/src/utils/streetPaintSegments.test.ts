@@ -3,6 +3,8 @@ import type { Street } from '../services/api';
 import {
   buildStreetMapFeatures,
   closestDrawnSideEdge,
+  densifyLineString,
+  edgeMicroareaOnSide,
   effectivePaintSide,
   nearestDrawnStreetId,
   offsetLineForSide,
@@ -158,5 +160,62 @@ describe('deslocamento dos lados', () => {
     const left = offsetLineForSide(line, 'LEFT', 5);
     // Vértice do meio: indo para o norte, a esquerda é o oeste (longitude menor).
     expect(left.coordinates[1][0]).toBeLessThan(-43.78);
+  });
+});
+
+describe('cor de um pedaço', () => {
+  const seg = (side: 'LEFT' | 'RIGHT' | 'FULL', startIndex: number, endIndex: number, microareaId: string) =>
+    ({ id: `${side}${startIndex}`, side, startIndex, endIndex, microareaId }) as never;
+  const painted = {
+    ...eastward,
+    paintSegments: [seg('LEFT', 0, 4, 'ma-a'), seg('LEFT', 4, 6, 'ma-b'), seg('FULL', 8, 9, 'ma-c')],
+  } as unknown as Street;
+
+  it('vizinho de outra cor na divisa não confunde: vale o pedaço inteiro', () => {
+    expect(edgeMicroareaOnSide(painted, 4, 5, 'LEFT')).toBe('ma-b');
+    expect(edgeMicroareaOnSide(painted, 3, 4, 'LEFT')).toBe('ma-a');
+  });
+
+  it('pedaço sem tinta, outro lado e rua inteira', () => {
+    expect(edgeMicroareaOnSide(painted, 6, 7, 'LEFT')).toBeNull();
+    expect(edgeMicroareaOnSide(painted, 4, 5, 'RIGHT')).toBeNull();
+    expect(edgeMicroareaOnSide(painted, 8, 9, 'RIGHT')).toBe('ma-c');
+  });
+});
+
+describe('recorte em pedaços de ~18 m (igual ao servidor)', () => {
+  // Ruas de mentira em Passagem Franca, com trechos de 5 a 130 m (gerador fixo).
+  const randomLines = (count: number): [number, number][][] => {
+    let seed = 42;
+    const next = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    return Array.from({ length: count }, () => {
+      const line: [number, number][] = [[-43.78 + next() * 0.01, -6.18 + next() * 0.01]];
+      for (let i = 0; i < 6; i++) {
+        const [lng, lat] = line[line.length - 1];
+        const meters = 5 + next() * 125;
+        const angle = next() * 2 * Math.PI;
+        line.push([lng + (Math.cos(angle) * meters) / 110700, lat + (Math.sin(angle) * meters) / 110540]);
+      }
+      return line;
+    });
+  };
+  const round5 = (line: [number, number][]) =>
+    line.map(([lng, lat]) => [Math.round(lng * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5] as [number, number]);
+
+  it('recortar de novo não corta mais nada, nem com as coordenadas arredondadas que chegam da API', () => {
+    for (const line of randomLines(300)) {
+      const dense = densifyLineString(line).coords;
+      expect(densifyLineString(dense).coords).toHaveLength(dense.length);
+      expect(densifyLineString(round5(dense)).coords).toHaveLength(dense.length);
+    }
+  });
+
+  it('a rua completa (servidor) e a arredondada (site) dão o mesmo número de pedaços', () => {
+    for (const line of randomLines(300)) {
+      expect(densifyLineString(round5(line)).coords).toHaveLength(densifyLineString(line).coords.length);
+    }
   });
 });

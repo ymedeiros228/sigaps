@@ -2,6 +2,8 @@ import {
   applyUnpaintOnSide,
   applyPaintRange,
   applyUnpaintRange,
+  densifyLineString,
+  haversineMeters,
   mergeAdjacentSegments,
   StreetPaintSide,
   type SegmentRange,
@@ -169,5 +171,68 @@ describe('applyUnpaintOnSide', () => {
         side: StreetPaintSide.FULL,
       },
     ]);
+  });
+});
+
+describe('densifyLineString (pedaços de ~18 m)', () => {
+  // Ruas de mentira em Passagem Franca, com trechos de 5 a 130 m (gerador fixo).
+  const randomLines = (count: number): [number, number][][] => {
+    let seed = 42;
+    const next = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    return Array.from({ length: count }, () => {
+      const line: [number, number][] = [
+        [-43.78 + next() * 0.01, -6.18 + next() * 0.01],
+      ];
+      for (let i = 0; i < 6; i++) {
+        const [lng, lat] = line[line.length - 1];
+        const meters = 5 + next() * 125;
+        const angle = next() * 2 * Math.PI;
+        line.push([
+          lng + (Math.cos(angle) * meters) / 110700,
+          lat + (Math.sin(angle) * meters) / 110540,
+        ]);
+      }
+      return line;
+    });
+  };
+  const round5 = (line: [number, number][]) =>
+    line.map(
+      ([lng, lat]) =>
+        [Math.round(lng * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5] as [
+          number,
+          number,
+        ],
+    );
+
+  it('recortar de novo não corta mais nada, nem com as coordenadas arredondadas que o site recebe', () => {
+    for (const line of randomLines(300)) {
+      const dense = densifyLineString(line).coords;
+      expect(densifyLineString(dense).coords).toHaveLength(dense.length);
+      expect(densifyLineString(round5(dense)).coords).toHaveLength(
+        dense.length,
+      );
+    }
+  });
+
+  it('a rua completa (servidor) e a arredondada (site) dão o mesmo número de pedaços', () => {
+    for (const line of randomLines(300)) {
+      expect(densifyLineString(round5(line)).coords).toHaveLength(
+        densifyLineString(line).coords.length,
+      );
+    }
+  });
+
+  it('nenhum pedaço passa de ~20 m', () => {
+    for (const line of randomLines(50)) {
+      const dense = densifyLineString(line).coords;
+      for (let i = 0; i < dense.length - 1; i++) {
+        expect(haversineMeters(dense[i], dense[i + 1])).toBeLessThanOrEqual(
+          20.5,
+        );
+      }
+    }
   });
 });

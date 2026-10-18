@@ -1412,7 +1412,7 @@ export class StreetsService {
         : (paintSegments.find((s) => s.microareaId === microareaIdSynced)
             ?.microarea ?? null);
 
-    // Com densificação, devolve geojson para o frontend alinhar os tracinhos.
+    // Sempre com a geometria: o site se realinha à numeração dos pedaços do servidor.
     return this.serializeStreetForApi(
       {
         ...working,
@@ -1422,7 +1422,7 @@ export class StreetsService {
       },
       undefined,
       false,
-      !geometryChanged,
+      false,
     );
   }
 
@@ -1586,7 +1586,7 @@ export class StreetsService {
         },
         undefined,
         false,
-        !geometryChanged,
+        false,
       ),
     };
   }

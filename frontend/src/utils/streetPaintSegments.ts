@@ -91,6 +91,15 @@ export function haversineMeters(a: Coord, b: Coord): number {
 /** Espaçamento máximo entre vértices no modo micro (~um tracinho visual). */
 export const MICRO_CHUNK_METERS = 18;
 
+/**
+ * Folga do recorte: as coordenadas chegam da API com 5 casas (~1 m) e um pedaço de
+ * 17,99 m virava 18,01 m e era cortado de novo — site e servidor numeravam os pedaços
+ * diferente. Igual em backend/src/common/utils/street-paint-segment.util.ts.
+ */
+const DENSIFY_SLACK_METERS = 2;
+
+const round5 = ([lng, lat]: Coord): Coord => [Math.round(lng * 1e5) / 1e5, Math.round(lat * 1e5) / 1e5];
+
 export function densifyLineString(
   coords: Coord[],
   maxMeters = MICRO_CHUNK_METERS,
@@ -101,8 +110,10 @@ export function densifyLineString(
   for (let i = 0; i < coords.length - 1; i++) {
     const a = coords[i];
     const b = coords[i + 1];
-    const dist = haversineMeters(a, b);
-    const steps = Math.max(1, Math.ceil(dist / maxMeters));
+    // Medido nas coordenadas arredondadas, como o servidor: os dois chegam ao mesmo
+    // número de pedaços.
+    const dist = haversineMeters(round5(a), round5(b));
+    const steps = Math.max(1, Math.ceil((dist - DENSIFY_SLACK_METERS) / maxMeters));
     for (let s = 1; s < steps; s++) {
       const t = s / steps;
       out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
@@ -842,6 +853,20 @@ export function isEdgePaintedOnSide(
 ): boolean {
   const segs = segmentsCoveringSide(street.paintSegments ?? [], side);
   return segs.some((s) => s.startIndex <= lo && s.endIndex >= hi);
+}
+
+/**
+ * Microárea que cobre o pedaço inteiro [lo, hi] daquele lado (null = sem tinta).
+ * Amostrar a cor no ponto inicial errava na divisa com um vizinho de outra cor.
+ */
+export function edgeMicroareaOnSide(
+  street: Street,
+  lo: number,
+  hi: number,
+  side: StreetPaintSide,
+): string | null {
+  const segs = segmentsCoveringSide(street.paintSegments ?? [], side);
+  return segs.find((s) => s.startIndex <= lo && s.endIndex >= hi)?.microareaId ?? null;
 }
 
 export function microPaintSideForScope(

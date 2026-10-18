@@ -14,7 +14,7 @@ import {
   closestDrawnSideEdge,
   nearestDrawnStreetId,
   edgeEndpointLatLng,
-  isEdgePaintedOnSide,
+  edgeMicroareaOnSide,
   setDisplaySideOffset,
   sideOffsetMetersForZoom,
   streetZoomBucket,
@@ -580,7 +580,10 @@ function StreetsLayerComponent({
       activeColor: '#00A86B',
       paintStreetSide,
       paintMode,
-      splitUnpaintedEdges: paintMode && paintScope === 'micro',
+      // Sem cortar em pedaços de ~18 m: o toque acha o pedaço pela geometria
+      // (closestDrawnSideEdge). Cortado, o município afastado virava ~45 mil linhas
+      // refeitas a cada zoom e o mapa travava segundos.
+      splitUnpaintedEdges: false,
       // Sem lado fixo: no modo trecho os dois lados aparecem e o toque decide qual pintar.
       microSide: undefined,
     }),
@@ -1006,9 +1009,10 @@ function StreetsLayerComponent({
         const safeLo = Math.max(0, Math.min(lo, maxIndex - 1));
         const safeHi = Math.max(safeLo + 1, Math.min(hi, maxIndex));
         const endpoints = edgeEndpointLatLng(working, safeLo, safeHi);
-        const state = paintStateAtPoint(working, endpoints.startLat, endpoints.startLng, side);
+        // Cor do pedaço inteiro: amostrar o ponto inicial pegava o vizinho na divisa.
+        const edgeMicroareaId = edgeMicroareaOnSide(working, safeLo, safeHi, side);
         if (store.eraserMode) {
-          if (!streetHasPaint(working) && !state.microareaId) return;
+          if (!edgeMicroareaId) return;
           onStreetUnpaintRange(
             working,
             endpoints.startLat,
@@ -1020,7 +1024,7 @@ function StreetsLayerComponent({
           return;
         }
         if (!store.selectedMicroareaId) return;
-        const painted = isEdgePaintedOnSide(working, safeLo, safeHi, side);        if (painted && state.microareaId === store.selectedMicroareaId) {
+        if (edgeMicroareaId === store.selectedMicroareaId) {
           onStreetUnpaintRange(
             working,
             endpoints.startLat,
