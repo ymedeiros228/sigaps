@@ -149,8 +149,8 @@ export function PaintGuidePanel({
     if (!selectedMicroareaId && microareas.length > 0) {
       setSelectedMicroarea(microareas[0].id);
     }
-    setPaintScope('micro');
-    setPaintStreetSide('LEFT');
+    // Mantém o jeito de pintar já escolhido (antes voltava sempre para "Micro E").
+    if (paintScope !== 'micro' && paintScope !== 'whole') setPaintScope('micro');
     setEraserMode(false);
     setMapPanEnabled(false);
     setPaintMode(true);
@@ -185,60 +185,30 @@ export function PaintGuidePanel({
   };
 
   const paintStatus = eraserMode
-    ? paintScope === 'micro'
-      ? 'Clique no tracinho colorido para apagar um trecho'
-      : 'Toque na rua colorida para apagar'
+    ? 'Toque no trecho colorido para apagar (do lado em que você tocar)'
     : mapPanEnabled
       ? 'Arraste o mapa — desative Mover para pintar'
       : paintScope === 'whole'
-        ? paintStreetSide === 'LEFT'
-          ? 'Um clique pinta o lado esquerdo inteiro da rua'
-          : paintStreetSide === 'RIGHT'
-            ? 'Um clique pinta o lado direito inteiro da rua'
-            : 'Um clique pinta a rua inteira'
-        : paintScope === 'micro'
-          ? paintStreetSide === 'LEFT'
-            ? 'Clique em cada tracinho cinza do lado esquerdo'
-            : 'Clique em cada tracinho cinza do lado direito'
-          : 'Escolha um modo de pintura abaixo';
+        ? paintStreetSide === 'FULL'
+          ? 'Um toque pinta a rua inteira, os dois lados'
+          : 'Toque no lado da rua: pinta aquele lado inteiro'
+        : 'Toque no tracinho do lado que quer pintar'
 
-  type PaintModeUi =
-    | 'micro-left'
-    | 'micro-right'
-    | 'whole'
-    | 'whole-left'
-    | 'whole-right';
+  type PaintModeUi = 'trecho' | 'lado' | 'rua';
 
   const brushMode: PaintModeUi =
-    paintScope === 'whole' && paintStreetSide === 'LEFT'
-      ? 'whole-left'
-      : paintScope === 'whole' && paintStreetSide === 'RIGHT'
-        ? 'whole-right'
-        : paintScope === 'whole'
-          ? 'whole'
-          : paintStreetSide === 'RIGHT'
-            ? 'micro-right'
-            : 'micro-left';
+    paintScope === 'whole' ? (paintStreetSide === 'FULL' ? 'rua' : 'lado') : 'trecho';
 
   const handleBrushMode = (mode: PaintModeUi) => {
-    if (mode === 'whole') {
+    if (mode === 'rua') {
       setPaintScope('whole');
       setPaintStreetSide('FULL');
       return;
     }
-    if (mode === 'whole-left') {
+    if (mode === 'lado') {
+      // LEFT aqui só marca "um lado": qual lado sai do toque (effectivePaintSide).
       setPaintScope('whole');
       setPaintStreetSide('LEFT');
-      return;
-    }
-    if (mode === 'whole-right') {
-      setPaintScope('whole');
-      setPaintStreetSide('RIGHT');
-      return;
-    }
-    if (mode === 'micro-right') {
-      setPaintScope('micro');
-      setPaintStreetSide('RIGHT');
       return;
     }
     setPaintScope('micro');
@@ -594,45 +564,25 @@ export function PaintGuidePanel({
                       fullWidth
                       value={brushMode}
                       onChange={(_e, value) => value && handleBrushMode(value)}
-                      sx={{ mb: 0.5 }}
-                    >
-                      <Tooltip title="Um tracinho cinza por clique — lado esquerdo" arrow placement="top">
-                        <ToggleButton value="micro-left" data-testid="paint-mode-micro-left" sx={{ py: 0.65, fontWeight: 700, flex: 1 }}>
-                          Micro E
-                        </ToggleButton>
-                      </Tooltip>
-                      <Tooltip title="Um tracinho cinza por clique — lado direito" arrow placement="top">
-                        <ToggleButton value="micro-right" sx={{ py: 0.65, fontWeight: 700, flex: 1 }}>
-                          Micro D
-                        </ToggleButton>
-                      </Tooltip>
-                    </ToggleButtonGroup>
-                    <ToggleButtonGroup
-                      exclusive
-                      size="small"
-                      fullWidth
-                      value={brushMode}
-                      onChange={(_e, value) => value && handleBrushMode(value)}
                       sx={{ mb: 0.75 }}
+                      aria-label="Como pintar"
                     >
-                      <ToggleButton value="whole" data-testid="paint-mode-whole" sx={{ py: 0.55, fontWeight: 700, flex: 1 }}>
+                      <ToggleButton value="trecho" data-testid="paint-mode-micro-left" sx={{ py: 0.7, fontWeight: 650, flex: 1 }}>
+                        Trecho
+                      </ToggleButton>
+                      <ToggleButton value="lado" data-testid="paint-mode-side" sx={{ py: 0.7, fontWeight: 650, flex: 1 }}>
+                        Lado inteiro
+                      </ToggleButton>
+                      <ToggleButton value="rua" data-testid="paint-mode-whole" sx={{ py: 0.7, fontWeight: 650, flex: 1 }}>
                         Rua inteira
-                      </ToggleButton>
-                      <ToggleButton value="whole-left" sx={{ py: 0.55, fontWeight: 700, flex: 1, fontSize: '0.72rem' }}>
-                        Esq. inteiro
-                      </ToggleButton>
-                      <ToggleButton value="whole-right" sx={{ py: 0.55, fontWeight: 700, flex: 1, fontSize: '0.72rem' }}>
-                        Dir. inteiro
                       </ToggleButton>
                     </ToggleButtonGroup>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4 }}>
-                      {brushMode === 'micro-left' || brushMode === 'micro-right'
-                        ? 'Cada clique pinta só um tracinho curto (~18 m). Zoom aproxime se precisar.'
-                        : brushMode === 'whole'
-                          ? 'Um clique colorirá a rua toda (ambos os lados em avenidas).'
-                          : brushMode === 'whole-left' || brushMode === 'whole-right'
-                            ? 'Um clique pinta aquele lado da rua do início ao fim.'
-                            : 'Escolha um modo acima.'}
+                      {brushMode === 'trecho'
+                        ? 'Cada rua mostra os dois lados em tracinhos. Toque no tracinho do lado que quer: pinta ~18 m. Tocar de novo despinta; com outra cor, troca.'
+                        : brushMode === 'lado'
+                          ? 'Toque perto do lado da rua que quer: pinta aquele lado do começo ao fim.'
+                          : 'Um toque pinta a rua toda, os dois lados.'}
                     </Typography>
                   </Box>
                 )}

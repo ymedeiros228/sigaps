@@ -14,7 +14,9 @@ import {
   closestEdgeOnStreet,
   edgeEndpointLatLng,
   isEdgePaintedOnSide,
-  microPaintSideForScope,
+  setDisplaySideOffset,
+  sideOffsetMetersForZoom,
+  streetZoomBucket,
   densifyStreetForMicro,
   computeBrushPreviewGeometryByIndex,
   computePaintPreviewGeometry,
@@ -578,7 +580,8 @@ function StreetsLayerComponent({
       paintStreetSide,
       paintMode,
       splitUnpaintedEdges: paintMode && paintScope === 'micro',
-      microSide: paintMode && paintScope === 'micro' ? microPaintSideForScope(paintStreetSide) : undefined,
+      // Sem lado fixo: no modo trecho os dois lados aparecem e o toque decide qual pintar.
+      microSide: undefined,
     }),
     [paintStreetSide, paintMode, paintScope],
   );
@@ -605,7 +608,8 @@ function StreetsLayerComponent({
     const u: StreetMapFeature[] = [];
     const d: StreetMapFeature[] = [];
     const hits: StreetMapFeature[] = [];
-    const zoomBucket = zoom < 13 ? 12 : zoom < 15 ? 14 : 16;
+    const zoomBucket = streetZoomBucket(zoom);
+    setDisplaySideOffset(sideOffsetMetersForZoom(zoomBucket));
     const modeKey = `${paintMode ? 1 : 0}:${paintScope}:${paintStreetSide}:${eraserMode ? 1 : 0}:${zoomBucket}`;
     const cache = featureCacheRef.current;
     const streetState = streetFeatureStateRef.current;
@@ -691,7 +695,8 @@ function StreetsLayerComponent({
       d.push(...state.dragPreview);
 
       if (paintMode && paintScope === 'micro') {
-        const microHits = eraserMode ? state.painted : state.unpainted;
+        // Pintando, os trechos já pintados também recebem toque: mesma cor despinta, outra cor troca.
+        const microHits = eraserMode ? state.painted : [...state.unpainted, ...state.painted];
         for (const feature of microHits) {
           hits.push({
             ...feature,
@@ -900,14 +905,15 @@ function StreetsLayerComponent({
     const path = layer as L.Path;
     const label = formatStreetLabel({ name: props.name, streetType: props.streetType });
 
-    const pointerPaintContext = (lat: number, lng: number) => {
+    /** `sideLat/sideLng`: ponto do dedo (decide o lado); `lat/lng`: ponto já puxado para o eixo. */
+    const pointerPaintContext = (lat: number, lng: number, sideLat = lat, sideLng = lng) => {
       const street = getStreet();
       if (!street) return null;
       const store = useMapStore.getState();
       const side = effectivePaintSide(
         street,
-        lat,
-        lng,
+        sideLat,
+        sideLng,
         store.paintStreetSide,
         store.paintScope,
         store.eraserMode,
@@ -944,9 +950,11 @@ function StreetsLayerComponent({
           tooltip = togglesToUnpaint
             ? `Despintar trecho${sideText}: ${label}`
             : store.paintScope === 'whole'
-              ? `Pintar rua inteira: ${label}`
+              ? store.paintStreetSide === 'FULL'
+                ? `Pintar rua inteira: ${label}`
+                : `Pintar lado inteiro${sideText}: ${label}`
               : store.paintScope === 'micro'
-                ? `Micro pintura${sideText}: clique no tracinho — ${label}`
+                ? `Pintar trecho${sideText}: ${label}`
                 : store.paintScope === 'brush'
                   ? `Arraste ao longo da rua${sideText}: ${label}`
                   : `Cortar e pintar trecho${sideText}: ${label}`;
@@ -1022,7 +1030,7 @@ function StreetsLayerComponent({
           );
           return;
         }
-        if (painted) return;
+        // Pintado de outra microárea: troca para a cor escolhida (o backend recorta o trecho antigo).
         onStreetPaintRange(
           working,
           endpoints.startLat,
@@ -1054,7 +1062,7 @@ function StreetsLayerComponent({
         const street = getStreet();
         if (!street) return;
         const snapped = closestPointAndVertexOnStreet(street, e.latlng.lat, e.latlng.lng);
-        const ctx = pointerPaintContext(snapped.lat, snapped.lng);
+        const ctx = pointerPaintContext(snapped.lat, snapped.lng, e.latlng.lat, e.latlng.lng);
         if (!ctx) return;
         if (ctx.store.eraserMode && !streetHasPaint(street) && !ctx.state.microareaId) return;
         applyHoverPreviewGeometry(ctx.geom, ctx.store.eraserMode);
@@ -1086,10 +1094,11 @@ function StreetsLayerComponent({
         if (!street) return;
         const snapped = closestPointAndVertexOnStreet(street, e.latlng.lat, e.latlng.lng);
         const { lat, lng, vertexIndex } = snapped;
+        // O lado sai do ponto do dedo: o ponto puxado para o eixo fica "em cima da linha".
         const side = effectivePaintSide(
           street,
-          lat,
-          lng,
+          e.latlng.lat,
+          e.latlng.lng,
           store.paintStreetSide,
           store.paintScope,
           store.eraserMode,

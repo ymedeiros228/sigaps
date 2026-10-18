@@ -4,6 +4,30 @@ type Coord = [number, number];
 
 const SIDE_OFFSET_METERS = 5;
 
+/**
+ * Distância (m) entre o eixo da rua e cada lado no DESENHO. Fica em ~5 px na tela:
+ * 5 m fixos davam menos de 4 px no zoom 16 e os dois lados se encostavam.
+ * A pintura gravada não muda; é só como os lados aparecem e onde o toque cai.
+ */
+let displaySideOffsetMeters = SIDE_OFFSET_METERS;
+
+/** Grupo de zoom usado no cache do desenho e no deslocamento dos lados. */
+export function streetZoomBucket(zoom: number): number {
+  if (zoom < 13) return 12;
+  if (zoom < 15) return 14;
+  if (zoom < 17) return 16;
+  return Math.min(19, Math.floor(zoom));
+}
+
+export function sideOffsetMetersForZoom(zoom: number, latitude = -6.18): number {
+  const metersPerPixel = (156543.03392 * Math.cos((latitude * Math.PI) / 180)) / 2 ** zoom;
+  return Math.min(12, Math.max(4, 5 * metersPerPixel));
+}
+
+export function setDisplaySideOffset(meters: number) {
+  displaySideOffsetMeters = meters;
+}
+
 export function streetCoords(geojson: GeoJSON.LineString): Coord[] {
   return (geojson?.coordinates ?? []) as Coord[];
 }
@@ -204,7 +228,7 @@ function movePerpendicular(lat: number, lng: number, bearingDeg: number, meters:
 export function offsetLineForSide(
   line: GeoJSON.LineString,
   side: StreetPaintSide,
-  meters = SIDE_OFFSET_METERS,
+  meters = displaySideOffsetMeters,
 ): GeoJSON.LineString {
   if (side === 'FULL') return line;
   const coords = streetCoords(line);
@@ -217,9 +241,10 @@ export function offsetLineForSide(
     if (i === 0) bearing = bearingDegrees(coords[0], coords[1]);
     else if (i === coords.length - 1) bearing = bearingDegrees(coords[i - 1], coords[i]);
     else {
-      const b1 = bearingDegrees(coords[i - 1], coords[i]);
-      const b2 = bearingDegrees(coords[i], coords[i + 1]);
-      bearing = (b1 + b2) / 2;
+      const b1 = (bearingDegrees(coords[i - 1], coords[i]) * Math.PI) / 180;
+      const b2 = (bearingDegrees(coords[i], coords[i + 1]) * Math.PI) / 180;
+      // Média circular: (350° + 10°) / 2 dava 180°, o lado ia para o avesso.
+      bearing = (Math.atan2(Math.sin(b1) + Math.sin(b2), Math.cos(b1) + Math.cos(b2)) * 180) / Math.PI;
     }
     out.push(movePerpendicular(lat, lng, bearing, meters, left));
   }
@@ -501,7 +526,7 @@ export function buildStreetMapFeatures(
     paintMode?: boolean;
     /** Modo micro: cada tracinho cinza = um trecho clicável. */
     splitUnpaintedEdges?: boolean;
-    /** Lado ativo no micro (E/D) — tracinhos deslocados para o lado correto. */
+    /** Legado: lado fixo no modo trecho. Sem ele, os dois lados aparecem e o toque escolhe. */
     microSide?: StreetPaintSide;
   },
 ): { painted: StreetMapFeature[]; unpainted: StreetMapFeature[]; dragPreview: StreetMapFeature[] } {
@@ -637,22 +662,25 @@ export function buildStreetMapFeatures(
       properties: { ...feature.properties, color: ctx.activeColor },
     });
   } else if (ctx.splitUnpaintedEdges && maxIndex >= 1) {
-    const displaySide = ctx.microSide && ctx.microSide !== 'FULL' ? ctx.microSide : 'FULL';
-    for (let i = 0; i < maxIndex; i++) {
-      const raw = sliceStreetGeojson(coords, i, i + 1);
-      if (!raw) continue;
-      unpainted.push({
-        ...feature,
-        properties: {
-          ...feature.properties,
-          id: `${baseStreet.id}:edge:${displaySide}:${i}`,
-          side: displaySide,
-          edgeLo: i,
-          edgeHi: i + 1,
-          isPartial: true,
-        },
-        geometry: displayGeometry(baseStreet, raw, displaySide),
-      });
+    const sides: StreetPaintSide[] =
+      ctx.microSide && ctx.microSide !== 'FULL' ? [ctx.microSide] : dual ? ['LEFT', 'RIGHT'] : ['FULL'];
+    for (const displaySide of sides) {
+      for (let i = 0; i < maxIndex; i++) {
+        const raw = sliceStreetGeojson(coords, i, i + 1);
+        if (!raw) continue;
+        unpainted.push({
+          ...feature,
+          properties: {
+            ...feature.properties,
+            id: `${baseStreet.id}:edge:${displaySide}:${i}`,
+            side: displaySide,
+            edgeLo: i,
+            edgeHi: i + 1,
+            isPartial: true,
+          },
+          geometry: displayGeometry(baseStreet, raw, displaySide),
+        });
+      }
     }
   } else {
     // Dual sem pintura: uma centerline (evita 2× offset trig em ~todas as ruas OSM).
@@ -775,18 +803,10 @@ export function effectivePaintSide(
   eraserMode: boolean,
 ): ApiPaintSide | StreetPaintSide {
   if (!isDualSideStreet(street)) return 'FULL';
-  if (eraserMode) {
-    if (paintScope === 'micro' && paintStreetSide !== 'FULL') return paintStreetSide;
-    return detectClickSide(street, latitude, longitude);
-  }
-  if (paintScope === 'whole') {
-    if (paintStreetSide === 'LEFT') return 'LEFT';
-    if (paintStreetSide === 'RIGHT') return 'RIGHT';
-    return 'BOTH';
-  }
-  if (paintStreetSide === 'LEFT') return 'LEFT';
-  if (paintStreetSide === 'RIGHT') return 'RIGHT';
-  if (paintScope === 'micro') return isDualSideStreet(street) ? paintStreetSide : 'FULL';
+  // "Rua inteira" pinta (ou apaga) os dois lados de uma vez.
+  if (paintScope === 'whole' && paintStreetSide === 'FULL') return eraserMode ? 'FULL' : 'BOTH';
+  // Nos demais modos o lado é onde a pessoa tocou: à esquerda ou à direita do eixo da rua.
+  // `latitude/longitude` têm de ser o ponto do dedo, não o ponto já puxado para o eixo.
   return detectClickSide(street, latitude, longitude);
 }
 
