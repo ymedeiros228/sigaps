@@ -64,11 +64,11 @@ function ChecklistContent({
   const pendingCritical = checklist.items.filter((i) => !i.done && i.priority === 'critical');
 
   return (
-    <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
+    <Card sx={{ mb: 3 }}>
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
           <TaskAlt color="primary" />
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, flex: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
             Checklist operacional
           </Typography>
           {checklist.readyForPainting && (
@@ -123,7 +123,7 @@ function ChecklistContent({
                 gap: 1,
                 py: 0.75,
                 px: 1,
-                borderRadius: 2,
+                borderRadius: 1,
                 textDecoration: 'none',
                 color: 'inherit',
                 bgcolor: item.done

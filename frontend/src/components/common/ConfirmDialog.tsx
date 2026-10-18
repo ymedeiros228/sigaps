@@ -39,14 +39,14 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>{title}</DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Box
           sx={{
             display: 'flex',
             gap: 1.5,
             p: 1.5,
-            borderRadius: 2,
+            borderRadius: 1,
             bgcolor: alpha(theme.palette.info.main, 0.08),
             border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
           }}

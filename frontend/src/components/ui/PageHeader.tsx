@@ -20,7 +20,7 @@ export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
       }}
     >
       <Box>
-        <Typography variant="h5" sx={{ fontWeight: 800 }}>
+        <Typography variant="h5">
           {title}
         </Typography>
         {subtitle && (

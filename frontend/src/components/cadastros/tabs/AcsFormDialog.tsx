@@ -91,7 +91,7 @@ export function AcsFormDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>
+      <DialogTitle>
         {editing ? 'Editar ACS' : 'Cadastrar ACS'}
       </DialogTitle>
       <form onSubmit={submit(false)}>

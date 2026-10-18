@@ -73,7 +73,7 @@ export function GeoImportPreviewMap({
       <Box
         sx={{
           height,
-          borderRadius: 2,
+          borderRadius: 1,
           overflow: 'hidden',
           border: '1px solid',
           borderColor: 'divider',

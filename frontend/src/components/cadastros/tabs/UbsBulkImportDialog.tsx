@@ -139,7 +139,7 @@ export function UbsBulkImportDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>Importar UBS da planilha</DialogTitle>
+      <DialogTitle>Importar UBS da planilha</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Envie um arquivo Excel (.xlsx), CSV ou cole os dados do Google Planilhas. Cada linha deve ter{' '}

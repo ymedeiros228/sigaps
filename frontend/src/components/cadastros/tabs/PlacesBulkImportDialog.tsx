@@ -154,7 +154,7 @@ export function PlacesBulkImportDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>Importar povoados da planilha</DialogTitle>
+      <DialogTitle>Importar povoados da planilha</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Envie Excel (.xlsx) ou CSV com <strong>povoado</strong>, <strong>coordenadas</strong> e{' '}

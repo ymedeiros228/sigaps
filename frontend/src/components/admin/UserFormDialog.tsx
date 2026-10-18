@@ -85,7 +85,7 @@ export function UserFormDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>
+      <DialogTitle>
         {editing ? 'Editar usuário' : 'Novo usuário'}
       </DialogTitle>
       <form onSubmit={handleSubmit(onSave)}>

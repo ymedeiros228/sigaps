@@ -10,7 +10,7 @@ import {
 /** Bloco com título e lista, no mesmo estilo de cartão das outras seções. */
 function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
-    <Paper sx={{ p: { xs: 2, sm: 2.5 }, mb: 2, borderRadius: 2 }}>
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, mb: 2 }}>
       <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 700, mb: 1 }}>
         {titulo}
       </Typography>
@@ -31,7 +31,7 @@ export function AjudaPage() {
 
   return (
     <Box sx={{ maxWidth: 720, mx: 'auto', p: { xs: 2, md: 3 } }}>
-      <Typography variant="h5" component="h1" sx={{ fontWeight: 800, mb: 1 }}>
+      <Typography variant="h5" component="h1" sx={{ mb: 1 }}>
         Ajuda
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
@@ -114,7 +114,7 @@ export function AjudaPage() {
         </Typography>
       </Secao>
 
-      <Alert icon={<Info />} severity="info" sx={{ borderRadius: 2 }}>
+      <Alert icon={<Info />} severity="info">
         Dúvidas sobre microáreas, ruas ou acesso: fale com a coordenação da APS da sua UBS.
       </Alert>
     </Box>

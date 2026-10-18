@@ -121,9 +121,9 @@ export function AdminHomologationTab({ municipalityId }: AdminHomologationTabPro
         </Alert>
       )}
 
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <Card>
         <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+          <Typography variant="h6" sx={{ mb: 0.5 }}>
             Guia de homologação (G2 / A6)
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 640 }}>
@@ -161,7 +161,7 @@ export function AdminHomologationTab({ municipalityId }: AdminHomologationTabPro
             <Box
               sx={{
                 p: 2,
-                borderRadius: 2,
+                borderRadius: 1,
                 border: '1px solid',
                 borderColor: ready ? 'success.light' : 'warning.light',
                 bgcolor: ready ? 'success.50' : 'warning.50',
@@ -193,7 +193,7 @@ export function AdminHomologationTab({ municipalityId }: AdminHomologationTabPro
               )}
             </Box>
 
-            <Box sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                 Passo 2 — Revisar e imprimir PDF A3
               </Typography>
@@ -212,7 +212,7 @@ export function AdminHomologationTab({ municipalityId }: AdminHomologationTabPro
               </Button>
             </Box>
 
-            <Box sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
                 Passo 3 — Registrar aceite da SMS
               </Typography>
@@ -237,11 +237,11 @@ export function AdminHomologationTab({ municipalityId }: AdminHomologationTabPro
         </CardContent>
       </Card>
 
-      <Card variant="outlined" sx={{ borderRadius: 3 }}>
+      <Card>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
                 Status atual
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -259,7 +259,7 @@ export function AdminHomologationTab({ municipalityId }: AdminHomologationTabPro
           </Box>
 
           {homologated && (
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="body2">
                 <strong>Data:</strong>{' '}
                 {new Date(municipality.mapHomologatedAt!).toLocaleString('pt-BR')}
@@ -299,7 +299,7 @@ export function AdminHomologationTab({ municipalityId }: AdminHomologationTabPro
       </Card>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Confirmar homologação do mapa</DialogTitle>
+        <DialogTitle>Confirmar homologação do mapa</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           {!ready && (
             <Alert severity="warning">

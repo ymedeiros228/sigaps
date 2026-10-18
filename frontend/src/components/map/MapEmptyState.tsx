@@ -61,7 +61,7 @@ export function MapEmptyState({ onImport, canImport = true, loadError = false, a
           {canImport ? <Map sx={{ fontSize: 40 }} /> : <ContactSupport sx={{ fontSize: 40 }} />}
         </Box>
 
-        <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
+        <Typography variant="h5" sx={{ mb: 1 }}>
           {autoRetrying
             ? 'Reconectando ao servidor…'
             : loadError

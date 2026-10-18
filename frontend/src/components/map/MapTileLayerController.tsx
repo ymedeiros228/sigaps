@@ -36,6 +36,8 @@ export function MapTileLayerController({ layerId }: { layerId: MapBaseLayerId })
     const isSatellite = layerId === 'satellite' || layerId === 'hybrid';
     container.classList.toggle('sigaps-map-base-satellite', isSatellite);
     container.classList.toggle('sigaps-map-base-streets', !isSatellite);
+    // Só o fundo "Ruas" ganha o tom suave (o Relevo precisa das cores dele).
+    container.classList.toggle('sigaps-map-base-osm', layerId === 'map');
 
     let labels: L.TileLayer | null = null;
     if (layerId === 'hybrid') {
@@ -82,7 +84,7 @@ export function MapTileLayerController({ layerId }: { layerId: MapBaseLayerId })
       map.removeLayer(primary);
       fallbacks.forEach((layer) => map.removeLayer(layer));
       if (labels) map.removeLayer(labels);
-      container.classList.remove('sigaps-map-base-satellite', 'sigaps-map-base-streets');
+      container.classList.remove('sigaps-map-base-satellite', 'sigaps-map-base-streets', 'sigaps-map-base-osm');
     };
   }, [map, layerId]);
 

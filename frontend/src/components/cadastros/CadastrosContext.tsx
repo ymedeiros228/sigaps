@@ -94,12 +94,12 @@ export function CadastrosProvider({ children }: { children: ReactNode }) {
     <CadastrosContext.Provider value={value}>
       {children}
       <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError(null)}>
-        <Alert severity="error" onClose={() => setError(null)} sx={{ borderRadius: 2 }}>
+        <Alert severity="error" onClose={() => setError(null)}>
           {error}
         </Alert>
       </Snackbar>
       <Snackbar open={!!success} autoHideDuration={4000} onClose={() => setSuccess(null)}>
-        <Alert severity="success" onClose={() => setSuccess(null)} sx={{ borderRadius: 2 }}>
+        <Alert severity="success" onClose={() => setSuccess(null)}>
           {success}
         </Alert>
       </Snackbar>

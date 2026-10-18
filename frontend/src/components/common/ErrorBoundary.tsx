@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <Box sx={{ p: 3, maxWidth: 520, mx: 'auto', mt: 4 }}>
-          <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
               {this.props.title ?? 'Algo deu errado nesta tela'}
             </Typography>

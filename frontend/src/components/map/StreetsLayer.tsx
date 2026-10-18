@@ -34,8 +34,12 @@ const ERASER_HIT_WEIGHT = 56;
 const VIEWPORT_CULL_MIN = 600;
 /** Clique/toque vai para a rua mais próxima do dedo, não para a camada que estiver por cima. */
 const NEAREST_TOLERANCE_PX = 24;
-/** Destaque de rua sob o mouse e de rua selecionada (azul: não se confunde com as cores das microáreas). */
-const SELECTION_COLOR = '#1a73e8';
+/**
+ * Destaque de rua sob o mouse e de rua selecionada: tinta escura pontilhada, e não uma cor.
+ * O azul de antes (#1a73e8) se confundia com a Microárea 02 (#4363D8); o pontilhado aparece
+ * por cima de qualquer cor de microárea e do fundo claro.
+ */
+const SELECTION_COLOR = '#1D1D1F';
 
 const PAINTED_HALO_STYLE: PathOptions = {
   color: '#ffffff',
@@ -75,23 +79,24 @@ const unassignedStyle = (feature?: GeoJSON.Feature, onSatellite = false): PathOp
 const selectionGlowStyle = (): PathOptions => ({
   color: SELECTION_COLOR,
   weight: 18,
-  opacity: 0.35,
+  opacity: 0.16,
   lineCap: 'round',
   lineJoin: 'round',
 });
 
 const selectionLineStyle = (): PathOptions => ({
   color: SELECTION_COLOR,
-  weight: 4,
-  opacity: 0.95,
+  weight: 3.5,
+  opacity: 0.9,
+  dashArray: '1 7',
   lineCap: 'round',
   lineJoin: 'round',
 });
 
 const SELECT_HOVER_STYLE: L.PolylineOptions = {
   color: SELECTION_COLOR,
-  weight: 8,
-  opacity: 0.45,
+  weight: 10,
+  opacity: 0.2,
   lineCap: 'round',
   lineJoin: 'round',
   interactive: false,

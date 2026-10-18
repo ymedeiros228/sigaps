@@ -125,7 +125,7 @@ export function AcsBulkImportDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>Importar ACS da planilha</DialogTitle>
+      <DialogTitle>Importar ACS da planilha</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Cole os dados do Excel ou Google Planilhas, ou envie um arquivo CSV/Excel. O CPF

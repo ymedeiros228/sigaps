@@ -140,7 +140,7 @@ export function FamilyBulkImportDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>Importar famílias e habitantes</DialogTitle>
+      <DialogTitle>Importar famílias e habitantes</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Envie uma planilha com o nome da rua, quantidade de famílias e habitantes.

@@ -103,7 +103,7 @@ export function EsusImportDialog({
       fullWidth
       data-testid="esus-import-dialog"
     >
-      <DialogTitle sx={{ fontWeight: 800 }}>Importar piloto e-SUS (CSV)</DialogTitle>
+      <DialogTitle>Importar piloto e-SUS (CSV)</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Aceita colunas como <code>no_logradouro</code>, <code>qt_familia</code>,{' '}

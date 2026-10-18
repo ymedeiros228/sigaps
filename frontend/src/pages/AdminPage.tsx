@@ -294,7 +294,7 @@ export function AdminPage() {
         }
       />
 
-      <Alert severity="info" icon={<AdminPanelSettings />} sx={{ mb: 3, borderRadius: 2 }}>
+      <Alert severity="info" icon={<AdminPanelSettings />} sx={{ mb: 3 }}>
         Área restrita. Somente usuários com perfil <strong>Administrador</strong> têm acesso a
         esta página.
       </Alert>
@@ -302,7 +302,7 @@ export function AdminPage() {
       {message && (
         <Alert
           severity={message.type}
-          sx={{ mb: 2, borderRadius: 2 }}
+          sx={{ mb: 2 }}
           onClose={() => setMessage(null)}
         >
           {message.text}
@@ -332,7 +332,7 @@ export function AdminPage() {
           <Card
             variant="outlined"
             sx={{
-              borderRadius: 3,
+              borderRadius: 2,
               borderColor: overview.delivery.readyForHandoff
                 ? 'success.main'
                 : overview.delivery.dataReady
@@ -342,7 +342,7 @@ export function AdminPage() {
           >
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, flex: 1 }}>
+                <Typography variant="h6" sx={{ flex: 1 }}>
                   Status de entrega
                 </Typography>
                 {overview.delivery.readyForHandoff && (
@@ -377,7 +377,7 @@ export function AdminPage() {
                 sx={{
                   mt: 1,
                   p: 1.5,
-                  borderRadius: 2,
+                  borderRadius: 1,
                   bgcolor: 'action.hover',
                   border: '1px solid',
                   borderColor: 'divider',
@@ -434,33 +434,30 @@ export function AdminPage() {
               gap: 2,
             }}
           >
-            <StatCard title="Ruas" value={overview.counts.streets} icon={<Signpost />} color="#9C27B0" />
+            <StatCard title="Ruas" value={overview.counts.streets} icon={<Signpost />} />
             <StatCard
               title="Cobertura"
               value={`${overview.counts.coverage}%`}
               subtitle={`${overview.counts.assignedStreets} ruas pintadas`}
               icon={<Storage />}
-              color="#4CAF50"
             />
             <StatCard
               title="ACS"
               value={overview.counts.acs}
               subtitle={`${overview.counts.acsSemMicro} sem microárea`}
               icon={<People />}
-              color="#2196F3"
             />
             <StatCard
               title="Usuários"
               value={overview.counts.activeUsers}
               subtitle={`${overview.counts.users} cadastrados`}
               icon={<AdminPanelSettings />}
-              color="#FF9800"
             />
           </Box>
 
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card>
             <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
                 Sistema
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -487,11 +484,11 @@ export function AdminPage() {
       {tab === 'backup' && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CloudDownload color="primary" />
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                <Typography variant="h6">
                   Exportar backup
                 </Typography>
               </Box>
@@ -510,11 +507,11 @@ export function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card variant="outlined" sx={{ borderRadius: 3, borderColor: 'warning.main' }}>
+          <Card sx={{ borderColor: 'warning.main' }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CloudUpload color="warning" />
-                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                <Typography variant="h6">
                   Restaurar backup
                 </Typography>
               </Box>
@@ -545,12 +542,12 @@ export function AdminPage() {
           </Card>
           </Box>
 
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <Card>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Storage color="primary" />
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  <Typography variant="h6">
                     Backups automáticos
                   </Typography>
                 </Box>
@@ -621,7 +618,7 @@ export function AdminPage() {
       )}
 
       {tab === 'usuarios' && overview && (
-        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+        <Card>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2, pb: 0 }}>
             <Button
               variant="contained"
@@ -690,7 +687,7 @@ export function AdminPage() {
 
       {tab === 'auditoria' && (
         <Box>
-          <Card variant="outlined" sx={{ borderRadius: 3, mb: 2, p: 2 }}>
+          <Card sx={{ mb: 2, p: 2 }}>
             <Box
               sx={{
                 display: 'grid',
@@ -821,7 +818,7 @@ export function AdminPage() {
             </Box>
           ) : (
             <>
-              <Card variant="outlined" sx={{ borderRadius: 3, mb: 2 }}>
+              <Card sx={{ mb: 2 }}>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
@@ -895,7 +892,7 @@ export function AdminPage() {
       )}
 
       <Dialog open={deliveryOpen} onClose={() => setDeliveryOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Warning color="warning" />
           Zerar mapa para entrega?
         </DialogTitle>
@@ -929,7 +926,7 @@ export function AdminPage() {
       </Dialog>
 
       <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Warning color="warning" />
           Confirmar restauração
         </DialogTitle>
@@ -939,7 +936,7 @@ export function AdminPage() {
             cadastros existentes com os mesmos IDs.
           </Typography>
           {pendingBackup && (
-            <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 2 }}>
+            <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 1 }}>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                 Backup de{' '}
                 {String((pendingBackup as { exportedAt?: string }).exportedAt ?? 'data desconhecida')}
@@ -991,7 +988,7 @@ export function AdminPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>Detalhes da auditoria</DialogTitle>
+        <DialogTitle>Detalhes da auditoria</DialogTitle>
         <DialogContent>
           {auditDetail && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

@@ -124,7 +124,7 @@ export function NeighborhoodBulkAssignDialog({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>Vincular ruas aos bairros</DialogTitle>
+      <DialogTitle>Vincular ruas aos bairros</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Typography variant="body2" color="text.secondary">
           Cadastre os bairros primeiro. Depois envie uma planilha com o nome da rua e o bairro

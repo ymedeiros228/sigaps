@@ -96,7 +96,7 @@ function SidePanel({
         bgcolor: selected ? alpha(selected.color, 0.06) : 'transparent',
       }}
     >
-      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
         {title}
       </Typography>
       <FormControl fullWidth size="small" sx={{ mb: 1 }}>
