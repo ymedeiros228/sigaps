@@ -30,6 +30,20 @@ function safeStorageRemove(key: string) {
   }
 }
 
+const THEME_KEY = 'sigaps_theme';
+
+/** Tema escolhido pelo usuário; sem escolha, segue o do aparelho (claro lê melhor no sol). */
+function readInitialDarkMode(): boolean {
+  const saved = safeStorageGet(THEME_KEY);
+  if (saved === 'dark') return true;
+  if (saved === 'light') return false;
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch {
+    return false;
+  }
+}
+
 function readPersistedMunicipalityId(): string | null {
   return safeStorageGet(ACTIVE_MUNICIPALITY_KEY);
 }
@@ -306,11 +320,15 @@ export const useMapStore = create<MapState>((set, get) => ({
 export const useAppStore = create<AppState>((set) => ({
   municipalityId: resolveInitialMunicipalityId(persistedAuth.user),
   microareas: [],
-  darkMode: true,
+  darkMode: readInitialDarkMode(),
   setMunicipalityId: (id) => {
     safeStorageSet(ACTIVE_MUNICIPALITY_KEY, id);
     set({ municipalityId: id });
   },
   setMicroareas: (microareas) => set({ microareas }),
-  toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
+  toggleDarkMode: () =>
+    set((s) => {
+      safeStorageSet(THEME_KEY, s.darkMode ? 'light' : 'dark');
+      return { darkMode: !s.darkMode };
+    }),
 }));
