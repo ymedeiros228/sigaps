@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { inStreetQueue } from '../utils/streetRequestQueue';
 
 /**
  * URL da API. No Vercel o build usa VITE_API_URL=/api (mesma origem do site);
@@ -377,7 +378,7 @@ export const streetsApi = {
       leftSideNotes?: string;
       rightSideNotes?: string;
     },
-  ) => api.patch<Street>(`/streets/${streetId}/sides`, data),
+  ) => inStreetQueue(streetId, () => api.patch<Street>(`/streets/${streetId}/sides`, data)),
   unassign: (streetIds: string[]) =>
     api.post<{ cleared: number }>('/streets/unassign', { streetIds }),
   clearAssignments: (municipalityId: string) =>
@@ -432,7 +433,7 @@ export const streetsApi = {
       endLatitude?: number;
       endLongitude?: number;
     },
-  ) => api.post<Street>(`/streets/${streetId}/paint-at-point`, data),
+  ) => inStreetQueue(streetId, () => api.post<Street>(`/streets/${streetId}/paint-at-point`, data)),
   unpaintAtPoint: (
     streetId: string,
     data: {
@@ -443,9 +444,11 @@ export const streetsApi = {
       endLongitude?: number;
     },
   ) =>
-    api.post<{ cleared: boolean; street?: Street }>(
-      `/streets/${streetId}/unpaint-at-point`,
-      data,
+    inStreetQueue(streetId, () =>
+      api.post<{ cleared: boolean; street?: Street }>(
+        `/streets/${streetId}/unpaint-at-point`,
+        data,
+      ),
     ),
 };
 

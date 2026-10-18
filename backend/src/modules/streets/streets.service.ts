@@ -39,6 +39,7 @@ import { AssignStreetSidesDto } from './dto/assign-street-sides.dto';
 import { AssignStreetsDto } from './dto/assign-streets.dto';
 import { UnassignStreetsDto } from './dto/unassign-streets.dto';
 import { UpdateStreetDemographicsDto } from './dto/update-street-demographics.dto';
+import { KeyedMutex } from '../../common/utils/keyed-mutex.util';
 
 const segmentMicroareaSelect = {
   id: true,
@@ -56,6 +57,9 @@ const mapPaintSegmentInclude = {
 
 @Injectable()
 export class StreetsService {
+  /** Uma gravação de trechos por rua de cada vez (toques rápidos na mesma rua). */
+  private readonly streetLocks = new KeyedMutex();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -728,7 +732,15 @@ export class StreetsService {
     return { cleared: painted.length };
   }
 
-  async assignStreetSides(
+  assignStreetSides(
+    ...args: Parameters<StreetsService['assignStreetSidesUnlocked']>
+  ) {
+    return this.streetLocks.run(args[0], () =>
+      this.assignStreetSidesUnlocked(...args),
+    );
+  }
+
+  private async assignStreetSidesUnlocked(
     streetId: string,
     dto: AssignStreetSidesDto,
     userId: string,
@@ -1218,7 +1230,13 @@ export class StreetsService {
     };
   }
 
-  async paintAtPoint(
+  paintAtPoint(...args: Parameters<StreetsService['paintAtPointUnlocked']>) {
+    return this.streetLocks.run(args[0], () =>
+      this.paintAtPointUnlocked(...args),
+    );
+  }
+
+  private async paintAtPointUnlocked(
     streetId: string,
     microareaId: string,
     latitude: number,
@@ -1408,7 +1426,15 @@ export class StreetsService {
     );
   }
 
-  async unpaintAtPoint(
+  unpaintAtPoint(
+    ...args: Parameters<StreetsService['unpaintAtPointUnlocked']>
+  ) {
+    return this.streetLocks.run(args[0], () =>
+      this.unpaintAtPointUnlocked(...args),
+    );
+  }
+
+  private async unpaintAtPointUnlocked(
     streetId: string,
     latitude: number,
     longitude: number,
@@ -1698,21 +1724,21 @@ export class StreetsService {
       })
       .filter((row): row is NonNullable<typeof row> => row != null);
 
-    const ops = [
-      this.prisma.streetPaintSegment.deleteMany({ where: { streetId } }),
-      ...(data.length > 0
-        ? [this.prisma.streetPaintSegment.createMany({ data })]
-        : []),
-      ...(microareaIdSynced !== undefined
-        ? [
-            this.prisma.street.update({
-              where: { id: streetId },
-              data: { microareaId: microareaIdSynced },
-            }),
-          ]
-        : []),
-    ];
-    await this.prisma.$transaction(ops);
+    await this.prisma.$transaction(async (tx) => {
+      // Trava a linha da rua: outra gravação da mesma rua espera aqui. Sem isso, dois
+      // apagar+inserir ao mesmo tempo deixavam os trechos duplicados.
+      await tx.$queryRaw`SELECT id FROM streets WHERE id = ${streetId} FOR UPDATE`;
+      await tx.streetPaintSegment.deleteMany({ where: { streetId } });
+      if (data.length > 0) {
+        await tx.streetPaintSegment.createMany({ data });
+      }
+      if (microareaIdSynced !== undefined) {
+        await tx.street.update({
+          where: { id: streetId },
+          data: { microareaId: microareaIdSynced },
+        });
+      }
+    });
     return data;
   }
 

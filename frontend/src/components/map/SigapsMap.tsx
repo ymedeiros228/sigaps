@@ -794,6 +794,18 @@ export function SigapsMap() {
     },
     onSuccess: (res, variables, context) => {
       if (!municipalityId) return;
+      // Todo toque gravado entra no Desfazer, mesmo com outro toque da rua ainda a caminho.
+      pushUndo({
+        type: 'paint',
+        streetId: variables.streetId,
+        latitude: variables.latitude,
+        longitude: variables.longitude,
+        endLatitude: variables.endLatitude,
+        endLongitude: variables.endLongitude,
+        side: variables.side ?? 'FULL',
+        scope: variables.scope ?? 'segment',
+        microareaId: variables.microareaId,
+      });
       const currentSeq = paintSeqByStreetRef.current.get(variables.streetId);
       // Traço mais novo já está no cache — não refetchar todas as ruas.
       if (context?.seq !== currentSeq) return;
@@ -823,17 +835,6 @@ export function SigapsMap() {
       }
       const ma = getMicroarea(variables.microareaId);
       queueLastPaintAction(ma ? `Trecho vinculado à ${ma.name}` : 'Trecho pintado');
-      pushUndo({
-        type: 'paint',
-        streetId: variables.streetId,
-        latitude: variables.latitude,
-        longitude: variables.longitude,
-        endLatitude: variables.endLatitude,
-        endLongitude: variables.endLongitude,
-        side: variables.side ?? 'FULL',
-        scope: variables.scope ?? 'segment',
-        microareaId: variables.microareaId,
-      });
     },
     onError: (err, variables, context) => {
       if (context?.previousStreet && municipalityId) {
@@ -914,7 +915,9 @@ export function SigapsMap() {
     },
     onSuccess: (res, variables, context) => {
       if (!res.data.cleared) {
-        if (context?.previousStreet && municipalityId) {
+        // Com outro toque da rua já na tela, voltar à foto antiga apagaria esse toque.
+        const isLatest = context?.seq === paintSeqByStreetRef.current.get(variables.streetId);
+        if (isLatest && context?.previousStreet && municipalityId) {
           patchStreetInMapCache(queryClient, municipalityId, context.previousStreet);
         }
         brushBaseByStreetRef.current.delete(variables.streetId);
@@ -1125,9 +1128,8 @@ export function SigapsMap() {
     endLng: number,
     side: ApiPaintSide | 'LEFT' | 'RIGHT' | 'FULL',
   ) => {
+    // Sem exigir a borracha: no modo Trecho, tocar de novo num trecho da mesma cor despinta.
     if (!paintMode) return;
-    const { eraserMode: eraser } = useMapStore.getState();
-    if (!eraser) return;
     const dense = densifyStreetForMicro(street);
     if (dense !== street && municipalityId) {
       patchStreetInMapCache(queryClient, municipalityId, dense);
