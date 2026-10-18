@@ -6,6 +6,8 @@ import {
   LEGACY_DOWNLOAD_PATH,
   legacyDownloadShareUrl,
 } from '../../constants/delivery';
+import { useAuthStore } from '../../store';
+import { canAccessAdmin } from '../../utils/permissions';
 
 /** Bloco com título e lista, no mesmo estilo de cartão das outras seções. */
 function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -28,6 +30,8 @@ const listaSx = { m: 0, pl: 2.5, '& li': { mb: 1 }, '& li:last-of-type': { mb: 0
  */
 export function AjudaPage() {
   const enderecoAtual = window.location.origin;
+  // O ZIP é o código-fonte legado da entrega: só interessa ao administrador.
+  const isAdmin = canAccessAdmin(useAuthStore((s) => s.user?.role));
 
   return (
     <Box sx={{ maxWidth: 720, mx: 'auto', p: { xs: 2, md: 3 } }}>
@@ -91,10 +95,11 @@ export function AjudaPage() {
         </Box>
       </Secao>
 
-      <Secao titulo="Pacote ZIP para o Jonas">
+      {isAdmin && (
+      <Secao titulo="Código-fonte da entrega (ZIP)">
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          Código-fonte legado da entrega (backend, frontend, documentação). O Jonas pinta o mapa pelo
-          site — o ZIP é para arquivo, auditoria ou outro desenvolvedor.
+          Código-fonte legado da entrega (backend, frontend, documentação), para arquivo, auditoria
+          ou outro desenvolvedor. Só o administrador vê esta seção.
         </Typography>
         <Button
           variant="contained"
@@ -113,6 +118,7 @@ export function AjudaPage() {
           Link: {legacyDownloadShareUrl()}
         </Typography>
       </Secao>
+      )}
 
       <Alert icon={<Info />} severity="info">
         Dúvidas sobre microáreas, ruas ou acesso: fale com a coordenação da APS da sua UBS.
