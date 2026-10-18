@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Street } from '../services/api';
 import {
   buildStreetMapFeatures,
+  closestDrawnSideEdge,
   effectivePaintSide,
+  nearestDrawnStreetId,
   offsetLineForSide,
   sideOffsetMetersForZoom,
   streetZoomBucket,
@@ -51,9 +53,79 @@ describe('lado da pintura pelo toque', () => {
     expect(effectivePaintSide(eastward, -6.17995, -43.779, 'FULL', 'whole', false)).toBe('BOTH');
   });
 
+  it('perto de uma esquina o lado segue o trecho onde está o dedo', () => {
+    // Vai para leste e vira para o norte no 2º ponto.
+    const corner = {
+      ...eastward,
+      geojson: {
+        type: 'LineString',
+        coordinates: [
+          [-43.78, -6.18],
+          [-43.779, -6.18],
+          [-43.779, -6.179],
+        ],
+      },
+    } as unknown as Street;
+    // Ao norte do trecho que vai para leste, a ~22 m da esquina = esquerdo.
+    expect(effectivePaintSide(corner, -6.17996, -43.7792, 'LEFT', 'micro', false)).toBe('LEFT');
+    // A oeste do trecho que sobe para o norte = esquerdo; a leste = direito.
+    expect(effectivePaintSide(corner, -6.1798, -43.77904, 'LEFT', 'micro', false)).toBe('LEFT');
+    expect(effectivePaintSide(corner, -6.1798, -43.77896, 'LEFT', 'micro', false)).toBe('RIGHT');
+  });
+
   it('rua de terra (um lado só) ignora o lado', () => {
     const dirt = { ...eastward, streetType: 'Estrada de terra' } as Street;
     expect(effectivePaintSide(dirt, -6.17995, -43.779, 'LEFT', 'micro', false)).toBe('FULL');
+  });
+});
+
+describe('toque no modo trecho: tracinho desenhado mais perto do dedo', () => {
+  it('rua reta: escolhe o pedaço e o lado onde está o dedo', () => {
+    // 2 pedaços de ~110 m (a rua é densificada em pedaços de ~18 m antes, no mapa).
+    const hitNorth = closestDrawnSideEdge(eastward, -6.17996, -43.7795, 4);
+    expect(hitNorth).toEqual({ lo: 0, hi: 1, side: 'LEFT' });
+    const hitSouth = closestDrawnSideEdge(eastward, -6.18004, -43.7785, 4);
+    expect(hitSouth).toEqual({ lo: 1, hi: 2, side: 'RIGHT' });
+  });
+
+  it('emenda curta numa esquina: vale o tracinho que está desenhado ali', () => {
+    // Sobe 3 m para o norte e vira para o oeste (curva à esquerda).
+    const kink = {
+      ...eastward,
+      geojson: {
+        type: 'LineString',
+        coordinates: [
+          [-43.78, -6.18],
+          [-43.78, -6.179973],
+          [-43.7805, -6.179973],
+        ],
+      },
+    } as unknown as Street;
+    // Lado direito (leste) do pedacinho que sobe, já perto da curva.
+    const side = closestDrawnSideEdge(kink, -6.179975, -43.779962, 4);
+    expect(side).toEqual({ lo: 0, hi: 1, side: 'RIGHT' });
+  });
+
+  it('duas ruas perto: vale a rua do tracinho mais perto do dedo', () => {
+    const line = (lat: number): GeoJSON.LineString => ({
+      type: 'LineString',
+      coordinates: [
+        [-43.78, lat],
+        [-43.779, lat],
+      ],
+    });
+    const features = [
+      { properties: { streetId: 'rua-a' }, geometry: line(-6.18) },
+      { properties: { streetId: 'rua-b' }, geometry: line(-6.17993) }, // ~8 m ao norte
+    ];
+    expect(nearestDrawnStreetId(features, -6.17999, -43.7795)).toBe('rua-a');
+    expect(nearestDrawnStreetId(features, -6.17994, -43.7795)).toBe('rua-b');
+    expect(nearestDrawnStreetId([], -6.18, -43.7795)).toBeNull();
+  });
+
+  it('rua de terra (um lado só) devolve o lado FULL', () => {
+    const dirt = { ...eastward, streetType: 'Estrada de terra' } as Street;
+    expect(closestDrawnSideEdge(dirt, -6.17996, -43.7795, 4).side).toBe('FULL');
   });
 });
 

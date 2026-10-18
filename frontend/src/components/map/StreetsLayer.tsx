@@ -11,7 +11,8 @@ import { lineIntersectsBounds, simplifyLineGeojson } from '../../utils/streetVie
 import {
   buildStreetMapFeatures,
   closestPointAndVertexOnStreet,
-  closestEdgeOnStreet,
+  closestDrawnSideEdge,
+  nearestDrawnStreetId,
   edgeEndpointLatLng,
   isEdgePaintedOnSide,
   setDisplaySideOffset,
@@ -894,9 +895,6 @@ function StreetsLayerComponent({
       streetId: string;
       name: string;
       streetType: string;
-      edgeLo?: number;
-      edgeHi?: number;
-      side?: StreetPaintSide;
     };
     // Sempre a rua atual do cache — hit layer permanece montado após paint.
     const getStreet = () => streetFor(props.streetId);
@@ -910,20 +908,24 @@ function StreetsLayerComponent({
       const street = getStreet();
       if (!street) return null;
       const store = useMapStore.getState();
-      const side = effectivePaintSide(
-        street,
-        sideLat,
-        sideLng,
-        store.paintStreetSide,
-        store.paintScope,
-        store.eraserMode,
-      ) as StreetPaintSide;
+      // Modo trecho: mesmo pedaço e lado que o toque vai pintar (ver handlePointerDown).
+      const dense = store.paintScope === 'micro' ? densifyStreetForMicro(street) : null;
+      const microEdge = dense ? closestDrawnSideEdge(dense, sideLat, sideLng) : null;
+      const side = (microEdge?.side ??
+        effectivePaintSide(
+          street,
+          sideLat,
+          sideLng,
+          store.paintStreetSide,
+          store.paintScope,
+          store.eraserMode,
+        )) as StreetPaintSide;
       const state = paintStateAtPoint(street, lat, lng, side);
       let geom: GeoJSON.LineString | null = null;
       if (store.paintMode) {
-        if (store.paintScope === 'micro' && props.edgeLo != null && props.edgeHi != null) {
-          const raw = sliceStreetGeojson(streetCoords(street.geojson), props.edgeLo, props.edgeHi);
-          geom = raw ? offsetLineForSide(raw, side as StreetPaintSide) : null;
+        if (dense && microEdge) {
+          const raw = sliceStreetGeojson(streetCoords(dense.geojson), microEdge.lo, microEdge.hi);
+          geom = raw ? offsetLineForSide(raw, side) : null;
         } else {
           geom = computePaintPreviewGeometry(
             street,
@@ -1018,8 +1020,7 @@ function StreetsLayerComponent({
           return;
         }
         if (!store.selectedMicroareaId) return;
-        const painted = isEdgePaintedOnSide(working, safeLo, safeHi, side);
-        if (painted && state.microareaId === store.selectedMicroareaId) {
+        const painted = isEdgePaintedOnSide(working, safeLo, safeHi, side);        if (painted && state.microareaId === store.selectedMicroareaId) {
           onStreetUnpaintRange(
             working,
             endpoints.startLat,
@@ -1106,12 +1107,13 @@ function StreetsLayerComponent({
         const state = paintStateAtPoint(street, lat, lng, side);
 
         if (store.paintScope === 'micro') {
-          if (props.edgeLo != null && props.edgeHi != null) {
-            commitMicroEdge(street, props.edgeLo, props.edgeHi, side);
-            return;
-          }
-          const edge = closestEdgeOnStreet(street, lat, lng);
-          commitMicroEdge(street, edge.lo, edge.hi, side);
+          // Pedaço e lado do tracinho desenhado mais perto do dedo, não o que recebeu o toque:
+          // com 28 px de área de toque e ponta redonda, o vizinho cobre a emenda e "roubava" o toque.
+          // Pelo mesmo motivo, onde duas ruas se encontram vale a rua do tracinho mais perto.
+          const nearestId = nearestDrawnStreetId(hitFeaturesRef.current, e.latlng.lat, e.latlng.lng);
+          const target = (nearestId && streetFor(nearestId)) || street;
+          const edge = closestDrawnSideEdge(densifyStreetForMicro(target), e.latlng.lat, e.latlng.lng);
+          commitMicroEdge(target, edge.lo, edge.hi, edge.side);
           return;
         }
 

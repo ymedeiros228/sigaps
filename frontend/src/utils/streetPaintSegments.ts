@@ -171,6 +171,76 @@ export function closestEdgeOnStreet(
   return { lat: bestLat, lng: bestLng, lo: bestSeg, hi: bestSeg + 1 };
 }
 
+/** Distância (m) de um ponto até uma polilinha, em metros locais em volta do ponto. */
+export function distanceToLineMeters(coords: Coord[], latitude: number, longitude: number): number {
+  const kx = 111320 * Math.cos((latitude * Math.PI) / 180);
+  const ky = 110540;
+  let best = Infinity;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const ax = (coords[i][0] - longitude) * kx;
+    const ay = (coords[i][1] - latitude) * ky;
+    const dx = (coords[i + 1][0] - longitude) * kx - ax;
+    const dy = (coords[i + 1][1] - latitude) * ky - ay;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lenSq)) : 0;
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return best;
+}
+
+/**
+ * Modo trecho: rua cujo tracinho desenhado está mais perto do dedo. Onde duas ruas se
+ * encontram, a área de toque de uma fica por cima da outra e o toque chegava à rua errada.
+ */
+export function nearestDrawnStreetId(
+  features: Array<{ properties: { streetId: string }; geometry: GeoJSON.LineString }>,
+  latitude: number,
+  longitude: number,
+): string | null {
+  let bestId: string | null = null;
+  let bestDist = Infinity;
+  for (const feature of features) {
+    const d = distanceToLineMeters(streetCoords(feature.geometry), latitude, longitude);
+    if (d < bestDist) {
+      bestDist = d;
+      bestId = feature.properties.streetId;
+    }
+  }
+  return bestId;
+}
+
+/**
+ * Modo trecho: pedaço e lado cujo tracinho DESENHADO fica mais perto do dedo.
+ * Mede contra as mesmas linhas deslocadas do desenho, então numa esquina ou emenda curta
+ * vale o tracinho que a pessoa vê, e não o eixo da rua (que ali pode apontar o lado oposto).
+ */
+export function closestDrawnSideEdge(
+  street: Street,
+  latitude: number,
+  longitude: number,
+  meters = displaySideOffsetMeters,
+): { lo: number; hi: number; side: StreetPaintSide } {
+  if (!isDualSideStreet(street)) {
+    const { lo, hi } = closestEdgeOnStreet(street, latitude, longitude);
+    return { lo, hi, side: 'FULL' };
+  }
+  const coords = streetCoords(street.geojson);
+  if (coords.length < 2) return { lo: 0, hi: 0, side: 'LEFT' };
+  let best = { lo: 0, hi: 1, side: 'LEFT' as StreetPaintSide };
+  let bestDist = Infinity;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const edge: GeoJSON.LineString = { type: 'LineString', coordinates: [coords[i], coords[i + 1]] };
+    for (const side of ['LEFT', 'RIGHT'] as const) {
+      const d = distanceToLineMeters(streetCoords(offsetLineForSide(edge, side, meters)), latitude, longitude);
+      if (d < bestDist) {
+        bestDist = d;
+        best = { lo: i, hi: i + 1, side };
+      }
+    }
+  }
+  return best;
+}
+
 export function edgeEndpointLatLng(
   street: Street,
   lo: number,
@@ -785,11 +855,11 @@ export function detectClickSide(street: Street, latitude: number, longitude: num
   if (!isDualSideStreet(street)) return 'FULL';
   const coords = streetCoords(street.geojson);
   if (coords.length < 2) return 'LEFT';
-  const vi = closestVertexIndex(coords, latitude, longitude);
-  const i0 = Math.max(0, vi - 1);
-  const i1 = Math.min(coords.length - 1, vi + 1);
-  const [x1, y1] = coords[i0];
-  const [x2, y2] = coords[i1];
+  // Trecho (segmento) mais perto do dedo, não o vértice: numa esquina a corda entre os vizinhos
+  // do vértice não acompanha a rua e invertia o lado.
+  const { lo, hi } = closestEdgeOnStreet(street, latitude, longitude);
+  const [x1, y1] = coords[lo];
+  const [x2, y2] = coords[hi];
   const cross = (x2 - x1) * (latitude - y1) - (y2 - y1) * (longitude - x1);
   return cross > 0 ? 'LEFT' : 'RIGHT';
 }
