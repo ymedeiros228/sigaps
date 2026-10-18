@@ -1,4 +1,4 @@
-import { Alert, Box, Button, LinearProgress, Typography } from '@mui/material';
+import { Alert, Box, Button, Typography } from '@mui/material';
 import { LocalFireDepartment, MapOutlined, Storage } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
@@ -44,7 +44,7 @@ export function DashboardNextSteps({
     ) ?? [];
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2, '&:empty': { display: 'none' } }}>
       {pendingData.length > 0 && (
         <Alert
           severity="warning"
@@ -60,7 +60,7 @@ export function DashboardNextSteps({
               Ver cadastros
             </Button>
           }
-          sx={{ borderRadius: 2, alignItems: 'flex-start' }}
+          sx={{ alignItems: 'flex-start' }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
             Antes de pintar no mapa
@@ -80,11 +80,11 @@ export function DashboardNextSteps({
           severity="success"
           icon={<MapOutlined />}
           action={
-            <Button component={RouterLink} to="/mapa" color="inherit" size="small" variant="contained">
+            <Button component={RouterLink} to="/mapa" size="small" variant="contained" color="primary">
               Pintar no mapa
             </Button>
           }
-          sx={{ borderRadius: 2, alignItems: 'center' }}
+          sx={{ alignItems: 'center' }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {readyForPainting
@@ -92,8 +92,8 @@ export function DashboardNextSteps({
               : 'Mapa disponível — escolha a cor e pinte rua por rua'}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            {streets.toLocaleString('pt-BR')} ruas no município · modo arrastar no painel inferior ·
-            atalhos P / E / S
+            {streets.toLocaleString('pt-BR')} ruas no município. No mapa, escolha a microárea e toque
+            nas ruas para pintar.
           </Typography>
         </Alert>
       )}
@@ -107,16 +107,11 @@ export function DashboardNextSteps({
               Continuar pintando
             </Button>
           }
-          sx={{ borderRadius: 2, alignItems: 'flex-start' }}
+          sx={{ alignItems: 'flex-start' }}
         >
-          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.75 }}>
-            Cobertura territorial: {coverage}%
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {coverage}% das ruas já estão numa microárea
           </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={Math.min(100, coverage)}
-            sx={{ mb: 0.75, height: 6, borderRadius: 3, maxWidth: 320 }}
-          />
           <Typography variant="caption" color="text.secondary">
             Continue no seu ritmo. Use Guardar no painel quando quiser conferir o mapa.
           </Typography>
@@ -138,11 +133,11 @@ export function DashboardNextSteps({
               Ver calor
             </Button>
           }
-          sx={{ borderRadius: 2, alignItems: 'center' }}
+          sx={{ alignItems: 'center' }}
         >
           <Typography variant="body2">
-            <strong>{families.toLocaleString('pt-BR')} famílias</strong> no mapa — toggle Famílias na
-            barra superior (opcional).
+            <strong>{families.toLocaleString('pt-BR')} famílias</strong> no mapa. Ligue a camada
+            Famílias na barra do mapa para ver onde elas se concentram.
           </Typography>
         </Alert>
       )}

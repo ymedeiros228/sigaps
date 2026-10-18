@@ -11,6 +11,7 @@ import {
   Toolbar,
   Tooltip,
   Typography,
+  alpha,
   useTheme,
 } from '@mui/material';
 import {
@@ -87,6 +88,13 @@ export function AppLayout() {
     return items;
   }, [isAdmin, isAcs]);
 
+  const currentLabel =
+    navItems.find((item) =>
+      item.path === '/'
+        ? location.pathname === '/' || location.pathname === '/dashboard'
+        : location.pathname.startsWith(item.path),
+    )?.label ?? 'SIGAPS';
+
   const displayName = municipality?.name ?? MUNICIPALITY_NAME;
   const displayState = municipality?.state ? `${municipality.state}` : 'MA';
 
@@ -106,7 +114,7 @@ export function AppLayout() {
 
   const drawer = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Box sx={{ px: 2.5, py: 2.5 }}>
+      <Box sx={{ px: 2.5, pt: 2.5, pb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <MunicipalityLogo
             logoUrl={municipality?.logoUrl}
@@ -117,13 +125,15 @@ export function AppLayout() {
                 height: 40,
                 objectFit: 'contain',
                 bgcolor: '#fff',
-                borderRadius: 1.5,
+                borderRadius: '10px',
                 p: 0.5,
+                border: 1,
+                borderColor: 'divider',
               },
             }}
           />
           <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 750, lineHeight: 1.15, letterSpacing: '-0.01em' }}>
               SIGAPS
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -133,7 +143,7 @@ export function AppLayout() {
         </Box>
       </Box>
 
-      <List sx={{ px: 1, flex: 1 }}>
+      <List component="nav" aria-label="Menu principal" sx={{ px: 1.5, flex: 1, '& > * + *': { mt: 0.5 } }}>
         {navItems.map((item) => {
           const selected =
             item.path === '/'
@@ -157,28 +167,21 @@ export function AppLayout() {
                 navigate(item.path);
                 setMobileOpen(false);
               }}
+              aria-current={selected ? 'page' : undefined}
               sx={{
-                py: 1.25,
-                ...(item.path === '/admin'
-                  ? {
-                      '&.Mui-selected': {
-                        bgcolor: 'warning.main',
-                        color: 'warning.contrastText',
-                        '&:hover': { bgcolor: 'warning.dark' },
-                        '& .MuiListItemIcon-root': { color: 'inherit' },
-                      },
-                    }
-                  : {}),
+                py: 1.1,
+                minHeight: 44,
+                flexGrow: 0,
                 '& .MuiListItemIcon-root': {
-                  color: selected ? 'primary.main' : 'text.secondary',
-                  minWidth: 40,
+                  color: selected ? 'inherit' : 'text.secondary',
+                  minWidth: 38,
                 },
               }}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText
                 primary={item.label}
-                slotProps={{ primary: { sx: { fontWeight: selected ? 700 : 500 } } }}
+                slotProps={{ primary: { sx: { fontWeight: selected ? 650 : 500, fontSize: '0.9375rem' } } }}
               />
             </ListItemButton>
           );
@@ -187,10 +190,10 @@ export function AppLayout() {
 
       <Box
         sx={{
-          p: 2,
-          m: 1.5,
-          borderRadius: 2,
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+          px: 2.5,
+          py: 2,
+          borderTop: 1,
+          borderColor: 'divider',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -198,9 +201,10 @@ export function AppLayout() {
             sx={{
               width: 36,
               height: 36,
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 700,
-              bgcolor: 'primary.main',
+              bgcolor: alpha(theme.palette.primary.main, 0.14),
+              color: 'primary.main',
             }}
           >
             {initials}
@@ -236,22 +240,22 @@ export function AppLayout() {
             variant="h6"
             component="div"
             noWrap
-            sx={{ flexGrow: 1, minWidth: 0, fontWeight: 700, fontSize: '1rem' }}
+            sx={{ flexGrow: 1, minWidth: 0, fontWeight: 650, fontSize: '1rem' }}
           >
             <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
-              SIGAPS
+              {currentLabel}
             </Box>
             <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
               Gestão Territorial da APS
             </Box>
           </Typography>
           <Tooltip title={darkMode ? 'Modo claro' : 'Modo escuro'}>
-            <IconButton onClick={toggleDarkMode} size="small">
+            <IconButton onClick={toggleDarkMode} aria-label={darkMode ? 'Usar modo claro' : 'Usar modo escuro'}>
               {darkMode ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Sair">
-            <IconButton onClick={handleLogout} size="small" color="error">
+            <IconButton onClick={handleLogout} aria-label="Sair do sistema">
               <Logout fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -287,6 +291,8 @@ export function AppLayout() {
         component="main"
         sx={{
           flexGrow: 1,
+          // minWidth 0: sem isso, uma tabela larga alarga a página inteira no celular.
+          minWidth: 0,
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           minHeight: '100vh',
         }}

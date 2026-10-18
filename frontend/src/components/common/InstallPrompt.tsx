@@ -25,7 +25,9 @@ export function InstallPrompt() {
   return (
     <Alert
       severity="info"
-      sx={{ borderRadius: 2, mb: 2 }}
+      sx={{ mb: 2 }}
+      onClose={() => setDismissed(true)}
+      slotProps={{ closeButton: { 'aria-label': 'Agora não' } }}
       action={
         <Button
           color="inherit"

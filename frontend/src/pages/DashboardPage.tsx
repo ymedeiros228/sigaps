@@ -16,8 +16,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  alpha,
-  useTheme,
+  useMediaQuery,
+  type Theme,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
@@ -62,8 +62,9 @@ function dashboardErrorMessage(error: unknown) {
 
 export function DashboardPage() {
   const municipalityId = useMunicipalityId();
-  const theme = useTheme();
   const [csvLoading, setCsvLoading] = useState(false);
+  const [showAllAcs, setShowAllAcs] = useState(false);
+  const isPhone = useMediaQuery((t: Theme) => t.breakpoints.down('sm'));
 
   const { data: municipality } = useQuery({
     queryKey: queryKeys.municipality(municipalityId!),
@@ -140,18 +141,27 @@ export function DashboardPage() {
   const isEmpty = data.streets === 0 && data.microareas === 0;
 
   const stats = [
-    { title: 'UBS', value: data.ubs, icon: <LocalHospital />, color: '#2196F3' },
-    { title: 'ACS', value: data.acs, icon: <People />, color: '#4CAF50' },
-    { title: 'Microáreas', value: data.microareas, icon: <GridView />, color: '#FF9800' },
-    { title: 'Ruas', value: data.streets, icon: <Signpost />, color: '#9C27B0' },
-    { title: 'Famílias', value: data.families, icon: <FamilyRestroom />, color: '#F44336' },
-    { title: 'Habitantes', value: data.inhabitants, icon: <Groups />, color: '#00BCD4' },
+    { title: 'UBS', value: data.ubs, icon: <LocalHospital /> },
+    { title: 'ACS', value: data.acs, icon: <People /> },
+    { title: 'Microáreas', value: data.microareas, icon: <GridView /> },
+    { title: 'Ruas', value: data.streets, icon: <Signpost /> },
+    { title: 'Famílias', value: data.families, icon: <FamilyRestroom /> },
+    { title: 'Habitantes', value: data.inhabitants, icon: <Groups /> },
   ];
 
-  const pieData = [
-    { name: 'Vinculadas', value: data.assignedStreets, color: '#4CAF50' },
-    { name: 'Pendentes', value: Math.max(0, data.streets - data.assignedStreets), color: '#9E9E9E' },
-  ];
+  // ACS com microárea primeiro (na ordem da microárea), depois os demais por nome.
+  const acsSorted = [...acsCoverage].sort((a: AcsCoverageRow, b: AcsCoverageRow) => {
+    const an = a.microareaNumber;
+    const bn = b.microareaNumber;
+    if (an !== null && bn !== null) return an - bn;
+    if (an !== null) return -1;
+    if (bn !== null) return 1;
+    return a.acsName.localeCompare(b.acsName, 'pt-BR');
+  });
+  const ACS_PREVIEW = 10;
+  const acsRows = showAllAcs ? acsSorted : acsSorted.slice(0, ACS_PREVIEW);
+  const acsWithMicroarea = acsSorted.filter((r: AcsCoverageRow) => r.microareaName).length;
+
   const microareasChart = data.microareasChart ?? [];
   const hasPaintedMicroareas = microareasChart.some((m: { streets: number }) => m.streets > 0);
 
@@ -197,7 +207,7 @@ export function DashboardPage() {
       {isEmpty && (
         <Alert
           severity="info"
-          sx={{ mb: 3, borderRadius: 2 }}
+          sx={{ mb: 2 }}
           action={
             <Button component={RouterLink} to="/mapa" color="inherit" size="small" startIcon={<Map />}>
               Ir ao mapa
@@ -211,7 +221,7 @@ export function DashboardPage() {
       {!isEmpty && (data.streetsWithoutNeighborhood ?? 0) > 0 && (
         <Alert
           severity="warning"
-          sx={{ mb: 3, borderRadius: 2 }}
+          sx={{ mb: 2 }}
           action={
             <Button
               component={RouterLink}
@@ -232,12 +242,11 @@ export function DashboardPage() {
         sx={{
           display: 'grid',
           gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            md: 'repeat(3, 1fr)',
-            lg: 'repeat(6, 1fr)',
+            xs: 'repeat(2, minmax(0, 1fr))',
+            md: 'repeat(3, minmax(0, 1fr))',
+            lg: 'repeat(6, minmax(0, 1fr))',
           },
-          gap: 2,
+          gap: { xs: 1.5, sm: 2 },
         }}
       >
         {stats.map((stat) => (
@@ -250,13 +259,12 @@ export function DashboardPage() {
           coverage={data.coverage}
           assignedStreets={data.assignedStreets}
           streets={data.streets}
-          pieData={pieData}
           microareasChart={microareasChart}
           hasPaintedMicroareas={hasPaintedMicroareas}
         />
       </Suspense>
 
-      <Card sx={{ mt: 3 }}>
+      <Card sx={{ mt: 2 }}>
         <CardContent>
           <Box
             sx={{
@@ -269,11 +277,13 @@ export function DashboardPage() {
             }}
           >
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography variant="h6" component="h2">
                 Cobertura por ACS
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Ruas pintadas, famílias e participação no município por agente ativo
+                {acsCoverage.length > 0
+                  ? `${acsCoverage.length} agentes ativos · ${acsWithMicroarea} com microárea`
+                  : 'Ruas pintadas, famílias e participação no município por agente ativo'}
               </Typography>
             </Box>
             {acsCoverage.length > 0 && (
@@ -299,10 +309,45 @@ export function DashboardPage() {
             <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
               Cadastre ACS ativos e vincule microáreas para ver a cobertura territorial.
             </Typography>
+          ) : isPhone ? (
+            // Celular: lista compacta no lugar da tabela de 8 colunas.
+            <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none', border: 1, borderColor: 'divider', borderRadius: '10px' }}>
+              {acsRows.map((row: AcsCoverageRow) => (
+                <Box
+                  component="li"
+                  key={row.acsId}
+                  sx={{
+                    px: 1.75,
+                    py: 1.25,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    '& + li': { borderTop: 1, borderColor: 'divider' },
+                  }}
+                >
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                      {row.acsName}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap component="p">
+                      {row.microareaName ? `Microárea ${row.microareaNumber}` : 'Sem microárea'}
+                      {' · '}
+                      {row.streetCount} {row.streetCount === 1 ? 'rua' : 'ruas'}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={`${row.streetCoveragePct}%`}
+                    size="small"
+                    color={row.streetCoveragePct >= 80 ? 'success' : row.streetCoveragePct >= 40 ? 'warning' : 'default'}
+                    variant="outlined"
+                  />
+                </Box>
+              ))}
+            </Box>
           ) : (
             <TableContainer
               sx={{
-                borderRadius: 2,
+                borderRadius: '10px',
                 border: 1,
                 borderColor: 'divider',
                 overflow: 'auto',
@@ -324,11 +369,7 @@ export function DashboardPage() {
                       <TableCell
                         key={label}
                         align={label === 'ACS' || label === 'Microárea' || label === 'UBS' ? 'left' : 'right'}
-                        sx={{
-                          fontWeight: 700,
-                          bgcolor: alpha(theme.palette.primary.main, 0.06),
-                          whiteSpace: 'nowrap',
-                        }}
+                        sx={{ whiteSpace: 'nowrap' }}
                       >
                         {label}
                       </TableCell>
@@ -336,9 +377,9 @@ export function DashboardPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {acsCoverage.map((row: AcsCoverageRow) => (
-                    <TableRow key={row.acsId} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{row.acsName}</TableCell>
+                  {acsRows.map((row: AcsCoverageRow) => (
+                    <TableRow key={row.acsId} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                      <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{row.acsName}</TableCell>
                       <TableCell>
                         {row.microareaName
                           ? `${row.microareaNumber} — ${row.microareaName}`
@@ -370,13 +411,22 @@ export function DashboardPage() {
               </Table>
             </TableContainer>
           )}
+          {acsSorted.length > ACS_PREVIEW && (
+            <Button
+              onClick={() => setShowAllAcs((v) => !v)}
+              sx={{ mt: 1.5 }}
+              aria-expanded={showAllAcs}
+            >
+              {showAllAcs ? 'Mostrar menos' : `Mostrar todos os ${acsSorted.length} agentes`}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
       {data.recentChanges?.length > 0 && (
-        <Card sx={{ mt: 3 }}>
+        <Card sx={{ mt: 2 }}>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
               Últimas alterações
             </Typography>
             {data.recentChanges.map((log: {
@@ -392,6 +442,7 @@ export function DashboardPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  gap: 2,
                   py: 1.25,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
@@ -406,8 +457,8 @@ export function DashboardPage() {
                     {formatAuditAction(log.action, log.entityType)}
                   </Typography>
                 </Box>
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(log.createdAt).toLocaleString('pt-BR')}
+                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                  {new Date(log.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                 </Typography>
               </Box>
             ))}

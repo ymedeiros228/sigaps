@@ -98,6 +98,10 @@ export function formatAuditAction(action: string, entityType: string): string {
     RESET_PASSWORD: 'Redefiniu senha de',
     MAP_HOMOLOGATED: 'Homologou mapa oficial de',
     MAP_HOMOLOGATION_REVOKED: 'Revogou homologação do mapa de',
+    PAINT_SEGMENT: 'Pintou trecho de',
+    UNPAINT_SEGMENT: 'Apagou trecho de',
+    ASSIGN_STREET_SIDES: 'Pintou lado de',
+    IMPORT: 'Importou',
   };
   const entities: Record<string, string> = {
     street: 'rua',
@@ -107,6 +111,7 @@ export function formatAuditAction(action: string, entityType: string): string {
     neighborhood: 'bairro',
     municipality: 'município',
     user: 'usuário',
+    place: 'povoado',
   };
   const verb = actions[action] ?? action.replace(/_/g, ' ').toLowerCase();
   const entity = entities[entityType] ?? entityType;

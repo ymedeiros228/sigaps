@@ -61,7 +61,6 @@ export function CadastrosOverview({ municipalityId, section, onSectionChange }: 
       value: ubs,
       subtitle: undefined,
       icon: <LocalHospital />,
-      color: '#2196F3',
     },
     {
       title: 'ACS',
@@ -72,7 +71,6 @@ export function CadastrosOverview({ municipalityId, section, onSectionChange }: 
           ? `${acsAtivos} ativo(s)${acsSemMicro > 0 ? ` · ${acsSemMicro} sem microárea` : ''}`
           : 'Cadastre os agentes da equipe',
       icon: <People />,
-      color: '#4CAF50',
     },
     {
       title: 'Bairros',
@@ -80,7 +78,6 @@ export function CadastrosOverview({ municipalityId, section, onSectionChange }: 
       value: neighborhoods,
       subtitle: undefined,
       icon: <LocationCity />,
-      color: '#FF9800',
     },
     {
       title: 'Microáreas',
@@ -88,7 +85,6 @@ export function CadastrosOverview({ municipalityId, section, onSectionChange }: 
       value: microareas,
       subtitle: undefined,
       icon: <GridView />,
-      color: '#9C27B0',
     },
   ];
 
@@ -144,7 +140,6 @@ export function CadastrosOverview({ municipalityId, section, onSectionChange }: 
                       title={stat.title}
                       value={stat.value}
                       icon={stat.icon}
-                      color={stat.color}
                       subtitle={stat.subtitle}
                     />
                   </ButtonBase>
