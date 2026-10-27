@@ -80,6 +80,10 @@ jobs:
         with:
           node-version: "24"
 
+      # O Postgres puro não tem os papéis do Supabase, e a migração enable_rls_public revoga deles.
+      - name: Papéis do Supabase no Postgres de teste
+        run: psql "postgresql://sigaps:sigaps_secret@127.0.0.1:5432/sigaps" -c "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;"
+
       - name: Playwright full-stack e2e
         run: bash scripts/ci-e2e.sh
         env:
