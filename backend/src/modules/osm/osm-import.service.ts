@@ -254,7 +254,12 @@ export class OsmImportService {
       await this.prisma.$transaction(
         chunk.map((street) =>
           this.prisma.street.upsert({
-            where: { osmId: street.osmId },
+            where: {
+              municipalityId_osmId: {
+                municipalityId: street.municipalityId,
+                osmId: street.osmId,
+              },
+            },
             create: street,
             update: {
               name: street.name,

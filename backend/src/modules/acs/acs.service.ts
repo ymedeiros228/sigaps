@@ -83,11 +83,15 @@ export class AcsService {
     return { ...row, cpf: maskCpfField(row.cpf, viewerRole) ?? row.cpf };
   }
 
-  private async resolveCreateCpf(cpf?: string): Promise<string> {
+  /** CPF (ou código interno) único dentro do mapa: cada conta tem o seu mapa e os seus ACS. */
+  private async resolveCreateCpf(
+    municipalityId: string,
+    cpf?: string,
+  ): Promise<string> {
     const normalized = cpf?.replace(/\D/g, '').trim();
     if (normalized && normalized.length === 11) {
       const existing = await this.prisma.acs.findUnique({
-        where: { cpf: normalized },
+        where: { municipalityId_cpf: { municipalityId, cpf: normalized } },
       });
       if (existing) {
         throw new ConflictException('Ja existe um ACS com este CPF.');
@@ -98,7 +102,7 @@ export class AcsService {
     for (let attempt = 0; attempt < 12; attempt++) {
       const candidate = generateInternalAcsCode();
       const existing = await this.prisma.acs.findUnique({
-        where: { cpf: candidate },
+        where: { municipalityId_cpf: { municipalityId, cpf: candidate } },
       });
       if (!existing) return candidate;
     }
@@ -387,7 +391,7 @@ export class AcsService {
   async create(dto: CreateAcsDto, userId: string, viewerRole?: string) {
     const { microareaId, municipalityId, cpf, ...rest } = dto;
     await this.assertMunicipality(municipalityId);
-    const resolvedCpf = await this.resolveCreateCpf(cpf);
+    const resolvedCpf = await this.resolveCreateCpf(municipalityId, cpf);
     const acs = await this.prisma.acs.create({
       data: {
         ...rest,
@@ -431,7 +435,11 @@ export class AcsService {
     const normalizedStreetCoverageText = dto.streetCoverageText?.trim();
     if (dto.cpf) {
       const dup = await this.prisma.acs.findFirst({
-        where: { cpf: dto.cpf, NOT: { id } },
+        where: {
+          municipalityId: beforeRaw.municipalityId,
+          cpf: dto.cpf,
+          NOT: { id },
+        },
       });
       if (dup) throw new ConflictException('Ja existe outro ACS com este CPF.');
     }
@@ -560,7 +568,14 @@ export class AcsService {
 
         const normalizedCpf = item.cpf?.replace(/\D/g, '').trim() || undefined;
         let existing = normalizedCpf
-          ? await this.prisma.acs.findUnique({ where: { cpf: normalizedCpf } })
+          ? await this.prisma.acs.findUnique({
+              where: {
+                municipalityId_cpf: {
+                  municipalityId: dto.municipalityId,
+                  cpf: normalizedCpf,
+                },
+              },
+            })
           : null;
 
         if (!existing) {
@@ -598,7 +613,11 @@ export class AcsService {
             isInternalAcsCode(existing.cpf)
           ) {
             const duplicateCpf = await this.prisma.acs.findFirst({
-              where: { cpf: normalizedCpf, NOT: { id: existing.id } },
+              where: {
+                municipalityId: dto.municipalityId,
+                cpf: normalizedCpf,
+                NOT: { id: existing.id },
+              },
               select: { id: true },
             });
             if (!duplicateCpf) {
@@ -656,7 +675,10 @@ export class AcsService {
           });
           updated++;
         } else {
-          const resolvedCpf = await this.resolveCreateCpf(normalizedCpf);
+          const resolvedCpf = await this.resolveCreateCpf(
+            dto.municipalityId,
+            normalizedCpf,
+          );
           const acs = await this.prisma.acs.create({
             data: {
               name: item.name,

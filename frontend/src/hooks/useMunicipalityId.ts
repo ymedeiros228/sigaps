@@ -18,16 +18,14 @@ export function useMunicipalityId(): string | null {
   useEffect(() => {
     if (municipalityId) return;
 
-    if (user?.role === 'ADMINISTRADOR') {
-      const persisted = readPersistedMunicipalityId();
-      if (persisted) {
-        setMunicipalityId(persisted);
-        return;
-      }
-    }
-
     if (userMunicipalityId) {
       setMunicipalityId(userMunicipalityId);
+      return;
+    }
+
+    if (user?.role === 'ADMINISTRADOR') {
+      const persisted = readPersistedMunicipalityId();
+      if (persisted) setMunicipalityId(persisted);
     }
   }, [municipalityId, user?.role, userMunicipalityId, setMunicipalityId]);
 

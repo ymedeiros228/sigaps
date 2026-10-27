@@ -63,6 +63,11 @@ model Municipality {
   mapHomologationNotes String?   @map("map_homologation_notes")
   esusLastSyncAt       DateTime? @map("esus_last_sync_at")
   esusImportCsv        String?   @map("esus_import_csv") @db.Text
+  /// Mapa próprio de uma conta: cópia do mapa de quem criou a conta (ruas, bairros, UBS),
+  /// sem pintura. Null = mapa principal do município.
+  parentId    String?  @map("parent_id")
+  parent      Municipality?  @relation("MapCopies", fields: [parentId], references: [id], onDelete: SetNull)
+  copies      Municipality[] @relation("MapCopies")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -74,7 +79,8 @@ model Municipality {
   streets         Street[]
   acsList         Acs[]
 
-  @@unique([name, state])
+  @@index([name, state])
+  @@index([parentId])
   @@map("municipalities")
 }
 
@@ -121,7 +127,7 @@ model Place {
   kind           PlaceKind @default(POVOADO)
   latitude       Float
   longitude      Float
-  osmNodeId      BigInt?   @unique @map("osm_node_id")
+  osmNodeId      BigInt?   @map("osm_node_id")
   notes          String?
   microareaId    String?   @map("microarea_id")
   microarea      Microarea? @relation(fields: [microareaId], references: [id], onDelete: SetNull)
@@ -131,6 +137,7 @@ model Place {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@unique([name, municipalityId])
+  @@unique([municipalityId, osmNodeId])
   @@index([municipalityId])
   @@index([microareaId])
   @@map("places")
@@ -185,7 +192,7 @@ model MicroareaPaintZone {
 model Acs {
   id             String       @id @default(uuid())
   name           String
-  cpf            String       @unique
+  cpf            String
   phone          String?
   photoUrl       String?      @map("photo_url")
   streetCoverageText String?  @map("street_coverage_text")
@@ -199,6 +206,7 @@ model Acs {
 
   microarea Microarea?
 
+  @@unique([municipalityId, cpf])
   @@index([municipalityId])
   @@index([municipalityId, status])
   @@map("acs")
@@ -206,7 +214,7 @@ model Acs {
 
 model Street {
   id             String   @id @default(uuid())
-  osmId          BigInt?  @unique @map("osm_id")
+  osmId          BigInt?  @map("osm_id")
   name           String
   streetType     String?  @map("street_type")
   neighborhoodId String?  @map("neighborhood_id")
@@ -227,6 +235,7 @@ model Street {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  @@unique([municipalityId, osmId])
   @@index([municipalityId])
   @@index([microareaId])
   @@index([neighborhoodId])

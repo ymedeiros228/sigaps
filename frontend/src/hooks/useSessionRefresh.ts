@@ -5,7 +5,8 @@ import { useAuthStore } from '../store';
 
 /**
  * Relê a conta da sessão ao abrir o app (e ao voltar para a aba): quem ganhou ou perdeu a
- * função de administrador vê o menu certo sem precisar sair e entrar de novo.
+ * função de administrador vê o menu certo, e quem ganhou mapa próprio passa a vê-lo, sem
+ * precisar sair e entrar de novo.
  */
 export function useSessionRefresh() {
   const user = useAuthStore((s) => s.user);
@@ -21,7 +22,10 @@ export function useSessionRefresh() {
   useEffect(() => {
     if (!data || !user || data.id !== user.id) return;
     const changed =
-      data.role !== user.role || !!data.isAdmin !== !!user.isAdmin || data.name !== user.name;
+      data.role !== user.role ||
+      !!data.isAdmin !== !!user.isAdmin ||
+      data.name !== user.name ||
+      (data.municipalityId ?? null) !== (user.municipalityId ?? null);
     if (changed) setUser({ ...user, ...data });
   }, [data, user, setUser]);
 }

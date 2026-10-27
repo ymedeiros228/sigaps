@@ -13,27 +13,25 @@ export function useEnsureValidMunicipality() {
   const { data: municipalities = [] } = useQuery({
     queryKey: ['municipalities'],
     queryFn: () => municipalitiesApi.list().then((r) => r.data),
-    enabled: !!user && canAccessAdmin(user.role),
+    enabled: !!user && !user.municipalityId && canAccessAdmin(user.role),
     staleTime: 60_000,
   });
 
   useEffect(() => {
     if (!user) return;
 
-    if (!canAccessAdmin(user.role)) {
-      if (user.municipalityId && municipalityId !== user.municipalityId) {
-        setMunicipalityId(user.municipalityId);
-      }
+    // Cada conta trabalha no próprio mapa (inclusive administrador).
+    if (user.municipalityId) {
+      if (municipalityId !== user.municipalityId) setMunicipalityId(user.municipalityId);
       return;
     }
+    if (!canAccessAdmin(user.role)) return;
 
     if (!municipalities.length) return;
 
     const isValid = municipalityId && municipalities.some((m) => m.id === municipalityId);
     if (isValid) return;
 
-    const fallback =
-      municipalities.find((m) => m.id === user.municipalityId) ?? municipalities[0];
-    if (fallback) setMunicipalityId(fallback.id);
+    if (municipalities[0]) setMunicipalityId(municipalities[0].id);
   }, [user, municipalities, municipalityId, setMunicipalityId]);
 }

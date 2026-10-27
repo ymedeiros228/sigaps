@@ -111,4 +111,20 @@ export class TeamController {
       req.user.id,
     );
   }
+
+  @Post('municipality/:municipalityId/users/:userId/own-map')
+  @ApiOperation({
+    summary:
+      'Dar mapa próprio a uma conta que divide o mapa (cópia sem pintura)',
+  })
+  async giveOwnMap(
+    @Param('municipalityId') municipalityId: string,
+    @Param('userId') userId: string,
+    @Req() req: TeamRequest,
+  ) {
+    const target = await this.admin.getUser(municipalityId, userId);
+    if (!canManageAccount(req.user, target))
+      throw new ForbiddenException(FORBIDDEN_ROLE);
+    return this.admin.giveOwnMap(municipalityId, userId, req.user.id);
+  }
 }

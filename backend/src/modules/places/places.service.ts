@@ -345,7 +345,7 @@ export class PlacesService {
       };
 
       const existingByOsm = await this.prisma.place.findUnique({
-        where: { osmNodeId },
+        where: { municipalityId_osmNodeId: { municipalityId, osmNodeId } },
       });
       if (existingByOsm) {
         await this.prisma.place.update({

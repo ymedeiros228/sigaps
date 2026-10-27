@@ -6,13 +6,18 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Skeleton,
   Snackbar,
   Typography,
   alpha,
   useTheme,
 } from '@mui/material';
-import { Add, Edit } from '@mui/icons-material';
+import { Add, Edit, Map as MapIcon } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../components/ui/PageHeader';
 import { UserFormDialog, type UserFormValues } from '../components/admin/UserFormDialog';
@@ -41,7 +46,9 @@ const initialsOf = (name: string) =>
  * Equipe: quem gerencia (enfermeiro, coordenação, secretaria, administrador) cria as
  * contas da equipe, redefine senha e desativa quem saiu. Só aparecem para edição as
  * contas de perfil abaixo do seu ou a própria (a API confere a mesma regra). Quem tem
- * acesso de administrador também dá e tira a função de administrador.
+ * acesso de administrador também dá e tira a função de administrador. Cada conta criada
+ * ganha o próprio mapa (cópia das ruas, sem pintura); conta antiga que ainda divide o mapa
+ * com você pode ganhar o dela em "Dar mapa próprio".
  */
 export function EquipePage() {
   const theme = useTheme();
@@ -50,6 +57,7 @@ export function EquipePage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [ownMapFor, setOwnMapFor] = useState<AdminUser | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const allowedRoles = useMemo(() => assignableRoles(accessRole(me)), [me]);
   const grantAdmin = canGrantAdmin(me);
@@ -101,7 +109,7 @@ export function EquipePage() {
         type: 'success',
         text: editing
           ? 'Conta atualizada.'
-          : `Conta criada. ${user.name} já pode entrar com o e-mail ${user.email} e a senha que você definiu.`,
+          : `Conta criada com mapa próprio. ${user.name} já pode entrar com o e-mail ${user.email} e a senha que você definiu.`,
       });
     },
     onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
@@ -112,6 +120,22 @@ export function EquipePage() {
       teamApi.resetPassword(municipalityId!, userId, password),
     onSuccess: () => setMessage({ type: 'success', text: 'Senha redefinida. Avise a pessoa da senha nova.' }),
     onError: (e) => setMessage({ type: 'error', text: getApiErrorMessage(e) }),
+  });
+
+  const ownMapMutation = useMutation({
+    mutationFn: (userId: string) => teamApi.giveOwnMap(municipalityId!, userId).then((r) => r.data),
+    onSuccess: (user) => {
+      void queryClient.invalidateQueries({ queryKey });
+      setOwnMapFor(null);
+      setMessage({
+        type: 'success',
+        text: `${user.name} agora tem mapa próprio. A pintura deste mapa continua aqui, com você.`,
+      });
+    },
+    onError: (e) => {
+      setOwnMapFor(null);
+      setMessage({ type: 'error', text: getApiErrorMessage(e) });
+    },
   });
 
   const active = users.filter((u) => u.isActive).length;
@@ -142,7 +166,9 @@ export function EquipePage() {
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 640 }}>
         Crie a conta de cada pessoa da equipe com o e-mail e uma senha inicial e passe esses dados
-        para ela. Quem sair da equipe pode ser desativado: a conta deixa de entrar, e o histórico fica.
+        para ela. Cada conta tem o próprio mapa: começa com as ruas, sem pintura, e o que ela pintar
+        não aparece no seu. Quem sair da equipe pode ser desativado: a conta deixa de entrar, e o
+        histórico fica.
       </Typography>
 
       {isError ? (
@@ -172,6 +198,8 @@ export function EquipePage() {
               : users.map((u) => {
                   const editable = canManageAccount(me, u);
                   const isMe = u.id === me?.id;
+                  // Conta antiga, de antes do mapa por conta: ainda pinta no mesmo mapa que você.
+                  const sharesMap = !isMe && !!u.municipalityId && u.municipalityId === municipalityId;
                   return (
                     <Box
                       component="li"
@@ -217,8 +245,31 @@ export function EquipePage() {
                             <Chip size="small" color="primary" variant="outlined" label="Administrador" />
                           )}
                           {!u.isActive && <Chip size="small" label="Desativada" />}
+                          {!isMe && u.municipalityId && (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              color={sharesMap ? 'warning' : 'success'}
+                              label={sharesMap ? 'Mesmo mapa que você' : 'Mapa próprio'}
+                            />
+                          )}
                         </Box>
                       </Box>
+                      {editable && sharesMap && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="success"
+                          startIcon={<MapIcon fontSize="small" />}
+                          onClick={() => setOwnMapFor(u)}
+                          aria-label={`Dar mapa próprio para ${u.name}`}
+                          sx={{ flexShrink: 0, minWidth: 0, px: { xs: 1, sm: 1.5 }, '& .MuiButton-startIcon': { mr: { xs: 0, sm: 0.75 } } }}
+                        >
+                          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                            Dar mapa próprio
+                          </Box>
+                        </Button>
+                      )}
                       {editable && (
                         <Button
                           size="small"
@@ -257,6 +308,34 @@ export function EquipePage() {
           editing ? (password) => resetMutation.mutate({ userId: editing.id, password }) : undefined
         }
       />
+
+      <Dialog
+        open={!!ownMapFor}
+        onClose={() => !ownMapMutation.isPending && setOwnMapFor(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Dar mapa próprio?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {ownMapFor?.name} passa a ter um mapa só da conta, com as ruas, os bairros e as UBS e sem
+            pintura. A pintura deste mapa continua aqui, com você, e não muda nada nela.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOwnMapFor(null)} disabled={ownMapMutation.isPending}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => ownMapFor && ownMapMutation.mutate(ownMapFor.id)}
+            disabled={ownMapMutation.isPending}
+          >
+            {ownMapMutation.isPending ? 'Criando o mapa…' : 'Dar mapa próprio'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={!!message}

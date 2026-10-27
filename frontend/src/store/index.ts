@@ -48,12 +48,10 @@ function readPersistedMunicipalityId(): string | null {
   return safeStorageGet(ACTIVE_MUNICIPALITY_KEY);
 }
 
+/** Cada conta abre o próprio mapa; o salvo no navegador só vale para administrador sem mapa. */
 function resolveInitialMunicipalityId(user: User | null): string | null {
-  if (user?.role === 'ADMINISTRADOR') {
-    const persisted = readPersistedMunicipalityId();
-    if (persisted) return persisted;
-  }
-  return user?.municipalityId ?? null;
+  if (user?.municipalityId) return user.municipalityId;
+  return user?.role === 'ADMINISTRADOR' ? readPersistedMunicipalityId() : null;
 }
 
 function readPersistedAuth(): { user: User | null; token: string | null } {

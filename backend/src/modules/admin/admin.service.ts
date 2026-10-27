@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
 import { clearMunicipalityPaint } from '../../common/utils/clear-municipality-paint.util';
+import { copyMunicipalityMap } from '../../common/utils/copy-municipality-map.util';
 import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cache.util';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -24,9 +25,23 @@ const USER_SELECT = {
   role: true,
   isActive: true,
   isAdmin: true,
+  municipalityId: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
+
+/** Copiar o mapa (milhares de ruas) passa do limite padrão de 5 s da transação. */
+const OWN_MAP_TX = { maxWait: 10_000, timeout: 60_000 };
+
+/**
+ * Contas da equipe de um mapa: as que estão nele e as que ganharam mapa próprio a partir
+ * dele (cópia com `parent_id`). Quem criou a conta continua cuidando dela pela Equipe.
+ */
+function teamUserWhere(municipalityId: string): Prisma.UserWhereInput {
+  return {
+    OR: [{ municipalityId }, { municipality: { parentId: municipalityId } }],
+  };
+}
 
 @Injectable()
 export class AdminService {
@@ -53,13 +68,14 @@ export class AdminService {
       activeUsers,
     ] = await Promise.all([
       this.prisma.user.findMany({
-        where: { municipalityId },
+        where: teamUserWhere(municipalityId),
         select: {
           id: true,
           email: true,
           name: true,
           role: true,
           isActive: true,
+          municipalityId: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -74,7 +90,9 @@ export class AdminService {
       }),
       this.prisma.microareaPaintZone.count({ where: { municipalityId } }),
       this.prisma.auditLog.count({ where: { user: { municipalityId } } }),
-      this.prisma.user.count({ where: { municipalityId, isActive: true } }),
+      this.prisma.user.count({
+        where: { ...teamUserWhere(municipalityId), isActive: true },
+      }),
     ]);
 
     const acsSemMicro = await this.prisma.acs.count({
@@ -189,10 +207,10 @@ export class AdminService {
     return `\uFEFF${header}\n${lines.join('\n')}`;
   }
 
-  /** Contas do município, sem senha nem token (tela Equipe). */
+  /** Contas da equipe do mapa, sem senha nem token (tela Equipe). */
   listUsers(municipalityId: string) {
     return this.prisma.user.findMany({
-      where: { municipalityId },
+      where: teamUserWhere(municipalityId),
       select: USER_SELECT,
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
@@ -210,7 +228,7 @@ export class AdminService {
 
   private async findUserInMunicipality(municipalityId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, municipalityId },
+      where: { id: userId, ...teamUserWhere(municipalityId) },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
     return user;
@@ -233,24 +251,83 @@ export class AdminService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        name: dto.name,
-        role: dto.role,
-        isAdmin: dto.isAdmin === true && dto.role !== UserRole.ACS,
-        passwordHash,
-        municipalityId,
-      },
-      select: USER_SELECT,
-    });
+    // Toda conta nova ganha o próprio mapa (cópia do mapa de quem criou, sem pintura):
+    // cada conta pinta e gera o PDF do seu, sem mexer no dos outros.
+    const { user, ownMap } = await this.prisma.$transaction(async (tx) => {
+      const ownMap = await copyMunicipalityMap(tx, municipalityId);
+      const user = await tx.user.create({
+        data: {
+          email: dto.email,
+          name: dto.name,
+          role: dto.role,
+          isAdmin: dto.isAdmin === true && dto.role !== UserRole.ACS,
+          passwordHash,
+          municipalityId: ownMap.id,
+        },
+        select: USER_SELECT,
+      });
+      return { user, ownMap };
+    }, OWN_MAP_TX);
 
     await this.audit.log({
       userId: actorId,
       entityType: 'user',
       entityId: user.id,
       action: 'CREATE',
-      afterData: auditSnapshot(user as Record<string, unknown>),
+      afterData: auditSnapshot({
+        ...(user as Record<string, unknown>),
+        ownMapFrom: municipalityId,
+        ownMapStreets: ownMap.streets,
+      }),
+    });
+
+    return user;
+  }
+
+  /**
+   * Conta que ainda divide o mapa com quem a criou ganha o próprio (cópia sem pintura).
+   * O mapa de origem e a pintura dele ficam como estão; quem deu o mapa continua no dele.
+   */
+  async giveOwnMap(municipalityId: string, userId: string, actorId: string) {
+    const before = await this.findUserInMunicipality(municipalityId, userId);
+    if (before.municipalityId !== municipalityId) {
+      throw new BadRequestException('Esta conta já tem mapa próprio.');
+    }
+    if (userId === actorId) {
+      throw new BadRequestException(
+        'Você continua no mapa atual; dê mapa próprio às outras contas.',
+      );
+    }
+
+    const linkedAcs = await this.prisma.acs.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    const { user, ownMap } = await this.prisma.$transaction(async (tx) => {
+      const ownMap = await copyMunicipalityMap(tx, municipalityId);
+      // O cadastro de ACS ligado à conta é do mapa de origem e fica lá, sem a conta.
+      if (linkedAcs) {
+        await tx.acs.update({
+          where: { id: linkedAcs.id },
+          data: { userId: null },
+        });
+      }
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { municipalityId: ownMap.id },
+        select: USER_SELECT,
+      });
+      return { user, ownMap };
+    }, OWN_MAP_TX);
+    invalidateAuthUser(userId);
+
+    await this.audit.log({
+      userId: actorId,
+      entityType: 'user',
+      entityId: userId,
+      action: 'OWN_MAP',
+      beforeData: { municipalityId, acsId: linkedAcs?.id ?? null },
+      afterData: { municipalityId: ownMap.id, streets: ownMap.streets },
     });
 
     return user;

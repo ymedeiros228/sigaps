@@ -20,8 +20,12 @@ export class MunicipalitiesService {
     private readonly storage: StorageService,
   ) {}
 
+  /** Só os mapas principais: os mapas próprios das contas (cópias) não entram na lista. */
   findAll() {
-    return this.prisma.municipality.findMany({ orderBy: { name: 'asc' } });
+    return this.prisma.municipality.findMany({
+      where: { parentId: null },
+      orderBy: { name: 'asc' },
+    });
   }
 
   async getCadastrosSummary(id: string) {

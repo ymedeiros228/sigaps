@@ -687,6 +687,8 @@ export interface AdminUser {
   role: string;
   isActive: boolean;
   isAdmin: boolean;
+  /** Mapa da conta: diferente do mapa de quem a criou = mapa próprio. */
+  municipalityId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -824,6 +826,8 @@ export const teamApi = {
   ) => api.patch<AdminUser>(`/team/municipality/${municipalityId}/users/${userId}`, data),
   resetPassword: (municipalityId: string, userId: string, password: string) =>
     api.post(`/team/municipality/${municipalityId}/users/${userId}/reset-password`, { password }),
+  giveOwnMap: (municipalityId: string, userId: string) =>
+    api.post<AdminUser>(`/team/municipality/${municipalityId}/users/${userId}/own-map`),
 };
 
 export const integrationsApi = {

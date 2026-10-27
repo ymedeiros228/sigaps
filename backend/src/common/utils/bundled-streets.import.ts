@@ -113,7 +113,12 @@ export async function importStreetsFromBundledGeoJson(
     await prisma.$transaction(
       chunk.map((street) =>
         prisma.street.upsert({
-          where: { osmId: street.osmId },
+          where: {
+            municipalityId_osmId: {
+              municipalityId: street.municipalityId,
+              osmId: street.osmId,
+            },
+          },
           create: street,
           update: {
             name: street.name,

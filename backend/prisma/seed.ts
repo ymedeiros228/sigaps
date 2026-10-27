@@ -29,8 +29,13 @@ async function main() {
   // Nunca em produção; usuários existentes e a pintura do mapa ficam como estão.
   const plan = planSeed(process.env.DATABASE_URL, process.env);
   ensureMunicipalityLogo();
+  // Mapa principal (sem parent_id); as cópias por conta têm o mesmo nome.
+  const mainMap = await prisma.municipality.findFirst({
+    where: { name: 'Passagem Franca', state: 'MA', parentId: null },
+    select: { id: true },
+  });
   const municipality = await prisma.municipality.upsert({
-    where: { name_state: { name: 'Passagem Franca', state: 'MA' } },
+    where: { id: mainMap?.id ?? '00000000-0000-0000-0000-000000000000' },
     create: {
       name: 'Passagem Franca',
       state: 'MA',
@@ -119,7 +124,9 @@ async function main() {
   for (let i = 0; i < TEMPLATE_ACS.length; i++) {
     const template = TEMPLATE_ACS[i];
     const acs = await prisma.acs.upsert({
-      where: { cpf: template.cpf },
+      where: {
+        municipalityId_cpf: { municipalityId: municipality.id, cpf: template.cpf },
+      },
       create: {
         name: template.name,
         cpf: template.cpf,
