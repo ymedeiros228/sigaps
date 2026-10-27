@@ -33,13 +33,53 @@ import { useAppStore, useMapStore } from '../../store';
 import { assetUrl } from '../../utils/assetUrl';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { countPaintedStreets } from '../../utils/streetPaintStats';
-import { captureLeafletMapImage, waitForMapFlyComplete, waitForMapReady } from '../../utils/mapPdfCapture';
 import {
+  captureLeafletMapImage,
+  readLeafletMetersPerPixel,
+  waitForMapFlyComplete,
+  waitForMapReady,
+} from '../../utils/mapPdfCapture';
+import {
+  countMicroareasOnMap,
   generateOfficialMapPdf,
   downloadPdfBlob,
+  officialMapBoxRatio,
   openPdfBlob,
   type PdfFormat,
 } from '../../utils/mapPdfExport';
+
+/**
+ * Caixa em volta das ruas pintadas, alargada até a proporção da janela do mapa no PDF.
+ * Assim o enquadramento do mapa coincide com o recorte da folha e nenhuma rua fica de fora.
+ */
+function boundsForBox(lines: GeoJSON.LineString[], boxRatio: number): GeoJSON.LineString {
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  for (const line of lines) {
+    for (const [lng, lat] of line.coordinates) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  const midLat = (minLat + maxLat) / 2;
+  const cos = Math.cos((midLat * Math.PI) / 180);
+  const w = Math.max((maxLng - minLng) * cos, 1e-6);
+  const h = Math.max(maxLat - minLat, 1e-6);
+  if (w / h < boxRatio) {
+    const extra = (h * boxRatio - w) / cos / 2;
+    minLng -= extra;
+    maxLng += extra;
+  } else {
+    const extra = (w / boxRatio - h) / 2;
+    minLat -= extra;
+    maxLat += extra;
+  }
+  return { type: 'LineString', coordinates: [[minLng, minLat], [maxLng, maxLat]] };
+}
 
 interface MapPdfDialogProps {
   open: boolean;
@@ -127,24 +167,33 @@ export function MapPdfDialog({
         ? streets.filter((s) => s.neighborhood?.id === neighborhoodId)
         : streets;
 
-      mapState.setBaseLayer('satellite');
-      mapState.setShowEnvelopes(true);
+      // Mapa de ruas (não satélite) e sem os contornos/rótulos das microáreas por cima:
+      // a cor de cada rua já mostra a microárea, e a legenda fica fora do mapa.
+      mapState.setBaseLayer('map');
+      mapState.setShowEnvelopes(false);
       mapState.setShowHeatmap(false);
       mapState.setShowUbsMarkers(true);
 
       const paintedGeojsons = filteredStreets
-        .filter((s) => s.microareaId && s.geojson)
+        .filter((s) => (s.microareaId || (s.paintSegments?.length ?? 0) > 0) && s.geojson)
         .map((s) => s.geojson!);
       if (paintedGeojsons.length > 0) {
-        mapState.focusOnLines(paintedGeojsons, 16);
+        const boxRatio = officialMapBoxRatio(
+          format,
+          countMicroareasOnMap(microareas, filteredStreets),
+          includeSignatures,
+        );
+        mapState.focusOnLines([boundsForBox(paintedGeojsons, boxRatio)], 16, { even: true });
         await waitForMapFlyComplete();
       }
 
       container.classList.add('sigaps-pdf-capture');
       await waitForMapReady(1800);
 
+      const metersPerCssPx = readLeafletMetersPerPixel(leaflet);
       const { dataUrl, width, height } = await captureLeafletMapImage(leaflet, { scale: 3 });
       container.classList.remove('sigaps-pdf-capture');
+      const mapMetersPerPixel = metersPerCssPx && width > 0 ? (metersPerCssPx * leaflet.clientWidth) / width : null;
 
       const homologation =
         municipality.mapHomologatedAt && municipality.mapHomologatedBy
@@ -160,6 +209,7 @@ export function MapPdfDialog({
         mapImageDataUrl: dataUrl,
         mapImageWidth: width,
         mapImageHeight: height,
+        mapMetersPerPixel,
         municipality: {
           name: municipality.name,
           state: municipality.state,
@@ -246,8 +296,8 @@ export function MapPdfDialog({
       </DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          Gera mapa oficial com satélite, áreas coloridas, legenda em tabela,
-          detalhamento de ruas, escala e QR Code — pronto para impressão A3/A4.
+          Mapa das ruas com as cores das microáreas, legenda, escala e norte na primeira folha;
+          quadro das microáreas e lista completa de ruas nas folhas seguintes. Pronto para A4/A3.
         </Typography>
 
         {homologReview && (
@@ -312,9 +362,8 @@ export function MapPdfDialog({
 
         <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, p: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-            O sistema centraliza automaticamente nas ruas pintadas, ativa satélite e
-            microáreas, e gera o PDF em alta resolução. Para bairro específico, selecione
-            o filtro antes de gerar.
+            O sistema enquadra sozinho as ruas pintadas e gera o PDF em alta resolução.
+            Para um bairro só, escolha o filtro antes de gerar.
           </Typography>
         </Box>
 

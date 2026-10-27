@@ -1396,7 +1396,10 @@ export function MapCenterController() {
     const onEnd = () => clearMapFly();
     map.once('moveend', onEnd);
 
-    if (mapFlyTarget.bounds) {
+    if (mapFlyTarget.bounds && mapFlyTarget.even) {
+      // Foto para o PDF: painéis escondidos, então margem igual dos quatro lados e sem animação.
+      map.fitBounds(mapFlyTarget.bounds, { padding: [24, 24], maxZoom: mapFlyTarget.zoom, animate: false });
+    } else if (mapFlyTarget.bounds) {
       // Enquadra a rua na parte livre do mapa: abaixo da barra e fora do painel de detalhes
       // (folha embaixo no celular, coluna à direita no computador).
       const container = map.getContainer();

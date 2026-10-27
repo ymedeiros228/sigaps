@@ -33,6 +33,20 @@ export function waitForMapFlyComplete(maxMs = 4500): Promise<void> {
   });
 }
 
+/**
+ * Metros por pixel de tela, lidos do controle de escala do Leaflet ("200 m" em N px).
+ * Serve para a escala gráfica do PDF sair certa; null se o controle não estiver no mapa.
+ */
+export function readLeafletMetersPerPixel(leafletEl: HTMLElement): number | null {
+  const line = leafletEl.querySelector('.leaflet-control-scale-line') as HTMLElement | null;
+  if (!line) return null;
+  const widthPx = parseFloat(line.style.width);
+  const match = line.textContent?.trim().match(/^([\d.,]+)\s*(km|m)$/);
+  if (!widthPx || !match) return null;
+  const meters = parseFloat(match[1].replace(',', '.')) * (match[2] === 'km' ? 1000 : 1);
+  return meters > 0 ? meters / widthPx : null;
+}
+
 export async function captureLeafletMapImage(
   leafletEl: HTMLElement,
   options?: { scale?: number },
@@ -54,7 +68,8 @@ export async function captureLeafletMapImage(
       });
       const container = doc.querySelector('.leaflet-container') as HTMLElement | null;
       if (container) {
-        container.style.background = '#101418';
+        // Fundo claro: o PDF usa o mapa de ruas (não o satélite)
+        container.style.background = '#f2efe9';
       }
     },
   });

@@ -94,6 +94,8 @@ interface MapState {
     lng: number;
     zoom: number;
     bounds?: [[number, number], [number, number]];
+    /** Margem igual nos quatro lados, sem animação (foto do mapa para o PDF). */
+    even?: boolean;
   } | null;
   paintGuideCollapsed: boolean;
   dragPaintIds: Set<string>;
@@ -123,7 +125,7 @@ interface MapState {
   setDivisionDraft: (draft: MapState['divisionDraft']) => void;
   flyTo: (lat: number, lng: number, zoom?: number) => void;
   focusOnLine: (geojson: GeoJSON.LineString, zoom?: number) => void;
-  focusOnLines: (geojsons: GeoJSON.LineString[], zoom?: number) => void;
+  focusOnLines: (geojsons: GeoJSON.LineString[], zoom?: number, options?: { even?: boolean }) => void;
   clearMapFly: () => void;
 }
 
@@ -305,7 +307,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       },
     }));
   },
-  focusOnLines: (geojsons, zoom = 17) => {
+  focusOnLines: (geojsons, zoom = 17, options) => {
     const bounds = boundsFromLineStrings(geojsons);
     if (!bounds) return;
     const centerLat = (bounds[0][0] + bounds[1][0]) / 2;
@@ -317,6 +319,7 @@ export const useMapStore = create<MapState>((set, get) => ({
         lng: centerLng,
         zoom,
         bounds,
+        even: options?.even,
       },
     }));
   },
