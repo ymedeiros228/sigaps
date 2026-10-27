@@ -131,6 +131,8 @@ interface AuthState {
   user: User | null;
   token: string | null;
   setAuth: (user: User, token: string, refreshToken: string) => void;
+  /** Atualiza a conta da sessão (ex.: ganhou ou perdeu a função de administrador). */
+  setUser: (user: User) => void;
   logout: () => void;
   hydrate: () => void;
 }
@@ -163,6 +165,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       useAppStore.getState().setMunicipalityId(user.municipalityId);
     }
     set({ user, token });
+  },
+  setUser: (user) => {
+    safeStorageSet('sigaps_user', JSON.stringify(user));
+    set({ user });
   },
   logout: () => {
     const activeMunicipality = readPersistedMunicipalityId();

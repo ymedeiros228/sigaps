@@ -13,6 +13,20 @@ export const ROLE_RANK: Record<UserRole, number> = {
   [UserRole.ACS]: 0,
 };
 
+/**
+ * Perfil que vale nas permissões. A função de administrador (`isAdmin`) dá à conta o
+ * mesmo acesso do ADMINISTRADOR sem trocar o perfil dela (o Jonas continua Enfermeiro).
+ * O ACS nunca recebe a função.
+ */
+export function accessRole(user: {
+  role: UserRole;
+  isAdmin?: boolean | null;
+}): UserRole {
+  return user.isAdmin && user.role !== UserRole.ACS
+    ? UserRole.ADMINISTRADOR
+    : user.role;
+}
+
 /** Perfis que abrem a tela Equipe (o ACS não gerencia contas). */
 export const TEAM_MANAGER_ROLES: UserRole[] = [
   UserRole.ADMINISTRADOR,

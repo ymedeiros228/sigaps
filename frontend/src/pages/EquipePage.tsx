@@ -19,7 +19,13 @@ import { UserFormDialog, type UserFormValues } from '../components/admin/UserFor
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { teamApi, type AdminUser } from '../services/api';
 import { useAuthStore } from '../store';
-import { assignableRoles, canManageAccount, formatRoleLabel } from '../utils/permissions';
+import {
+  accessRole,
+  assignableRoles,
+  canGrantAdmin,
+  canManageAccount,
+  formatRoleLabel,
+} from '../utils/permissions';
 import { getApiErrorMessage } from '../utils/apiError';
 
 const initialsOf = (name: string) =>
@@ -34,7 +40,8 @@ const initialsOf = (name: string) =>
 /**
  * Equipe: quem gerencia (enfermeiro, coordenação, secretaria, administrador) cria as
  * contas da equipe, redefine senha e desativa quem saiu. Só aparecem para edição as
- * contas de perfil igual ou abaixo do seu (a API confere a mesma regra).
+ * contas de perfil abaixo do seu ou a própria (a API confere a mesma regra). Quem tem
+ * acesso de administrador também dá e tira a função de administrador.
  */
 export function EquipePage() {
   const theme = useTheme();
@@ -44,7 +51,8 @@ export function EquipePage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const allowedRoles = useMemo(() => assignableRoles(me?.role), [me?.role]);
+  const allowedRoles = useMemo(() => assignableRoles(accessRole(me)), [me]);
+  const grantAdmin = canGrantAdmin(me);
 
   const queryKey = ['team', municipalityId];
   const { data: users = [], isLoading, isError, refetch } = useQuery({
@@ -60,6 +68,10 @@ export function EquipePage() {
 
   const saveMutation = useMutation({
     mutationFn: (values: UserFormValues) => {
+      // Só quem tem acesso de administrador manda a função; o ACS nunca a recebe.
+      const adminField = grantAdmin
+        ? { isAdmin: values.role !== 'ACS' && !!values.isAdmin }
+        : {};
       if (editing) {
         return teamApi
           .update(municipalityId!, editing.id, {
@@ -67,6 +79,7 @@ export function EquipePage() {
             email: values.email,
             role: values.role,
             isActive: String(values.isActive) === 'true',
+            ...adminField,
           })
           .then((r) => r.data);
       }
@@ -76,6 +89,7 @@ export function EquipePage() {
           email: values.email.trim().toLowerCase(),
           role: values.role,
           password: values.password,
+          ...adminField,
         })
         .then((r) => r.data);
     },
@@ -199,6 +213,9 @@ export function EquipePage() {
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
                           <Chip size="small" variant="outlined" label={formatRoleLabel(u.role)} />
+                          {u.isAdmin && u.role !== 'ADMINISTRADOR' && u.role !== 'ACS' && (
+                            <Chip size="small" color="primary" variant="outlined" label="Administrador" />
+                          )}
                           {!u.isActive && <Chip size="small" label="Desativada" />}
                         </Box>
                       </Box>
@@ -232,6 +249,8 @@ export function EquipePage() {
         loading={saveMutation.isPending}
         resetLoading={resetMutation.isPending}
         allowedRoles={allowedRoles}
+        canGrantAdmin={grantAdmin}
+        currentUserId={me?.id}
         onClose={closeDialog}
         onSave={(values) => saveMutation.mutate(values)}
         onResetPassword={

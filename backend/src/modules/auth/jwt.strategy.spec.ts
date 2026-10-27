@@ -61,4 +61,12 @@ describe('JwtStrategy (cache do usuário)', () => {
     );
     expect(findUnique).toHaveBeenCalledTimes(2);
   });
+
+  it('com a função de administrador, role vira ADMINISTRADOR e o perfil fica em profileRole', async () => {
+    const findUnique = jest.fn().mockResolvedValue({ ...activeUser, isAdmin: true });
+    const user = await buildStrategy(findUnique).validate(payload);
+    expect(user.role).toBe('ADMINISTRADOR');
+    expect(user.profileRole).toBe('ENFERMEIRO');
+    expect(user.isAdmin).toBe(true);
+  });
 });

@@ -54,7 +54,7 @@ import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
 import { adminApi, type AdminUser, type AuditFilters, type AuditLogEntry } from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
-import { canAccessAdmin, formatAuditAction, formatRoleLabel } from '../utils/permissions';
+import { accessRole, canAccessAdmin, formatAuditAction, formatAccountRoles } from '../utils/permissions';
 
 type AdminTab = 'resumo' | 'backup' | 'usuarios' | 'auditoria';
 
@@ -126,7 +126,7 @@ export function AdminPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [auditExportLoading, setAuditExportLoading] = useState(false);
 
-  const canAccess = canAccessAdmin(user?.role);
+  const canAccess = canAccessAdmin(accessRole(user));
   const ready = canAccess && !!municipalityId;
 
   const { data: overview, isLoading, refetch, isFetching } = useQuery({
@@ -202,6 +202,7 @@ export function AdminPage() {
             email: values.email,
             role: values.role,
             isActive: String(values.isActive) === 'true',
+            isAdmin: values.role !== 'ACS' && !!values.isAdmin,
           })
           .then((r) => r.data);
       }
@@ -211,6 +212,7 @@ export function AdminPage() {
           email: values.email,
           role: values.role,
           password: values.password,
+          isAdmin: values.role !== 'ACS' && !!values.isAdmin,
         })
         .then((r) => r.data);
     },
@@ -534,7 +536,7 @@ export function AdminPage() {
                     <TableCell sx={{ fontWeight: 600 }}>{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Chip label={formatRoleLabel(u.role)} size="small" variant="outlined" />
+                      <Chip label={formatAccountRoles(u)} size="small" variant="outlined" />
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -815,6 +817,8 @@ export function AdminPage() {
         editing={editingUser}
         loading={saveUserMutation.isPending}
         resetLoading={resetPasswordMutation.isPending}
+        canGrantAdmin
+        currentUserId={user?.id}
         onClose={() => {
           setUserOpen(false);
           setEditingUser(null);

@@ -36,7 +36,7 @@ import { UbsMarkersLayer } from './UbsMarkersLayer';
 import { PlacesMarkersLayer } from './PlacesMarkersLayer';
 import { FamilyBulkImportDialog } from './FamilyBulkImportDialog';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
-import { canImportStreets, isAcsUser } from '../../utils/permissions';
+import { accessRole, canImportStreets, isAcsUser } from '../../utils/permissions';
 import { lineStringCentroid } from '../../utils/geo';
 import { fixLineString, paintGeometryEqual, prepareStreetsForMap } from '../../utils/streetSearch';
 import { effectivePaintSide, resolveApiPaintSide, detectClickSide, paintStateAtPoint, simulatePaintAtPoint, simulatePaintRange, simulateUnpaintAtPoint, simulateUnpaintRange, closestVertexIndex, streetCoords, sliceStreetGeojson, densifyStreetForMicro } from '../../utils/streetPaintSegments';
@@ -128,7 +128,7 @@ export function SigapsMap() {
   const user = useAuthStore((s) => s.user);
   const acsReadOnly = isAcsUser(user?.role);
   const lockedMicroareaId = user?.acsProfile?.microarea?.id;
-  const canImport = canImportStreets(user?.role) && !acsReadOnly;
+  const canImport = canImportStreets(accessRole(user)) && !acsReadOnly;
   const [selectedStreet, setSelectedStreet] = useState<Street | null>(null);
   const [conflictMsg, setConflictMsg] = useState<string | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);

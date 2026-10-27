@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { auditSnapshot } from '../../common/utils/audit-snapshot.util';
@@ -13,6 +14,19 @@ import { invalidateDashboardIndicators } from '../../common/utils/dashboard-cach
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { invalidateAuthUser } from '../auth/jwt.strategy';
+import { accessRole } from '../../common/utils/role-rank.util';
+
+/** Campos da conta que saem da API (sem senha nem token). */
+const USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  isActive: true,
+  isAdmin: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UserSelect;
 
 @Injectable()
 export class AdminService {
@@ -179,23 +193,19 @@ export class AdminService {
   listUsers(municipalityId: string) {
     return this.prisma.user.findMany({
       where: { municipalityId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: USER_SELECT,
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
   }
 
-  /** Conta do município (para conferir o perfil antes de alterar). */
+  /**
+   * Conta do município (para conferir o perfil antes de alterar). Quem tem a função de
+   * administrador conta como ADMINISTRADOR: senão um coordenador redefiniria a senha
+   * dele e entraria com acesso total.
+   */
   async getUser(municipalityId: string, userId: string) {
     const user = await this.findUserInMunicipality(municipalityId, userId);
-    return { id: user.id, role: user.role };
+    return { id: user.id, role: accessRole(user) };
   }
 
   private async findUserInMunicipality(municipalityId: string, userId: string) {
@@ -228,18 +238,11 @@ export class AdminService {
         email: dto.email,
         name: dto.name,
         role: dto.role,
+        isAdmin: dto.isAdmin === true && dto.role !== UserRole.ACS,
         passwordHash,
         municipalityId,
       },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: USER_SELECT,
     });
 
     await this.audit.log({
@@ -275,18 +278,25 @@ export class AdminService {
       );
     }
 
+    // A função de administrador não vale para ACS; virar ACS desliga a função.
+    const role = dto.role ?? before.role;
+    if (dto.isAdmin === true && role === UserRole.ACS) {
+      throw new BadRequestException(
+        'O ACS não pode ter a função de administrador.',
+      );
+    }
+    const isAdmin =
+      role === UserRole.ACS ? false : (dto.isAdmin ?? before.isAdmin);
+    if (userId === actorId && before.isAdmin && !isAdmin) {
+      throw new BadRequestException(
+        'Você não pode tirar a sua própria função de administrador.',
+      );
+    }
+
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: dto,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      data: { ...dto, isAdmin },
+      select: USER_SELECT,
     });
     invalidateAuthUser(userId);
 
@@ -300,6 +310,7 @@ export class AdminService {
         'name',
         'role',
         'isActive',
+        'isAdmin',
       ]),
       afterData: auditSnapshot(user as Record<string, unknown>),
     });

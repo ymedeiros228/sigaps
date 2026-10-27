@@ -31,7 +31,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAppStore, useMapStore, useAuthStore } from '../../store';
 import { MapExportMenu } from './MapExportMenu';
 import { StreetSearchBar, type StreetSearchOption } from './StreetSearchBar';
-import { canImportStreets } from '../../utils/permissions';
+import { accessRole, canImportStreets } from '../../utils/permissions';
 import { countPaintedStreets, countStreetsWithFamilyData, sumFamiliesOnStreets } from '../../utils/streetPaintStats';
 import type { RefObject } from 'react';
 import type { Microarea, Street } from '../../services/api';
@@ -94,7 +94,7 @@ export function MapToolbar({
   const setShowPlacesMarkers = useMapStore((s) => s.setShowPlacesMarkers);
   const flyTo = useMapStore((s) => s.flyTo);
   const user = useAuthStore((s) => s.user);
-  const canImport = canImportStreets(user?.role);
+  const canImport = canImportStreets(accessRole(user));
   const [layersAnchor, setLayersAnchor] = useState<HTMLElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
 

@@ -28,4 +28,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Função de administrador (acesso total, sem trocar o perfil)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isAdmin?: boolean;
 }

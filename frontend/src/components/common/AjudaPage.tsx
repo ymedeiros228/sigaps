@@ -7,7 +7,7 @@ import {
   legacyDownloadShareUrl,
 } from '../../constants/delivery';
 import { useAuthStore } from '../../store';
-import { canAccessAdmin } from '../../utils/permissions';
+import { accessRole, canAccessAdmin } from '../../utils/permissions';
 
 /** Bloco com título e lista, no mesmo estilo de cartão das outras seções. */
 function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -31,7 +31,7 @@ const listaSx = { m: 0, pl: 2.5, '& li': { mb: 1 }, '& li:last-of-type': { mb: 0
 export function AjudaPage() {
   const enderecoAtual = window.location.origin;
   // O ZIP é o código-fonte legado da entrega: só interessa ao administrador.
-  const isAdmin = canAccessAdmin(useAuthStore((s) => s.user?.role));
+  const isAdmin = canAccessAdmin(accessRole(useAuthStore((s) => s.user)));
 
   return (
     <Box sx={{ maxWidth: 720, mx: 'auto', p: { xs: 2, md: 3 } }}>

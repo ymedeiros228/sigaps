@@ -37,6 +37,8 @@ model User {
   municipality  Municipality? @relation(fields: [municipalityId], references: [id])
   refreshToken  String?   @map("refresh_token")
   isActive      Boolean   @default(true) @map("is_active")
+  /// Função de administrador: acesso total sem trocar o perfil (ex.: Enfermeiro + admin).
+  isAdmin       Boolean   @default(false) @map("is_admin")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   auditLogs     AuditLog[]

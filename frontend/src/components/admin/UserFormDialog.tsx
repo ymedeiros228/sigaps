@@ -7,7 +7,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -21,6 +23,7 @@ export type UserFormValues = {
   role: string;
   password: string;
   isActive: boolean;
+  isAdmin: boolean;
 };
 
 interface UserFormDialogProps {
@@ -33,6 +36,10 @@ interface UserFormDialogProps {
   resetLoading?: boolean;
   /** Perfis que quem está criando pode dar (padrão: todos, para o administrador). */
   allowedRoles?: readonly string[];
+  /** Mostra a chave "Função de administrador" (só para quem já tem acesso de administrador). */
+  canGrantAdmin?: boolean;
+  /** Conta de quem está usando: a própria função de administrador não pode ser tirada. */
+  currentUserId?: string;
 }
 
 const emptyValues: UserFormValues = {
@@ -41,6 +48,7 @@ const emptyValues: UserFormValues = {
   role: 'ENFERMEIRO',
   password: '',
   isActive: true,
+  isAdmin: false,
 };
 
 export function UserFormDialog({
@@ -52,12 +60,15 @@ export function UserFormDialog({
   onResetPassword,
   resetLoading,
   allowedRoles = ALL_ROLES,
+  canGrantAdmin = false,
+  currentUserId,
 }: UserFormDialogProps) {
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<UserFormValues>();
 
@@ -65,6 +76,10 @@ export function UserFormDialog({
   // Select do MUI com register não mostra o valor vindo do reset: fica controlado pelo watch.
   const roleValue = watch('role') ?? '';
   const activeValue = String(watch('isActive') ?? 'true');
+  const adminValue = !!watch('isAdmin');
+  // O ACS nunca tem a função, e o perfil Administrador já tem acesso total.
+  const showAdminSwitch = canGrantAdmin && roleValue !== 'ACS' && roleValue !== 'ADMINISTRADOR';
+  const ownAdminLocked = !!editing?.isAdmin && editing.id === currentUserId;
 
   useEffect(() => {
     if (!open) return;
@@ -76,6 +91,7 @@ export function UserFormDialog({
             role: editing.role,
             password: '',
             isActive: editing.isActive ? ('true' as unknown as boolean) : ('false' as unknown as boolean),
+            isAdmin: editing.isAdmin,
           }
         : { ...emptyValues, role: allowedRoles.includes('ACS') ? 'ACS' : allowedRoles[0] },
     );
@@ -129,6 +145,36 @@ export function UserFormDialog({
               </MenuItem>
             ))}
           </TextField>
+
+          {showAdminSwitch && (
+            <Box
+              sx={{
+                border: 1,
+                borderColor: adminValue ? 'primary.main' : 'divider',
+                borderRadius: 2,
+                px: 2,
+                py: 1.25,
+                transition: 'border-color 0.15s',
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={adminValue}
+                    onChange={(e) => setValue('isAdmin', e.target.checked, { shouldDirty: true })}
+                    disabled={ownAdminLocked}
+                  />
+                }
+                label={<Typography sx={{ fontWeight: 600 }}>Função de administrador</Typography>}
+                sx={{ mr: 0 }}
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                {ownAdminLocked
+                  ? 'Você tem a função de administrador. Outra pessoa com a função pode tirá-la; você mesmo não.'
+                  : 'Acesso total, igual ao administrador: Administração, backup, auditoria, documentos e todas as contas. O perfil continua o mesmo.'}
+              </Typography>
+            </Box>
+          )}
 
           {editing ? (
             <>

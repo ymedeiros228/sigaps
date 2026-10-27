@@ -137,7 +137,10 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  /** Perfil cadastrado (Enfermeiro, ACS…). Para permissões, use `accessRole(user)`. */
   role: string;
+  /** Função de administrador: acesso total sem trocar o perfil. */
+  isAdmin?: boolean;
   municipalityId?: string;
   acsProfile?: {
     id: string;
@@ -334,6 +337,7 @@ export interface SearchResult {
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<LoginResponse>('/auth/login', { email, password }),
+  me: () => api.get<User>('/auth/me'),
 };
 
 export const cadastrosApi = {
@@ -682,6 +686,7 @@ export interface AdminUser {
   name: string;
   role: string;
   isActive: boolean;
+  isAdmin: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -783,12 +788,12 @@ export const adminApi = {
     }),
   createUser: (
     municipalityId: string,
-    data: { email: string; password: string; name: string; role: string },
+    data: { email: string; password: string; name: string; role: string; isAdmin?: boolean },
   ) => api.post<AdminUser>(`/admin/municipality/${municipalityId}/users`, data),
   updateUser: (
     municipalityId: string,
     userId: string,
-    data: Partial<{ email: string; name: string; role: string; isActive: boolean }>,
+    data: Partial<{ email: string; name: string; role: string; isActive: boolean; isAdmin: boolean }>,
   ) => api.patch<AdminUser>(`/admin/municipality/${municipalityId}/users/${userId}`, data),
   resetPassword: (municipalityId: string, userId: string, password: string) =>
     api.post(`/admin/municipality/${municipalityId}/users/${userId}/reset-password`, {
@@ -810,12 +815,12 @@ export const teamApi = {
     api.get<AdminUser[]>(`/team/municipality/${municipalityId}/users`),
   create: (
     municipalityId: string,
-    data: { email: string; password: string; name: string; role: string },
+    data: { email: string; password: string; name: string; role: string; isAdmin?: boolean },
   ) => api.post<AdminUser>(`/team/municipality/${municipalityId}/users`, data),
   update: (
     municipalityId: string,
     userId: string,
-    data: Partial<{ email: string; name: string; role: string; isActive: boolean }>,
+    data: Partial<{ email: string; name: string; role: string; isActive: boolean; isAdmin: boolean }>,
   ) => api.patch<AdminUser>(`/team/municipality/${municipalityId}/users/${userId}`, data),
   resetPassword: (municipalityId: string, userId: string, password: string) =>
     api.post(`/team/municipality/${municipalityId}/users/${userId}/reset-password`, { password }),

@@ -27,6 +27,18 @@ type TeamRequest = { user: { id: string; role: UserRole } };
 
 const FORBIDDEN_ROLE =
   'Seu perfil não pode criar nem alterar contas com este perfil.';
+const FORBIDDEN_ADMIN =
+  'Só quem tem a função de administrador pode dar ou tirar essa função.';
+
+/** Dar ou tirar a função de administrador é de quem já tem acesso de administrador. */
+function assertCanGrantAdmin(
+  actor: TeamRequest['user'],
+  dto: { isAdmin?: boolean },
+) {
+  if (dto.isAdmin !== undefined && actor.role !== UserRole.ADMINISTRADOR) {
+    throw new ForbiddenException(FORBIDDEN_ADMIN);
+  }
+}
 
 /**
  * Equipe do município: enfermeiro, coordenação e secretaria criam as contas da equipe
@@ -57,6 +69,7 @@ export class TeamController {
   ) {
     if (!canHandleRole(req.user.role, dto.role))
       throw new ForbiddenException(FORBIDDEN_ROLE);
+    assertCanGrantAdmin(req.user, dto);
     return this.admin.createUser(municipalityId, dto, req.user.id);
   }
 
@@ -76,6 +89,7 @@ export class TeamController {
     if (dto.role && !canHandleRole(req.user.role, dto.role)) {
       throw new ForbiddenException(FORBIDDEN_ROLE);
     }
+    assertCanGrantAdmin(req.user, dto);
     return this.admin.updateUser(municipalityId, userId, dto, req.user.id);
   }
 

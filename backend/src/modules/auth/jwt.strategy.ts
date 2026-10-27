@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { accessRole } from '../../common/utils/role-rank.util';
 
 export interface JwtPayload {
   sub: string;
@@ -16,7 +17,11 @@ type AuthUser = {
   id: string;
   email: string;
   name: string;
+  /** Perfil de acesso (`accessRole`): com a função de administrador, vale ADMINISTRADOR. */
   role: string;
+  /** Perfil cadastrado (Enfermeiro, ACS…), sem a função de administrador. */
+  profileRole: string;
+  isAdmin: boolean;
   municipalityId: string | null;
   isActive: boolean;
 };
@@ -64,6 +69,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         municipalityId: true,
         isActive: true,
+        isAdmin: true,
       },
     });
 
@@ -72,11 +78,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Sessão inválida ou usuário inativo');
     }
 
+    // Guards e controllers leem `role`: quem tem a função de administrador passa
+    // em tudo o que o ADMINISTRADOR passa, sem mudar nada rota por rota.
     const validated: AuthUser = {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: accessRole(user),
+      profileRole: user.role,
+      isAdmin: user.isAdmin,
       municipalityId: user.municipalityId,
       isActive: user.isActive,
     };

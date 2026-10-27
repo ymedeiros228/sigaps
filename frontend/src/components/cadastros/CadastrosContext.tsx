@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { canManageAcs, canManageCadastros, canManagePlaces, canDeleteCadastros, canDeleteAcs, canDeletePlaces, canDeleteMicroareas } from '../../utils/permissions';
+import { accessRole, canManageAcs, canManageCadastros, canManagePlaces, canDeleteCadastros, canDeleteAcs, canDeletePlaces, canDeleteMicroareas } from '../../utils/permissions';
 import { useAuthStore } from '../../store';
 
 type CadastrosContextValue = {
@@ -45,13 +45,14 @@ export function useCadastros() {
 
 export function CadastrosProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
-  const canManage = canManageCadastros(user?.role);
-  const manageAcs = canManageAcs(user?.role);
-  const managePlaces = canManagePlaces(user?.role);
-  const deleteCadastros = canDeleteCadastros(user?.role);
-  const deleteAcs = canDeleteAcs(user?.role);
-  const deletePlaces = canDeletePlaces(user?.role);
-  const deleteMicroareas = canDeleteMicroareas(user?.role);
+  const role = accessRole(user);
+  const canManage = canManageCadastros(role);
+  const manageAcs = canManageAcs(role);
+  const managePlaces = canManagePlaces(role);
+  const deleteCadastros = canDeleteCadastros(role);
+  const deleteAcs = canDeleteAcs(role);
+  const deletePlaces = canDeletePlaces(role);
+  const deleteMicroareas = canDeleteMicroareas(role);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; onConfirm: () => void } | null>(null);

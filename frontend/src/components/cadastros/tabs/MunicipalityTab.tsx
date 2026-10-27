@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { municipalitiesApi, integrationsApi } from '../../../services/api';
 import { useCadastros } from '../CadastrosContext';
 import { EsusImportDialog } from '../EsusImportDialog';
-import { canImportStreets } from '../../../utils/permissions';
+import { accessRole, canImportStreets } from '../../../utils/permissions';
 import { useAuthStore } from '../../../store';
 import { MunicipalityLogo } from '../../common/MunicipalityLogo';
 import { queryKeys } from '../../../utils/queryKeys';
@@ -46,7 +46,7 @@ export function MunicipalityTab({ municipalityId }: { municipalityId: string }) 
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [esusOpen, setEsusOpen] = useState(false);
-  const canImportEsus = canImportStreets(user?.role);
+  const canImportEsus = canImportStreets(accessRole(user));
   const {
     register,
     handleSubmit,

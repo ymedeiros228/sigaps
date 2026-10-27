@@ -1,5 +1,9 @@
 import { UserRole } from '@prisma/client';
-import { canHandleRole, canManageAccount } from './role-rank.util';
+import {
+  accessRole,
+  canHandleRole,
+  canManageAccount,
+} from './role-rank.util';
 
 describe('canHandleRole', () => {
   it('administrador pode tudo', () => {
@@ -51,5 +55,36 @@ describe('canHandleRole', () => {
 
   it('ACS não gerencia ninguém', () => {
     expect(canHandleRole(UserRole.ACS, UserRole.ACS)).toBe(false);
+  });
+});
+
+describe('accessRole (função de administrador)', () => {
+  it('enfermeiro com a função vale como administrador', () => {
+    expect(accessRole({ role: UserRole.ENFERMEIRO, isAdmin: true })).toBe(
+      UserRole.ADMINISTRADOR,
+    );
+  });
+
+  it('sem a função, vale o perfil cadastrado', () => {
+    expect(accessRole({ role: UserRole.ENFERMEIRO, isAdmin: false })).toBe(
+      UserRole.ENFERMEIRO,
+    );
+    expect(accessRole({ role: UserRole.COORDENADOR_APS })).toBe(
+      UserRole.COORDENADOR_APS,
+    );
+  });
+
+  it('o ACS nunca vira administrador', () => {
+    expect(accessRole({ role: UserRole.ACS, isAdmin: true })).toBe(
+      UserRole.ACS,
+    );
+  });
+
+  it('coordenador sem a função não mexe em quem tem a função', () => {
+    const coord = { id: 'c', role: UserRole.COORDENADOR_APS };
+    const jonas = { id: 'j', role: UserRole.ENFERMEIRO, isAdmin: true };
+    expect(
+      canManageAccount(coord, { id: jonas.id, role: accessRole(jonas) }),
+    ).toBe(false);
   });
 });

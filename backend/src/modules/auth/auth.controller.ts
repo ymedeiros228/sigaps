@@ -1,5 +1,5 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../common/decorators/roles.decorator';
 import { AuthService } from './auth.service';
@@ -24,5 +24,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Renovar access token' })
   refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Conta da sessão atual (perfil e função de administrador)' })
+  me(@Req() req: { user: { id: string } }) {
+    return this.authService.me(req.user.id);
   }
 }

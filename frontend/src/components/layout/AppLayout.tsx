@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { BuildVersion } from '../common/BuildVersion';
 import { useAppDataPrefetch } from '../../hooks/useAppDataPrefetch';
+import { useSessionRefresh } from '../../hooks/useSessionRefresh';
 import { useMemo, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,7 +37,7 @@ import { MUNICIPALITY_NAME } from '../../constants/branding';
 import { MunicipalityLogo } from '../common/MunicipalityLogo';
 import { InstallPrompt } from '../common/InstallPrompt';
 import { useMunicipalityId } from '../../hooks/useMunicipalityId';
-import { canAccessAdmin, canManageTeam, formatRoleLabel, isAcsUser } from '../../utils/permissions';
+import { accessRole, canAccessAdmin, canManageTeam, formatAccountRoles, isAcsUser } from '../../utils/permissions';
 import { municipalitiesApi } from '../../services/api';
 import { queryKeys } from '../../utils/queryKeys';
 import { prefetchCadastrosData } from '../../utils/prefetchAppData';
@@ -61,7 +62,7 @@ export function AppLayout() {
   const toggleDarkMode = useAppStore((s) => s.toggleDarkMode);
   const [mobileOpen, setMobileOpen] = useState(false);
   const municipalityId = useMunicipalityId();
-  const isAdmin = canAccessAdmin(user?.role);
+  const isAdmin = canAccessAdmin(accessRole(user));
   const isAcs = isAcsUser(user?.role);
 
   const { data: municipality } = useQuery({
@@ -79,7 +80,7 @@ export function AppLayout() {
       ];
     }
     const items = [...baseNavItems];
-    if (canManageTeam(user?.role)) {
+    if (canManageTeam(accessRole(user))) {
       // Antes da Ajuda: Dashboard, Mapa, Cadastros, Equipe, Ajuda.
       items.splice(3, 0, { label: 'Equipe', path: '/equipe', icon: <Groups /> });
     }
@@ -91,7 +92,7 @@ export function AppLayout() {
       });
     }
     return items;
-  }, [isAdmin, isAcs, user?.role]);
+  }, [isAdmin, isAcs, user]);
 
   const currentLabel =
     navItems.find((item) =>
@@ -104,6 +105,7 @@ export function AppLayout() {
   const displayState = municipality?.state ? `${municipality.state}` : 'MA';
 
   useAppDataPrefetch();
+  useSessionRefresh();
 
   const handleLogout = () => {
     logout();
@@ -219,7 +221,7 @@ export function AppLayout() {
               {user?.name}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap>
-              {formatRoleLabel(user?.role)}
+              {formatAccountRoles(user)}
             </Typography>
           </Box>
         </Box>

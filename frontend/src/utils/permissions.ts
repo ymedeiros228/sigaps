@@ -55,6 +55,18 @@ export function canCreateMicroarea(role?: string): boolean {
   return !!role && (MANAGE_CADASTROS_ROLES.has(role) || role === 'ENFERMEIRO');
 }
 
+type AccountLike = { id: string; role: string; isAdmin?: boolean };
+
+/**
+ * Perfil que vale nas permissões (mesma regra da API, role-rank.util.ts): a função de
+ * administrador dá o acesso do ADMINISTRADOR sem trocar o perfil (o Jonas continua
+ * Enfermeiro). O ACS nunca recebe a função. Para mostrar o perfil, use `user.role`.
+ */
+export function accessRole(user?: { role: string; isAdmin?: boolean } | null): string | undefined {
+  if (!user) return undefined;
+  return user.isAdmin && user.role !== 'ACS' ? 'ADMINISTRADOR' : user.role;
+}
+
 /** Ordem dos perfis: quem gerencia a equipe só lida com perfis do mesmo nível ou abaixo. */
 const ROLE_RANK: Record<string, number> = {
   ADMINISTRADOR: 4,
@@ -78,15 +90,25 @@ export function canHandleRole(actor: string | undefined, target: string): boolea
   return (ROLE_RANK[target] ?? 99) <= ROLE_RANK[actor!];
 }
 
-/** Conta existente: só perfil abaixo do seu ou a própria (mesma regra da API). */
+/**
+ * Conta existente: só perfil abaixo do seu ou a própria (mesma regra da API). Quem tem a
+ * função de administrador conta como administrador dos dois lados.
+ */
 export function canManageAccount(
-  actor: { id: string; role: string } | null | undefined,
-  target: { id: string; role: string },
+  actor: AccountLike | null | undefined,
+  target: AccountLike,
 ): boolean {
   if (!actor) return false;
-  if (actor.role === 'ADMINISTRADOR' || actor.id === target.id) return true;
-  if (!canManageTeam(actor.role) || target.role === 'ADMINISTRADOR') return false;
-  return (ROLE_RANK[target.role] ?? 99) < ROLE_RANK[actor.role];
+  const actorRole = accessRole(actor)!;
+  const targetRole = accessRole(target)!;
+  if (actorRole === 'ADMINISTRADOR' || actor.id === target.id) return true;
+  if (!canManageTeam(actorRole) || targetRole === 'ADMINISTRADOR') return false;
+  return (ROLE_RANK[targetRole] ?? 99) < ROLE_RANK[actorRole];
+}
+
+/** Dar ou tirar a função de administrador: só quem já tem acesso de administrador. */
+export function canGrantAdmin(user?: { role: string; isAdmin?: boolean } | null): boolean {
+  return accessRole(user) === 'ADMINISTRADOR';
 }
 
 /** Perfis que `actor` pode dar a uma conta nova. */
@@ -121,6 +143,12 @@ export function formatRoleLabel(role?: string): string {
     ACS: 'ACS',
   };
   return role ? (labels[role] ?? role.replace(/_/g, ' ')) : '—';
+}
+
+/** Perfil para mostrar, com a função quando houver: "Enfermeiro · Administrador". */
+export function formatAccountRoles(user?: { role: string; isAdmin?: boolean } | null): string {
+  const label = formatRoleLabel(user?.role);
+  return user?.isAdmin && accessRole(user) !== user.role ? `${label} · Administrador` : label;
 }
 
 export function formatAuditAction(action: string, entityType: string): string {

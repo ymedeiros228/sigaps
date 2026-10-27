@@ -1,6 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
-import { IsEmail, IsEnum, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateUserDto {
   @ApiProperty()
@@ -19,4 +26,11 @@ export class CreateUserDto {
   @ApiProperty({ enum: UserRole })
   @IsEnum(UserRole)
   role: UserRole;
+
+  @ApiPropertyOptional({
+    description: 'Função de administrador (acesso total, sem trocar o perfil)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isAdmin?: boolean;
 }

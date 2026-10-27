@@ -21,7 +21,7 @@ import {
 import { CadastrosLoadError } from '../components/cadastros/CadastrosLoadError';
 import { useMunicipalityId } from '../hooks/useMunicipalityId';
 import { useAuthStore } from '../store';
-import { canManageAcs, canManageCadastrosSection, isAcsUser } from '../utils/permissions';
+import { accessRole, canManageAcs, canManageCadastrosSection, isAcsUser } from '../utils/permissions';
 
 const MunicipalityTab = lazy(() =>
   import('../components/cadastros/tabs/MunicipalityTab').then((m) => ({ default: m.MunicipalityTab })),
@@ -121,7 +121,7 @@ export function CadastrosPage() {
   }, [searchParams, user?.role]);
 
   const acsAction = searchParams.get('acao');
-  const canManageCurrentSection = canManageCadastrosSection(user?.role, section);
+  const canManageCurrentSection = canManageCadastrosSection(accessRole(user), section);
   const enfermeiroCanManageAcs = canManageAcs(user?.role);
 
   const activeSection = CADASTROS_SECTIONS.find((item) => item.id === section) ?? CADASTROS_SECTIONS[0];
