@@ -4,6 +4,11 @@ Sistema web GIS para gestão das microáreas da APS. Monorepo com um único prod
 
 Comandos padrão de setup/execução estão no [README.md](README.md) (seções "Início Rápido" e "Testes E2E"). Esta seção cobre apenas o que é específico/não óbvio para agentes.
 
+## Regras do produto (não mudar sem o Yuri)
+
+- **Cada usuário tem o seu mapa. Nada compartilhado, nada de "mesmo mapa"** (Yuri, 27/10/2026). Toda conta nova nasce com cópia própria (`copy-municipality-map.util.ts`, sem pintura). Nunca colocar duas contas no mesmo `municipalityId`.
+- **Publicar = push no `master` (migração + Render) E `vercel deploy --prod`** (o site usado é `sigaps-nu.vercel.app`, que não atualiza pelo GitHub). Conferir os dois `/health`.
+
 ## Cursor Cloud specific instructions
 
 ### Serviços
