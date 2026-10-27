@@ -34,13 +34,39 @@ const USER_SELECT = {
 const OWN_MAP_TX = { maxWait: 10_000, timeout: 60_000 };
 
 /**
- * Contas da equipe de um mapa: as que estão nele e as que ganharam mapa próprio a partir
- * dele (cópia com `parent_id`). Quem criou a conta continua cuidando dela pela Equipe.
+ * Contas da equipe de um mapa: todas as da mesma família de mapas (o original e todas as
+ * cópias feitas dele, em qualquer nível). Cada conta tem o seu mapa, mas quem ganhou mapa
+ * próprio não some da Equipe dos outros.
  */
-function teamUserWhere(municipalityId: string): Prisma.UserWhereInput {
-  return {
-    OR: [{ municipalityId }, { municipality: { parentId: municipalityId } }],
-  };
+function teamUserWhere(familyIds: string[]): Prisma.UserWhereInput {
+  return { municipalityId: { in: familyIds } };
+}
+
+/** Sobe até o mapa original (sem `parent_id`) e junta ele com todas as cópias abaixo. */
+export async function mapFamilyIds(
+  prisma: Pick<PrismaService, 'municipality'>,
+  municipalityId: string,
+): Promise<string[]> {
+  let rootId = municipalityId;
+  for (let i = 0; i < 50; i++) {
+    const m = await prisma.municipality.findUnique({
+      where: { id: rootId },
+      select: { parentId: true },
+    });
+    if (!m?.parentId) break;
+    rootId = m.parentId;
+  }
+  const ids = [rootId];
+  let frontier = [rootId];
+  while (frontier.length) {
+    const children = await prisma.municipality.findMany({
+      where: { parentId: { in: frontier } },
+      select: { id: true },
+    });
+    frontier = children.map((c) => c.id).filter((id) => !ids.includes(id));
+    ids.push(...frontier);
+  }
+  return ids;
 }
 
 @Injectable()
@@ -55,6 +81,7 @@ export class AdminService {
       where: { id: municipalityId },
     });
     if (!municipality) throw new NotFoundException('Município não encontrado');
+    const family = await mapFamilyIds(this.prisma, municipalityId);
 
     const [
       users,
@@ -68,7 +95,7 @@ export class AdminService {
       activeUsers,
     ] = await Promise.all([
       this.prisma.user.findMany({
-        where: teamUserWhere(municipalityId),
+        where: teamUserWhere(family),
         select: {
           id: true,
           email: true,
@@ -91,7 +118,7 @@ export class AdminService {
       this.prisma.microareaPaintZone.count({ where: { municipalityId } }),
       this.prisma.auditLog.count({ where: { user: { municipalityId } } }),
       this.prisma.user.count({
-        where: { ...teamUserWhere(municipalityId), isActive: true },
+        where: { ...teamUserWhere(family), isActive: true },
       }),
     ]);
 
@@ -208,9 +235,10 @@ export class AdminService {
   }
 
   /** Contas da equipe do mapa, sem senha nem token (tela Equipe). */
-  listUsers(municipalityId: string) {
+  async listUsers(municipalityId: string) {
+    const family = await mapFamilyIds(this.prisma, municipalityId);
     return this.prisma.user.findMany({
-      where: teamUserWhere(municipalityId),
+      where: teamUserWhere(family),
       select: USER_SELECT,
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
@@ -228,7 +256,10 @@ export class AdminService {
 
   private async findUserInMunicipality(municipalityId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, ...teamUserWhere(municipalityId) },
+      where: {
+        id: userId,
+        ...teamUserWhere(await mapFamilyIds(this.prisma, municipalityId)),
+      },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
     return user;
