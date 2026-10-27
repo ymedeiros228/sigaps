@@ -30,9 +30,16 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { geoApi, type Microarea } from '../../services/api';
-import { streetsToSvg } from '../../utils/mapSvgExport';
+import {
+  downloadBlob,
+  downloadMicroareasGeoJson,
+  downloadStreetsGeoJson,
+  downloadStreetsKml,
+  downloadStreetsSvg,
+} from '../../utils/mapFileExports';
 import { getApiErrorMessage } from '../../utils/apiError';
-import { useAppStore } from '../../store';
+import { accessRole, canImportStreets } from '../../utils/permissions';
+import { useAppStore, useAuthStore, useMapStore } from '../../store';
 import { queryKeys } from '../../utils/queryKeys';
 const MapPdfDialog = lazy(() =>
   import('./MapPdfDialog').then((m) => ({ default: m.MapPdfDialog })),
@@ -44,10 +51,15 @@ interface MapExportMenuProps {
   mapContainerRef: RefObject<HTMLElement | null>;
   microareas: Microarea[];
   onImportFamilies?: () => void;
+  /** No modo pintura só o botão do PDF aparece (o menu Arquivos volta ao guardar). */
+  paintMode?: boolean;
 }
 
-export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }: MapExportMenuProps) {
+export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies, paintMode = false }: MapExportMenuProps) {
   const municipalityId = useAppStore((s) => s.municipalityId);
+  const user = useAuthStore((s) => s.user);
+  // A API só aceita importação desses perfis (IMPORT_ROLES no geo.controller).
+  const canImport = canImportStreets(accessRole(user));
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const kmlCsvInputRef = useRef<HTMLInputElement>(null);
@@ -64,9 +76,21 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
   const [homologReview, setHomologReview] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // O PDF fotografa o mapa: sai do modo pintura antes (a pintura já está salva).
+  const openPdf = () => {
+    const map = useMapStore.getState();
+    if (map.paintMode) {
+      map.setPaintMode(false);
+      map.setPaintGuideCollapsed(true);
+    }
+    setAnchorEl(null);
+    setPdfOpen(true);
+  };
+
+  // /mapa?pdf=1 (botão da página Documentos) abre o PDF direto.
   useEffect(() => {
     if (searchParams.get('pdf') !== '1') return;
-    setPdfOpen(true);
+    openPdf();
     setHomologReview(searchParams.get('homolog') === '1');
     const next = new URLSearchParams(searchParams);
     next.delete('pdf');
@@ -103,76 +127,14 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
 
   const isPending = geoJsonMutation.isPending || fileMutation.isPending;
 
-  const downloadBlob = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleExportStreets = async () => {
+  const runExport = async (download: (municipalityId: string) => Promise<void>, fallback: string) => {
     if (!municipalityId) return;
     try {
-      const res = await geoApi.exportStreets(municipalityId);
-      downloadBlob(
-        new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/geo+json' }),
-        'sigaps-ruas.geojson',
-      );
+      await download(municipalityId);
       setExportError(null);
       setAnchorEl(null);
     } catch (err) {
-      setExportError(getApiErrorMessage(err, 'Não foi possível exportar as ruas.'));
-    }
-  };
-
-  const handleExportKml = async () => {
-    if (!municipalityId) return;
-    try {
-      const res = await geoApi.exportStreetsKml(municipalityId);
-      downloadBlob(new Blob([res.data], { type: 'application/vnd.google-earth.kml+xml' }), 'sigaps-ruas.kml');
-      setExportError(null);
-      setAnchorEl(null);
-    } catch (err) {
-      setExportError(getApiErrorMessage(err, 'Não foi possível exportar o KML.'));
-    }
-  };
-
-  const handleExportSvg = async () => {
-    if (!municipalityId) return;
-    try {
-      const res = await geoApi.exportStreets(municipalityId);
-      const fc = res.data as GeoJSON.FeatureCollection;
-      const features = (fc.features ?? [])
-        .filter((f) => f.geometry?.type === 'LineString')
-        .map((f) => ({
-          name: String((f.properties as { name?: string })?.name ?? 'Rua'),
-          color: String((f.properties as { microareaColor?: string })?.microareaColor ?? '#888888'),
-          coordinates: (f.geometry as GeoJSON.LineString).coordinates as [number, number][],
-        }));
-      const title = String((fc as { metadata?: { name?: string } }).metadata?.name ?? 'SIGAPS');
-      const svg = streetsToSvg(features, title);
-      downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), 'sigaps-ruas.svg');
-      setExportError(null);
-      setAnchorEl(null);
-    } catch (err) {
-      setExportError(getApiErrorMessage(err, 'Não foi possível exportar o SVG.'));
-    }
-  };
-
-  const handleExportMicroareas = async () => {
-    if (!municipalityId) return;
-    try {
-      const res = await geoApi.exportMicroareas(municipalityId);
-      downloadBlob(
-        new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/geo+json' }),
-        'sigaps-microareas.geojson',
-      );
-      setExportError(null);
-      setAnchorEl(null);
-    } catch (err) {
-      setExportError(getApiErrorMessage(err, 'Não foi possível exportar as microáreas.'));
+      setExportError(getApiErrorMessage(err, fallback));
     }
   };
 
@@ -262,21 +224,39 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
 
   return (
     <>
-      <Tooltip title="Exportar mapa e importar arquivos">
+      {/* O PDF fica à vista (antes estava no fim do menu Arquivos e ninguém achava). */}
+      <Tooltip title="Gerar o mapa oficial em PDF (A4/A3) para imprimir">
         <Button
           size="small"
-          variant="outlined"
-          color="inherit"
-          aria-label="Arquivos"
-          onClick={(e) => setAnchorEl(e.currentTarget)}
-          startIcon={<FolderOpen fontSize="small" />}
-          sx={{ minWidth: 0, px: 1.25, borderColor: 'divider', '& .MuiButton-startIcon': { mr: { xs: 0, md: 0.75 } } }}
+          variant="contained"
+          color="primary"
+          aria-label="Gerar PDF"
+          data-testid="map-generate-pdf"
+          onClick={openPdf}
+          startIcon={<PictureAsPdf fontSize="small" />}
+          sx={{ minWidth: 0, px: 1.25, whiteSpace: 'nowrap', fontWeight: 700 }}
         >
-          <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>
-            Arquivos
-          </Box>
+          <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>PDF</Box>
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Gerar PDF</Box>
         </Button>
       </Tooltip>
+      {!paintMode && (
+        <Tooltip title="Imagens, arquivos do mapa e importação">
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            aria-label="Arquivos"
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+            startIcon={<FolderOpen fontSize="small" />}
+            sx={{ minWidth: 0, px: 1.25, borderColor: 'divider', '& .MuiButton-startIcon': { mr: { xs: 0, md: 0.75 } } }}
+          >
+            <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>
+              Arquivos
+            </Box>
+          </Button>
+        </Tooltip>
+      )}
       {exportError && (
         <Alert severity="error" sx={{ mt: 1 }} onClose={() => setExportError(null)}>
           {exportError}
@@ -284,57 +264,14 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
       )}
       <Menu anchorEl={anchorEl} open={!!anchorEl} onClose={() => setAnchorEl(null)}>
         <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
-          Importar
-        </Typography>
-        <MenuItem onClick={() => openImport('geojson')}>
-          <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Ruas de outro sistema" secondary="Formato GeoJSON" />
-        </MenuItem>
-        <MenuItem onClick={() => openImport('kml')}>
-          <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Mapa do Google Earth / QGIS" secondary="Formato KML" />
-        </MenuItem>
-        <MenuItem onClick={() => openImport('csv')}>
-          <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Planilha de ruas" secondary="Formato CSV" />
-        </MenuItem>
-        <MenuItem onClick={() => openImport('shapefile')}>
-          <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Shapefile (.zip)" secondary="QGIS / ArcGIS (.shp/.dbf/.shx)" />
-        </MenuItem>
-        {onImportFamilies && (
-          <MenuItem
-            onClick={() => {
-              setAnchorEl(null);
-              onImportFamilies();
-            }}
-          >
-            <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
-            <ListItemText
-              primary="Famílias e habitantes"
-              secondary="CSV: rua;familias;habitantes"
-            />
-          </MenuItem>
-        )}
-        <Divider />
-        <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
           Exportar / salvar
         </Typography>
-        <MenuItem onClick={handleExportStreets}>
-          <ListItemIcon><Download fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Lista de ruas" secondary="Arquivo GeoJSON" />
-        </MenuItem>
-        <MenuItem onClick={handleExportKml}>
-          <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Ruas (KML)" secondary="Google Earth / QGIS" />
-        </MenuItem>
-        <MenuItem onClick={handleExportSvg}>
-          <ListItemIcon><Image fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Ruas (SVG)" secondary="Vetorial leve para impressão" />
-        </MenuItem>
-        <MenuItem onClick={handleExportMicroareas}>
-          <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>
-          <ListItemText primary="Microáreas" secondary="Arquivo GeoJSON" />
+        <MenuItem onClick={openPdf}>
+          <ListItemIcon><PictureAsPdf fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText
+            primary="Mapa oficial (PDF)"
+            secondary="A4/A3 com legenda, escala e QR Code"
+          />
         </MenuItem>
         <MenuItem onClick={handleExportPng}>
           <ListItemIcon><Image fontSize="small" /></ListItemIcon>
@@ -344,18 +281,59 @@ export function MapExportMenu({ mapContainerRef, microareas, onImportFamilies }:
           <ListItemIcon><Image fontSize="small" /></ListItemIcon>
           <ListItemText primary="Imagem JPEG" secondary="Arquivo menor para compartilhar" />
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setAnchorEl(null);
-            setPdfOpen(true);
-          }}
-        >
-          <ListItemIcon><PictureAsPdf fontSize="small" /></ListItemIcon>
-          <ListItemText
-            primary="Mapa oficial (PDF)"
-            secondary="A4/A3 com legenda, escala e QR Code"
-          />
+        <MenuItem onClick={() => void runExport(downloadStreetsGeoJson, 'Não foi possível exportar as ruas.')}>
+          <ListItemIcon><Download fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Lista de ruas" secondary="Arquivo GeoJSON" />
         </MenuItem>
+        <MenuItem onClick={() => void runExport(downloadStreetsKml, 'Não foi possível exportar o KML.')}>
+          <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Ruas (KML)" secondary="Google Earth / QGIS" />
+        </MenuItem>
+        <MenuItem onClick={() => void runExport(downloadStreetsSvg, 'Não foi possível exportar o SVG.')}>
+          <ListItemIcon><Image fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Ruas (SVG)" secondary="Vetorial leve para impressão" />
+        </MenuItem>
+        <MenuItem onClick={() => void runExport(downloadMicroareasGeoJson, 'Não foi possível exportar as microáreas.')}>
+          <ListItemIcon><MapIcon fontSize="small" /></ListItemIcon>
+          <ListItemText primary="Microáreas" secondary="Arquivo GeoJSON" />
+        </MenuItem>
+        {canImport && [
+          <Divider key="import-divider" />,
+          <Typography key="import-title" variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
+            Importar
+          </Typography>,
+          <MenuItem key="import-geojson" onClick={() => openImport('geojson')}>
+            <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Ruas de outro sistema" secondary="Formato GeoJSON" />
+          </MenuItem>,
+          <MenuItem key="import-kml" onClick={() => openImport('kml')}>
+            <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Mapa do Google Earth / QGIS" secondary="Formato KML" />
+          </MenuItem>,
+          <MenuItem key="import-csv" onClick={() => openImport('csv')}>
+            <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Planilha de ruas" secondary="Formato CSV" />
+          </MenuItem>,
+          <MenuItem key="import-shapefile" onClick={() => openImport('shapefile')}>
+            <ListItemIcon><Upload fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Shapefile (.zip)" secondary="QGIS / ArcGIS (.shp/.dbf/.shx)" />
+          </MenuItem>,
+          onImportFamilies && (
+            <MenuItem
+              key="import-families"
+              onClick={() => {
+                setAnchorEl(null);
+                onImportFamilies();
+              }}
+            >
+              <ListItemIcon><TableChart fontSize="small" /></ListItemIcon>
+              <ListItemText
+                primary="Famílias e habitantes"
+                secondary="CSV: rua;familias;habitantes"
+              />
+            </MenuItem>
+          ),
+        ]}
       </Menu>
 
       <input

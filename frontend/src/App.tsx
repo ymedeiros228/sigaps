@@ -28,6 +28,9 @@ const EquipePage = lazy(() =>
 const AdminPage = lazy(() =>
   import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })),
 );
+const DocumentosPage = lazy(() =>
+  import('./pages/DocumentosPage').then((m) => ({ default: m.DocumentosPage })),
+);
 
 import { ensureDevAdminAuth, isDevAutoLoginEnabled } from './constants/devAuth';
 import { cloudQueryRetryDelay, shouldRetryCloudQuery } from './utils/queryRetry';
@@ -123,6 +126,16 @@ function AppRoutes() {
             <ErrorBoundary title="Erro ao abrir a equipe">
               <Suspense fallback={<PageSkeleton />}>
                 <EquipePage />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/documentos"
+          element={
+            <ErrorBoundary title="Erro ao abrir os documentos">
+              <Suspense fallback={<PageSkeleton />}>
+                <DocumentosPage />
               </Suspense>
             </ErrorBoundary>
           }

@@ -613,7 +613,8 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   pdf.setLineWidth(0.35);
   pdf.line(margin, metaY - 2, pageW - margin, metaY - 2);
 
-  const qrUrl = 'https://sigaps-api.onrender.com';
+  // O QR leva ao próprio site (endereço de onde o PDF foi gerado), não a um servidor fixo.
+  const qrUrl = window.location.origin;
   const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 120 });
   const qrSize = isA3 ? 14 : 12;
   pdf.addImage(qrDataUrl, 'PNG', pageW - margin - qrSize, metaY - 1, qrSize, qrSize);

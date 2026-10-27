@@ -25,6 +25,7 @@ import {
   HelpOutlined,
   AdminPanelSettings,
   Groups,
+  Description,
 } from '@mui/icons-material';
 import { BuildVersion } from '../common/BuildVersion';
 import { useAppDataPrefetch } from '../../hooks/useAppDataPrefetch';
@@ -47,6 +48,7 @@ const DRAWER_WIDTH = 260;
 const baseNavItems = [
   { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
   { label: 'Pintar Mapa', path: '/mapa', icon: <MapIcon /> },
+  { label: 'Documentos', path: '/documentos', icon: <Description /> },
   { label: 'Cadastros', path: '/cadastros', icon: <ListAlt /> },
   { label: 'Ajuda', path: '/ajuda', icon: <HelpOutlined /> },
 ];
@@ -76,13 +78,14 @@ export function AppLayout() {
     if (isAcs) {
       return [
         { label: 'Minha microárea', path: '/mapa', icon: <MapIcon /> },
+        { label: 'Documentos', path: '/documentos', icon: <Description /> },
         { label: 'Ajuda', path: '/ajuda', icon: <HelpOutlined /> },
       ];
     }
     const items = [...baseNavItems];
     if (canManageTeam(accessRole(user))) {
-      // Antes da Ajuda: Dashboard, Mapa, Cadastros, Equipe, Ajuda.
-      items.splice(3, 0, { label: 'Equipe', path: '/equipe', icon: <Groups /> });
+      // Antes da Ajuda: Dashboard, Mapa, Documentos, Cadastros, Equipe, Ajuda.
+      items.splice(4, 0, { label: 'Equipe', path: '/equipe', icon: <Groups /> });
     }
     if (isAdmin) {
       items.push({

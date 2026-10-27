@@ -266,13 +266,12 @@ export function MapToolbar({
           </Button>
         )}
 
-        {!paintMode && (
-          <MapExportMenu
-            mapContainerRef={mapContainerRef}
-            microareas={microareas}
-            onImportFamilies={onImportFamilies}
-          />
-        )}
+        <MapExportMenu
+          mapContainerRef={mapContainerRef}
+          microareas={microareas}
+          onImportFamilies={onImportFamilies}
+          paintMode={paintMode}
+        />
 
         <Tooltip title="Camadas e fundo do mapa">
           <Button
