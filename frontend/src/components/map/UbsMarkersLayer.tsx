@@ -39,8 +39,10 @@ interface UbsMarkersLayerProps {
 export function UbsMarkersLayer({ ubsList }: UbsMarkersLayerProps) {
   const showUbs = useMapStore((s) => s.showUbsMarkers);
   const paintMode = useMapStore((s) => s.paintMode);
+  // Na foto do PDF as UBS saem com nome, pela camada do PDF.
+  const pdfCapture = useMapStore((s) => s.pdfCapture);
 
-  if (!showUbs || paintMode || ubsList.length === 0) return null;
+  if (!showUbs || paintMode || pdfCapture || ubsList.length === 0) return null;
 
   return (
     <>

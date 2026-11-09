@@ -3,6 +3,19 @@ import type { Microarea, PaintScope, PaintStreetSide, User } from '../services/a
 import { syncApiToken } from '../services/api';
 import { DEV_LOGIN } from '../constants/devAuth';
 import { lineStringBounds, lineStringCentroid, boundsFromLineStrings } from '../utils/geo';
+import type { ReferencePoint } from '../utils/osmReferencePoints';
+import type { OtherPlacesMode, PlaceLabelMode } from '../utils/pdfMapSettings';
+
+/** Como as camadas se desenham enquanto o mapa é fotografado para o PDF (null = uso normal). */
+export interface PdfCaptureView {
+  /** Microáreas do recorte: povoados delas ganham destaque. */
+  microareaIds: string[];
+  placeLabels: PlaceLabelMode;
+  otherPlaces: OtherPlacesMode;
+  /** Fator de tamanho dos nomes. */
+  labelScale: number;
+  referencePoints: ReferencePoint[];
+}
 
 export const ACTIVE_MUNICIPALITY_KEY = 'sigaps_active_municipality';
 
@@ -125,6 +138,8 @@ interface MapState {
   focusOnLine: (geojson: GeoJSON.LineString, zoom?: number) => void;
   focusOnLines: (geojsons: GeoJSON.LineString[], zoom?: number, options?: { even?: boolean }) => void;
   clearMapFly: () => void;
+  pdfCapture: PdfCaptureView | null;
+  setPdfCapture: (view: PdfCaptureView | null) => void;
 }
 
 interface AuthState {
@@ -322,6 +337,8 @@ export const useMapStore = create<MapState>((set, get) => ({
     }));
   },
   clearMapFly: () => set({ mapFlyTarget: null }),
+  pdfCapture: null,
+  setPdfCapture: (view) => set({ pdfCapture: view }),
 }));
 
 export const useAppStore = create<AppState>((set) => ({

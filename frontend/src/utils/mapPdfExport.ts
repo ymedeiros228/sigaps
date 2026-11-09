@@ -27,6 +27,16 @@ export interface OfficialMapPdfInput {
   neighborhoodName?: string;
   ubsList?: Array<{ name: string; address: string }>;
   includeSignatures?: boolean;
+  /** Título da folha (vazio = padrão). */
+  title?: string;
+  /** Linha extra abaixo do título (ex.: "Zona rural — Faveira"). */
+  subtitle?: string;
+  /** Quadro de microáreas e lista de ruas nas folhas seguintes (padrão: sim). */
+  includeAnnex?: boolean;
+  /** Símbolos extras da legenda (povoados, pontos de referência). */
+  extraLegend?: LegendSymbol[];
+  /** Itens de legenda usados na diagramação (tem de bater com o usado na captura). */
+  layoutLegendCount?: number;
   homologation?: {
     at: string;
     by: string;
@@ -35,6 +45,13 @@ export interface OfficialMapPdfInput {
 }
 
 type RGB = [number, number, number];
+
+/** Símbolo redondo da legenda (povoado, UBS, escola…). */
+export interface LegendSymbol {
+  color: string;
+  glyph: string;
+  text: string;
+}
 
 type MicroareaRow = {
   microarea: Microarea;
@@ -109,8 +126,13 @@ function computeLayout(format: PdfFormat, legendItems: number, includeSignatures
 }
 
 /** Proporção (largura/altura) da janela do mapa na folha; a captura enquadra as ruas nela. */
-export function officialMapBoxRatio(format: PdfFormat, microareaCount: number, includeSignatures: boolean): number {
-  const l = computeLayout(format, microareaCount + 1, includeSignatures);
+export function officialMapBoxRatio(
+  format: PdfFormat,
+  microareaCount: number,
+  includeSignatures: boolean,
+  extraLegendCount = 0,
+): number {
+  const l = computeLayout(format, microareaCount + 1 + extraLegendCount, includeSignatures);
   return l.mapW / l.mapH;
 }
 
@@ -300,18 +322,25 @@ function drawNorthArrow(pdf: jsPDF, x: number, y: number, size: number) {
   pdf.text('N', cx, y + size * 0.3, { align: 'center' });
 }
 
-function drawLegendStrip(pdf: jsPDF, l: Layout, rows: MicroareaRow[], metersPerMm: number | null) {
+function drawLegendStrip(
+  pdf: jsPDF,
+  l: Layout,
+  rows: MicroareaRow[],
+  metersPerMm: number | null,
+  extra: LegendSymbol[] = [],
+) {
   const { isA3, mapX, stripY, legendCols, legendLines, legendLineH, legendW } = l;
 
   setText(pdf, BRAND, isA3 ? 7 : 6.3, 'bold');
   pdf.text('LEGENDA', mapX, stripY + 3);
 
   const capacity = legendCols * legendLines;
-  const items: Array<{ color: RGB; text: string; dashed?: boolean }> = rows.map((r) => ({
+  const items: Array<{ color: RGB; text: string; dashed?: boolean; glyph?: string }> = rows.map((r) => ({
     color: hexToRgb(r.microarea.color),
     text: r.microarea.acs?.name ? `${r.microarea.name} · ${r.microarea.acs.name}` : r.microarea.name,
   }));
   items.push({ color: UNPAINTED, text: 'Rua sem microárea', dashed: true });
+  extra.forEach((e) => items.push({ color: hexToRgb(e.color), text: e.text, glyph: e.glyph }));
   let shown = items;
   if (items.length > capacity) {
     shown = items.slice(0, capacity - 1);
@@ -327,7 +356,18 @@ function drawLegendStrip(pdf: jsPDF, l: Layout, rows: MicroareaRow[], metersPerM
     const x = mapX + col * chipW;
     const y = stripY + 5.5 + line * legendLineH;
     const isMore = item.text.startsWith('+ ');
-    if (!isMore) {
+    if (!isMore && item.glyph !== undefined) {
+      // Símbolo redondo, como no mapa
+      const r = isA3 ? 1.9 : 1.6;
+      pdf.setFillColor(item.color[0], item.color[1], item.color[2]);
+      pdf.setDrawColor(255, 255, 255);
+      pdf.setLineWidth(0.3);
+      pdf.circle(x + swatchW / 2, y + 1.6, r, 'FD');
+      setText(pdf, [255, 255, 255], isA3 ? 5 : 4.4, 'bold');
+      // Helvetica não tem ⌂/✝/♣: no PDF a bolinha leva só a cor, a letra fica para E/+/$.
+      if (/^[A-Z+$]$/.test(item.glyph)) pdf.text(item.glyph, x + swatchW / 2, y + 2.3, { align: 'center' });
+      setText(pdf, INK, isA3 ? 6.6 : 5.9);
+    } else if (!isMore) {
       pdf.setDrawColor(item.color[0], item.color[1], item.color[2]);
       pdf.setLineWidth(isA3 ? 1.1 : 0.95);
       if (item.dashed) pdf.setLineDashPattern([0.8, 0.6], 0);
@@ -634,17 +674,22 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
     streets,
     neighborhoodName,
     includeSignatures = true,
+    includeAnnex = true,
+    extraLegend = [],
   } = input;
 
   const rows = buildMicroareaRows(microareas, streets);
-  const l = computeLayout(format, rows.length + 1, includeSignatures);
+  const l = computeLayout(format, input.layoutLegendCount ?? rows.length + 1 + extraLegend.length, includeSignatures);
   const { isA3, pageW, pageH, margin, headerH } = l;
 
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format });
-  const docTitle = neighborhoodName
-    ? `Mapa de microáreas — ${neighborhoodName}`
-    : 'Mapa oficial de microáreas — APS';
+  const customTitle = input.title?.trim();
+  const docTitle = customTitle
+    ? customTitle
+    : neighborhoodName
+      ? `Mapa de microáreas — ${neighborhoodName}`
+      : 'Mapa oficial de microáreas — APS';
   pdf.setProperties({
     title: `${docTitle} · ${municipality.name}/${municipality.state}`,
     subject: 'Territorialização da Atenção Primária à Saúde',
@@ -674,9 +719,16 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
     }
   }
   setText(pdf, [255, 255, 255], isA3 ? 17 : 14, 'bold');
-  pdf.text(neighborhoodName ? `MAPA DE MICROÁREAS — ${neighborhoodName.toUpperCase()}` : 'MAPA OFICIAL DE MICROÁREAS — APS', titleX, headerH * 0.47);
+  const titleMaxW = pageW - titleX - margin - (isA3 ? 95 : 75);
+  pdf.text(truncate(pdf, docTitle.toUpperCase(), titleMaxW), titleX, headerH * 0.47);
   setText(pdf, [214, 232, 222], isA3 ? 10 : 8.6);
-  pdf.text(`${municipality.name} — ${municipality.state}  ·  ${municipality.prefecture}`, titleX, headerH * 0.47 + (isA3 ? 7 : 5.8));
+  const subtitle = input.subtitle?.trim();
+  const placeLine = `${municipality.name} — ${municipality.state}  ·  ${municipality.prefecture}`;
+  pdf.text(
+    truncate(pdf, subtitle ? `${subtitle}  ·  ${placeLine}` : placeLine, titleMaxW),
+    titleX,
+    headerH * 0.47 + (isA3 ? 7 : 5.8),
+  );
 
   const rightX = pageW - margin;
   setText(pdf, [255, 255, 255], isA3 ? 9.5 : 8.2, 'bold');
@@ -705,7 +757,7 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   const metersPerMm = mapMetersPerPixel && srcW > 0 ? (mapMetersPerPixel * srcW) / l.mapW : null;
 
   if (rows.length > 0) {
-    drawLegendStrip(pdf, l, rows, metersPerMm);
+    drawLegendStrip(pdf, l, rows, metersPerMm, extraLegend);
   } else {
     setText(pdf, MUTED, isA3 ? 8 : 7.2, 'italic');
     pdf.text('Nenhuma rua pintada ainda: pinte as ruas das microáreas no mapa.', l.mapX, l.stripY + 4);
@@ -717,7 +769,7 @@ export async function generateOfficialMapPdf(input: OfficialMapPdfInput): Promis
   await drawMeta(pdf, l, input);
 
   // Anexos
-  if (rows.length > 0) {
+  if (includeAnnex && rows.length > 0) {
     const flow: Flow = { pdf, isA3, margin, pageW, pageH, y: 0, maxY: pageH - margin - 4 };
     const place = `${municipality.name} — ${municipality.state}${neighborhoodName ? ` · ${neighborhoodName}` : ''}`;
     newAnnexPage(flow, 'QUADRO DE MICROÁREAS', `${place} · ${rows.length} microáreas com ruas pintadas`);

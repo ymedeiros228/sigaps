@@ -33,6 +33,8 @@ import { DivisionMapClickHandler } from './DivisionMapClickHandler';
 import { MapEmptyState } from './MapEmptyState';
 import { SelectionBar } from './SelectionBar';
 import { UbsMarkersLayer } from './UbsMarkersLayer';
+import { MapInstanceBridge } from './MapInstanceBridge';
+import { PdfReferencePointsLayer } from './PdfReferencePointsLayer';
 import { PlacesMarkersLayer } from './PlacesMarkersLayer';
 import { FamilyBulkImportDialog } from './FamilyBulkImportDialog';
 import { getApiErrorMessage, isConflictError, getConflictMessage } from '../../utils/apiError';
@@ -1812,6 +1814,7 @@ export function SigapsMap() {
           <DivisionMapClickHandler />
           <ZoomControl position="bottomright" />
           <MapCenterController />
+          <MapInstanceBridge />
           <MapTileLayerController layerId={baseLayer} />
           <ScaleControl imperial={false} />
           {(paintZones.length > 0 || divisionDraft) && !paintMode && (
@@ -1836,6 +1839,7 @@ export function SigapsMap() {
             onPaintPlace={handlePaintPlace}
             onUnpaintPlace={handleUnpaintPlace}
           />
+          <PdfReferencePointsLayer ubsList={ubsList} />
         </LeafletMap>
 
       {selectedStreet && !paintMode && (
