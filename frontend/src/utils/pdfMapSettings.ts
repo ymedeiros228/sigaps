@@ -106,6 +106,17 @@ export function streetInMicroareas(s: Street, ids: Set<string>): boolean {
   return s.paintSegments?.some((seg) => !!seg.microareaId && ids.has(seg.microareaId)) ?? false;
 }
 
+/**
+ * Só o que está pintado da rua nas microáreas do recorte. Uma estrada de 9 km com um
+ * trecho pintado conta pelo trecho: a estrada inteira esticaria o enquadramento do PDF.
+ */
+export function paintedLinesOfStreet(s: Street, ids: Set<string>): GeoJSON.LineString[] {
+  if (s.microareaId && ids.has(s.microareaId) && s.geojson) return [s.geojson];
+  return (s.paintSegments ?? [])
+    .filter((seg) => ids.has(seg.microareaId) && seg.geojson)
+    .map((seg) => seg.geojson);
+}
+
 /** Microáreas que aparecem nas ruas do recorte. */
 export function microareaIdsOfStreets(streets: Street[]): Set<string> {
   const ids = new Set<string>();
@@ -143,6 +154,6 @@ export function detectAreaKind(
   microareaIds: Set<string>,
 ): 'rural' | 'urbana' {
   if (places.some((p) => p.microareaId && microareaIds.has(p.microareaId))) return 'rural';
-  const lines = streets.filter((s) => s.geojson).map((s) => s.geojson!);
+  const lines = streets.flatMap((s) => paintedLinesOfStreet(s, microareaIds));
   return diagonalKm(lines) > 4 ? 'rural' : 'urbana';
 }

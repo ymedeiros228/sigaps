@@ -74,6 +74,7 @@ import {
   MARGIN_PX,
   REFERENCE_CATEGORIES,
   detectAreaKind,
+  paintedLinesOfStreet,
   isStreetPainted,
   loadPdfSettings,
   microareaIdsOfStreets,
@@ -354,9 +355,10 @@ export function MapPdfDialog({
     if (showReferences && settings.referenceCategories.length > 0) {
       let s = 90, w = 180, n = -90, e = -180;
       for (const st of scope.painted)
-        for (const [lng, lat] of st.geojson!.coordinates) {
-          s = Math.min(s, lat); n = Math.max(n, lat); w = Math.min(w, lng); e = Math.max(e, lng);
-        }
+        for (const line of paintedLinesOfStreet(st, scope.ids))
+          for (const [lng, lat] of line.coordinates) {
+            s = Math.min(s, lat); n = Math.max(n, lat); w = Math.min(w, lng); e = Math.max(e, lng);
+          }
       for (const p of scope.scopedPlaces) {
         s = Math.min(s, p.latitude); n = Math.max(n, p.latitude); w = Math.min(w, p.longitude); e = Math.max(e, p.longitude);
       }
@@ -428,8 +430,15 @@ export function MapPdfDialog({
       let bounds: L.LatLngBounds | null = null;
       if (settings.framing === 'auto') {
         const pts: L.LatLngExpression[] = [];
-        for (const s of scope.painted) for (const [lng, lat] of s.geojson!.coordinates) pts.push([lat, lng]);
-        for (const p of scope.scopedPlaces) pts.push([p.latitude, p.longitude]);
+        for (const s of scope.painted) {
+          for (const line of paintedLinesOfStreet(s, scope.ids)) {
+            for (const [lng, lat] of line.coordinates) pts.push([lat, lng]);
+          }
+        }
+        // Na zona urbana, povoado ligado à microárea não pode abrir o mapa até a estrada.
+        if (areaKind === 'rural') {
+          for (const p of scope.scopedPlaces) pts.push([p.latitude, p.longitude]);
+        }
         if (pts.length > 0) bounds = L.latLngBounds(pts);
         else setNotice('Nada pintado neste recorte: usei o enquadramento que está na tela.');
       }
