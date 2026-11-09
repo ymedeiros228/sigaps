@@ -16,12 +16,12 @@ const seg = (microareaId: string, km: number) => ({ microareaId, geojson: line(k
 
 describe('paintedLinesOfStreet', () => {
   it('estrada longa com um trecho pintado conta só o trecho', () => {
-    const s = street({ microareaId: null, paintSegments: [seg('a', 0.1)] as never });
+    const s = street({ microareaId: undefined, paintSegments: [seg('a', 0.1)] as never });
     expect(paintedLinesOfStreet(s, new Set(['a']))).toEqual([line(0.1)]);
   });
 
   it('trecho de microárea fora do recorte não entra', () => {
-    const s = street({ microareaId: null, paintSegments: [seg('b', 0.1)] as never });
+    const s = street({ microareaId: undefined, paintSegments: [seg('b', 0.1)] as never });
     expect(paintedLinesOfStreet(s, new Set(['a']))).toEqual([]);
   });
 
@@ -33,7 +33,7 @@ describe('paintedLinesOfStreet', () => {
 
 describe('detectAreaKind', () => {
   it('trecho pequeno de estrada longa continua urbano', () => {
-    const s = street({ microareaId: null, paintSegments: [seg('a', 0.1)] as never });
+    const s = street({ microareaId: undefined, paintSegments: [seg('a', 0.1)] as never });
     expect(detectAreaKind([s], [], new Set(['a']))).toBe('urbana');
   });
 
