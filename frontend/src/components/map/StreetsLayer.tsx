@@ -190,6 +190,9 @@ function StreetsLayerComponent({
   const selectedMicroareaId = useMapStore((s) => s.selectedMicroareaId);
   const showEnvelopes = useMapStore((s) => s.showEnvelopes);
   const showHeatmap = useMapStore((s) => s.showHeatmap);
+  // PDF de um recorte: as ruas das outras microáreas saem apagadas.
+  const pdfFocusColors = useMapStore((s) => s.pdfCapture?.focusColors ?? null);
+  const pdfFocusKey = pdfFocusColors ? pdfFocusColors.join(',') : '';
   const microareas = useAppStore((s) => s.microareas);
   const paintStreetSide = useMapStore((s) => s.paintStreetSide);
   const paintScope = useMapStore((s) => s.paintScope);
@@ -854,6 +857,15 @@ function StreetsLayerComponent({
         dragPending: boolean;
       };
       const color = props?.dragPending ? activeColor : props?.color ?? activeColor;
+      if (pdfFocusColors && !pdfFocusColors.includes(color.toLowerCase())) {
+        return {
+          color: '#9aa5ad',
+          weight: Math.max(2, paintWeightForZoom(zoom) * 0.6),
+          opacity: 0.5,
+          lineCap: 'butt',
+          lineJoin: 'round',
+        };
+      }
       const emphasis = props?.highlighted || props?.selected || props?.dragPending;
       return {
         color,
@@ -866,7 +878,7 @@ function StreetsLayerComponent({
         lineJoin: 'round',
       };
     },
-    [activeColor, showHeatmap, eraserMode, zoom],
+    [activeColor, showHeatmap, eraserMode, zoom, pdfFocusColors],
   );
 
   const dragPreviewStyle = useCallback(
@@ -1236,7 +1248,7 @@ function StreetsLayerComponent({
     const toLatLngs = (geom: GeoJSON.LineString) =>
       (geom.coordinates as [number, number][]).map(([lng, lat]) => L.latLng(lat, lng));
     const nonInteractive = { interactive: false as const };
-    const styleKey = `${activeColor}|${eraserMode ? 1 : 0}|${onSatellite ? 1 : 0}|${streetZoomBucket(zoom)}`;
+    const styleKey = `${activeColor}|${eraserMode ? 1 : 0}|${onSatellite ? 1 : 0}|${streetZoomBucket(zoom)}|${pdfFocusKey}`;
     const visible = visibleStreetIdsRef.current;
     const streetState = streetFeatureStateRef.current;
 

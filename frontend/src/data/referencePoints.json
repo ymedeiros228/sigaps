@@ -1,0 +1,411 @@
+{
+ "bbox": [
+  -6.4,
+  -44,
+  -5.94,
+  -43.52
+ ],
+ "generatedAt": "2026-11-09T16:22:25.661Z",
+ "source": "OpenStreetMap (ODbL)",
+ "points": [
+  {
+   "id": "node/8721809521",
+   "name": "Centro de Educação Agnus Dei",
+   "lat": -6.178732,
+   "lng": -43.780543,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721785754",
+   "name": "Centro de Educação Portal do Saber",
+   "lat": -6.175834,
+   "lng": -43.776557,
+   "category": "escola"
+  },
+  {
+   "id": "way/944018379",
+   "name": "Centro de Ensino Porto do Saber",
+   "lat": -6.056925,
+   "lng": -43.528544,
+   "category": "escola"
+  },
+  {
+   "id": "node/8432467068",
+   "name": "Centro de Ensino Professora Zuleica Santos",
+   "lat": -6.006889,
+   "lng": -43.886362,
+   "category": "escola"
+  },
+  {
+   "id": "way/944020867",
+   "name": "Centro de Ensino Senador José Neiva",
+   "lat": -6.049525,
+   "lng": -43.524282,
+   "category": "escola"
+  },
+  {
+   "id": "way/938180325",
+   "name": "Centro Educa Mais Antônio Reinaldo Porto",
+   "lat": -6.181985,
+   "lng": -43.778298,
+   "category": "escola"
+  },
+  {
+   "id": "node/8740369242",
+   "name": "CM Tia Diva Albuquerque",
+   "lat": -6.048062,
+   "lng": -43.526759,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721828530",
+   "name": "Creche Jacy Saraiva da Silva Santos",
+   "lat": -6.179828,
+   "lng": -43.777255,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656382",
+   "name": "Creche Maria de Jesus Calixta",
+   "lat": -6.180996,
+   "lng": -43.791713,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656380",
+   "name": "Creche Mário Fernandes de Oliveira",
+   "lat": -6.189021,
+   "lng": -43.780161,
+   "category": "escola"
+  },
+  {
+   "id": "way/506427477",
+   "name": "EM 19 de Novembro",
+   "lat": -6.003383,
+   "lng": -43.830377,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656379",
+   "name": "EM Afonso Costa",
+   "lat": -6.173002,
+   "lng": -43.776936,
+   "category": "escola"
+  },
+  {
+   "id": "node/8740766094",
+   "name": "EM Anália Rocha",
+   "lat": -6.048005,
+   "lng": -43.527216,
+   "category": "escola"
+  },
+  {
+   "id": "node/8432350813",
+   "name": "EM Anísio Alves da Silva",
+   "lat": -5.976783,
+   "lng": -43.829155,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721703738",
+   "name": "EM Cel. Germano Cardoso Silva",
+   "lat": -6.193417,
+   "lng": -43.779616,
+   "category": "escola"
+  },
+  {
+   "id": "way/941824993",
+   "name": "EM Coração de Jesus",
+   "lat": -6.043895,
+   "lng": -43.90998,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721749903",
+   "name": "EM Duque de Caxias",
+   "lat": -6.197704,
+   "lng": -43.923723,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721701095",
+   "name": "EM Gonçalo Moreira Lima",
+   "lat": -6.158485,
+   "lng": -43.924532,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721826206",
+   "name": "EM Imaculada Conceição",
+   "lat": -6.176241,
+   "lng": -43.883231,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721781203",
+   "name": "EM Luís Marques",
+   "lat": -6.094669,
+   "lng": -43.766879,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721817732",
+   "name": "EM Luiza Fernandes",
+   "lat": -6.290136,
+   "lng": -43.924671,
+   "category": "escola"
+  },
+  {
+   "id": "node/8707916361",
+   "name": "EM Manoel Dias",
+   "lat": -6.261226,
+   "lng": -43.667896,
+   "category": "escola"
+  },
+  {
+   "id": "way/941824794",
+   "name": "Em Manoel Raimundo Ferreira Dias",
+   "lat": -6.091645,
+   "lng": -43.637069,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721739377",
+   "name": "EM Maranhense Educacional",
+   "lat": -6.229243,
+   "lng": -43.613014,
+   "category": "escola"
+  },
+  {
+   "id": "node/8429461215",
+   "name": "EM Ministro Mário Andreazza",
+   "lat": -6.006971,
+   "lng": -43.886421,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721776604",
+   "name": "EM Nossa Senhora do Perpetuo Socorro",
+   "lat": -6.047043,
+   "lng": -43.652198,
+   "category": "escola"
+  },
+  {
+   "id": "way/941817227",
+   "name": "EM Nsa. Sra. das Graças",
+   "lat": -6.268568,
+   "lng": -43.939602,
+   "category": "escola"
+  },
+  {
+   "id": "node/13396846016",
+   "name": "EM Odimar Bandeira de Carvalho",
+   "lat": -6.37616,
+   "lng": -43.704779,
+   "category": "escola"
+  },
+  {
+   "id": "node/13396846017",
+   "name": "EM Profª. Ana Rosa Barbosa de Sousa",
+   "lat": -6.389459,
+   "lng": -43.631854,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656381",
+   "name": "EM Professor Raimundo Masculo Saraiva da Silva",
+   "lat": -6.181122,
+   "lng": -43.793655,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656436",
+   "name": "EM Raimundo Diogo",
+   "lat": -6.07559,
+   "lng": -43.909042,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721715283",
+   "name": "EM Raimundo Veríssimo",
+   "lat": -6.006821,
+   "lng": -43.884784,
+   "category": "escola"
+  },
+  {
+   "id": "node/8432322929",
+   "name": "EM São Raimundo",
+   "lat": -5.958938,
+   "lng": -43.936535,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721825776",
+   "name": "Escola Municipal Isabel Cristina Porto",
+   "lat": -6.182876,
+   "lng": -43.776481,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721861204",
+   "name": "Escola Municipal João Zidório Pereira da Costa",
+   "lat": -6.057578,
+   "lng": -43.817281,
+   "category": "escola"
+  },
+  {
+   "id": "way/941824478",
+   "name": "Escola Municipal Professora Maria José Reis",
+   "lat": -6.181574,
+   "lng": -43.784007,
+   "category": "escola"
+  },
+  {
+   "id": "way/941810265",
+   "name": "Escola Municipalizada Estado do Paraná",
+   "lat": -6.177945,
+   "lng": -43.779743,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656383",
+   "name": "Escola Municipalizada Profª. Heloísa Maria de Sousa Almeida",
+   "lat": -6.181637,
+   "lng": -43.785568,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721797184",
+   "name": "Jardim de Infância Catarina Pereira da Silva",
+   "lat": -6.182948,
+   "lng": -43.776301,
+   "category": "escola"
+  },
+  {
+   "id": "node/13396845948",
+   "name": "Jardim de Infância Farol da Alegria",
+   "lat": -6.176437,
+   "lng": -43.774906,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656384",
+   "name": "JI Tia Cloris",
+   "lat": -6.177846,
+   "lng": -43.779107,
+   "category": "escola"
+  },
+  {
+   "id": "node/8721728198",
+   "name": "Pré-Escolar Comunitária Sebastião Pereira da Costa",
+   "lat": -6.003058,
+   "lng": -43.832237,
+   "category": "escola"
+  },
+  {
+   "id": "way/949475239",
+   "name": "UE Deputado Gastão Dias Vieira",
+   "lat": -6.33027,
+   "lng": -43.94823,
+   "category": "escola"
+  },
+  {
+   "id": "way/953595156",
+   "name": "UE Domingos Tavares Silva",
+   "lat": -6.311087,
+   "lng": -43.941042,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656386",
+   "name": "UE Getúlio Vargas",
+   "lat": -6.179496,
+   "lng": -43.777038,
+   "category": "escola"
+  },
+  {
+   "id": "node/8789975412",
+   "name": "UE Henrique de La Roque",
+   "lat": -6.373934,
+   "lng": -43.997181,
+   "category": "escola"
+  },
+  {
+   "id": "way/987021351",
+   "name": "UE Jaldo Moreira",
+   "lat": -6.262269,
+   "lng": -43.97149,
+   "category": "escola"
+  },
+  {
+   "id": "node/9123336889",
+   "name": "UE Macambiral",
+   "lat": -5.991934,
+   "lng": -43.968212,
+   "category": "escola"
+  },
+  {
+   "id": "way/949475420",
+   "name": "UE Padre Constantino Vieira",
+   "lat": -6.386401,
+   "lng": -43.917876,
+   "category": "escola"
+  },
+  {
+   "id": "node/9040430576",
+   "name": "UE São João",
+   "lat": -6.137048,
+   "lng": -43.996807,
+   "category": "escola"
+  },
+  {
+   "id": "way/944021080",
+   "name": "UI Dom João VI",
+   "lat": -5.994469,
+   "lng": -43.583388,
+   "category": "escola"
+  },
+  {
+   "id": "way/987025304",
+   "name": "UI Macedo Filho",
+   "lat": -6.079317,
+   "lng": -43.966348,
+   "category": "escola"
+  },
+  {
+   "id": "way/1460656441",
+   "name": "UI Manoel Mendes Correa",
+   "lat": -6.317919,
+   "lng": -43.907027,
+   "category": "escola"
+  },
+  {
+   "id": "node/8740340968",
+   "name": "UI Senador Alexandre Costa",
+   "lat": -6.048005,
+   "lng": -43.526987,
+   "category": "escola"
+  },
+  {
+   "id": "way/775699193",
+   "name": "Praça Barão do Rio Branco",
+   "lat": -6.181702,
+   "lng": -43.78467,
+   "category": "praca"
+  },
+  {
+   "id": "way/775699194",
+   "name": "Praça Ditador Médici",
+   "lat": -6.181317,
+   "lng": -43.78342,
+   "category": "praca"
+  },
+  {
+   "id": "way/775699197",
+   "name": "Praça Getúlio Vargas",
+   "lat": -6.180506,
+   "lng": -43.783722,
+   "category": "praca"
+  }
+ ]
+}

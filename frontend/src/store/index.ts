@@ -15,6 +15,11 @@ export interface PdfCaptureView {
   /** Fator de tamanho dos nomes. */
   labelScale: number;
   referencePoints: ReferencePoint[];
+  /**
+   * Cores (minúsculas) das microáreas do recorte. Ruas pintadas de outras cores saem
+   * em cinza claro. null = todas com a própria cor.
+   */
+  focusColors: string[] | null;
 }
 
 export const ACTIVE_MUNICIPALITY_KEY = 'sigaps_active_municipality';

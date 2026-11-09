@@ -23,8 +23,28 @@ import {
   Autocomplete,
   Divider,
   Stack,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  ButtonBase,
 } from '@mui/material';
-import { Close, Download, PictureAsPdf, Print, RestartAlt } from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
+import {
+  Agriculture,
+  AutoAwesome,
+  Category,
+  CheckCircle,
+  Close,
+  CropLandscape,
+  Download,
+  ExpandMore,
+  LocationCity,
+  PictureAsPdf,
+  Print,
+  Public,
+  RestartAlt,
+  Tune,
+} from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import {
@@ -41,7 +61,12 @@ import { assetUrl } from '../../utils/assetUrl';
 import { CACHE, queryKeys } from '../../utils/queryKeys';
 import { countPaintedStreets } from '../../utils/streetPaintStats';
 import { captureMapForPdf } from '../../utils/mapPdfCapture';
-import { fetchReferencePoints, type ReferencePoint } from '../../utils/osmReferencePoints';
+import {
+  countBundledReferencePoints,
+  getReferencePoints,
+  type Bbox,
+  type ReferencePoint,
+} from '../../utils/osmReferencePoints';
 import {
   DEFAULT_PDF_SETTINGS,
   DEFAULT_TITLE,
@@ -80,6 +105,104 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
         {title}
       </Typography>
       <Stack spacing={1.5}>{children}</Stack>
+    </Box>
+  );
+}
+
+/** Passo numerado da janela: o número guia a leitura de cima para baixo. */
+function Step({ n, title, hint, children }: { n: number; title: string; hint?: string; children: ReactNode }) {
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: '32px 1fr', columnGap: 1.5 }}>
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: '50%',
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
+          display: 'grid',
+          placeItems: 'center',
+          fontWeight: 800,
+          fontSize: 14,
+          mt: 0.25,
+        }}
+      >
+        {n}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography sx={{ fontWeight: 800, fontSize: 16, lineHeight: 1.3 }}>{title}</Typography>
+        {hint && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+            {hint}
+          </Typography>
+        )}
+        <Stack spacing={1.5} sx={{ mt: hint ? 0 : 1.25 }}>
+          {children}
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
+/** Cartão de escolha: ícone, nome e uma frase do que acontece. Um clique escolhe. */
+function ChoiceCards<T extends string>({
+  value,
+  onChange,
+  options,
+  name,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  name: string;
+  options: Array<{ value: T; title: string; text: string; icon: ReactNode; badge?: string }>;
+}) {
+  return (
+    <Box
+      role="radiogroup"
+      aria-label={name}
+      sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: `repeat(${options.length}, 1fr)` }, gap: 1 }}
+    >
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <ButtonBase
+            key={o.value}
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(o.value)}
+            sx={(t) => ({
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+              textAlign: 'left',
+              gap: 1.25,
+              p: 1.5,
+              borderRadius: 2,
+              border: '2px solid',
+              borderColor: active ? t.palette.primary.main : t.palette.divider,
+              bgcolor: active ? alpha(t.palette.primary.main, 0.1) : 'transparent',
+              transition: 'border-color .15s, background-color .15s',
+              '&:hover': { borderColor: active ? t.palette.primary.main : t.palette.text.secondary },
+              '&.Mui-focusVisible': { outline: `2px solid ${t.palette.primary.main}`, outlineOffset: 2 },
+            })}
+          >
+            <Box sx={{ color: active ? 'primary.main' : 'text.secondary', mt: 0.25, display: 'flex' }}>{o.icon}</Box>
+            <Box sx={{ minWidth: 0, pr: active ? 2.5 : 0 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.3 }}>{o.title}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12.5, lineHeight: 1.35, mt: 0.25 }}>
+                {o.text}
+              </Typography>
+              {o.badge && (
+                <Chip size="small" label={o.badge} color="primary" variant="outlined" sx={{ mt: 0.75, height: 20, fontSize: 11 }} />
+              )}
+            </Box>
+            {active && (
+              <CheckCircle color="primary" sx={{ position: 'absolute', top: 8, right: 8, fontSize: 18 }} />
+            )}
+          </ButtonBase>
+        );
+      })}
     </Box>
   );
 }
@@ -215,6 +338,44 @@ export function MapPdfDialog({
   const showReferences =
     settings.references === 'sim' || (settings.references === 'auto' && areaKind === 'urbana');
 
+  // Resumo em palavras do que vai sair na folha (atualiza a cada escolha).
+  const summary = useMemo(() => {
+    const items: string[] = [settings.format === 'a3' ? 'A3 horizontal' : 'A4 horizontal'];
+    if (settings.scope === 'municipio') items.push('Município inteiro');
+    else if (settings.scope === 'bairro' && neighborhoodName) items.push(`Bairro ${neighborhoodName}`);
+    const nMicro = scope.ids.size;
+    items.push(
+      `${nMicro} ${nMicro === 1 ? 'microárea' : 'microáreas'} · ${scope.painted.length} ${scope.painted.length === 1 ? 'rua pintada' : 'ruas pintadas'}`,
+    );
+    items.push(areaKind === 'rural' ? 'Zona rural' : 'Zona urbana');
+    const namedPlaces =
+      settings.placeLabels === 'nenhum' ? 0 : settings.placeLabels === 'todos' ? places.length : scope.scopedPlaces.length;
+    if (namedPlaces > 0) items.push(`${namedPlaces} ${namedPlaces === 1 ? 'povoado' : 'povoados'} com nome`);
+    if (showReferences && settings.referenceCategories.length > 0) {
+      let s = 90, w = 180, n = -90, e = -180;
+      for (const st of scope.painted)
+        for (const [lng, lat] of st.geojson!.coordinates) {
+          s = Math.min(s, lat); n = Math.max(n, lat); w = Math.min(w, lng); e = Math.max(e, lng);
+        }
+      for (const p of scope.scopedPlaces) {
+        s = Math.min(s, p.latitude); n = Math.max(n, p.latitude); w = Math.min(w, p.longitude); e = Math.max(e, p.longitude);
+      }
+      const count = s <= n ? countBundledReferencePoints([s, w, n, e] as Bbox, settings.referenceCategories) : null;
+      items.push(
+        count == null
+          ? 'Pontos de referência (OpenStreetMap)'
+          : count === 0
+            ? 'Sem pontos de referência cadastrados aqui'
+            : `~${Math.min(count, MAX_REFERENCE_POINTS)} pontos de referência`,
+      );
+    }
+    if (ubsList.length > 0) items.push('UBS com nome');
+    if (settings.scope !== 'municipio') items.push('Outras microáreas em cinza');
+    if (settings.includeSignatures) items.push('Assinaturas');
+    if (settings.includeAnnex) items.push('Lista de ruas anexa');
+    return items;
+  }, [settings, scope, areaKind, showReferences, neighborhoodName, places, ubsList.length]);
+
   const handleGenerate = async () => {
     if (!municipality || !municipalityId) return;
     const map = getCurrentLeafletMap();
@@ -275,6 +436,12 @@ export function MapPdfDialog({
       setProgress('Enquadrando o mapa…');
 
       let refs: ReferencePoint[] = [];
+      let refSource = '';
+      // Recorte: só as microáreas escolhidas ficam coloridas; as outras saem em cinza.
+      const focusColors =
+        settings.scope === 'municipio'
+          ? null
+          : pdfMicroareas.map((m) => m.color.toLowerCase());
       const capture = await captureMapForPdf(map, {
         boxRatio,
         cssWidth: CAPTURE_CSS_WIDTH[settings.format],
@@ -284,13 +451,14 @@ export function MapPdfDialog({
         beforeCapture: async (visible) => {
           if (showReferences && settings.referenceCategories.length > 0) {
             setProgress('Buscando pontos de referência…');
-            const all = await fetchReferencePoints(
+            const found = await getReferencePoints(
               [visible.getSouth(), visible.getWest(), visible.getNorth(), visible.getEast()],
               settings.referenceCategories,
             );
+            refSource = found.source;
             // Ordem das categorias = prioridade quando há pontos demais.
             const order = REFERENCE_CATEGORIES.map((c) => c.id);
-            refs = all
+            refs = found.points
               .sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category))
               .slice(0, MAX_REFERENCE_POINTS);
           }
@@ -300,6 +468,7 @@ export function MapPdfDialog({
             otherPlaces: settings.otherPlaces,
             labelScale: LABEL_SCALE[settings.labelSize],
             referencePoints: refs,
+            focusColors,
           });
           setProgress('Carregando o mapa em alta resolução…');
           await new Promise((r) => setTimeout(r, 400));
@@ -316,7 +485,11 @@ export function MapPdfDialog({
           .map((c) => ({ color: c.color, glyph: c.glyph, text: c.short })),
       ];
       if (showReferences && settings.referenceCategories.length > 0 && refs.length === 0) {
-        setNotice('O OpenStreetMap não tem pontos de referência com nome nesta área (ou não respondeu).');
+        setNotice(
+          refSource === 'nenhum'
+            ? 'Não consegui buscar os pontos de referência agora (OpenStreetMap fora do ar). O PDF saiu sem eles; tente de novo mais tarde.'
+            : 'Não há pontos de referência com nome cadastrados no OpenStreetMap nesta área.',
+        );
       }
 
       setProgress('Montando o PDF…');
@@ -436,23 +609,40 @@ export function MapPdfDialog({
   }
 
   const selectedMicroareas = microareas.filter((m) => settings.microareaIds.includes(m.id));
+  const missingChoice =
+    (settings.scope === 'bairro' && !settings.neighborhoodId) ||
+    (settings.scope === 'microareas' && settings.microareaIds.length === 0);
+  const autoLabel = scope.detected === 'rural' ? 'rural' : 'urbana';
+  const toggleCategory = (id: ReferenceCategory, on: boolean) =>
+    set(
+      'referenceCategories',
+      on ? [...settings.referenceCategories, id] : settings.referenceCategories.filter((x) => x !== id),
+    );
 
   return (
     <Dialog open={open} onClose={generating ? undefined : onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 0.5 }}>
         <PictureAsPdf color="primary" />
-        Mapa oficial em PDF
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="span" sx={{ fontWeight: 800, fontSize: 19, display: 'block' }}>
+            Mapa oficial em PDF
+          </Typography>
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ display: 'block' }}>
+            Três escolhas e pronto. O resto já vem no ponto; mude em «Mais opções» se quiser.
+          </Typography>
+        </Box>
         <Box sx={{ flex: 1 }} />
         <Button
           size="small"
           startIcon={<RestartAlt />}
           onClick={() => setSettings(DEFAULT_PDF_SETTINGS)}
           disabled={generating}
+          sx={{ flexShrink: 0 }}
         >
           Restaurar padrão
         </Button>
       </DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: '16px !important' }}>
         {homologReview && (
           <Alert severity="info" data-testid="pdf-homolog-review-hint">
             <strong>Revisão para homologação SMS:</strong> confira cores, limites e nomes antes de
@@ -462,27 +652,33 @@ export function MapPdfDialog({
 
         {paintedCount === 0 && (
           <Alert severity="warning">
-            Nenhuma rua foi pintada ainda. O PDF será gerado, mas ficará vazio até você vincular ruas
-            às microáreas.
+            Nenhuma rua foi pintada ainda. O PDF sai só com o mapa de ruas e as UBS; as cores das
+            microáreas aparecem depois que você pintar as ruas.
           </Alert>
         )}
 
-        <Section title="O que imprimir">
-          <Toggle
+        <Step n={1} title="O que vai na folha?" hint="Escolha a área que o mapa vai mostrar.">
+          <ChoiceCards
+            name="O que vai na folha"
             value={settings.scope}
             onChange={(v) => set('scope', v)}
             options={[
-              { value: 'municipio', label: 'Município inteiro' },
-              { value: 'bairro', label: 'Um bairro' },
-              { value: 'microareas', label: 'Microáreas escolhidas' },
+              { value: 'municipio', title: 'Município inteiro', text: 'Todas as microáreas numa folha só.', icon: <Public /> },
+              { value: 'bairro', title: 'Um bairro', text: 'Só as ruas e microáreas do bairro.', icon: <LocationCity /> },
+              {
+                value: 'microareas',
+                title: 'Microáreas escolhidas',
+                text: 'Uma ou mais microáreas, ex.: as da UBS Faveira.',
+                icon: <Category />,
+              },
             ]}
           />
           {settings.scope === 'bairro' && (
-            <FormControl fullWidth size="small">
-              <InputLabel>Bairro</InputLabel>
+            <FormControl fullWidth size="small" error={!settings.neighborhoodId}>
+              <InputLabel>Qual bairro?</InputLabel>
               <Select
                 value={settings.neighborhoodId}
-                label="Bairro"
+                label="Qual bairro?"
                 onChange={(e) => set('neighborhoodId', e.target.value)}
               >
                 {neighborhoods.map((n) => (
@@ -497,11 +693,32 @@ export function MapPdfDialog({
             <Autocomplete
               multiple
               size="small"
+              disableCloseOnSelect
               options={microareas}
               value={selectedMicroareas}
+              noOptionsText="Nenhuma microárea cadastrada"
               getOptionLabel={(m) => (m.acs?.name ? `${m.name} · ${m.acs.name}` : m.name)}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               onChange={(_, v) => set('microareaIds', v.map((m) => m.id))}
+              renderOption={(props, m, { selected }) => {
+                const { key, ...rest } = props as typeof props & { key: string };
+                return (
+                  <Box component="li" key={key} {...rest} sx={{ display: 'flex', gap: 1.25, alignItems: 'center' }}>
+                    <Checkbox size="small" checked={selected} sx={{ p: 0.25 }} />
+                    <Box sx={{ width: 14, height: 14, borderRadius: 0.5, bgcolor: m.color, flexShrink: 0 }} />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {m.name}
+                      </Typography>
+                      {(m.acs?.name || m.ubs?.name) && (
+                        <Typography variant="caption" color="text.secondary">
+                          {[m.acs?.name, m.ubs?.name].filter(Boolean).join(' · ')}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              }}
               renderValue={(value, getItemProps) =>
                 value.map((m, i) => {
                   const { key, ...rest } = getItemProps({ index: i });
@@ -516,242 +733,314 @@ export function MapPdfDialog({
                   );
                 })
               }
-              renderInput={(params) => <TextField {...params} label="Microáreas" placeholder="Escolha uma ou mais" />}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Quais microáreas?"
+                  placeholder={selectedMicroareas.length ? '' : 'Clique e marque uma ou mais'}
+                  error={selectedMicroareas.length === 0}
+                />
+              )}
             />
           )}
-        </Section>
+        </Step>
 
-        <Divider />
-
-        <Section title="Tipo de área">
-          <Toggle
+        <Step
+          n={2}
+          title="Que tipo de área é?"
+          hint="Muda o que aparece no mapa. No automático o sistema olha as ruas e os povoados da área."
+        >
+          <ChoiceCards
+            name="Tipo de área"
             value={settings.areaKind}
             onChange={(v) => set('areaKind', v)}
             options={[
-              { value: 'auto', label: `Automático (${scope.detected === 'rural' ? 'detectei: rural' : 'detectei: urbana'})` },
-              { value: 'rural', label: 'Zona rural' },
-              { value: 'urbana', label: 'Zona urbana' },
+              {
+                value: 'auto',
+                title: 'Automático',
+                text: 'O sistema decide pela área escolhida.',
+                icon: <AutoAwesome />,
+                badge: `zona ${autoLabel}`,
+              },
+              {
+                value: 'rural',
+                title: 'Zona rural',
+                text: 'Aproxima nas estradas e mostra o nome de cada povoado.',
+                icon: <Agriculture />,
+              },
+              {
+                value: 'urbana',
+                title: 'Zona urbana',
+                text: 'Aproxima nas ruas e mostra escolas, praças, igrejas…',
+                icon: <LocationCity />,
+              },
             ]}
           />
-          <Typography variant="caption" color="text.secondary">
-            {areaKind === 'rural'
-              ? 'Zona rural: o mapa aproxima nas estradas e povoados da área e mostra o nome de cada povoado.'
-              : 'Zona urbana: o mapa aproxima nas ruas e mostra pontos de referência (escolas, igrejas, praças…).'}
-          </Typography>
-        </Section>
+        </Step>
 
-        <Divider />
-
-        <Section title="O que aparece no mapa">
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Nomes dos povoados</InputLabel>
-              <Select
-                value={settings.placeLabels}
-                label="Nomes dos povoados"
-                onChange={(e) => set('placeLabels', e.target.value as PdfMapSettings['placeLabels'])}
-              >
-                <MenuItem value="area">Só os povoados da área</MenuItem>
-                <MenuItem value="todos">Todos os povoados</MenuItem>
-                <MenuItem value="nenhum">Nenhum nome</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Povoados de fora da área</InputLabel>
-              <Select
-                value={settings.otherPlaces}
-                label="Povoados de fora da área"
-                onChange={(e) => set('otherPlaces', e.target.value as PdfMapSettings['otherPlaces'])}
-              >
-                <MenuItem value="apagados">Apagados (cinza, sem destaque)</MenuItem>
-                <MenuItem value="normal">Normais</MenuItem>
-                <MenuItem value="esconder">Esconder</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Pontos de referência</InputLabel>
-              <Select
-                value={settings.references}
-                label="Pontos de referência"
-                onChange={(e) => set('references', e.target.value as PdfMapSettings['references'])}
-              >
-                <MenuItem value="auto">Automático (só na zona urbana)</MenuItem>
-                <MenuItem value="sim">Mostrar sempre</MenuItem>
-                <MenuItem value="nao">Não mostrar</MenuItem>
-              </Select>
-            </FormControl>
-            <Toggle
-              label="Tamanho dos nomes"
-              value={settings.labelSize}
-              onChange={(v) => set('labelSize', v)}
-              options={[
-                { value: 'p', label: 'Pequeno' },
-                { value: 'm', label: 'Médio' },
-                { value: 'g', label: 'Grande' },
-              ]}
-            />
-          </Box>
-          {showReferences && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, columnGap: 1 }}>
-              {REFERENCE_CATEGORIES.map((c) => (
-                <FormControlLabel
-                  key={c.id}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={settings.referenceCategories.includes(c.id)}
-                      onChange={(e) =>
-                        set(
-                          'referenceCategories',
-                          e.target.checked
-                            ? [...settings.referenceCategories, c.id]
-                            : settings.referenceCategories.filter((x) => x !== c.id),
-                        )
-                      }
-                    />
-                  }
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          bgcolor: c.color,
-                          color: '#fff',
-                          fontSize: 10,
-                          fontWeight: 800,
-                          display: 'grid',
-                          placeItems: 'center',
-                        }}
-                      >
-                        {c.glyph}
-                      </Box>
-                      <Typography variant="body2">{c.label}</Typography>
-                    </Box>
-                  }
-                />
-              ))}
-              <Typography variant="caption" color="text.secondary" sx={{ gridColumn: '1 / -1' }}>
-                Os pontos vêm do OpenStreetMap. As UBS cadastradas no SIGAPS sempre aparecem com o nome.
-              </Typography>
-            </Box>
-          )}
-        </Section>
-
-        <Divider />
-
-        <Section title="Enquadramento">
-          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-            <Toggle
-              label="O que cabe na folha"
-              value={settings.framing}
-              onChange={(v) => set('framing', v)}
-              options={[
-                { value: 'auto', label: 'Automático (a área escolhida)' },
-                { value: 'tela', label: 'O que está na tela agora' },
-              ]}
-            />
-            <Toggle
-              label="Margem em volta"
-              value={settings.margin}
-              onChange={(v) => set('margin', v)}
-              options={[
-                { value: 'justo', label: 'Justa' },
-                { value: 'normal', label: 'Normal' },
-                { value: 'folgado', label: 'Folgada' },
-              ]}
-            />
-          </Box>
-          {settings.framing === 'tela' && (
-            <Typography variant="caption" color="text.secondary">
-              Feche esta janela, arraste e dê zoom no mapa até ficar do jeito que você quer, e abra de
-              novo. O PDF mostra exatamente essa área, ajustada ao formato da folha.
-            </Typography>
-          )}
-        </Section>
-
-        <Divider />
-
-        <Section title="Folha">
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '180px 1fr' }, gap: 1.5 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Papel</InputLabel>
-              <Select
-                value={settings.format}
-                label="Papel"
-                onChange={(e) => set('format', e.target.value as PdfMapSettings['format'])}
-              >
-                <MenuItem value="a4">A4 horizontal</MenuItem>
-                <MenuItem value="a3">A3 horizontal (grande)</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              size="small"
-              label="Título"
-              placeholder={neighborhoodName && settings.scope === 'bairro' ? `Mapa de microáreas — ${neighborhoodName}` : DEFAULT_TITLE}
-              value={settings.title}
-              onChange={(e) => set('title', e.target.value)}
-              slotProps={{ htmlInput: { maxLength: 90 } }}
-            />
-          </Box>
+        <Step n={3} title="Papel e título">
+          <ChoiceCards
+            name="Papel"
+            value={settings.format}
+            onChange={(v) => set('format', v)}
+            options={[
+              { value: 'a4', title: 'A4 horizontal', text: 'Folha comum, impressora de escritório.', icon: <CropLandscape /> },
+              {
+                value: 'a3',
+                title: 'A3 horizontal',
+                text: 'O dobro do tamanho. Melhor para a parede da UBS.',
+                icon: <CropLandscape sx={{ fontSize: 30 }} />,
+              },
+            ]}
+          />
+          <TextField
+            size="small"
+            label="Título"
+            placeholder={
+              neighborhoodName && settings.scope === 'bairro' ? `Mapa de microáreas — ${neighborhoodName}` : DEFAULT_TITLE
+            }
+            helperText="Deixe vazio para usar o título padrão."
+            value={settings.title}
+            onChange={(e) => set('title', e.target.value)}
+            slotProps={{ htmlInput: { maxLength: 90 }, inputLabel: { shrink: true } }}
+          />
           <TextField
             size="small"
             label="Subtítulo (opcional)"
             placeholder="Ex.: Zona rural — UBS Faveira"
             value={settings.subtitle}
             onChange={(e) => set('subtitle', e.target.value)}
-            slotProps={{ htmlInput: { maxLength: 90 } }}
+            slotProps={{ htmlInput: { maxLength: 90 }, inputLabel: { shrink: true } }}
           />
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={settings.includeSignatures}
-                  onChange={(e) => set('includeSignatures', e.target.checked)}
-                />
-              }
-              label="Campos de assinatura"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox checked={settings.includeAnnex} onChange={(e) => set('includeAnnex', e.target.checked)} />
-              }
-              label="Quadro de microáreas e lista de ruas (folhas seguintes)"
-            />
+        </Step>
+
+        <Box
+          data-testid="pdf-summary"
+          sx={(t) => ({
+            p: 1.75,
+            borderRadius: 2,
+            bgcolor: alpha(t.palette.success.main, 0.08),
+            border: '1px solid',
+            borderColor: alpha(t.palette.success.main, 0.35),
+          })}
+        >
+          <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <CheckCircle color="success" sx={{ fontSize: 18 }} />
+            Como vai sair
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+            {summary.map((s) => (
+              <Chip key={s} size="small" label={s} variant="outlined" sx={{ bgcolor: 'background.paper' }} />
+            ))}
           </Box>
-          {municipality?.mapHomologatedAt && (
-            <Chip
-              color="success"
-              label={`Homologado SMS — ${new Date(municipality.mapHomologatedAt).toLocaleDateString('pt-BR')}`}
-              sx={{ alignSelf: 'flex-start' }}
-            />
-          )}
-        </Section>
+        </Box>
+
+        <Accordion
+          disableGutters
+          elevation={0}
+          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '8px !important', '&:before': { display: 'none' } }}
+        >
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Tune color="action" />
+              <Box>
+                <Typography sx={{ fontWeight: 700 }}>Mais opções</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Nomes, pontos de referência, enquadramento e assinaturas
+                </Typography>
+              </Box>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 0 }}>
+            <Section title="Nomes no mapa">
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Nomes dos povoados</InputLabel>
+                  <Select
+                    value={settings.placeLabels}
+                    label="Nomes dos povoados"
+                    onChange={(e) => set('placeLabels', e.target.value as PdfMapSettings['placeLabels'])}
+                  >
+                    <MenuItem value="area">Só os povoados da área</MenuItem>
+                    <MenuItem value="todos">Todos os povoados</MenuItem>
+                    <MenuItem value="nenhum">Nenhum nome</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Povoados de fora da área</InputLabel>
+                  <Select
+                    value={settings.otherPlaces}
+                    label="Povoados de fora da área"
+                    onChange={(e) => set('otherPlaces', e.target.value as PdfMapSettings['otherPlaces'])}
+                  >
+                    <MenuItem value="apagados">Apagados (cinza, sem destaque)</MenuItem>
+                    <MenuItem value="normal">Normais</MenuItem>
+                    <MenuItem value="esconder">Esconder</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Toggle
+                label="Tamanho dos nomes"
+                value={settings.labelSize}
+                onChange={(v) => set('labelSize', v)}
+                options={[
+                  { value: 'p', label: 'Pequeno' },
+                  { value: 'm', label: 'Médio' },
+                  { value: 'g', label: 'Grande' },
+                ]}
+              />
+            </Section>
+
+            <Divider />
+
+            <Section title="Pontos de referência">
+              <Toggle
+                value={settings.references}
+                onChange={(v) => set('references', v)}
+                options={[
+                  { value: 'auto', label: 'Automático (só na zona urbana)' },
+                  { value: 'sim', label: 'Mostrar sempre' },
+                  { value: 'nao', label: 'Não mostrar' },
+                ]}
+              />
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                  columnGap: 1,
+                  opacity: showReferences ? 1 : 0.45,
+                }}
+              >
+                {REFERENCE_CATEGORIES.map((c) => (
+                  <FormControlLabel
+                    key={c.id}
+                    disabled={!showReferences}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={settings.referenceCategories.includes(c.id)}
+                        onChange={(e) => toggleCategory(c.id, e.target.checked)}
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            bgcolor: c.color,
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 800,
+                            display: 'grid',
+                            placeItems: 'center',
+                          }}
+                        >
+                          {c.glyph}
+                        </Box>
+                        <Typography variant="body2">{c.label}</Typography>
+                      </Box>
+                    }
+                  />
+                ))}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {showReferences
+                  ? 'Os pontos vêm do OpenStreetMap (já guardados no sistema). As UBS do SIGAPS sempre aparecem com o nome.'
+                  : 'Desligados nesta folha. Para ligar, escolha «Mostrar sempre» ou a zona urbana no passo 2.'}
+              </Typography>
+            </Section>
+
+            <Divider />
+
+            <Section title="Enquadramento">
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                <Toggle
+                  label="O que cabe na folha"
+                  value={settings.framing}
+                  onChange={(v) => set('framing', v)}
+                  options={[
+                    { value: 'auto', label: 'A área escolhida (automático)' },
+                    { value: 'tela', label: 'O que está na tela agora' },
+                  ]}
+                />
+                <Toggle
+                  label="Margem em volta"
+                  value={settings.margin}
+                  onChange={(v) => set('margin', v)}
+                  options={[
+                    { value: 'justo', label: 'Justa' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'folgado', label: 'Folgada' },
+                  ]}
+                />
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {settings.framing === 'tela'
+                  ? 'Feche esta janela, arraste e dê zoom no mapa até ficar do jeito que você quer, e abra de novo. O PDF mostra exatamente essa área, ajustada ao formato da folha.'
+                  : 'O mapa aproxima sozinho até a área escolhida encher a folha. Margem justa = mais zoom.'}
+              </Typography>
+            </Section>
+
+            <Divider />
+
+            <Section title="Folhas e assinaturas">
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={settings.includeSignatures}
+                      onChange={(e) => set('includeSignatures', e.target.checked)}
+                    />
+                  }
+                  label="Campos de assinatura"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={settings.includeAnnex} onChange={(e) => set('includeAnnex', e.target.checked)} />
+                  }
+                  label="Quadro de microáreas e lista de ruas (folhas seguintes)"
+                />
+              </Box>
+              {municipality?.mapHomologatedAt && (
+                <Chip
+                  color="success"
+                  label={`Homologado SMS — ${new Date(municipality.mapHomologatedAt).toLocaleDateString('pt-BR')}`}
+                  sx={{ alignSelf: 'flex-start' }}
+                />
+              )}
+            </Section>
+          </AccordionDetails>
+        </Accordion>
 
         {error && <Alert severity="error">{error}</Alert>}
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 1.5 }}>
-        {generating && (
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 'auto' }}>
-            {progress}
-          </Typography>
-        )}
+      <DialogActions sx={{ px: 3, py: 1.5, gap: 1 }}>
+        <Typography
+          variant="body2"
+          color={missingChoice && !generating ? 'error' : 'text.secondary'}
+          sx={{ mr: 'auto' }}
+        >
+          {generating
+            ? progress
+            : missingChoice
+              ? settings.scope === 'bairro'
+                ? 'Escolha o bairro no passo 1.'
+                : 'Escolha pelo menos uma microárea no passo 1.'
+              : ''}
+        </Typography>
         <Button onClick={onClose} disabled={generating}>
           Cancelar
         </Button>
         <Button
           variant="contained"
+          size="large"
           onClick={handleGenerate}
-          disabled={
-            generating ||
-            !municipality ||
-            (settings.scope === 'bairro' && !settings.neighborhoodId) ||
-            (settings.scope === 'microareas' && settings.microareaIds.length === 0)
-          }
+          disabled={generating || !municipality || missingChoice}
           startIcon={generating ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdf />}
         >
-          {generating ? 'Gerando PDF...' : 'Gerar e visualizar'}
+          {generating ? 'Gerando PDF…' : 'Gerar e visualizar'}
         </Button>
       </DialogActions>
     </Dialog>
