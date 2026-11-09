@@ -1,4 +1,5 @@
 import type L from 'leaflet';
+import { layoutPdfLabels } from './pdfLabelLayout';
 import { useMapStore } from '../store';
 
 export type MapCaptureResult = {
@@ -147,6 +148,8 @@ export async function captureMapForPdf(map: L.Map, options: PdfCaptureOptions): 
 
     if (options.beforeCapture) await options.beforeCapture(map.getBounds());
     await waitForTiles(el);
+    // Nomes que se cobrem mudam de lado antes da foto.
+    layoutPdfLabels(el);
 
     const html2canvas = (await import('html2canvas')).default;
     const canvas = await html2canvas(el, {

@@ -24,10 +24,10 @@ function labeledIcon(opts: { name: string; glyph: string; color: string; scale: 
   return L.divIcon({
     className: 'pdf-ref-marker',
     html: `<div style="position:relative;width:${dot}px;height:${dot}px;">
-      <div style="width:${dot}px;height:${dot}px;background:${color};border:2px solid #fff;border-radius:50%;
+      <div class="pdf-dot" style="width:${dot}px;height:${dot}px;background:${color};border:2px solid #fff;border-radius:50%;
         box-shadow:0 1px 4px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;
         color:#fff;font:800 ${Math.round(dot * 0.55)}px/1 Arial,sans-serif;">${glyph}</div>
-      <div style="position:absolute;top:${dot + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;
+      <div class="pdf-label" data-prio="${strong ? 2 : 0}" style="position:absolute;top:${dot + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;
         font:${strong ? 800 : 700} ${font}px/1.15 Arial,sans-serif;color:${strong ? color : '#37474f'};
         text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 3px #fff;">${escapeHtml(name)}</div>
     </div>`,

@@ -361,7 +361,7 @@ export function MapPdfDialog({
         s = Math.min(s, p.latitude); n = Math.max(n, p.latitude); w = Math.min(w, p.longitude); e = Math.max(e, p.longitude);
       }
       const count = s <= n ? countBundledReferencePoints([s, w, n, e] as Bbox, settings.referenceCategories) : null;
-      items.push(
+      if (s <= n) items.push(
         count == null
           ? 'Pontos de referência (OpenStreetMap)'
           : count === 0
@@ -406,7 +406,12 @@ export function MapPdfDialog({
         ? REFERENCE_CATEGORIES.filter((c) => settings.referenceCategories.includes(c.id))
         : [];
       const baseLegend: LegendSymbol[] = [];
-      if (places.length > 0 && (settings.placeLabels !== 'nenhum' || areaKind === 'rural')) {
+      // Povoado na legenda só quando aparece algum na folha (no mapa urbano não costuma ter).
+      const placesOnSheet =
+        settings.otherPlaces !== 'esconder' && settings.scope === 'municipio'
+          ? places.length
+          : scope.scopedPlaces.length + (settings.placeLabels === 'todos' && areaKind === 'rural' ? places.length : 0);
+      if (placesOnSheet > 0) {
         baseLegend.push({ color: '#6D4C41', glyph: '⌂', text: 'Povoado (na cor da microárea)' });
       }
       if (ubsList.length > 0) baseLegend.push({ color: '#1565C0', glyph: '+', text: 'UBS' });
@@ -675,8 +680,9 @@ export function MapPdfDialog({
           />
           {settings.scope === 'bairro' && (
             <FormControl fullWidth size="small" error={!settings.neighborhoodId}>
-              <InputLabel>Qual bairro?</InputLabel>
+              <InputLabel id="pdf-bairro-label">Qual bairro?</InputLabel>
               <Select
+                labelId="pdf-bairro-label"
                 value={settings.neighborhoodId}
                 label="Qual bairro?"
                 onChange={(e) => set('neighborhoodId', e.target.value)}
@@ -688,6 +694,12 @@ export function MapPdfDialog({
                 ))}
               </Select>
             </FormControl>
+          )}
+          {settings.scope === 'bairro' && settings.neighborhoodId && scope.scopedStreets.length === 0 && (
+            <Alert severity="warning">
+              Nenhuma rua está ligada a este bairro ainda, então a folha sairia vazia. Ligue as ruas ao
+              bairro em Cadastros ou escolha «Microáreas escolhidas».
+            </Alert>
           )}
           {settings.scope === 'microareas' && (
             <Autocomplete
@@ -814,27 +826,6 @@ export function MapPdfDialog({
           />
         </Step>
 
-        <Box
-          data-testid="pdf-summary"
-          sx={(t) => ({
-            p: 1.75,
-            borderRadius: 2,
-            bgcolor: alpha(t.palette.success.main, 0.08),
-            border: '1px solid',
-            borderColor: alpha(t.palette.success.main, 0.35),
-          })}
-        >
-          <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <CheckCircle color="success" sx={{ fontSize: 18 }} />
-            Como vai sair
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-            {summary.map((s) => (
-              <Chip key={s} size="small" label={s} variant="outlined" sx={{ bgcolor: 'background.paper' }} />
-            ))}
-          </Box>
-        </Box>
-
         <Accordion
           disableGutters
           elevation={0}
@@ -855,8 +846,9 @@ export function MapPdfDialog({
             <Section title="Nomes no mapa">
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
                 <FormControl size="small" fullWidth>
-                  <InputLabel>Nomes dos povoados</InputLabel>
+                  <InputLabel id="pdf-nomes-label">Nomes dos povoados</InputLabel>
                   <Select
+                    labelId="pdf-nomes-label"
                     value={settings.placeLabels}
                     label="Nomes dos povoados"
                     onChange={(e) => set('placeLabels', e.target.value as PdfMapSettings['placeLabels'])}
@@ -867,8 +859,9 @@ export function MapPdfDialog({
                   </Select>
                 </FormControl>
                 <FormControl size="small" fullWidth>
-                  <InputLabel>Povoados de fora da área</InputLabel>
+                  <InputLabel id="pdf-fora-label">Povoados de fora da área</InputLabel>
                   <Select
+                    labelId="pdf-fora-label"
                     value={settings.otherPlaces}
                     label="Povoados de fora da área"
                     onChange={(e) => set('otherPlaces', e.target.value as PdfMapSettings['otherPlaces'])}
@@ -1016,32 +1009,50 @@ export function MapPdfDialog({
 
         {error && <Alert severity="error">{error}</Alert>}
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 1.5, gap: 1 }}>
-        <Typography
-          variant="body2"
-          color={missingChoice && !generating ? 'error' : 'text.secondary'}
-          sx={{ mr: 'auto' }}
-        >
-          {generating
-            ? progress
-            : missingChoice
-              ? settings.scope === 'bairro'
-                ? 'Escolha o bairro no passo 1.'
-                : 'Escolha pelo menos uma microárea no passo 1.'
-              : ''}
-        </Typography>
-        <Button onClick={onClose} disabled={generating}>
-          Cancelar
-        </Button>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={handleGenerate}
-          disabled={generating || !municipality || missingChoice}
-          startIcon={generating ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdf />}
-        >
-          {generating ? 'Gerando PDF…' : 'Gerar e visualizar'}
-        </Button>
+      <DialogActions
+        sx={{ px: 3, py: 1.5, gap: 1.5, flexDirection: 'column', alignItems: 'stretch', borderTop: '1px solid', borderColor: 'divider' }}
+      >
+        <Box data-testid="pdf-summary" sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75 }}>
+          <Typography sx={{ fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
+            <CheckCircle color="success" sx={{ fontSize: 17 }} />
+            Como vai sair:
+          </Typography>
+          {missingChoice && (
+            <Typography variant="body2" color="text.secondary">
+              aparece aqui depois da escolha do passo 1.
+            </Typography>
+          )}
+          {!missingChoice && summary.map((s) => (
+            <Chip key={s} size="small" label={s} variant="outlined" sx={{ height: 22, fontSize: 12 }} />
+          ))}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, m: '0 !important' }}>
+          <Typography
+            variant="body2"
+            color={missingChoice && !generating ? 'error' : 'text.secondary'}
+            sx={{ mr: 'auto', fontWeight: missingChoice ? 700 : 400 }}
+          >
+            {generating
+              ? progress
+              : missingChoice
+                ? settings.scope === 'bairro'
+                  ? 'Escolha o bairro no passo 1.'
+                  : 'Escolha pelo menos uma microárea no passo 1.'
+                : ''}
+          </Typography>
+          <Button onClick={onClose} disabled={generating}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={handleGenerate}
+            disabled={generating || !municipality || missingChoice}
+            startIcon={generating ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdf />}
+          >
+            {generating ? 'Gerando PDF…' : 'Gerar e visualizar'}
+          </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );

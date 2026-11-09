@@ -69,14 +69,14 @@ function pdfPlaceIcon(place: Place, opts: { inArea: boolean; showLabel: boolean;
   const dot = Math.round((inArea ? 24 : 18) * scale);
   const font = Math.round((inArea ? 13 : 10) * scale);
   const label = showLabel
-    ? `<div style="position:absolute;top:${dot + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;
+    ? `<div class="pdf-label" data-prio="${inArea ? 3 : 1}" style="position:absolute;top:${dot + 2}px;left:50%;transform:translateX(-50%);white-space:nowrap;
         font:${inArea ? 800 : 600} ${font}px/1.15 Arial,sans-serif;color:${inArea ? '#3e2723' : '#6d6d6d'};
         text-shadow:-1.5px -1.5px 0 #fff,1.5px -1.5px 0 #fff,-1.5px 1.5px 0 #fff,1.5px 1.5px 0 #fff,0 0 4px #fff;">${escapeHtml(place.name)}</div>`
     : '';
   return L.divIcon({
     className: 'place-map-marker',
     html: `<div style="position:relative;width:${dot}px;height:${dot}px;opacity:${inArea ? 1 : 0.5};">
-      <div style="width:${dot}px;height:${dot}px;background:${inArea ? color : '#8d8d8d'};border:${inArea ? 3 : 2}px solid #fff;
+      <div class="pdf-dot" style="width:${dot}px;height:${dot}px;background:${inArea ? color : '#8d8d8d'};border:${inArea ? 3 : 2}px solid #fff;
         border-radius:50%;box-shadow:0 1px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;
         color:#fff;font:800 ${Math.round(dot * 0.5)}px/1 Arial,sans-serif;">${style.glyph}</div>${label}
     </div>`,

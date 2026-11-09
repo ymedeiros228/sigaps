@@ -203,7 +203,8 @@ function buildMicroareaRows(microareas: Microarea[], streets: Street[]): Microar
       return {
         microarea,
         streets: maStreets,
-        streetCount: maStreets.length,
+        // A mesma rua costuma vir em vários trechos do OpenStreetMap: conta pelo nome.
+        streetCount: new Set(maStreets.map(formatStreetLabel)).size,
         familyCount: maStreets.reduce((sum, s) => sum + (s.familyCount ?? 0), 0),
         inhabitantCount: maStreets.reduce((sum, s) => sum + (s.inhabitantCount ?? 0), 0),
       };
@@ -569,10 +570,9 @@ function microareaName(microareas: Microarea[], id?: string): string {
   return microareas.find((m) => m.id === id)?.name ?? '—';
 }
 
-/** "35 fam. · só lado esquerdo (direito: Microárea 02)" — o que ajuda a achar a rua no campo. */
-function streetNote(street: Street, microareaId: string, microareas: Microarea[]): string {
+/** "só lado esquerdo (direito: Microárea 02)" — o que ajuda a achar a rua no campo. */
+function streetSideNotes(street: Street, microareaId: string, microareas: Microarea[]): string[] {
   const parts: string[] = [];
-  if ((street.familyCount ?? 0) > 0) parts.push(`${street.familyCount} fam.`);
   const a = getStreetSideAssignment(street);
   if (a.mode === 'SPLIT') {
     if (a.leftMicroareaId === microareaId && a.rightMicroareaId !== microareaId) {
@@ -591,7 +591,26 @@ function streetNote(street: Street, microareaId: string, microareas: Microarea[]
   } else if (a.mode === 'NONE' && street.microareaId !== microareaId) {
     parts.push('trecho');
   }
-  return parts.join(' · ');
+  return parts;
+}
+
+/**
+ * Uma linha por nome de rua: os trechos da mesma rua viram uma linha só, somando
+ * as famílias. Ex.: "Rua da Palmeira  12 fam. · só lado esquerdo".
+ */
+function streetListEntries(streets: Street[], microareaId: string, microareas: Microarea[]) {
+  const byName = new Map<string, { label: string; families: number; notes: Set<string> }>();
+  for (const street of streets) {
+    const label = formatStreetLabel(street);
+    const entry = byName.get(label) ?? { label, families: 0, notes: new Set<string>() };
+    entry.families += street.familyCount ?? 0;
+    for (const n of streetSideNotes(street, microareaId, microareas)) entry.notes.add(n);
+    byName.set(label, entry);
+  }
+  return [...byName.values()].map((e) => ({
+    label: e.label,
+    note: [e.families > 0 ? `${e.families} fam.` : null, ...e.notes].filter(Boolean).join(' · '),
+  }));
 }
 
 function drawStreetLists(flow: Flow, rows: MicroareaRow[], microareas: Microarea[], continuing: string) {
@@ -604,7 +623,8 @@ function drawStreetLists(flow: Flow, rows: MicroareaRow[], microareas: Microarea
   const barH = isA3 ? 6 : 5.4;
   const size = isA3 ? 7 : 6.4;
 
-  for (const { microarea, streets, streetCount, familyCount } of rows) {
+  for (const { microarea, streets: rawStreets, streetCount, familyCount } of rows) {
+    const streets = streetListEntries(rawStreets, microarea.id, microareas);
     const color = hexToRgb(microarea.color);
     let index = 0;
     let first = true;
@@ -637,13 +657,11 @@ function drawStreetLists(flow: Flow, rows: MicroareaRow[], microareas: Microarea
       const rowsFit = Math.max(1, Math.floor((flow.maxY - flow.y) / lineH));
       const chunk = streets.slice(index, index + rowsFit * cols);
       const rowsInChunk = Math.ceil(chunk.length / cols);
-      chunk.forEach((street, i) => {
+      chunk.forEach(({ label, note }, i) => {
         const col = Math.floor(i / rowsInChunk);
         const row = i % rowsInChunk;
         const x = margin + col * (colW + gap);
         const y = flow.y + row * lineH;
-        const label = formatStreetLabel(street);
-        const note = streetNote(street, microarea.id, microareas);
         setText(pdf, INK, size);
         const shownLabel = truncate(pdf, label, colW - (note ? 22 : 2));
         pdf.text(shownLabel, x, y);
